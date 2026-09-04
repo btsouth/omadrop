@@ -385,3 +385,6 @@ Completed after v0.3:
 - Added active-playback, pause, resume, seek, and track-change clock tests.
   Extracted paired-display transport from the live loop with atomic state,
   music, and focused-monitor control-request coverage.
+- Added a two-display launcher harness that verifies readiness barriers,
+  per-PID monitor routing, fullscreen placement, synchronized reveal, sibling
+  shutdown, and runtime-file cleanup without opening real windows.

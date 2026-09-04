@@ -4,6 +4,7 @@ root=$(dirname "$(dirname "$(readlink -f "$0")")")
 runtime_dir=${XDG_RUNTIME_DIR:-/tmp}/omadrop
 pair_state=$runtime_dir/pair-state
 start_gate=$runtime_dir/start-gate
+hyprctl_command=${OMADROP_HYPRCTL:-hyprctl}
 
 case ${1:-} in
   --version)
@@ -29,22 +30,22 @@ if [[ ${1:-} == --toggle-secondary ]]; then
   [[ -r $pid_file ]] || exit 0
   pid=$(<"$pid_file")
   kill -0 "$pid" 2>/dev/null || exit 0
-  client=$(hyprctl clients -j 2>/dev/null | jq -c --argjson pid "$pid" \
+  client=$("$hyprctl_command" clients -j 2>/dev/null | jq -c --argjson pid "$pid" \
     '.[] | select(.pid == $pid)' | head -n 1)
   [[ -n $client ]] || exit 0
   workspace_name=$(jq -r '.workspace.name' <<<"$client")
   if [[ $workspace_name == special:omadrop-secondary-hidden ]]; then
     [[ -r $state_file ]] || exit 0
     read -r monitor workspace <"$state_file"
-    hyprctl eval "hl.dispatch(hl.dsp.window.move({ workspace = '$workspace', window = 'pid:$pid' }))" >/dev/null
-    hyprctl eval "hl.dispatch(hl.dsp.window.move({ monitor = '$monitor', window = 'pid:$pid' }))" >/dev/null
-    hyprctl eval "hl.dispatch(hl.dsp.window.fullscreen({ mode = 'fullscreen', action = 'set', window = 'pid:$pid' }))" >/dev/null
+    "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.move({ workspace = '$workspace', window = 'pid:$pid' }))" >/dev/null
+    "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.move({ monitor = '$monitor', window = 'pid:$pid' }))" >/dev/null
+    "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.fullscreen({ mode = 'fullscreen', action = 'set', window = 'pid:$pid' }))" >/dev/null
   else
     monitor_id=$(jq -r '.monitor' <<<"$client")
-    monitor=$(hyprctl monitors -j | jq -r --argjson id "$monitor_id" '.[] | select(.id == $id) | .name')
+    monitor=$("$hyprctl_command" monitors -j | jq -r --argjson id "$monitor_id" '.[] | select(.id == $id) | .name')
     workspace=$(jq -r '.workspace.id' <<<"$client")
     printf '%s %s\n' "$monitor" "$workspace" >"$state_file"
-    hyprctl eval "hl.dispatch(hl.dsp.window.move({ workspace = 'special:omadrop-secondary-hidden', window = 'pid:$pid' }))" >/dev/null
+    "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.move({ workspace = 'special:omadrop-secondary-hidden', window = 'pid:$pid' }))" >/dev/null
   fi
   exit 0
 fi
@@ -62,7 +63,8 @@ if [[ ${OMADROP_LEGACY:-0} == 1 ]]; then
   exec qs -p "$root/shell.qml" "$@"
 fi
 
-live="$root/experiments/projectm-ascii/projectm-ascii-live"
+live=${OMADROP_LIVE_EXECUTABLE:-$root/experiments/projectm-ascii/projectm-ascii-live}
+runner=${OMADROP_RUN_CURATED:-$root/experiments/projectm-ascii/run-curated.sh}
 [[ -x $live ]] || {
   echo "omadrop: unified renderer is not built; run ./experiments/projectm-ascii/build.sh" >&2
   exit 1
@@ -81,10 +83,10 @@ export OMADROP_FULLSCREEN=${OMADROP_FULLSCREEN:-1}
 export OMADROP_RANDOM_SEED=${OMADROP_RANDOM_SEED:-$(((RANDOM << 16) ^ RANDOM))}
 if [[ $monitor_mode == single ]]; then
   export OMADROP_DISPLAY_INDEX=${OMADROP_DISPLAY_INDEX:-0}
-  exec "$root/experiments/projectm-ascii/run-curated.sh" "$@"
+  exec "$runner" "$@"
 fi
 
-mapfile -t monitor_names < <(hyprctl monitors -j 2>/dev/null | jq -r 'sort_by(.id)[].name' 2>/dev/null)
+mapfile -t monitor_names < <("$hyprctl_command" monitors -j 2>/dev/null | jq -r 'sort_by(.id)[].name' 2>/dev/null)
 display_count=${#monitor_names[@]}
 if [[ ! $display_count =~ ^[1-9][0-9]*$ ]]; then
   display_count=1
@@ -111,14 +113,14 @@ for ((display_index = 0; display_index < display_count; display_index++)); do
   OMADROP_DISPLAY_INDEX=$display_index OMADROP_FULLSCREEN=0 \
     OMADROP_BORDERLESS=1 OMADROP_START_GATE=$start_gate \
     OMADROP_PAIR_STATE=$pair_state OMADROP_PAIR_ROLE=$pair_role \
-    "$root/experiments/projectm-ascii/run-curated.sh" "$@" &
+    "$runner" "$@" &
   pids+=("$!")
   printf '%s\n' "$!" >"$runtime_dir/display-$display_index.pid"
 done
 
 # SDL's Wayland backend cannot choose a Hyprland output. Route each window by
 # its exact PID after the album-art preload reveals it, then make it fullscreen.
-if command -v hyprctl >/dev/null && [[ -n ${monitor_names[0]} ]]; then
+if command -v "$hyprctl_command" >/dev/null && [[ -n ${monitor_names[0]} ]]; then
   for ((display_index = 0; display_index < display_count; display_index++)); do
     pid=${pids[$display_index]}
     for ((attempt = 0; attempt < 100; attempt++)); do
@@ -127,23 +129,23 @@ if command -v hyprctl >/dev/null && [[ -n ${monitor_names[0]} ]]; then
       sleep 0.1
     done
     for ((attempt = 0; attempt < 80; attempt++)); do
-      if hyprctl clients -j 2>/dev/null | jq -e --argjson pid "$pid" \
+      if "$hyprctl_command" clients -j 2>/dev/null | jq -e --argjson pid "$pid" \
         'any(.[]; .pid == $pid)' >/dev/null; then
         break
       fi
       sleep 0.1
     done
     monitor=${monitor_names[$display_index]}
-    monitor_id=$(hyprctl monitors -j | jq -r --arg name "$monitor" '.[] | select(.name == $name) | .id')
+    monitor_id=$("$hyprctl_command" monitors -j | jq -r --arg name "$monitor" '.[] | select(.name == $name) | .id')
     confirmed=0
     for ((attempt = 0; attempt < 30 && confirmed < 3; attempt++)); do
-      hyprctl eval "hl.dispatch(hl.dsp.window.move({ monitor = '$monitor', window = 'pid:$pid' }))" \
+      "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.move({ monitor = '$monitor', window = 'pid:$pid' }))" \
         >/dev/null 2>&1 || true
       if [[ $OMADROP_FULLSCREEN != 0 ]]; then
-        hyprctl eval "hl.dispatch(hl.dsp.window.fullscreen({ mode = 'fullscreen', action = 'set', window = 'pid:$pid' }))" \
+        "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.fullscreen({ mode = 'fullscreen', action = 'set', window = 'pid:$pid' }))" \
           >/dev/null 2>&1 || true
       fi
-      if hyprctl clients -j 2>/dev/null | jq -e --argjson pid "$pid" --argjson monitor "$monitor_id" \
+      if "$hyprctl_command" clients -j 2>/dev/null | jq -e --argjson pid "$pid" --argjson monitor "$monitor_id" \
         --argjson fullscreen "$([[ $OMADROP_FULLSCREEN != 0 ]] && printf 2 || printf 0)" \
         'any(.[]; .pid == $pid and .monitor == $monitor and .fullscreen == $fullscreen)' >/dev/null; then
         ((confirmed += 1))

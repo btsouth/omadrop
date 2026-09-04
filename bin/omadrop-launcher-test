@@ -1,0 +1,54 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-launcher-test.XXXXXX")
+cleanup() {
+  rm -rf -- "$scratch"
+}
+trap cleanup EXIT
+
+mkdir -p "$scratch/runtime"
+events=$scratch/events.log
+processes=$scratch/processes.log
+hypr_log=$scratch/hypr.log
+touch "$events" "$processes" "$hypr_log"
+
+XDG_RUNTIME_DIR=$scratch/runtime \
+OMADROP_HYPRCTL=$root/experiments/projectm-ascii/fixtures/fake-hyprctl \
+OMADROP_LIVE_EXECUTABLE=$root/experiments/projectm-ascii/fixtures/fake-launch-renderer \
+OMADROP_RUN_CURATED=$root/experiments/projectm-ascii/fixtures/fake-launch-renderer \
+OMADROP_TEST_EVENT_LOG=$events \
+OMADROP_TEST_PROCESS_FILE=$processes \
+OMADROP_TEST_HYPR_LOG=$hypr_log \
+OMADROP_FULLSCREEN=1 \
+  "$root/bin/omadrop" --all
+
+for index in 0 1; do
+  grep -q "^ready $index$" "$events"
+  grep -q "^revealed $index$" "$events"
+done
+first_reveal=$(grep -n '^revealed ' "$events" | head -n 1 | cut -d: -f1)
+for index in 0 1; do
+  ready=$(grep -n "^ready $index$" "$events" | head -n 1 | cut -d: -f1)
+  ((ready < first_reveal))
+done
+
+while read -r pid index; do
+  monitor=DP-1
+  ((index == 0)) || monitor=HDMI-A-1
+  grep -Fq "monitor = '$monitor', window = 'pid:$pid'" "$hypr_log"
+  grep -Fq "mode = 'fullscreen', action = 'set', window = 'pid:$pid'" "$hypr_log"
+done <"$processes"
+
+runtime=$scratch/runtime/omadrop
+[[ ! -e $runtime/pair-state ]]
+[[ ! -e $runtime/pair-state.request ]]
+[[ ! -e $runtime/pair-state.music ]]
+[[ ! -e $runtime/start-gate ]]
+if compgen -G "$runtime/display-*.pid" >/dev/null; then
+  echo "launcher test: display pid files were not cleaned" >&2
+  exit 1
+fi
+
+echo "launcher synchronization passed"

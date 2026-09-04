@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euo pipefail
+
+index=${OMADROP_DISPLAY_INDEX:?}
+gate=${OMADROP_START_GATE:?}
+events=${OMADROP_TEST_EVENT_LOG:?}
+processes=${OMADROP_TEST_PROCESS_FILE:?}
+
+printf '%s %s\n' "$$" "$index" >>"$processes"
+printf 'ready %s\n' "$index" >>"$events"
+touch "$gate.$index.ready"
+
+terminated=0
+finish() {
+  if ((terminated == 0)); then
+    terminated=1
+    printf 'terminated %s\n' "$index" >>"$events"
+  fi
+  exit 0
+}
+trap finish TERM INT
+
+while [[ ! -e $gate ]]; do sleep 0.01; done
+printf 'revealed %s\n' "$index" >>"$events"
+if ((index == 1)); then
+  sleep 0.15
+  printf 'exited %s\n' "$index" >>"$events"
+  exit 0
+fi
+while :; do sleep 0.05; done

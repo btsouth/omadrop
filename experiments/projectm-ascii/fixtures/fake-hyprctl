@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+case ${1:-} in
+  monitors)
+    printf '[{"id":0,"name":"DP-1"},{"id":1,"name":"HDMI-A-1"}]\n'
+    ;;
+  clients)
+    printf '['
+    first=1
+    while read -r pid index; do
+      ((first)) || printf ','
+      first=0
+      printf '{"pid":%s,"monitor":%s,"fullscreen":2,"workspace":{"id":%s,"name":"%s"}}' \
+        "$pid" "$index" "$((index + 1))" "$((index + 1))"
+    done <"${OMADROP_TEST_PROCESS_FILE:?}"
+    printf ']\n'
+    ;;
+  eval)
+    printf '%s\n' "${2:-}" >>"${OMADROP_TEST_HYPR_LOG:?}"
+    ;;
+  *)
+    exit 2
+    ;;
+esac

@@ -21,7 +21,13 @@ Run the native music-contract and render audits with:
 ./experiments/projectm-ascii/paired-transport-test
 ./experiments/projectm-ascii/native-scene-state-test
 ./experiments/projectm-ascii/native-renderer-test ./shaders/native
+./bin/omadrop-launcher-test
 ```
+
+The launcher test uses two deterministic fake displays and renderers. It
+verifies that both windows become ready before either is revealed, each PID is
+routed to the intended monitor and made fullscreen, the first exit terminates
+its sibling, and all runtime synchronization files are removed.
 
 Pass an optional output directory to `native-renderer-test` to write one
 deterministic continuous frame and one production-equivalent ASCII frame per
