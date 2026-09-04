@@ -24,10 +24,23 @@ NativeSceneKind automaticChoice(MusicFrame music) {
     assert(chosen.transitioning);
     return chosen.incomingScene;
 }
+
+NativeSceneKind automaticChoiceFrom(NativeSceneKind current, MusicFrame music) {
+    NativeSceneDirector director;
+    director.selectScene(current);
+    music.bpm = 120.0f;
+    for (int frame = 0; frame < 520; ++frame) {
+        director.update(music, 1.0f / 60.0f);
+    }
+    music.section = 1.0f;
+    const NativeSceneState chosen = director.update(music, 1.0f / 60.0f);
+    assert(chosen.transitioning);
+    return chosen.incomingScene;
+}
 }
 
 int main() {
-    assert(nativeSceneRegistryVersion == 12);
+    assert(nativeSceneRegistryVersion == 13);
     std::set<std::string> sceneSlugs;
     std::set<std::string> sceneShaders;
     for (std::size_t index = 0; index < nativeSceneRegistry.size(); ++index) {
@@ -45,6 +58,11 @@ int main() {
     assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Flow) == 2);
     assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Sparse) == 6);
     assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Selective) == 10);
+    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Radial) == 4);
+    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Filament) == 3);
+    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Depth) == 2);
+    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Vertical) == 2);
+    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Landscape) == 2);
     NativeSceneKind parsedScene = NativeSceneKind::DepthTunnel;
     assert(nativeSceneFromName("wire", parsedScene));
     assert(parsedScene == NativeSceneKind::WireOrganism);
@@ -287,6 +305,30 @@ int main() {
     sparseBright.stereoWidth = 0.76f;
     assert(automaticChoice(sparseBright)
            == NativeSceneKind::ConstellationField);
+
+    MusicFrame radialMatch;
+    radialMatch.energyFast = 0.82f;
+    radialMatch.energySlow = 0.82f;
+    radialMatch.percussive = 0.86f;
+    radialMatch.harmonic = 0.28f;
+    radialMatch.spectralCentroid = 0.66f;
+    radialMatch.stereoWidth = 0.44f;
+    const NativeSceneKind afterRadial = automaticChoiceFrom(
+        NativeSceneKind::Centrifuge, radialMatch);
+    assert(nativeSceneDefinition(afterRadial).visualFamily
+           != NativeVisualFamily::Radial);
+
+    MusicFrame landscapeMatch;
+    landscapeMatch.energyFast = 0.34f;
+    landscapeMatch.energySlow = 0.34f;
+    landscapeMatch.percussive = 0.24f;
+    landscapeMatch.harmonic = 0.84f;
+    landscapeMatch.spectralCentroid = 0.20f;
+    landscapeMatch.stereoWidth = 0.66f;
+    const NativeSceneKind afterLandscape = automaticChoiceFrom(
+        NativeSceneKind::TidalGrid, landscapeMatch);
+    assert(nativeSceneDefinition(afterLandscape).visualFamily
+           != NativeVisualFamily::Landscape);
 
     NativeSceneDirector fallbackDirector;
     MusicFrame fallbackMusic;

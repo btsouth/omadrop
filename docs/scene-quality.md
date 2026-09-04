@@ -41,6 +41,10 @@ ship decision.
    with the same regression discipline as the renderer.
 4. Add new scenes only when their composition and motion grammar are clearly
    different from this matrix.
+5. Treat radial, filament, depth, vertical, landscape, network, minimal, fluid,
+   faceted, and cellular compositions as distinct visual families. Automatic
+   direction should not repeat a recent family merely because its audio traits
+   are a slightly closer match.
 
 ## Motion grammar
 

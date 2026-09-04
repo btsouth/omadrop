@@ -506,6 +506,11 @@ Completed after v0.3:
   grayscale, high-exposure ASCII, six album palettes, the 90-combination replay
   suite, and a 3,600-frame 1080p soak pass with zero pulse-duty activity in
   every profile and no slow-frame streak.
+- Added visual-family metadata to all 18 scenes. Automatic selection now adds
+  a recency penalty for radial, filament, depth, vertical, landscape, network,
+  minimal, fluid, faceted, and cellular repetition while manual scene requests
+  and motif recall remain exact. Deterministic director tests cover radial and
+  landscape spacing under audio that would otherwise favor repetition.
 - Added five native transition grammars selected from scene compatibility:
   flow carry, focal morph, depth travel, controlled fracture, and
   negative-space reveal. The four post-v0.3 scenes have explicit authored

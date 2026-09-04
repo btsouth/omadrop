@@ -18,6 +18,8 @@
   timing, floor, incision, suspension, and structural responses.
 - Add Paper Horizon, a fixed cut-paper landscape with separate ridge, tear,
   star, lantern, moon, and section responses.
+- Classify every scene by visual family and make automatic selection avoid
+  recently shown families without changing manual navigation or motif recall.
 - Choose native transitions from scene compatibility, with separate flow,
   focal, depth, fracture, and negative-space paths.
 - Add a hidden production-compositor gallery test for deterministic transition

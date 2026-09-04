@@ -254,9 +254,11 @@ production audio, artwork, palette, ASCII, and windowing paths through
 Omadrop's HDR feedback backend. Press `N` or `P` to transition between scenes.
 Their versioned definitions live in `native_scene_registry.h`. A definition
 owns the scene's identity, shader, materials, declared musical roles, selection
-traits, transition anchor, and performance limit. The renderer and director
-both consume this registry, so a scene does not require a separate hardcoded
-shader or selection entry.
+traits, visual family, transition anchor, and performance limit. The renderer
+and director both consume this registry, so a scene does not require a separate
+hardcoded shader or selection entry. Automatic selection penalizes the visual
+families used by recent scenes while preserving exact manual navigation and
+motif recall.
 
 The native transition test extracts the production compositor shader, renders
 all five authored transition grammars in a hidden OpenGL context, and verifies

@@ -27,7 +27,7 @@ enum class NativeSceneKind : std::uint8_t {
 };
 
 inline constexpr std::size_t nativeSceneCount = 18;
-inline constexpr unsigned int nativeSceneRegistryVersion = 12;
+inline constexpr unsigned int nativeSceneRegistryVersion = 13;
 
 enum class NativeTransitionAnchor : std::uint8_t {
     Center,
@@ -40,6 +40,19 @@ enum class NativeMotionGrammar : std::uint8_t {
     Sparse,
     Selective,
     Flow,
+};
+
+enum class NativeVisualFamily : std::uint8_t {
+    Depth,
+    Radial,
+    Filament,
+    Vertical,
+    Landscape,
+    Network,
+    Minimal,
+    Fluid,
+    Faceted,
+    Cellular,
 };
 
 enum class NativeTransitionStyle : std::uint8_t {
@@ -82,6 +95,7 @@ struct NativeSceneDefinition {
     NativeSceneSelectionTraits selection;
     NativeTransitionAnchor transitionAnchor;
     NativeMotionGrammar motionGrammar;
+    NativeVisualFamily visualFamily;
     float maximumQuietMotionCoverage;
     float maximumGlobalPulse;
     std::uint8_t musicalRoles;
@@ -96,102 +110,102 @@ nativeSceneRegistry{{
     {NativeSceneKind::DepthTunnel, "depth-tunnel", "Depth Tunnel",
      "depth-tunnel.frag", {"depth", "tunnel", ""}, {1.05f, 1.08f},
      {0.72f, 0.58f, 0.42f, 0.24f, 0.34f}, NativeTransitionAnchor::DepthPoint,
-     NativeMotionGrammar::Flow, 0.50f, 0.55f,
+     NativeMotionGrammar::Flow, NativeVisualFamily::Depth, 0.50f, 0.55f,
      transientRoles | GrooveRole | StructureRole, 6.0f},
     {NativeSceneKind::Centrifuge, "centrifuge", "Centrifuge",
      "centrifuge.frag", {"", "", ""}, {0.92f, 1.00f},
      {0.82f, 0.86f, 0.28f, 0.66f, 0.44f}, NativeTransitionAnchor::Center,
-     NativeMotionGrammar::Selective, 0.18f, 0.30f,
+     NativeMotionGrammar::Selective, NativeVisualFamily::Radial, 0.18f, 0.30f,
      transientRoles | GrooveRole | StructureRole, 6.0f},
     {NativeSceneKind::WireOrganism, "wire-organism", "Wire Organism",
      "wire-organism.frag", {"wire", "", ""}, {1.26f, 1.16f},
      {0.46f, 0.34f, 0.82f, 0.44f, 0.62f}, NativeTransitionAnchor::Center,
-     NativeMotionGrammar::Sparse, 0.12f, 0.28f,
+     NativeMotionGrammar::Sparse, NativeVisualFamily::Filament, 0.12f, 0.28f,
      transientRoles | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::PrismGarden, "prism-garden", "Prism Garden",
      "prism-garden.frag", {"prism", "garden", ""}, {1.10f, 1.08f},
      {0.54f, 0.28f, 0.88f, 0.78f, 0.48f}, NativeTransitionAnchor::VerticalAxis,
-     NativeMotionGrammar::Sparse, 0.12f, 0.25f,
+     NativeMotionGrammar::Sparse, NativeVisualFamily::Vertical, 0.12f, 0.25f,
      transientRoles | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::OrbitalLoom, "orbital-loom", "Orbital Loom",
      "orbital-loom.frag", {"orbit", "loom", ""}, {1.02f, 1.06f},
      {0.60f, 0.44f, 0.74f, 0.54f, 0.92f}, NativeTransitionAnchor::Center,
-     NativeMotionGrammar::Selective, 0.28f, 0.35f,
+     NativeMotionGrammar::Selective, NativeVisualFamily::Radial, 0.28f, 0.35f,
      transientRoles | GrooveRole | HarmonyRole, 6.0f},
     {NativeSceneKind::TidalGrid, "tidal-grid", "Tidal Grid",
      "tidal-grid.frag", {"tide", "grid", ""}, {1.12f, 1.10f},
      {0.34f, 0.24f, 0.84f, 0.20f, 0.66f}, NativeTransitionAnchor::HorizontalAxis,
-     NativeMotionGrammar::Selective, 0.26f, 0.25f,
+     NativeMotionGrammar::Selective, NativeVisualFamily::Landscape, 0.26f, 0.25f,
      transientRoles | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::PulseCathedral, "pulse-cathedral", "Pulse Cathedral",
      "pulse-cathedral.frag", {"cathedral", "", ""}, {1.08f, 1.05f},
      {0.48f, 0.26f, 0.96f, 0.36f, 0.34f}, NativeTransitionAnchor::VerticalAxis,
-     NativeMotionGrammar::Selective, 0.30f, 0.38f,
+     NativeMotionGrammar::Selective, NativeVisualFamily::Radial, 0.30f, 0.38f,
      transientRoles | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::ConstellationField, "constellation-field",
      "Constellation Field", "constellation-field.frag",
      {"stars", "constellation", ""}, {1.22f, 1.16f},
      {0.24f, 0.18f, 0.74f, 0.72f, 0.76f}, NativeTransitionAnchor::Center,
-     NativeMotionGrammar::Sparse, 0.12f, 0.45f,
+     NativeMotionGrammar::Sparse, NativeVisualFamily::Network, 0.12f, 0.45f,
      transientRoles | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::SpectralRibbons, "spectral-ribbons", "Spectral Ribbons",
      "spectral-ribbons.frag", {"ribbons", "", ""}, {1.04f, 1.06f},
      {0.64f, 0.56f, 0.64f, 0.62f, 0.72f}, NativeTransitionAnchor::HorizontalAxis,
-     NativeMotionGrammar::Flow, 0.45f, 0.70f,
+     NativeMotionGrammar::Flow, NativeVisualFamily::Filament, 0.45f, 0.70f,
      transientRoles | GrooveRole | HarmonyRole, 6.0f},
     {NativeSceneKind::BloomEngine, "bloom-engine", "Bloom Engine",
      "bloom-engine.frag", {"bloom", "", ""}, {1.00f, 1.04f},
      {0.74f, 0.66f, 0.66f, 0.48f, 0.54f}, NativeTransitionAnchor::Center,
-     NativeMotionGrammar::Selective, 0.18f, 0.30f,
+     NativeMotionGrammar::Selective, NativeVisualFamily::Radial, 0.18f, 0.30f,
      transientRoles | GrooveRole | StructureRole, 6.0f},
     {NativeSceneKind::NegativeSpace, "negative-space", "Negative Space",
      "negative-space.frag", {"negative", "void", ""}, {1.08f, 1.14f},
      {0.18f, 0.22f, 0.78f, 0.40f, 0.38f},
      NativeTransitionAnchor::HorizontalAxis,
-     NativeMotionGrammar::Sparse, 0.10f, 0.22f,
+     NativeMotionGrammar::Sparse, NativeVisualFamily::Minimal, 0.10f, 0.22f,
      transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::InkCurrent, "ink-current", "Ink Current",
      "ink-current.frag", {"ink", "current", ""}, {1.12f, 1.18f},
      {0.38f, 0.34f, 0.82f, 0.30f, 0.72f},
      NativeTransitionAnchor::HorizontalAxis,
-     NativeMotionGrammar::Selective, 0.18f, 0.24f,
+     NativeMotionGrammar::Selective, NativeVisualFamily::Fluid, 0.18f, 0.24f,
      transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::GlassChoir, "glass-choir", "Glass Choir",
      "glass-choir.frag", {"glass", "choir", ""}, {1.16f, 1.20f},
      {0.32f, 0.18f, 0.96f, 0.60f, 0.54f},
      NativeTransitionAnchor::VerticalAxis,
-     NativeMotionGrammar::Selective, 0.18f, 0.24f,
+     NativeMotionGrammar::Selective, NativeVisualFamily::Faceted, 0.18f, 0.24f,
      transientRoles | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::ShadowArchitecture, "shadow-architecture",
      "Shadow Architecture", "shadow-architecture.frag",
      {"shadow", "architecture", ""}, {1.20f, 1.50f},
      {0.28f, 0.30f, 0.70f, 0.24f, 0.36f},
      NativeTransitionAnchor::DepthPoint,
-     NativeMotionGrammar::Sparse, 0.12f, 0.20f,
+     NativeMotionGrammar::Sparse, NativeVisualFamily::Depth, 0.12f, 0.20f,
      transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::ParticleWeave, "particle-weave", "Particle Weave",
      "particle-weave.frag", {"particle", "weave", ""}, {1.14f, 1.34f},
      {0.52f, 0.60f, 0.76f, 0.66f, 0.82f},
      NativeTransitionAnchor::HorizontalAxis,
-     NativeMotionGrammar::Selective, 0.18f, 0.22f,
+     NativeMotionGrammar::Selective, NativeVisualFamily::Filament, 0.18f, 0.22f,
      transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::LivingMosaic, "living-mosaic", "Living Mosaic",
      "living-mosaic.frag", {"living", "mosaic", ""}, {1.12f, 2.05f},
      {0.48f, 0.44f, 0.86f, 0.72f, 0.56f},
      NativeTransitionAnchor::Center,
-     NativeMotionGrammar::Selective, 0.18f, 0.22f,
+     NativeMotionGrammar::Selective, NativeVisualFamily::Cellular, 0.18f, 0.22f,
      transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::LumenFold, "lumen-fold", "Lumen Fold",
      "lumen-fold.frag", {"lumen", "fold", ""}, {1.18f, 2.30f},
      {0.40f, 0.38f, 0.94f, 0.60f, 0.68f},
      NativeTransitionAnchor::VerticalAxis,
-     NativeMotionGrammar::Selective, 0.18f, 0.22f,
+     NativeMotionGrammar::Selective, NativeVisualFamily::Vertical, 0.18f, 0.22f,
      transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::PaperHorizon, "paper-horizon", "Paper Horizon",
      "paper-horizon.frag", {"paper", "horizon", ""}, {1.08f, 2.25f},
      {0.34f, 0.32f, 0.90f, 0.42f, 0.40f},
      NativeTransitionAnchor::HorizontalAxis,
-     NativeMotionGrammar::Sparse, 0.12f, 0.20f,
+     NativeMotionGrammar::Sparse, NativeVisualFamily::Landscape, 0.12f, 0.20f,
      transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
 }};
 
@@ -210,6 +224,32 @@ inline constexpr std::size_t nativeSceneMotionGrammarCount(
     std::size_t count = 0;
     for (const NativeSceneDefinition& definition : nativeSceneRegistry) {
         if (definition.motionGrammar == grammar) ++count;
+    }
+    return count;
+}
+
+inline constexpr std::string_view nativeVisualFamilyName(
+    NativeVisualFamily family) {
+    switch (family) {
+        case NativeVisualFamily::Depth: return "depth";
+        case NativeVisualFamily::Radial: return "radial";
+        case NativeVisualFamily::Filament: return "filament";
+        case NativeVisualFamily::Vertical: return "vertical";
+        case NativeVisualFamily::Landscape: return "landscape";
+        case NativeVisualFamily::Network: return "network";
+        case NativeVisualFamily::Minimal: return "minimal";
+        case NativeVisualFamily::Fluid: return "fluid";
+        case NativeVisualFamily::Faceted: return "faceted";
+        case NativeVisualFamily::Cellular: return "cellular";
+    }
+    return "unknown";
+}
+
+inline constexpr std::size_t nativeSceneVisualFamilyCount(
+    NativeVisualFamily family) {
+    std::size_t count = 0;
+    for (const NativeSceneDefinition& definition : nativeSceneRegistry) {
+        if (definition.visualFamily == family) ++count;
     }
     return count;
 }

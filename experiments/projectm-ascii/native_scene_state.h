@@ -185,8 +185,15 @@ private:
                         + 0.55f * square(stereo - traits.stereo)
                         + 0.055f * sceneUseCount_[index];
             for (std::size_t age = 0; age < recentScenes_.size(); ++age) {
-                if (recentScenes_[recentScenes_.size() - 1 - age] == candidate) {
+                const NativeSceneKind recent
+                    = recentScenes_[recentScenes_.size() - 1 - age];
+                if (recent == candidate) {
                     score += age == 0 ? 4.0f : age == 1 ? 1.5f : 0.55f;
+                    break;
+                }
+                if (nativeSceneDefinition(recent).visualFamily
+                    == nativeSceneDefinition(candidate).visualFamily) {
+                    score += age == 0 ? 1.65f : age == 1 ? 0.62f : 0.24f;
                     break;
                 }
             }
