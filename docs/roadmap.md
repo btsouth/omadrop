@@ -351,8 +351,8 @@ Allow more people to create scenes while keeping the official rotation strict.
 4. Add the developer signal monitor and repeatable presentation-delay tool.
 5. Continue splitting track state, display session, cover presentation,
    direction, and rendering out of the live application loop.
-6. Prototype Particle Weave as the next scene family, using independent role
-   threads without turning the field into another set of spectrum lines.
+6. Prototype Kinetic Relief as the next scene family, using fixed sculptural
+   surfaces and localized light or material changes instead of object bounce.
 7. Promote only candidates that pass still-frame, motion, music-response,
    ASCII, transition, and performance review.
 
@@ -482,6 +482,12 @@ Completed after v0.3:
   separate surfaces. Continuous color, grayscale, ASCII, six album palettes,
   the 70-combination replay suite, and a 1080p renderer soak pass without
   global pulse activity or a slow-frame streak.
+- Added Particle Weave as a stable textile scene. Five braided bead strands
+  retain their silhouette while a traveling beat shuttle, low kick knots, a
+  six-bead snare stitch, selected hat beads, and one section thread respond in
+  separate locations. Continuous color, grayscale, ASCII, six album palettes,
+  the 75-combination replay suite, and a 3,600-frame 1080p renderer soak pass
+  with zero pulse-duty activity or slow-frame streaks.
 - Added five native transition grammars selected from scene compatibility:
   flow carry, focal morph, depth travel, controlled fracture, and
   negative-space reveal. The four post-v0.3 scenes have explicit authored

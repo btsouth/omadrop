@@ -1,6 +1,6 @@
 # Native scene quality matrix
 
-This is the working visual review for the current fourteen scenes. A scene is not
+This is the working visual review for the current fifteen scenes. A scene is not
 release-ready until its still, motion, transient roles, quiet behavior,
 continuous material, ASCII material, palettes, and transitions all pass.
 
@@ -17,6 +17,7 @@ ship decision.
 | Glass Choir | Pass | Pass | Selective | Pass | Pass | Pass | Keep harmonic movement internal to the fixed shards | Real music, varied genres |
 | Ink Current | Pass | Pass | Selective | Pass | Pass | Pass | Keep event marks subordinate to the stable current | Real music, varied genres |
 | Orbital Loom | Pass | Pass | Selective | Pass | Pass | Pass | Needs clearer separation from other radial scenes | Continuous motion, varied genres |
+| Particle Weave | Pass | Pass | Selective | Pass | Pass | Pass | Keep percussion on separate beads and knots, never the whole textile | Real music, varied genres |
 | Prism Garden | Pass | Pass | Sparse | Pass | Pass | Pass | Preserve the varied skyline during dense passages | Continuous motion, varied genres |
 | Pulse Cathedral | Pass | Pass | Selective | Pass | Pass | Pass | Keep outer arches subordinate to the focal rose | Continuous motion, varied genres |
 | Shadow Architecture | Pass | Pass | Sparse | Pass | Pass | Pass | Keep percussion confined to separate architectural surfaces | Real music, varied genres |
@@ -28,7 +29,7 @@ ship decision.
 
 1. Add reviewed real, rights-cleared music to the locked synthetic suite. The
    five current profiles cover quiet, dense, sustained, acoustic-like,
-   vocal-like, compressed, and syncopated passages across 70 enforced scene
+   vocal-like, compressed, and syncopated passages across 75 enforced scene
    combinations.
 2. Review continuous motion, not only time-sampled frames, and confirm that
    Depth Tunnel and Spectral Ribbons remain controlled as the two deliberately
@@ -49,7 +50,10 @@ ship decision.
 
 A scene fails the automated quality floor when it exceeds its coverage budget.
 Full-frame brightness and scale pulses are not valid substitutes for distinct
-kick, snare, and hat gestures. The global-pulse score multiplies changed pixel
+kick, snare, and hat gestures. Constant bounce, jitter, and whole-composition
+thumping also fail review even when they remain below an automated threshold.
+Broad motion is reserved for the few scenes whose visual identity requires it;
+ordinary audio must not move the whole composition. The global-pulse score multiplies changed pixel
 coverage by same-direction luminance coherence and has a scene-specific limit.
 Pulse duty measures how often that score exceeds 20 percent. Sparse and
 selective scenes may spend at most 12 percent of frames above that level; flow

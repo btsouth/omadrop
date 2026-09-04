@@ -10,6 +10,8 @@
   moving internal caustics, localized percussion, and structural reassembly.
 - Add Shadow Architecture, a stable 3D procession of lit concrete portals with
   separate floor, incision, lintel, beat, and section responses.
+- Add Particle Weave, a fixed textile of braided beads with localized beat,
+  kick, snare, hat, harmony, and section gestures.
 - Choose native transitions from scene compatibility, with separate flow,
   focal, depth, fracture, and negative-space paths.
 - Add a hidden production-compositor gallery test for deterministic transition

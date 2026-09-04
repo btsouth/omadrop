@@ -146,7 +146,7 @@ require human visual review.
 The locked replay suite adds sparse acoustic-like, dense compressed,
 sustained vocal-like, and syncopated fast-section probes to the structured
 electronic baseline. The waveforms are synthesized entirely by repository
-code. Verify their reference hashes and run all 70 current scene combinations
+code. Verify their reference hashes and run all 75 current scene combinations
 with:
 
 ```sh
@@ -266,7 +266,8 @@ Set `OMADROP_ENGINE=projectm` to run the preserved preset renderer for
 compatibility or A/B review. `OMADROP_NATIVE_SCENE` accepts `depth-tunnel`,
 `centrifuge`, `wire-organism`, `prism-garden`, `orbital-loom`, `tidal-grid`,
 `pulse-cathedral`, `constellation-field`, `spectral-ribbons`, `bloom-engine`,
-`negative-space`, `ink-current`, `glass-choir`, or `shadow-architecture`.
+`negative-space`, `ink-current`, `glass-choir`, `shadow-architecture`, or
+`particle-weave`.
 Set `OMADROP_ASCII=0` to inspect the continuous native field without the final
 ASCII material.
 
