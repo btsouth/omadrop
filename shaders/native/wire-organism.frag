@@ -3,192 +3,202 @@
 in vec2 uv;
 out vec4 color;
 
-uniform sampler2D previousFrame;
-uniform vec2 resolution;
-uniform vec3 albumColor;
-uniform float bandLevel[6];
-uniform float spectrumLevel[32];
-uniform float flowTime;
-uniform float beatPhase;
-uniform float beatAnticipation;
-uniform float beatPulse;
-uniform float onsetPulse;
-uniform float downbeat;
-uniform float barPhase;
-uniform float phrasePhase;
-uniform float clockConfidence;
-uniform float kick;
-uniform float snare;
-uniform float hat;
-uniform float percussive;
-uniform float harmonic;
-uniform float spectralCentroid;
-uniform float stereoWidth;
-uniform float tonalMotion;
-uniform float harmonicChange;
-uniform float energyFast;
-uniform float energySlow;
-uniform float energySlope;
-uniform float section;
-uniform float development;
-uniform float drive;
-uniform float peak;
-uniform float release;
-uniform float sceneBeats;
-uniform float motionScale;
+#include "scene-uniforms.glsl"
 
-#include "common.glsl"
+float segmentDistance(vec2 p, vec2 a, vec2 b) {
+    vec2 ab = b - a;
+    float position = clamp(dot(p - a, ab) / max(dot(ab, ab), 0.0001),
+                           0.0, 1.0);
+    return length(p - a - ab * position);
+}
 
-float backboneX(float y) {
-    float slowShape = 0.105 * sin(y * 4.4 + flowTime * 0.13
-                                + phrasePhase * tau);
-    float fineShape = 0.030 * sin(y * 10.0 - flowTime * 0.09
-                                + barPhase * tau * 0.25);
-    float snareBend = snare * 0.110 * sin((y + 0.54) * 3.4 + flowTime * 0.31);
-    return slowShape + fineShape + snareBend;
+float curvedDistance(vec2 p, vec2 a, vec2 b, float bend) {
+    vec2 direction = b - a;
+    vec2 normal = normalize(vec2(-direction.y, direction.x));
+    vec2 control = (a + b) * 0.5 + normal * bend;
+    float closest = 10.0;
+    vec2 previous = a;
+    for (int index = 1; index <= 7; ++index) {
+        float t = float(index) / 7.0;
+        vec2 point = mix(mix(a, control, t), mix(control, b, t), t);
+        closest = min(closest, segmentDistance(p, previous, point));
+        previous = point;
+    }
+    return closest;
+}
+
+float disc(vec2 p, vec2 center, float radius) {
+    return 1.0 - smoothstep(radius, radius * 2.2, length(p - center));
+}
+
+float spineX(float y) {
+    return -0.045
+         + 0.052 * sin(y * 5.7 + 0.35)
+         + 0.019 * sin(y * 13.0 - 0.8)
+         + 0.020 * tonalMotion * sin(y * 3.2 + 1.1);
+}
+
+float bodyWidth(float y) {
+    float normalized = (y + 0.01) / 0.42;
+    float envelope = sqrt(max(0.0, 1.0 - normalized * normalized));
+    return 0.055 + 0.205 * envelope
+         + 0.014 * sin(y * 9.0 - 0.4)
+         + 0.012 * development;
 }
 
 void main() {
     vec2 aspect = vec2(resolution.x / max(1.0, resolution.y), 1.0);
     vec2 p = (uv - 0.5) * aspect;
-    p.x -= stereoWidth * 0.025 * sin(p.y * 4.0 + flowTime * 0.19);
+    p.x -= 0.035;
 
-    // Feedback follows the organism longitudinally. Each percussion role uses
-    // a different deformation instead of sharing a global camera impulse.
-    vec2 previousP = p;
-    previousP.y += (0.00008 + 0.00022 * energySlow) * motionScale;
-    previousP.x -= snare * 0.0085 * sin(previousP.y * 5.4 + flowTime * 0.43);
-    previousP.x += hat * 0.0018 * sin(previousP.y * 34.0 - flowTime * 2.8);
-    float previousSpine = backboneX(previousP.y);
-    previousP.x = previousSpine + (previousP.x - previousSpine)
-                * (1.0 - 0.0100 * kick
-                   + 0.0025 * beatAnticipation * clockConfidence);
-    vec2 previousUv = previousP / aspect + 0.5;
-    float edge = smoothstep(0.0, 0.075, uv.x)
-               * smoothstep(0.0, 0.075, uv.y)
-               * smoothstep(0.0, 0.075, 1.0 - uv.x)
-               * smoothstep(0.0, 0.075, 1.0 - uv.y);
-    vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
-                  * mix(0.74, 0.86, harmonic)
-                  * mix(1.0, 1.012, release) * edge;
+    float overload = smoothstep(2.55, 3.0, kick + snare + hat);
+    float gestureBudget = mix(1.0, 0.68, overload);
+    float sceneKick = kick * gestureBudget;
+    float sceneSnare = snare * gestureBudget;
+    float sceneHat = hat * gestureBudget;
+    float lowSustain = 1.0 - exp(-0.34 * (bandLevel[0] + bandLevel[1]));
+    float midSustain = 1.0 - exp(-0.34 * (bandLevel[2] + bandLevel[3]));
+    float highSustain = 1.0 - exp(-0.34 * (bandLevel[4] + bandLevel[5]));
 
-    float low = clamp(0.5 * spectrumLevel[3] + 0.5 * spectrumLevel[7], 0.0, 2.0);
-    float middle = clamp(0.5 * spectrumLevel[13] + 0.5 * spectrumLevel[18],
-                         0.0, 2.0);
-    float high = clamp(0.5 * spectrumLevel[25] + 0.5 * spectrumLevel[30],
-                       0.0, 2.0);
+    vec3 primary = mix(palettePrimary(0.88), vec3(0.18, 0.76, 0.78), 0.18);
+    vec3 secondary = mix(paletteSecondary(0.88), vec3(0.80, 0.20, 0.76), 0.18);
+    vec3 accent = mix(paletteAccent(0.88), vec3(1.0, 0.76, 0.24), 0.12);
 
-    float spineX = backboneX(p.y);
-    float filamentWidth = 0.0065 + 0.0045 * middle + 0.0020 * development;
-    float filament = line(p.x - spineX, filamentWidth)
-                   * smoothstep(0.63, 0.49, abs(p.y));
-    float bodyWidth = 0.090 + 0.035 * development
-                    + 0.018 * sin(p.y * 7.0 - flowTime * 0.12
-                                  + phrasePhase * tau);
-    float membrane = line(abs(p.x - spineX) - bodyWidth,
-                          0.007 + 0.003 * harmonic);
-    membrane *= smoothstep(0.60, 0.47, abs(p.y));
-    float membraneRibs = membrane * line(
-        sin((p.y + 0.62) * 19.0 + (p.x - spineX) * 12.0
-            + flowTime * 0.16), 0.10);
+    float centerX = spineX(p.y);
+    float width = bodyWidth(p.y);
+    float verticalWindow = smoothstep(-0.47, -0.42, p.y)
+                         * smoothstep(0.47, 0.42, p.y);
+    float signedBody = abs(p.x - centerX) - width;
+    float body = smoothstep(0.018, -0.018, signedBody) * verticalWindow;
+    float bodyOutline = line(signedBody, 0.0045) * verticalWindow;
+    float innerOutline = line(signedBody + 0.033, 0.0027) * verticalWindow;
+    float spine = line(p.x - centerX, 0.0055) * verticalWindow;
+    float spineHalo = line(p.x - centerX, 0.019) * verticalWindow;
 
-    float loops = 0.0;
-    float attachments = 0.0;
-    float loopInterior = 0.0;
-    for (int index = 0; index < 5; ++index) {
+    float grain = 0.5 + 0.5
+        * sin((p.x - centerX) * 44.0 + p.y * 8.0)
+        * sin(p.y * 51.0 - (p.x - centerX) * 12.0);
+    float innerCurrent = line(
+        sin((p.x - centerX) * 18.0 + p.y * 13.0), 0.20)
+        * body * (0.18 + 0.82 * midSustain);
+
+    float branches = 0.0;
+    float branchHalos = 0.0;
+    float branchTips = 0.0;
+    float snareBranches = 0.0;
+    for (int index = 0; index < 8; ++index) {
         float fi = float(index);
-        float anchorY = -0.36 + fi * 0.18;
-        float anchorX = backboneX(anchorY);
+        float anchorY = -0.31 + fi * 0.088;
         float side = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
-        float reach = mix(0.075, 0.125, development)
-                    + 0.012 * sin(fi * 2.1 + phrasePhase * tau);
-        vec2 loopP = p - vec2(anchorX + side * reach, anchorY);
-        loopP = rotate2d(side * (0.12 + 0.30 * snare)) * loopP;
-        loopP.x *= mix(0.78, 0.62, development);
-        float pulse = kick * (0.026 + 0.010 * sin(fi * 1.7 + barPhase * tau));
-        float anticipationTension = beatAnticipation * clockConfidence * 0.018;
-        float loopRadius = 0.066 + 0.009 * sin(flowTime * 0.13 + fi * 1.9)
-                         + 0.035 * beatPulse + 0.052 * onsetPulse
-                         + pulse - anticipationTension;
-        float loopDistance = length(loopP);
-        float loopLine = line(loopDistance - loopRadius,
-                              0.0065 + 0.0035 * low);
-        loops = max(loops, loopLine);
-        loopInterior = max(loopInterior,
-            smoothstep(loopRadius, loopRadius - 0.030, loopDistance));
+        vec2 anchor = vec2(spineX(anchorY), anchorY);
+        float reach = 0.24 + 0.055 * sin(fi * 1.73 + 0.5);
+        vec2 tip = vec2(anchor.x + side * reach,
+                        anchorY + 0.055 * sin(fi * 2.11 - 0.7));
+        float distanceToBranch = curvedDistance(
+            p, anchor, tip, side * (0.025 + 0.010 * sin(fi)));
+        float branch = line(distanceToBranch, 0.0032);
+        branches = max(branches, branch);
+        branchHalos += line(distanceToBranch, 0.012) * 0.20;
+        branchTips += disc(p, tip, 0.007 + 0.002 * sin(fi * 1.4));
 
-        float between = (p.x - anchorX) * side;
-        float attachment = line(p.y - anchorY,
-                                0.0055 + 0.0030 * bandLevel[2]);
-        attachment *= smoothstep(-0.012, 0.025, between)
-                    * smoothstep(reach + 0.025, reach - 0.020, between);
-        attachments = max(attachments, attachment);
+        float snareRole = step(2.0, fi) * (1.0 - step(6.0, fi));
+        float dash = smoothstep(0.30, 0.82,
+            sin(dot(p - anchor, normalize(tip - anchor)) * 72.0
+                + fi * 1.7));
+        snareBranches += branch * dash * snareRole * sceneSnare;
     }
 
-    // Hats travel as small nodes along the persistent filament.
-    float nodePosition = fract((p.y + 0.62) * 4.1
-                             - flowTime * (0.72 + 0.55 * drive)
-                             - beatPhase * 0.75);
-    float nodes = line(nodePosition - 0.5, 0.055)
-                * line(p.x - spineX, 0.016 + 0.006 * high)
-                * hat * (1.08 + 0.52 * high);
-    float hatRungs = line(
-        sin((p.y + 0.62) * 42.0 - flowTime * 1.1), 0.030)
-        * line(abs(p.x - spineX) - 0.050, 0.014)
-        * smoothstep(0.60, 0.45, abs(p.y)) * hat;
+    float rootFilaments = 0.0;
+    float rootHalos = 0.0;
+    vec2 root = vec2(spineX(-0.42), -0.42);
+    for (int index = 0; index < 3; ++index) {
+        float fi = float(index);
+        vec2 rootTip = vec2(-0.31 + fi * 0.30,
+                            -0.455 + 0.024 * sin(fi * 2.2));
+        float rootDistance = curvedDistance(
+            p, root, rootTip, (fi - 1.0) * 0.035);
+        rootFilaments = max(rootFilaments, line(rootDistance, 0.0035));
+        rootHalos += line(rootDistance, 0.014) * 0.16;
+    }
+    float lowRootGlow = disc(p, root, 0.052) * lowSustain;
 
-    float beatY = mix(-0.47, 0.47, beatPhase);
-    vec2 beatPoint = p - vec2(backboneX(beatY), beatY);
-    float beatNode = 1.0 - smoothstep(0.022, 0.055, length(beatPoint));
-    beatNode *= clockConfidence * (0.15 + 0.85 * downbeat);
-    float sectionBranch = line(abs(p.y) - mix(0.08, 0.45, section), 0.012)
-                        * line(abs(p.x - spineX) - 0.10, 0.022)
-                        * section;
+    float crownCilia = 0.0;
+    float crownTips = 0.0;
+    vec2 crown = vec2(spineX(0.42), 0.42);
+    for (int index = 0; index < 5; ++index) {
+        float fi = float(index);
+        vec2 crownTip = vec2(-0.30 + fi * 0.15,
+                             0.455 - 0.018 * abs(fi - 2.0));
+        float ciliumDistance = curvedDistance(
+            p, crown, crownTip, (fi - 2.0) * 0.018);
+        crownCilia = max(crownCilia, line(ciliumDistance, 0.0024));
+        crownTips += disc(p, crownTip,
+            0.0045 + 0.010 * sceneHat * (0.55 + 0.45 * sin(fi * 2.3)))
+            * sceneHat;
+    }
 
-    float cellPhase = sin(p.y * 13.0 - flowTime * 0.28)
-                    + sin((p.x - spineX) * 17.0 + flowTime * 0.21);
-    float backgroundMedium = line(cellPhase, 0.23)
-                           * smoothstep(0.48, 0.07, abs(p.x - spineX))
-                           * smoothstep(0.70, 0.48, abs(p.y))
-                           * harmonic * 0.24;
+    // Beat position travels along the fixed spine, so rhythm is readable
+    // without scaling or bending the whole organism.
+    float beatY = mix(-0.39, 0.39, beatPhase);
+    vec2 beatCenter = vec2(spineX(beatY), beatY);
+    float beatNode = disc(p, beatCenter,
+        0.010 + 0.009 * beatPulse) * clockConfidence
+        * (0.10 * energySlow + 0.90 * beatPulse);
+    float beatTrail = line(segmentDistance(
+        p, vec2(spineX(beatY - 0.055), beatY - 0.055), beatCenter),
+        0.0032) * beatPulse * clockConfidence;
+    float anticipationRoot = line(length(p - root)
+        - (0.020 + 0.015 * beatAnticipation), 0.0035)
+        * beatAnticipation * clockConfidence;
 
-    float focalSubject = filament * (0.58 + 0.42 * bandLevel[2])
-                       + loops * (0.24 + 0.30 * low + 0.18 * kick)
-                       + attachments * (0.22 + 0.34 * middle);
-    float accents = nodes + beatNode + sectionBranch;
+    // Kicks energize only the three root bulbs.
+    float kickBulbs = 0.0;
+    for (int index = 0; index < 3; ++index) {
+        float fi = float(index);
+        vec2 bulb = vec2(-0.31 + fi * 0.30,
+                         -0.455 + 0.024 * sin(fi * 2.2));
+        kickBulbs += line(length(p - bulb)
+            - (0.012 + 0.020 * sceneKick), 0.0045) * sceneKick;
+    }
 
-    vec3 primary = palettePrimary(0.88);
-    vec3 secondary = paletteSecondary(0.88);
-    vec3 filamentColor = mix(primary, secondary,
-        0.25 + 0.24 * spectralCentroid
-        + 0.16 * sin(p.y * 4.0 - flowTime * 0.12));
-    vec3 loopColor = mix(secondary, primary,
-        0.44 + 0.18 * sin(p.y * 5.0 + phrasePhase * tau));
-    vec3 mediumColor = mix(primary * 0.38, secondary * 0.36,
-                           0.5 + 0.5 * sin(p.y * 3.0 + flowTime * 0.08));
-    vec3 accentColor = mix(paletteAccent(0.88), vec3(0.94, 0.98, 1.0),
-                           0.48 + 0.24 * hat);
-    float lifecycleLight = 0.13 + 0.045 * development + 0.050 * drive
-                         + 0.065 * peak;
-    vec3 injection = mediumColor * backgroundMedium * (0.11 + 0.10 * harmonic)
-                   + mediumColor * membrane
-                     * (0.055 + 0.045 * harmonic + 0.040 * tonalMotion)
-                   + mix(mediumColor, accentColor, 0.24) * membraneRibs
-                     * (0.035 + 0.050 * harmonicChange)
-                   + filamentColor * filament * (0.31 + lifecycleLight)
-                   + loopColor * (focalSubject - filament * (0.58 + 0.42 * bandLevel[2]))
-                     * (lifecycleLight + 0.060 * max(0.0, energySlope))
-                   + accentColor * accents * (0.20 + 0.13 * peak)
-                   + mix(accentColor, vec3(1.0), 0.44) * hatRungs * 0.30;
-    injection += mix(filamentColor, vec3(1.0), 0.30)
-               * (filament + loops * 0.72 + attachments * 0.46)
-               * onsetPulse * 0.16;
-    injection += loopColor * loopInterior * percussive * 0.009;
-    injection *= 1.0 - 0.57 * release;
+    float heart = line(length(p - vec2(spineX(0.03), 0.03)) - 0.034,
+                       0.0045);
+    float downbeatHeart = heart * downbeat * clockConfidence;
+    float chordWeight = clamp(chroma[2] + 0.72 * chroma[5]
+                              + 0.88 * chroma[9], 0.0, 1.0);
+    float nucleus = disc(p, vec2(spineX(0.03), 0.03), 0.021)
+                  * chordWeight;
+    float sectionShell = line(signedBody - 0.028, 0.0045)
+                       * verticalWindow * section;
 
-    float organismMask = smoothstep(0.86, 0.66, abs(p.x))
-                       * smoothstep(0.76, 0.56, abs(p.y));
-    vec3 result = (feedback + injection) * organismMask;
-    result = max(result - vec3(0.0043), vec3(0.0));
-    color = vec4(result, 1.0);
+    float aura = exp(-pow((p.x + 0.01) / 0.52, 2.0)
+                     -pow((p.y + 0.01) / 0.62, 2.0));
+    vec3 bodyColor = mix(primary, secondary,
+        clamp(0.46 + 0.28 * p.y + 0.14 * tonalMotion, 0.0, 1.0));
+    vec3 result = mix(primary, secondary, 0.48) * aura * 0.012
+                + bodyColor * body * (0.027 + 0.010 * grain
+                                      + 0.012 * harmonic)
+                + primary * bodyOutline * 0.22
+                + secondary * innerOutline * 0.075
+                + mix(primary, secondary, 0.38) * innerCurrent * 0.050
+                + mix(primary, vec3(1.0), 0.20) * spine * 0.30
+                + primary * spineHalo * 0.025
+                + secondary * branches * (0.14 + 0.035 * midSustain)
+                + secondary * branchHalos * 0.020
+                + mix(secondary, accent, 0.25) * branchTips * 0.22
+                + primary * rootFilaments * (0.16 + 0.055 * lowSustain)
+                + primary * rootHalos * 0.022
+                + primary * lowRootGlow * 0.085
+                + secondary * crownCilia * (0.13 + 0.055 * highSustain)
+                + mix(secondary, vec3(1.0), 0.34) * snareBranches * 0.34
+                + accent * kickBulbs * 0.36
+                + mix(accent, vec3(1.0), 0.40) * crownTips * 0.38
+                + accent * beatNode * 0.34
+                + accent * beatTrail * 0.13
+                + secondary * anticipationRoot * 0.22
+                + accent * downbeatHeart * 0.28
+                + mix(primary, secondary, 0.62) * nucleus * 0.085
+                + accent * sectionShell * 0.18;
+    result *= 1.0 - 0.62 * release;
+    color = vec4(max(result, vec3(0.0)), 1.0);
 }

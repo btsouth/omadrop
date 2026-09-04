@@ -750,3 +750,9 @@ Completed after v0.3:
   four satellite branches, three local percussion regions, and one traveling
   beat marker. All five locked profiles and both approved full songs pass with
   zero broad-pulse frames.
+- Rebuilt Wire Organism as a complete translucent body with a stable spine,
+  inner current, eight branches, three root filaments, and five crown cilia.
+  Beat position travels through the spine while kick, snare, and hat cues stay
+  in the roots, middle branches, and crown instead of bending or scaling the
+  entire organism. All five replay profiles and both approved full songs pass
+  with zero broad-pulse frames.

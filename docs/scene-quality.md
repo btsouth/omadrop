@@ -26,7 +26,7 @@ ship decision.
 | Shadow Architecture | Pass | Pass | Sparse | Pass | Pass | Pass | Keep percussion confined to separate architectural surfaces | Two full songs pass; live output |
 | Spectral Ribbons | Pass | Pass | Flow | Pass | Pass | Pass | Keep sustained band contours and transient windows visually separate | Two full songs pass; live output |
 | Tidal Grid | Pass | Pass | Selective | Pass | Pass | Pass | Keep foreground grid lines below the horizon subject | Two full songs pass; live output |
-| Wire Organism | Pass | Pass | Sparse | Pass | Pass | Pass | Keep its harmonic membrane subtle | Two full songs pass; live output |
+| Wire Organism | Pass | Pass | Sparse | Pass | Pass | Pass | Keep root, branch, and crown cues separate inside the fixed body | Two full songs pass; live output |
 
 ## Current priorities
 
@@ -101,6 +101,15 @@ light three low nodes, snares dash only the central bridge, hats activate the
 right satellites, and one marker carries beat position through the route. All
 five replay profiles and both complete approved songs pass with zero moderate
 or severe broad-pulse frames.
+
+The same still review exposed Wire Organism's previous single stroke and large
+attached rings as too thin beside the newer scenes. Its replacement is a fixed
+translucent body with a persistent spine, inner current, eight side branches,
+three root filaments, and five crown cilia. A beat marker travels along the
+spine while kicks use the roots, snares use middle branches, and hats use the
+crown. The composition stays fixed instead of bending, scaling, or pulsing as
+a whole. All five replay profiles and both approved full songs pass with zero
+moderate or severe broad-pulse frames.
 
 Run the anonymous final review without exposing scene names:
 

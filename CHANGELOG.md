@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Rebuild Wire Organism around a fixed translucent body, persistent spine,
+  branching nerves, roots, and crown cilia. Beat position travels along the
+  spine while kicks, snares, and hats activate separate local regions without
+  bending or scaling the complete composition. All locked profiles and both
+  approved full songs pass with zero broad-pulse frames.
 - Rebuild Constellation Field as a hand-composed star route with thin curved
   links, satellite branches, and separate local kick, snare, hat, and beat
   roles. The replacement removes its oversized striped rods and produces zero
