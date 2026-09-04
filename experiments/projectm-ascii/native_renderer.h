@@ -21,8 +21,7 @@ struct NativeRenderPolicy {
     float quality = 1.0f;
 
     constexpr float effectiveIntensity() const {
-        const float requested = std::clamp(intensity, 0.50f, 1.50f);
-        return flashLimited ? std::min(requested, 0.85f) : requested;
+        return std::clamp(intensity, 0.50f, 1.50f);
     }
     constexpr float effectiveMotion() const {
         const float requested = std::clamp(motion, 0.0f, 1.0f);
@@ -36,7 +35,7 @@ struct NativeRenderPolicy {
 static_assert(NativeRenderPolicy{.intensity = 9.0f}.effectiveIntensity()
               == 1.50f);
 static_assert(NativeRenderPolicy{.intensity = 1.25f, .flashLimited = true}
-                  .effectiveIntensity() == 0.85f);
+                  .effectiveIntensity() == 1.25f);
 static_assert(NativeRenderPolicy{.motion = 0.8f, .reducedMotion = true}
                   .effectiveMotion() == 0.35f);
 

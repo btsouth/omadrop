@@ -122,6 +122,86 @@ float meanLuminanceDifference(const std::vector<unsigned char>& a,
     return static_cast<float>(difference / (a.size() * 0.25 * 255.0));
 }
 
+struct CueMap {
+    std::vector<float> delta;
+    float response = 0.0f;
+    float coverage = 0.0f;
+};
+
+CueMap cueMap(const std::vector<unsigned char>& baseline,
+              const std::vector<unsigned char>& event) {
+    assert(baseline.size() == event.size());
+    CueMap result;
+    result.delta.reserve(baseline.size() / 4);
+    double total = 0.0;
+    int changed = 0;
+    for (std::size_t index = 0; index < baseline.size(); index += 4) {
+        const float before = (0.299f * baseline[index]
+                            + 0.587f * baseline[index + 1]
+                            + 0.114f * baseline[index + 2]) / 255.0f;
+        const float after = (0.299f * event[index]
+                           + 0.587f * event[index + 1]
+                           + 0.114f * event[index + 2]) / 255.0f;
+        const float delta = std::abs(after - before);
+        result.delta.push_back(delta);
+        total += delta;
+        changed += delta >= 0.0125f;
+    }
+    result.response = static_cast<float>(total / result.delta.size());
+    result.coverage = static_cast<float>(changed) / result.delta.size();
+    return result;
+}
+
+float cueSimilarity(const CueMap& reference, const CueMap& candidate) {
+    assert(reference.delta.size() == candidate.delta.size());
+    double dot = 0.0;
+    double referencePower = 0.0;
+    double candidatePower = 0.0;
+    for (std::size_t index = 0; index < reference.delta.size(); ++index) {
+        dot += reference.delta[index] * candidate.delta[index];
+        referencePower += reference.delta[index] * reference.delta[index];
+        candidatePower += candidate.delta[index] * candidate.delta[index];
+    }
+    return static_cast<float>(dot / std::sqrt(
+        std::max(1e-16, referencePower * candidatePower)));
+}
+
+struct PolicyCueFloor {
+    float retention = 10.0f;
+    float maximumRetention = 0.0f;
+    float similarity = 1.0f;
+    float coverageGrowth = 0.0f;
+    std::string retentionAt;
+    std::string maximumRetentionAt;
+    std::string similarityAt;
+    std::string coverageGrowthAt;
+
+    void include(const CueMap& reference, const CueMap& candidate,
+                 const std::string& label) {
+        const float nextRetention
+            = candidate.response / std::max(1e-8f, reference.response);
+        const float nextSimilarity = cueSimilarity(reference, candidate);
+        const float nextCoverageGrowth
+            = candidate.coverage - reference.coverage;
+        if (nextRetention < retention) {
+            retention = nextRetention;
+            retentionAt = label;
+        }
+        if (nextRetention > maximumRetention) {
+            maximumRetention = nextRetention;
+            maximumRetentionAt = label;
+        }
+        if (nextSimilarity < similarity) {
+            similarity = nextSimilarity;
+            similarityAt = label;
+        }
+        if (nextCoverageGrowth > coverageGrowth) {
+            coverageGrowth = nextCoverageGrowth;
+            coverageGrowthAt = label;
+        }
+    }
+};
+
 MusicFrame reviewMusic(int frame) {
     MusicFrame music;
     music.bpm = 120.0f;
@@ -411,6 +491,169 @@ int main(int argc, char** argv) {
     assert(authoredGeometryDifference > 0.0002f);
     assert(motionGeometryDifference > 0.0002f);
     assert(depthGeometryDifference > 0.0002f);
+
+    struct VisualPolicy {
+        NativeRenderPolicy renderer;
+        float motionScale = 1.0f;
+        float contrastScale = 1.0f;
+        bool flashLimited = false;
+        bool colorVisionSafe = false;
+    };
+    const auto renderCueFrame = [&](NativeSceneKind scene,
+                                    const MusicFrame& music,
+                                    const VisualPolicy& policy) {
+        renderer.reset();
+        NativeSceneState state;
+        state.currentScene = scene;
+        state.incomingScene = scene;
+        state.development = 0.62f;
+        state.drive = 0.42f;
+        state.peak = 0.18f;
+        state.sceneBeats = 11.0f;
+        assert(renderer.render(music, state, width, height,
+            {0.44f, 0.70f, 1.0f}, 0, 1.0f, 1.0f / 60.0f, error,
+            policy.renderer));
+        const NativeSceneMaterial material = nativeSceneMaterial(scene);
+        LiveCompositorFrame frame;
+        frame.sourceTexture = renderer.texture(scene);
+        frame.nextTexture = frame.sourceTexture;
+        frame.coverTexture = black;
+        frame.width = width;
+        frame.height = height;
+        frame.fieldExposure = material.fieldExposure;
+        frame.asciiExposure = material.asciiExposure;
+        frame.nativeRenderer = true;
+        frame.motionScale = policy.motionScale;
+        frame.contrastScale = policy.contrastScale;
+        frame.flashLimited = policy.flashLimited;
+        frame.colorVisionSafe = policy.colorVisionSafe;
+        frame.visibility = 1.0f;
+        assert(compositor.render(frame, error));
+        glFinish();
+        return readFrame();
+    };
+    const VisualPolicy defaultVisualPolicy;
+    const VisualPolicy reducedVisualPolicy{
+        .renderer = {.reducedMotion = true},
+        .motionScale = 0.35f,
+    };
+    const VisualPolicy flashVisualPolicy{
+        .renderer = {.flashLimited = true},
+        .flashLimited = true,
+    };
+    const VisualPolicy contrastVisualPolicy{
+        .renderer = {},
+        .contrastScale = 1.16f,
+    };
+    const VisualPolicy colorSafeVisualPolicy{
+        .renderer = {},
+        .colorVisionSafe = true,
+    };
+    PolicyCueFloor reducedCueFloor;
+    PolicyCueFloor flashCueFloor;
+    PolicyCueFloor contrastCueFloor;
+    PolicyCueFloor colorSafeCueFloor;
+    float minimumDefaultCue = 1.0f;
+    for (std::size_t sceneIndex = 0;
+         sceneIndex < nativeSceneCount; ++sceneIndex) {
+        const NativeSceneKind scene
+            = static_cast<NativeSceneKind>(sceneIndex);
+        MusicFrame baselineMusic = reviewMusic(11);
+        baselineMusic.kick = 0.0f;
+        baselineMusic.snare = 0.0f;
+        baselineMusic.hat = 0.0f;
+        baselineMusic.beatPulse = 0.0f;
+        baselineMusic.onsetPulse = 0.0f;
+        baselineMusic.downbeat = 0.0f;
+        for (int role = 0; role < 3; ++role) {
+            const std::string cueLabel
+                = std::string(nativeSceneDefinition(scene).slug) + '-'
+                + (role == 0 ? "kick" : role == 1 ? "snare" : "hat");
+            MusicFrame eventMusic = baselineMusic;
+            if (role == 0) eventMusic.kick = 1.0f;
+            else if (role == 1) eventMusic.snare = 1.0f;
+            else eventMusic.hat = 1.0f;
+
+            const CueMap reference = cueMap(
+                renderCueFrame(scene, baselineMusic, defaultVisualPolicy),
+                renderCueFrame(scene, eventMusic, defaultVisualPolicy));
+            minimumDefaultCue = std::min(
+                minimumDefaultCue, reference.response);
+            const auto comparePolicy = [&](const VisualPolicy& policy,
+                                           PolicyCueFloor& floor) {
+                const CueMap candidate = cueMap(
+                    renderCueFrame(scene, baselineMusic, policy),
+                    renderCueFrame(scene, eventMusic, policy));
+                floor.include(reference, candidate, cueLabel);
+            };
+            comparePolicy(reducedVisualPolicy, reducedCueFloor);
+            comparePolicy(flashVisualPolicy, flashCueFloor);
+            comparePolicy(contrastVisualPolicy, contrastCueFloor);
+            comparePolicy(colorSafeVisualPolicy, colorSafeCueFloor);
+        }
+    }
+    std::cout << "accessibility cues scenes=" << nativeSceneCount
+              << " roles=3 default_floor=" << minimumDefaultCue
+              << " reduced=" << reducedCueFloor.retention << '/'
+              << reducedCueFloor.similarity << '/'
+              << reducedCueFloor.coverageGrowth
+              << " flash=" << flashCueFloor.retention << '/'
+              << flashCueFloor.similarity << '/'
+              << flashCueFloor.coverageGrowth << "/max="
+              << flashCueFloor.maximumRetention
+              << " contrast=" << contrastCueFloor.retention << '/'
+              << contrastCueFloor.similarity << '/'
+              << contrastCueFloor.coverageGrowth
+              << " color_safe=" << colorSafeCueFloor.retention << '/'
+              << colorSafeCueFloor.similarity << '/'
+              << colorSafeCueFloor.coverageGrowth << '\n';
+    std::cout << "accessibility cue minima reduced="
+              << reducedCueFloor.retentionAt << '/'
+              << reducedCueFloor.similarityAt << '/'
+              << reducedCueFloor.coverageGrowthAt
+              << " flash=" << flashCueFloor.retentionAt << '/'
+              << flashCueFloor.similarityAt << '/'
+              << flashCueFloor.coverageGrowthAt
+              << " contrast=" << contrastCueFloor.retentionAt << '/'
+              << contrastCueFloor.similarityAt << '/'
+              << contrastCueFloor.coverageGrowthAt
+              << " color_safe=" << colorSafeCueFloor.retentionAt << '/'
+              << colorSafeCueFloor.similarityAt << '/'
+              << colorSafeCueFloor.coverageGrowthAt << '\n';
+    assert(minimumDefaultCue >= 0.00012f);
+    assert(reducedCueFloor.retention >= 0.85f);
+    assert(reducedCueFloor.similarity >= 0.55f);
+    assert(reducedCueFloor.coverageGrowth <= 0.02f);
+    assert(flashCueFloor.retention >= 0.65f);
+    assert(flashCueFloor.maximumRetention <= 1.01f);
+    assert(flashCueFloor.similarity >= 0.98f);
+    assert(flashCueFloor.coverageGrowth <= 0.01f);
+    assert(contrastCueFloor.retention >= 0.85f);
+    assert(contrastCueFloor.similarity >= 0.98f);
+    assert(contrastCueFloor.coverageGrowth <= 0.02f);
+    assert(colorSafeCueFloor.retention >= 0.95f);
+    assert(colorSafeCueFloor.similarity >= 0.98f);
+    assert(colorSafeCueFloor.coverageGrowth <= 0.01f);
+
+    // Cue probes reset and rerender one scene at a time. Restore the complete
+    // synchronized frame set before exercising cross-scene transitions.
+    renderer.reset();
+    for (int frame = 0; frame < 180; ++frame) {
+        for (std::size_t sceneIndex = 0;
+             sceneIndex < nativeSceneCount; ++sceneIndex) {
+            const NativeSceneKind kind
+                = static_cast<NativeSceneKind>(sceneIndex);
+            NativeSceneState state;
+            state.currentScene = kind;
+            state.incomingScene = kind;
+            state.development = 0.58f;
+            state.drive = 0.42f;
+            state.peak = 0.22f;
+            state.sceneBeats = frame / 30.0f;
+            assert(renderer.render(reviewMusic(frame), state, width, height,
+                {0.44f, 0.70f, 1.0f}, 0, 1.0f, 1.0f / 60.0f, error));
+        }
+    }
 
     constexpr std::array<float, 6> progress{0.0f, 0.2f, 0.4f,
                                             0.6f, 0.8f, 1.0f};

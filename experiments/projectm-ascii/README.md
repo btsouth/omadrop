@@ -289,9 +289,9 @@ Press `i` to cycle local response intensity, `b` for brightness, `m` for
 ambient motion, `r` for reduced motion, and `h` for high contrast. Reduced
 motion caps feedback drift and transition travel while leaving the local
 percussion, beat, and section cues readable. Press F11 to toggle fullscreen.
-Press `s` for flash limit. It lowers fast event gain, caps requested brightness,
-compresses bright final output, and prevents the high-contrast boost while
-keeping localized timing cues active.
+Press `s` for flash limit. It preserves the geometry of localized timing cues,
+caps requested brightness, compresses bright final output, and prevents the
+high-contrast boost.
 Press `c` for the persisted color-safe palette. It remaps scene color to a
 blue and gold range while preserving luminance structure. Album covers keep
 their original color.

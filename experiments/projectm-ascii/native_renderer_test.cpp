@@ -1019,8 +1019,7 @@ int main(int argc, char** argv) {
               << " flash_limited=" << flashLimitedResponse << "\n";
     assert(lowIntensityResponse > 0.0f);
     assert(highIntensityResponse > lowIntensityResponse * 1.08f);
-    assert(flashLimitedResponse < highIntensityResponse * 0.90f);
-    assert(flashLimitedResponse > 0.0f);
+    assert(std::abs(flashLimitedResponse - highIntensityResponse) < 1e-7f);
 
     std::array<unsigned char, 16 * 16 * 4> checker{};
     for (int y = 0; y < 16; ++y) {

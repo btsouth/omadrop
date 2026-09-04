@@ -200,9 +200,9 @@ change scene selection, not beat timing or the per-scene pulse limits. Kinetic
 favors scenes that carry dense percussion cleanly; it does not make every scene
 bounce harder.
 
-Flash limit reduces fast event gain, caps display brightness, compresses bright
-output, and disables the optional contrast boost. It keeps local rhythm cues
-active. This is a conservative visual setting, not a medical certification.
+Flash limit preserves the location and shape of local rhythm cues, caps display
+brightness, compresses bright final output, and disables the optional contrast
+boost. This is a conservative visual setting, not a medical certification.
 
 ## How it works
 

@@ -625,10 +625,17 @@ Completed after v0.3:
   five locked replay profiles while every transient response remains above
   2.8 times quiet motion.
 - Added a separate flash-limit preference and synchronized `S` control. The
-  policy reduces fast event gain, caps requested brightness, compresses bright
-  final output, and suppresses the optional contrast boost while preserving
-  localized rhythm cues. The compositor test verifies lower peak luminance,
-  and the structured-track scorecard still enforces the response floor.
+  policy preserves role geometry, caps requested brightness, compresses bright
+  final output, and suppresses the optional contrast boost. The compositor
+  test verifies lower peak luminance, and the structured-track scorecard still
+  enforces the response floor.
+- Added a production-render cue-preservation gate across all 18 scenes, kick,
+  snare, and hat, and four visual policies. Reduced motion retains at least 92
+  percent of cue strength, flash limit retains at least 74 percent with 0.99
+  spatial similarity, and high-contrast and color-safe output retain at least
+  90 and 99 percent respectively. The audit found and removed pre-shader flash
+  scaling that changed cue geometry. These are engineering limits, not a claim
+  of validated accessibility or medical safety.
 - Added `bin/omadrop-check` so the native build, deterministic tests, renderer,
   transitions, synchronized launcher, demo-audio isolation, and replay hashes
   run as one quick gate. Full mode adds all 90 scene/profile scorecards and a

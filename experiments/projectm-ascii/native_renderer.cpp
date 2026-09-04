@@ -199,7 +199,10 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
     };
     const float intensity = policy.effectiveIntensity();
     const float motion = policy.effectiveMotion();
-    const float eventScale = policy.flashLimited ? 0.82f : 1.0f;
+    // Flash limiting belongs to the final luminance compositor. Scaling these
+    // values here changes role geometry in shaders that position details from
+    // kick, snare, or hat strength, which makes the music harder to read.
+    constexpr float eventScale = 1.0f;
     const float quality = policy.effectiveQuality();
     const float responsiveKick
         = gestureResponse(music.kick * intensity, 2.35f) * eventScale;

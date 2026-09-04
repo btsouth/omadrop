@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Preserve kick, snare, and hat geometry in flash-limit mode and constrain
+  luminance only in the final compositor. A new 216-case production-render
+  gate covers all 18 scenes, three percussion roles, and reduced-motion,
+  flash-limit, high-contrast, and color-safe output.
 - Classify intro, verse, chorus, bridge, breakdown, build, peak, and outro
   passages from bar-level structure, motif recurrence, sustained dynamics, and
   track position. The director uses confident roles only as a scene-choice
