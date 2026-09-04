@@ -29,6 +29,9 @@
 - Cover every native scene with at least two incoming and two outgoing
   production-compositor transition paths, and tighten the reveal boundaries so
   detailed scenes do not become a muddy double exposure.
+- Select compatible native transitions from the musical state at each boundary:
+  carry motion into a rise, fracture on a harmonic turn, carve through a
+  release, and preserve the focal structure in balanced passages.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

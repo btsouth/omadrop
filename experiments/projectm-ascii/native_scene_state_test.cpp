@@ -103,6 +103,35 @@ int main() {
     assert(nativeTransitionStyle(NativeSceneKind::Centrifuge,
         NativeSceneKind::BloomEngine)
         == NativeTransitionStyle::FocalMorph);
+    NativeTransitionContext calmTransition;
+    calmTransition.energy = 0.20f;
+    calmTransition.rhythmicDensity = 0.10f;
+    assert(nativeTransitionStyle(NativeSceneKind::PrismGarden,
+        NativeSceneKind::OrbitalLoom, calmTransition)
+        == NativeTransitionStyle::NegativeSpaceReveal);
+    NativeTransitionContext harmonicTransition;
+    harmonicTransition.energy = 0.52f;
+    harmonicTransition.harmonic = 0.78f;
+    harmonicTransition.harmonicChange = 0.55f;
+    assert(nativeTransitionStyle(NativeSceneKind::PrismGarden,
+        NativeSceneKind::OrbitalLoom, harmonicTransition)
+        == NativeTransitionStyle::ControlledFracture);
+    NativeTransitionContext risingTransition;
+    risingTransition.energy = 0.64f;
+    risingTransition.energySlope = 0.18f;
+    assert(nativeTransitionStyle(NativeSceneKind::PrismGarden,
+        NativeSceneKind::OrbitalLoom, risingTransition)
+        == NativeTransitionStyle::FlowCarry);
+    NativeTransitionContext balancedTransition;
+    balancedTransition.energy = 0.52f;
+    assert(nativeTransitionStyle(NativeSceneKind::PrismGarden,
+        NativeSceneKind::OrbitalLoom, balancedTransition)
+        == NativeTransitionStyle::FocalMorph);
+    assert(nativeTransitionStyle(NativeSceneKind::DepthTunnel,
+        NativeSceneKind::OrbitalLoom, harmonicTransition)
+        == NativeTransitionStyle::DepthTravel);
+    assert(nativeTransitionStyleName(NativeTransitionStyle::FlowCarry)
+           == "flow-carry");
     assert(!nativeSceneFromName("unknown", parsedScene));
     assert(nativeSceneMaterial(NativeSceneKind::DepthTunnel).fieldExposure
            != nativeSceneMaterial(NativeSceneKind::DepthTunnel).asciiExposure);
@@ -129,6 +158,8 @@ int main() {
     assert(startingTransition.transition < 0.01f);
     assert(startingTransition.currentScene == NativeSceneKind::DepthTunnel);
     assert(startingTransition.incomingScene == NativeSceneKind::Centrifuge);
+    assert(startingTransition.transitionStyle
+           == NativeTransitionStyle::DepthTravel);
     float previousMix = startingTransition.transition;
     for (int frame = 0; frame < 30; ++frame) {
         const float mix = director.update(music, 1.0f / 60.0f).transition;
@@ -152,6 +183,16 @@ int main() {
     }
     assert(!timedDirector.state().transitioning);
     assert(timedDirector.state().currentScene == NativeSceneKind::Centrifuge);
+
+    NativeSceneDirector synchronizedStyleDirector;
+    synchronizedStyleDirector.requestScene(NativeSceneKind::PrismGarden);
+    synchronizedStyleDirector.requestTransitionStyle(
+        NativeTransitionStyle::ControlledFracture);
+    const NativeSceneState synchronizedStyle = synchronizedStyleDirector.update(
+        music, 1.0f / 60.0f);
+    assert(synchronizedStyle.transitioning);
+    assert(synchronizedStyle.transitionStyle
+           == NativeTransitionStyle::ControlledFracture);
 
     // A manual next request is one shot. It grants the requested scene a
     // minimum settled run, then the automatic director resumes on a musical

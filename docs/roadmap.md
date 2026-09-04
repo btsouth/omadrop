@@ -525,3 +525,10 @@ Completed after v0.3:
   path while optionally rendering review frames without desktop contamination.
   Narrow spatial reveal boundaries preserve the identity of both scenes
   instead of holding a soft double exposure through the midpoint.
+- Made transition selection structure-aware after compatibility is satisfied.
+  Calm releases use a negative-space reveal, clear harmonic turns use a
+  controlled fracture, rising or dense passages carry motion, and balanced
+  passages use a focal morph. The director stores the selected grammar at the
+  boundary and synchronizes it across displays, preventing momentary hits from
+  changing transition behavior mid-flight. Deterministic visual sequences and
+  the 128-second analyzer replay cover the new decisions.

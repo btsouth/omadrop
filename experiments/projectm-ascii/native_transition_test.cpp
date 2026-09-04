@@ -137,6 +137,8 @@ struct TransitionReview {
     NativeSceneKind source;
     NativeSceneKind incoming;
     NativeTransitionStyle expectedStyle;
+    NativeTransitionContext context{};
+    bool contextual = false;
 };
 }
 
@@ -173,7 +175,7 @@ int main(int argc, char** argv) {
     assert(compositor.initialize(vertexSource, fragment.c_str(), error));
     const GLuint black = blackTexture();
 
-    const std::array<TransitionReview, 5> reviews{{
+    const std::array<TransitionReview, 9> reviews{{
         {NativeSceneKind::InkCurrent, NativeSceneKind::Centrifuge,
          NativeTransitionStyle::FlowCarry},
         {NativeSceneKind::Centrifuge, NativeSceneKind::BloomEngine,
@@ -184,6 +186,19 @@ int main(int argc, char** argv) {
          NativeTransitionStyle::ControlledFracture},
         {NativeSceneKind::NegativeSpace, NativeSceneKind::ShadowArchitecture,
          NativeTransitionStyle::NegativeSpaceReveal},
+        {NativeSceneKind::PrismGarden, NativeSceneKind::OrbitalLoom,
+         NativeTransitionStyle::NegativeSpaceReveal,
+         {.energy = 0.20f, .rhythmicDensity = 0.10f}, true},
+        {NativeSceneKind::LivingMosaic, NativeSceneKind::LumenFold,
+         NativeTransitionStyle::ControlledFracture,
+         {.energy = 0.52f, .harmonic = 0.78f,
+          .harmonicChange = 0.55f}, true},
+        {NativeSceneKind::ParticleWeave, NativeSceneKind::PrismGarden,
+         NativeTransitionStyle::FlowCarry,
+         {.energy = 0.64f, .energySlope = 0.18f}, true},
+        {NativeSceneKind::OrbitalLoom, NativeSceneKind::TidalGrid,
+         NativeTransitionStyle::FocalMorph,
+         {.energy = 0.52f}, true},
     }};
     for (int frame = 0; frame < 180; ++frame) {
         for (std::size_t sceneIndex = 0;
@@ -205,8 +220,11 @@ int main(int argc, char** argv) {
     constexpr std::array<float, 6> progress{0.0f, 0.2f, 0.4f,
                                             0.6f, 0.8f, 1.0f};
     for (const TransitionReview& review : reviews) {
-        assert(nativeTransitionStyle(review.source, review.incoming)
-               == review.expectedStyle);
+        const NativeTransitionStyle selectedStyle = review.contextual
+            ? nativeTransitionStyle(review.source, review.incoming,
+                                    review.context)
+            : nativeTransitionStyle(review.source, review.incoming);
+        assert(selectedStyle == review.expectedStyle);
         std::vector<unsigned char> first;
         std::vector<unsigned char> middle;
         std::vector<unsigned char> last;
@@ -223,7 +241,7 @@ int main(int argc, char** argv) {
             frame.width = width;
             frame.height = height;
             frame.sceneMix = mix;
-            frame.transitionMode = static_cast<int>(review.expectedStyle);
+            frame.transitionMode = static_cast<int>(selectedStyle);
             frame.fieldExposure = sourceMaterial.fieldExposure * (1.0f - mix)
                                 + incomingMaterial.fieldExposure * mix;
             frame.asciiExposure = sourceMaterial.asciiExposure * (1.0f - mix)
@@ -237,11 +255,15 @@ int main(int argc, char** argv) {
             if (index == progress.size() / 2) middle = pixels;
             if (index + 1 == progress.size()) last = pixels;
             if (!output.empty()) {
-                const std::string name
+                std::string name
                     = std::string(nativeSceneDefinition(review.source).slug)
                     + "-to-"
-                    + std::string(nativeSceneDefinition(review.incoming).slug)
-                    + '-' + std::to_string(index) + ".ppm";
+                    + std::string(nativeSceneDefinition(review.incoming).slug);
+                if (review.contextual) {
+                    name += "-state-"
+                          + std::string(nativeTransitionStyleName(selectedStyle));
+                }
+                name += '-' + std::to_string(index) + ".ppm";
                 assert(writePpm(output / name, pixels));
             }
         }
@@ -251,7 +273,8 @@ int main(int argc, char** argv) {
         assert(secondHalf > 0.002f);
         std::cout << nativeSceneName(review.source) << " -> "
                   << nativeSceneName(review.incoming) << " mode="
-                  << static_cast<int>(review.expectedStyle)
+                  << static_cast<int>(selectedStyle)
+                  << (review.contextual ? " state-aware" : "")
                   << " halves=" << firstHalf << ',' << secondHalf << '\n';
     }
 

@@ -252,6 +252,7 @@ int main(int argc, char** argv) {
     float previousSnare = 0.0f;
     float previousHat = 0.0f;
     float previousOnset = 0.0f;
+    bool reportedTransitioning = false;
     const std::array<float, 3> color{0.44f, 0.70f, 1.0f};
     const std::size_t captureInterval = std::getenv("OMADROP_REPLAY_CAPTURE_HOPS")
         ? static_cast<std::size_t>(std::max(
@@ -285,6 +286,18 @@ int main(int argc, char** argv) {
             std::cout << "scene " << seconds << " sec "
                       << nativeSceneName(reportedScene) << "\n";
         }
+        if (scene.transitioning && !reportedTransitioning) {
+            std::cout << "transition " << seconds << " sec "
+                      << nativeSceneName(scene.currentScene) << " -> "
+                      << nativeSceneName(scene.incomingScene) << ' '
+                      << nativeTransitionStyleName(scene.transitionStyle)
+                      << " energy="
+                      << (0.58f * music.energyFast + 0.42f * music.energySlow)
+                      << " slope=" << music.energySlope
+                      << " density=" << music.rhythmicDensity
+                      << " harmonic-change=" << music.harmonicChange << "\n";
+        }
+        reportedTransitioning = scene.transitioning;
         if (structure.sectionCrossed) ++sections;
 
         if (frameStream.is_open()) {

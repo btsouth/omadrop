@@ -1354,6 +1354,15 @@ int main(int argc, char** argv) {
                             nativeSceneDirector.selectScene(source);
                         }
                     }
+                    if (pairedState->transitionMode
+                            >= static_cast<int>(NativeTransitionStyle::FlowCarry)
+                        && pairedState->transitionMode
+                            <= static_cast<int>(
+                                NativeTransitionStyle::NegativeSpaceReveal)) {
+                        nativeSceneDirector.requestTransitionStyle(
+                            static_cast<NativeTransitionStyle>(
+                                pairedState->transitionMode));
+                    }
                     nativeSceneDirector.requestScene(target);
                 }
             } else if (pairedState && pairedState->hardSync) {
@@ -1558,9 +1567,8 @@ int main(int argc, char** argv) {
                 musicFrame, frameSeconds,
                 !pairedFollower && scriptedScenes.empty());
             if (nativeSceneState.transitioning && !nativeTransitionWasActive) {
-                const int authoredTransitionMode = nativeTransitionMode(
-                    nativeSceneState.currentScene,
-                    nativeSceneState.incomingScene);
+                const int authoredTransitionMode
+                    = static_cast<int>(nativeSceneState.transitionStyle);
                 std::cerr << "native scene: "
                           << nativeSceneName(nativeSceneState.currentScene) << " -> "
                           << nativeSceneName(nativeSceneState.incomingScene)
@@ -1676,8 +1684,7 @@ int main(int argc, char** argv) {
                 / static_cast<float>(closeDurationMs)) : 1.0f;
         const int displayTransitionMode = nativeEnabled
             ? nativeSceneState.transitioning
-                ? nativeTransitionMode(nativeSceneState.currentScene,
-                                       nativeSceneState.incomingScene)
+                ? static_cast<int>(nativeSceneState.transitionStyle)
                 : static_cast<int>(NativeTransitionStyle::FlowCarry)
             : transitionMode;
         const LiveCompositorFrame displayFrame{

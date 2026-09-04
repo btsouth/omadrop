@@ -69,7 +69,10 @@ coverage graph gives every registered scene at least two incoming and two
 outgoing paths, checks both halves of every transition, and can write review
 frames when an output directory is supplied. Native reveal boundaries stay
 narrow enough to preserve both compositions instead of producing a long
-double exposure.
+double exposure. Four additional paths verify that calm releases, harmonic
+turns, rising sections, and balanced passages select distinct compatible
+grammars. The director captures that choice once at the musical boundary, so
+individual hits cannot change the transition underneath the viewer.
 
 The MPRIS poller test exercises the asynchronous helper lifecycle, valid and
 invalid state parsing, the no-player result, duplicate-start protection, and
@@ -92,7 +95,8 @@ The native director program concatenates all five locked audio profiles into a
 128-second deterministic performance and runs it through the real analyzer,
 structure detector, director, and renderer. It locks the automatic scene
 sequence, requires at least eight seconds between completed scene changes, and
-prevents adjacent visual-family repetition.
+prevents adjacent visual-family repetition. It also locks the transition style
+chosen at each boundary from the measured musical state.
 
 Pass an optional output directory to `native-renderer-test` to write one
 deterministic continuous frame and one production-equivalent ASCII frame per

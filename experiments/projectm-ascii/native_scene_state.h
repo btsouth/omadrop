@@ -20,6 +20,7 @@ struct NativeSceneState {
     float sceneBeats = 0.0f;
     NativeSceneKind currentScene = NativeSceneKind::DepthTunnel;
     NativeSceneKind incomingScene = NativeSceneKind::Centrifuge;
+    NativeTransitionStyle transitionStyle = NativeTransitionStyle::FlowCarry;
     float transition = 0.0f;
     bool transitioning = false;
     bool motifRecalled = false;
@@ -66,6 +67,7 @@ public:
         if (pendingScene_ && *pendingScene_ == state_.currentScene
             && !state_.transitioning) {
             pendingScene_.reset();
+            pendingTransitionStyle_.reset();
         }
         std::optional<NativeSceneKind> automaticScene;
         if (automaticTransition) automaticScene = chooseAutomaticScene(music);
@@ -77,6 +79,21 @@ public:
                 ? nativeSceneOffset(state_.currentScene, pendingDirection_)
                 : recallTransition ? recalledScene
                 : *automaticScene;
+            const float transitionEnergy = std::clamp(
+                0.58f * music.energyFast + 0.42f * music.energySlow,
+                0.0f, 1.0f);
+            const NativeTransitionContext transitionContext{
+                .energy = transitionEnergy,
+                .percussive = music.percussive,
+                .harmonic = music.harmonic,
+                .rhythmicDensity = music.rhythmicDensity,
+                .harmonicChange = music.harmonicChange,
+                .energySlope = music.energySlope,
+            };
+            state_.transitionStyle = pendingTransitionStyle_.value_or(
+                nativeTransitionStyle(state_.currentScene,
+                                      state_.incomingScene,
+                                      transitionContext));
             state_.transitioning = true;
             transitionElapsed_ = 0.0f;
             state_.sceneBeats = 0.0f;
@@ -88,6 +105,7 @@ public:
                     2.0f, 5.0f);
             pendingDirection_ = 0;
             pendingScene_.reset();
+            pendingTransitionStyle_.reset();
             rememberSceneUse(state_.incomingScene);
         }
         if (sectionStarted && music.motifIdentity >= 0 && !hasRecalledScene) {
@@ -132,6 +150,9 @@ public:
     void requestNext() { pendingDirection_ = 1; }
     void requestPrevious() { pendingDirection_ = -1; }
     void requestScene(NativeSceneKind scene) { pendingScene_ = scene; }
+    void requestTransitionStyle(NativeTransitionStyle style) {
+        pendingTransitionStyle_ = style;
+    }
     void setTransitionDuration(float seconds) {
         transitionSecondsOverride_ = seconds > 0.0f
             ? std::clamp(seconds, 0.6f, 8.0f) : -1.0f;
@@ -146,6 +167,7 @@ public:
         rememberSceneUse(scene);
         pendingDirection_ = 0;
         pendingScene_.reset();
+        pendingTransitionStyle_.reset();
         transitionElapsed_ = 0.0f;
         dwellBeats_ = 0.0f;
         previousSection_ = 0.0f;
@@ -232,6 +254,7 @@ private:
     float dwellBeats_ = 0.0f;
     int pendingDirection_ = 0;
     std::optional<NativeSceneKind> pendingScene_;
+    std::optional<NativeTransitionStyle> pendingTransitionStyle_;
     float transitionElapsed_ = 0.0f;
     float transitionDuration_ = 4.0f;
     float transitionSecondsOverride_ = -1.0f;

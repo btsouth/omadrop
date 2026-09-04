@@ -48,6 +48,7 @@ OMADROP_REPLAY_CAPTURE_HOPS=100000 \
   >"$log"
 
 mapfile -t changes < <(sed -n '/^scene /p' "$log")
+mapfile -t transitions < <(sed -n '/^transition /p' "$log")
 expected=(
   "Ink Current"
   "Shadow Architecture"
@@ -55,9 +56,21 @@ expected=(
   "Wire Organism"
   "Paper Horizon"
 )
+expected_transitions=(
+  "Depth Tunnel -> Ink Current depth-travel"
+  "Ink Current -> Shadow Architecture depth-travel"
+  "Shadow Architecture -> Pulse Cathedral depth-travel"
+  "Pulse Cathedral -> Wire Organism negative-space-reveal"
+  "Wire Organism -> Paper Horizon negative-space-reveal"
+)
 if ((${#changes[@]} != ${#expected[@]})); then
   echo "native-director-program-test: expected ${#expected[@]} changes, got ${#changes[@]}" >&2
   sed -n '/^scene /p' "$log" >&2
+  exit 1
+fi
+if ((${#transitions[@]} != ${#expected_transitions[@]})); then
+  echo "native-director-program-test: expected ${#expected_transitions[@]} transitions, got ${#transitions[@]}" >&2
+  sed -n '/^transition /p' "$log" >&2
   exit 1
 fi
 
@@ -78,11 +91,20 @@ for index in "${!expected[@]}"; do
   previous_time=$time
 done
 
+for index in "${!expected_transitions[@]}"; do
+  row=${transitions[$index]}
+  payload=${row#* sec }
+  if [[ $payload != "${expected_transitions[$index]} "* ]]; then
+    echo "native-director-program-test: transition $index expected ${expected_transitions[$index]}, got $payload" >&2
+    exit 1
+  fi
+done
+
 grep -Fq 'native song replay 128 sec, 5 frames, 4 sections' "$log" || {
   echo "native-director-program-test: analyzer summary changed" >&2
   tail -1 "$log" >&2
   exit 1
 }
 
-sed -n '/^scene /p' "$log"
+sed -n '/^\(scene\|transition\) /p' "$log"
 echo "native director program passed"

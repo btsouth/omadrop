@@ -63,6 +63,29 @@ enum class NativeTransitionStyle : std::uint8_t {
     NegativeSpaceReveal = 10,
 };
 
+inline constexpr std::string_view nativeTransitionStyleName(
+    NativeTransitionStyle style) {
+    switch (style) {
+        case NativeTransitionStyle::FlowCarry: return "flow-carry";
+        case NativeTransitionStyle::FocalMorph: return "focal-morph";
+        case NativeTransitionStyle::DepthTravel: return "depth-travel";
+        case NativeTransitionStyle::ControlledFracture:
+            return "controlled-fracture";
+        case NativeTransitionStyle::NegativeSpaceReveal:
+            return "negative-space-reveal";
+    }
+    return "unknown";
+}
+
+struct NativeTransitionContext {
+    float energy = 0.5f;
+    float percussive = 0.5f;
+    float harmonic = 0.5f;
+    float rhythmicDensity = 0.5f;
+    float harmonicChange = 0.0f;
+    float energySlope = 0.0f;
+};
+
 enum NativeMusicalRole : std::uint8_t {
     KickRole = 1 << 0,
     SnareRole = 1 << 1,
@@ -255,13 +278,23 @@ inline constexpr std::size_t nativeSceneVisualFamilyCount(
 }
 
 inline constexpr NativeTransitionStyle nativeTransitionStyle(
-    NativeSceneKind source, NativeSceneKind incoming) {
+    NativeSceneKind source, NativeSceneKind incoming,
+    const NativeTransitionContext& context) {
+    const NativeSceneDefinition& sourceDefinition
+        = nativeSceneRegistry[static_cast<std::size_t>(source)];
+    const NativeSceneDefinition& incomingDefinition
+        = nativeSceneRegistry[static_cast<std::size_t>(incoming)];
+
+    // Composition compatibility has priority. These scenes expose a specific
+    // landmark or material that should survive every musical context.
     if (source == NativeSceneKind::NegativeSpace
         || incoming == NativeSceneKind::NegativeSpace) {
         return NativeTransitionStyle::NegativeSpaceReveal;
     }
     if (source == NativeSceneKind::ShadowArchitecture
-        || incoming == NativeSceneKind::ShadowArchitecture) {
+        || incoming == NativeSceneKind::ShadowArchitecture
+        || sourceDefinition.transitionAnchor == NativeTransitionAnchor::DepthPoint
+        || incomingDefinition.transitionAnchor == NativeTransitionAnchor::DepthPoint) {
         return NativeTransitionStyle::DepthTravel;
     }
     if (source == NativeSceneKind::GlassChoir
@@ -269,27 +302,46 @@ inline constexpr NativeTransitionStyle nativeTransitionStyle(
         return NativeTransitionStyle::ControlledFracture;
     }
     if (source == NativeSceneKind::InkCurrent
-        || incoming == NativeSceneKind::InkCurrent) {
-        return NativeTransitionStyle::FlowCarry;
-    }
-    const NativeSceneDefinition& sourceDefinition
-        = nativeSceneRegistry[static_cast<std::size_t>(source)];
-    const NativeSceneDefinition& incomingDefinition
-        = nativeSceneRegistry[static_cast<std::size_t>(incoming)];
-    if (sourceDefinition.motionGrammar == NativeMotionGrammar::Flow
+        || incoming == NativeSceneKind::InkCurrent
+        || sourceDefinition.motionGrammar == NativeMotionGrammar::Flow
         || incomingDefinition.motionGrammar == NativeMotionGrammar::Flow) {
         return NativeTransitionStyle::FlowCarry;
     }
-    if (sourceDefinition.transitionAnchor == NativeTransitionAnchor::DepthPoint
-        || incomingDefinition.transitionAnchor == NativeTransitionAnchor::DepthPoint) {
-        return NativeTransitionStyle::DepthTravel;
+
+    // For otherwise compatible scenes, let the arrangement choose the
+    // character of the change. This is sampled once when the director starts
+    // the transition, never from momentary hits during the transition.
+    const float energy = context.energy < 0.0f ? 0.0f
+                       : context.energy > 1.0f ? 1.0f : context.energy;
+    if (context.energySlope < -0.08f
+        || (energy < 0.28f && context.rhythmicDensity < 0.24f)) {
+        return NativeTransitionStyle::NegativeSpaceReveal;
+    }
+    if (context.harmonicChange > 0.22f && context.harmonic > 0.42f) {
+        return NativeTransitionStyle::ControlledFracture;
+    }
+    if (context.energySlope > 0.08f
+        || (context.rhythmicDensity > 0.70f
+            && context.percussive > 0.55f)) {
+        return NativeTransitionStyle::FlowCarry;
     }
     return NativeTransitionStyle::FocalMorph;
+}
+
+inline constexpr NativeTransitionStyle nativeTransitionStyle(
+    NativeSceneKind source, NativeSceneKind incoming) {
+    return nativeTransitionStyle(source, incoming, NativeTransitionContext{});
 }
 
 inline constexpr int nativeTransitionMode(NativeSceneKind source,
                                           NativeSceneKind incoming) {
     return static_cast<int>(nativeTransitionStyle(source, incoming));
+}
+
+inline constexpr int nativeTransitionMode(
+    NativeSceneKind source, NativeSceneKind incoming,
+    const NativeTransitionContext& context) {
+    return static_cast<int>(nativeTransitionStyle(source, incoming, context));
 }
 
 static_assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Flow)
