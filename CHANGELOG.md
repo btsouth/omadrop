@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Rebuild Glass Choir as seven suspended asymmetric voices with thin bevels,
+  internal facets and caustics, suspension threads, and subdued reflections.
+  Resonance rings, fractures, tip glints, and one beat conductor expose the
+  music without moving the fixed ensemble. All locked profiles and both
+  approved full songs pass with zero broad-pulse frames.
 - Rebuild Prism Garden as seven fixed crystal plants with layered leaf blades,
   faceted crown clusters, connected roots, and separate underground filaments.
   Local root bulbs, crown facets, dew, and a traveling pollinator expose kicks,

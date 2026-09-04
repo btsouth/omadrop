@@ -14,7 +14,7 @@ ship decision.
 | Centrifuge | Pass | Pass | Selective | Pass | Pass | Pass | Side rails can dominate quiet passages | Two full songs pass; live output |
 | Constellation Field | Pass | Pass | Sparse | Pass | Pass | Pass | Keep the fixed route and satellite branches legible when cues overlap | Two full songs pass; live output |
 | Depth Tunnel | Pass | Pass | Flow | Pass | Pass | Pass | Keep deliberate depth travel broad while percussion remains local | Two full songs pass; live output |
-| Glass Choir | Pass | Pass | Selective | Pass | Pass | Pass | Keep harmonic movement internal to the fixed shards | Two full songs pass; live output |
+| Glass Choir | Pass | Pass | Selective | Pass | Pass | Pass | Keep resonance, fractures, tip glints, and the conductor separate | Two full songs pass; live output |
 | Ink Current | Pass | Pass | Selective | Pass | Pass | Pass | Keep event marks subordinate to the stable current | Two full songs pass; live output |
 | Living Mosaic | Pass | Pass | Selective | Pass | Pass | Pass | Keep response inside selected cells and seams | Two full songs pass; live output |
 | Lumen Fold | Pass | Pass | Selective | Pass | Pass | Pass | Preserve the calm installation while events use separate sheets, floor pools, cuts, and pins | Two full songs pass; live output |
@@ -121,6 +121,16 @@ across the skyline. Low, middle, and high sustained material remains visible
 in roots, leaves, and crowns without moving the plants. All five replay
 profiles and both approved full songs pass with zero moderate or severe
 broad-pulse frames.
+
+Glass Choir's previous five thick neon diamonds read as flat clip art rather
+than suspended glass. Its replacement arranges seven slender asymmetric
+voices at different heights, widths, and angles, with thin bevels, internal
+facets and caustics, suspension threads, and subdued reflections. Kicks ring
+three lower chambers, snares fracture two selected voices, hats glint their
+tips, and one conductor carries beat position through the ensemble. Sustained
+frequency groups illuminate separate glass details without changing the fixed
+silhouettes. All five replay profiles and both approved full songs pass with
+zero moderate or severe broad-pulse frames.
 
 Run the anonymous final review without exposing scene names:
 

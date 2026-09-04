@@ -542,6 +542,12 @@ Completed after v0.3:
   occupy separate structures rather than scaling or bouncing the garden. All
   five replay profiles and both complete approved songs pass with zero
   moderate or severe broad-pulse frames.
+- Rebuilt Glass Choir from five broad neon diamonds into seven suspended,
+  asymmetric glass voices with thin bevels, internal facets and caustics,
+  suspension threads, and subdued reflections. Resonance rings, fractures,
+  tip glints, and one beat conductor stay local to the fixed ensemble. All five
+  replay profiles and both complete approved songs pass with zero moderate or
+  severe broad-pulse frames.
 - Added visual-family metadata to all 18 scenes. Automatic selection now adds
   a recency penalty for radial, filament, depth, vertical, landscape, network,
   minimal, fluid, faceted, and cellular repetition while manual scene requests
