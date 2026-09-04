@@ -69,6 +69,9 @@
 - Add atomic install, list, and removal commands for validated community packs.
   The isolated store rejects links, special files, oversized content, and
   duplicate versions, and is never scanned by the official scene director.
+- Record abnormal renderer exits atomically in a mode-600 local report with
+  version, exit status, display count, and session type only. The report never
+  captures audio, track metadata, artwork paths, process IDs, or output names.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

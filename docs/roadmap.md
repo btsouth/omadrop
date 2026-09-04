@@ -597,3 +597,6 @@ Completed after v0.3:
 - Added an isolated community-pack store with atomic installation, discovery,
   exact-version removal, file and size limits, and no connection to official
   automatic scene selection.
+- Added atomic privacy-safe crash reports for both one-display and paired
+  launches. Reports contain only allowlisted technical fields and explicitly
+  exclude audio, media metadata, artwork, process IDs, and output names.

@@ -115,4 +115,56 @@ if compgen -G "$hotplug_runtime/display-*.pid" >/dev/null; then
 fi
 [[ ! -e $hotplug_runtime/start-gate ]]
 
+crash=$scratch/crash
+mkdir -p "$crash/runtime" "$crash/state"
+crash_events=$crash/events.log
+crash_processes=$crash/processes.log
+crash_hypr_log=$crash/hypr.log
+touch "$crash_events" "$crash_processes" "$crash_hypr_log"
+set +e
+XDG_RUNTIME_DIR=$crash/runtime \
+XDG_STATE_HOME=$crash/state \
+OMADROP_HYPRCTL=$root/experiments/projectm-ascii/fixtures/fake-hyprctl \
+OMADROP_LIVE_EXECUTABLE=$root/experiments/projectm-ascii/fixtures/fake-launch-renderer \
+OMADROP_RUN_CURATED=$root/experiments/projectm-ascii/fixtures/fake-launch-renderer \
+OMADROP_TEST_EVENT_LOG=$crash_events \
+OMADROP_TEST_PROCESS_FILE=$crash_processes \
+OMADROP_TEST_HYPR_LOG=$crash_hypr_log \
+OMADROP_TEST_RENDERER_EXIT=7 \
+OMADROP_FULLSCREEN=1 \
+  "$root/bin/omadrop" --all >"$crash/output.log" 2>&1
+crash_status=$?
+set -e
+((crash_status == 7))
+report=$crash/state/omadrop/last-crash.txt
+[[ -f $report ]]
+[[ $(stat -c %a "$report") == 600 ]]
+grep -q '^format=1$' "$report"
+grep -q '^renderer_exit_kind=code$' "$report"
+grep -q '^renderer_exit_value=7$' "$report"
+grep -q '^display_count=2$' "$report"
+if grep -Eqi 'audio|track|artist|album|artwork|sink|mpris|path|pid' "$report"; then
+  echo "launcher test: crash report contains private media fields" >&2
+  exit 1
+fi
+XDG_STATE_HOME=$crash/state "$root/bin/omadrop-doctor" --crash-report \
+  >"$crash/doctor.log"
+grep -q '^renderer_exit_value=7$' "$crash/doctor.log"
+grep -q 'No audio, track metadata, or artwork paths' "$crash/doctor.log"
+
+single_crash=$scratch/single-crash
+mkdir -p "$single_crash/runtime" "$single_crash/state"
+set +e
+XDG_RUNTIME_DIR=$single_crash/runtime \
+XDG_STATE_HOME=$single_crash/state \
+OMADROP_LIVE_EXECUTABLE=/usr/bin/false \
+OMADROP_RUN_CURATED=/usr/bin/false \
+  "$root/bin/omadrop" --single >"$single_crash/output.log" 2>&1
+single_status=$?
+set -e
+((single_status == 1))
+single_report=$single_crash/state/omadrop/last-crash.txt
+grep -q '^renderer_exit_value=1$' "$single_report"
+grep -q '^display_count=1$' "$single_report"
+
 echo "launcher synchronization and hotplug passed"

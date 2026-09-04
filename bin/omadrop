@@ -2,9 +2,50 @@
 set -euo pipefail
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 runtime_dir=${XDG_RUNTIME_DIR:-/tmp}/omadrop
+state_home=${XDG_STATE_HOME:-$HOME/.local/state}
 pair_state=$runtime_dir/pair-state
 start_gate=$runtime_dir/start-gate
 hyprctl_command=${OMADROP_HYPRCTL:-hyprctl}
+crash_recorded=0
+
+safe_report_value() {
+  local value=${1:-unknown}
+  value=${value//[^a-zA-Z0-9_.:+-]/_}
+  printf '%s' "${value:0:64}"
+}
+
+write_crash_report() {
+  local renderer_status=$1 exit_kind exit_value crash_dir temporary
+  ((crash_recorded == 0)) || return 0
+  [[ $state_home == /* ]] || return 0
+  if ((renderer_status >= 128)); then
+    exit_kind=signal
+    exit_value=$((renderer_status - 128))
+  else
+    exit_kind=code
+    exit_value=$renderer_status
+  fi
+  crash_dir=$state_home/omadrop
+  umask 077
+  mkdir -p "$crash_dir" || return 0
+  temporary=$(mktemp "$crash_dir/.last-crash.XXXXXX") || return 0
+  {
+    printf 'format=1\n'
+    printf 'version=%s\n' "$(<"$root/VERSION")"
+    printf 'recorded_at_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'renderer_exit_kind=%s\n' "$exit_kind"
+    printf 'renderer_exit_value=%s\n' "$exit_value"
+    printf 'display_count=%s\n' "${display_count:-0}"
+    printf 'monitor_mode=%s\n' "${monitor_mode:-unknown}"
+    printf 'fullscreen=%s\n' "${OMADROP_FULLSCREEN:-unknown}"
+    printf 'session_type=%s\n' "$(safe_report_value "${XDG_SESSION_TYPE:-unknown}")"
+    printf 'desktop=%s\n' "$(safe_report_value "${XDG_CURRENT_DESKTOP:-unknown}")"
+  } >"$temporary"
+  chmod 600 "$temporary"
+  mv "$temporary" "$crash_dir/last-crash.txt"
+  crash_recorded=1
+  echo "omadrop: renderer failed; private-safe report: $crash_dir/last-crash.txt" >&2
+}
 
 if [[ ${1:-} == pack ]]; then
   shift
@@ -98,7 +139,16 @@ export OMADROP_FULLSCREEN=${OMADROP_FULLSCREEN:-1}
 export OMADROP_RANDOM_SEED=${OMADROP_RANDOM_SEED:-$(((RANDOM << 16) ^ RANDOM))}
 if [[ $monitor_mode == single ]]; then
   export OMADROP_DISPLAY_INDEX=${OMADROP_DISPLAY_INDEX:-0}
-  exec "$runner" "$@"
+  display_count=1
+  if "$runner" "$@"; then
+    exit 0
+  else
+    renderer_status=$?
+  fi
+  if ((renderer_status != 130 && renderer_status != 143)); then
+    write_crash_report "$renderer_status"
+  fi
+  exit "$renderer_status"
 fi
 
 pids=()
@@ -232,13 +282,25 @@ while :; do
   # errors.
   while :; do
     renderer_exited=0
+    renderer_status=0
     for pid in "${pids[@]}"; do
       if ! kill -0 "$pid" 2>/dev/null; then
         renderer_exited=1
+        if wait "$pid"; then
+          renderer_status=0
+        else
+          renderer_status=$?
+        fi
         break
       fi
     done
-    ((renderer_exited == 0)) || exit 0
+    if ((renderer_exited)); then
+      if ((renderer_status != 0)); then
+        write_crash_report "$renderer_status"
+        exit "$renderer_status"
+      fi
+      exit 0
+    fi
 
     current_signature=$(current_topology_signature || true)
     if [[ -n $current_signature && $current_signature != "$topology_signature" ]]; then

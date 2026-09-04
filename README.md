@@ -112,6 +112,9 @@ automatic package or shortcut setup.
 # Check the machine before building
 ./bin/omadrop-doctor
 
+# Print the last privacy-safe renderer failure report
+./bin/omadrop-doctor --crash-report
+
 # Remove Omadrop while preserving sync settings and cached covers
 ~/.local/share/omadrop/uninstall.sh
 ```

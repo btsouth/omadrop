@@ -1,5 +1,36 @@
 #!/bin/bash
 # Quick environment check for a fresh machine.
+set -u
+state_home=${XDG_STATE_HOME:-$HOME/.local/state}
+[[ $state_home == /* ]] || {
+  echo "omadrop-doctor: XDG_STATE_HOME must be absolute" >&2
+  exit 1
+}
+crash_report=$state_home/omadrop/last-crash.txt
+if [[ ${1:-} == --crash-report ]]; then
+  if [[ -f $crash_report && ! -L $crash_report && -r $crash_report ]]; then
+    awk -F= '
+      $1 == "format" && $2 ~ /^[0-9]+$/ { print; next }
+      $1 == "version" && $2 ~ /^[0-9A-Za-z.+-]+$/ { print; next }
+      $1 == "recorded_at_utc" && $2 ~ /^[0-9TZ:-]+$/ { print; next }
+      $1 == "renderer_exit_kind" && $2 ~ /^(code|signal)$/ { print; next }
+      $1 == "renderer_exit_value" && $2 ~ /^[0-9]+$/ { print; next }
+      $1 == "display_count" && $2 ~ /^[0-9]+$/ { print; next }
+      $1 == "monitor_mode" && $2 ~ /^(all|single|unknown)$/ { print; next }
+      $1 == "fullscreen" && $2 ~ /^(0|1|unknown)$/ { print; next }
+      ($1 == "session_type" || $1 == "desktop") \
+        && $2 ~ /^[0-9A-Za-z_.:+-]+$/ { print; next }
+    ' "$crash_report"
+  else
+    echo "No Omadrop crash report recorded."
+  fi
+  echo "Crash reports contain technical state only. No audio, track metadata, or artwork paths."
+  exit 0
+fi
+if (($#)); then
+  echo "Usage: omadrop-doctor [--crash-report]" >&2
+  exit 2
+fi
 echo "== Omadrop environment =="
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 echo "version     : $(<"$root/VERSION")"
@@ -19,3 +50,4 @@ echo "presets     : $(find "$root/presets/curated" -type f -name '*.milk' 2>/dev
 live="$root/experiments/projectm-ascii/projectm-ascii-live"
 echo "renderer    : $( [[ -x $live ]] && echo built || echo 'NOT BUILT')"
 echo "album art   : $("$root/bin/mpris-art" 2>/dev/null || echo unavailable)"
+echo "crash report: $( [[ -f $crash_report && ! -L $crash_report && -r $crash_report ]] && echo available || echo none)"

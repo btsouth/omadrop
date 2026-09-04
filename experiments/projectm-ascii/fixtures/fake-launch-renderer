@@ -25,6 +25,6 @@ printf 'revealed %s\n' "$index" >>"$events"
 if [[ ${OMADROP_TEST_RENDERER_STAY:-0} != 1 ]] && ((index == 1)); then
   sleep 0.15
   printf 'exited %s\n' "$index" >>"$events"
-  exit 0
+  exit "${OMADROP_TEST_RENDERER_EXIT:-0}"
 fi
 while :; do sleep 0.05; done
