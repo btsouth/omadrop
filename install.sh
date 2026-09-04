@@ -68,6 +68,8 @@ install -Dm755 "$root/experiments/projectm-ascii/audio-match" \
   "$install_root/experiments/projectm-ascii/audio-match"
 install -Dm755 "$root/experiments/projectm-ascii/scene-pack-audit" \
   "$install_root/experiments/projectm-ascii/scene-pack-audit"
+install -Dm755 "$root/experiments/projectm-ascii/scene-pack-author" \
+  "$install_root/experiments/projectm-ascii/scene-pack-author"
 install -Dm755 "$root/experiments/projectm-ascii/run-curated.sh" \
   "$install_root/experiments/projectm-ascii/run-curated.sh"
 for shader in "$root"/shaders/native/*.{vert,glsl,frag}; do

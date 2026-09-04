@@ -63,6 +63,9 @@
   path and GPU-resource safety, bounded loops, API compatibility, compilation,
   silence, quiet-motion coverage, distinct transient roles, global pulsing,
   gesture recovery, and measured 720p frame time without installing the pack.
+- Add `omadrop pack author` with automatic shader reload, a deterministic
+  quiet-to-peak signal loop, visible kick/snare/hat/energy meters, seeking and
+  pause controls, and simultaneous continuous and ASCII output.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

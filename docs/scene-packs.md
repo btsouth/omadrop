@@ -9,6 +9,20 @@ Start from [`examples/scene-pack`](../examples/scene-pack), then run:
 omadrop pack validate path/to/pack
 ```
 
+Develop a scene in the authoring view:
+
+```bash
+omadrop pack author path/to/pack scene-slug
+```
+
+The left pane is continuous output and the right pane is the same rendered
+frame through the ASCII treatment. Four meters along the bottom show kick,
+snare, hat, and energy. The silent deterministic 16-second replay moves through
+quiet, groove, dense, and release sections. Press Space to pause, use the arrow
+keys to seek by one second, and press Escape to quit. Valid file changes reload
+automatically. A rejected edit leaves the last valid shader running and prints
+the exact error in the launching terminal.
+
 The manifest contract is
 [`scene-pack-v1.schema.json`](scene-pack-v1.schema.json). A pack declares its
 identity, version, author, license, and one to 64 scenes. Every scene declares:
@@ -36,6 +50,9 @@ real native path and measures:
 - global-pulse coverage against the scene's declaration;
 - recovery within 167 ms so a hit does not become constant pumping;
 - 720p p99 frame time against the scene's declaration.
+
+No pack may declare more than 35 percent global-pulse coverage. A scene can
+respond strongly, but a transient cannot justify moving most of the frame.
 
 Validation does not add a scene to the official rotation and does not imply
 visual approval.

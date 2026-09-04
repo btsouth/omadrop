@@ -591,3 +591,6 @@ Completed after v0.3:
   audits silence, quiet coverage, separate transient roles, global pulsing,
   recovery, and 720p frame time through the native renderer. It does not
   install a pack or place community work in the official rotation.
+- Added a pack authoring session with safe automatic shader reload, a silent
+  deterministic 16-second quiet/groove/dense/release loop, kick/snare/hat/energy
+  inspection, timeline controls, and side-by-side continuous and ASCII output.

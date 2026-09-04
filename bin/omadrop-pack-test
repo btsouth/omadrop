@@ -112,4 +112,11 @@ void main() {
 PY
 expect_invalid duplicate-role-shape 'do not have distinct visual roles'
 
+if "$validator" author "$example" missing-scene \
+    >"$scratch/missing-scene.log" 2>&1; then
+  echo "omadrop-pack-test: missing author scene passed" >&2
+  exit 1
+fi
+grep -q 'scene slug not found: missing-scene' "$scratch/missing-scene.log"
+
 echo "scene pack validation passed"
