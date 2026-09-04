@@ -8,7 +8,7 @@ g++ -std=c++20 -O2 -Wall -Wextra main.cpp -o projectm-ascii \
   $(pkg-config --libs sdl2) -lprojectM-4 -lGL
 
 g++ -std=c++20 -O2 -Wall -Wextra live.cpp live_assets.cpp live_projectm.cpp \
-  live_settings.cpp native_renderer.cpp -o projectm-ascii-live \
+  live_settings.cpp native_renderer.cpp pipewire_capture.cpp -o projectm-ascii-live \
   $(pkg-config --cflags projectM-4 sdl2 glew libpng fftw3f json-c) \
   $(pkg-config --libs sdl2 glew libpng fftw3f json-c) -lprojectM-4 -lGL
 

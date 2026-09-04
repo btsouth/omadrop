@@ -36,6 +36,7 @@
 #include "native_renderer.h"
 #include "paired_display.h"
 #include "paired_music_state.h"
+#include "pipewire_capture.h"
 #include "preset_profiles.h"
 #include "preset_selector.h"
 #include "structure_timeline.h"
@@ -653,53 +654,8 @@ int main(int argc, char** argv) {
     std::deque<float> delayedPcm;
     std::cerr << "audio sync delay: " << syncDelayMs << " ms\n";
     publishPairedState(presetIndex, 0, 0, true);
-    pid_t audioPid = -1;
-    int audioFd = -1;
-    auto stopAudioCapture = [&]() {
-        if (audioPid > 0) {
-            kill(audioPid, SIGTERM);
-            waitpid(audioPid, nullptr, 0);
-            audioPid = -1;
-        }
-        if (audioFd >= 0) {
-            close(audioFd);
-            audioFd = -1;
-        }
-    };
-    auto startAudioCapture = [&](const std::string& targetSink) {
-        int audioPipe[2];
-        if (pipe2(audioPipe, O_CLOEXEC) != 0) return false;
-        const pid_t child = fork();
-        if (child == 0) {
-            dup2(audioPipe[1], STDOUT_FILENO);
-            const int nullFd = open("/dev/null", O_WRONLY);
-            if (nullFd >= 0) dup2(nullFd, STDERR_FILENO);
-            close(audioPipe[0]);
-            close(audioPipe[1]);
-            if (targetSink.empty()) {
-                execlp("pw-record", "pw-record", "--raw", "--rate", "44100",
-                       "--channels", "2", "--format", "f32", "--latency", "20ms",
-                       "-P", "{ stream.capture.sink=true }", "-",
-                       static_cast<char*>(nullptr));
-            } else {
-                execlp("pw-record", "pw-record", "--raw", "--rate", "44100",
-                       "--channels", "2", "--format", "f32", "--latency", "20ms",
-                       "-P", "{ stream.capture.sink=true }", "--target",
-                       targetSink.c_str(), "-", static_cast<char*>(nullptr));
-            }
-            _exit(127);
-        }
-        close(audioPipe[1]);
-        if (child < 0) {
-            close(audioPipe[0]);
-            return false;
-        }
-        audioPid = child;
-        audioFd = audioPipe[0];
-        fcntl(audioFd, F_SETFL, fcntl(audioFd, F_GETFL) | O_NONBLOCK);
-        return true;
-    };
-    if (!startAudioCapture(sink)) return 1;
+    PipeWireCapture audioCapture;
+    if (!audioCapture.start(sink)) return 1;
     std::vector<float> pcm(4096 * 2);
     std::vector<float> visualPcm(4096 * 2);
     const unsigned int projectmSampleLimit = projectm_pcm_get_max_samples();
@@ -1014,7 +970,7 @@ int main(int argc, char** argv) {
             nextSinkPollAt = now + 2000;
             const std::string currentSink = defaultSinkName();
             if (!currentSink.empty() && currentSink != sink) {
-                stopAudioCapture();
+                audioCapture.stop();
                 sink = currentSink;
                 syncDelayMs = loadSyncDelay(sink);
                 delayedPcm.clear();
@@ -1022,7 +978,7 @@ int main(int argc, char** argv) {
                 musicFrameBuilder.reset();
                 lastNonSilentAudioAt = now;
                 reportedAudioMode = false;
-                if (!startAudioCapture(sink)) {
+                if (!audioCapture.start(sink)) {
                     std::cerr << "audio: could not follow default sink " << sink << "\n";
                     running = false;
                 } else {
@@ -1138,9 +1094,8 @@ int main(int argc, char** argv) {
         }
         unsigned int capturedFrames = 0;
         float peak = 0.0f;
-        ssize_t bytes = 0;
-        while ((bytes = read(audioFd, pcm.data(), pcm.size() * sizeof(float))) > 0) {
-            std::size_t sampleCount = static_cast<std::size_t>(bytes) / sizeof(float);
+        std::size_t sampleCount = 0;
+        while ((sampleCount = audioCapture.read(pcm.data(), pcm.size())) > 0) {
             sampleCount -= sampleCount % 2;
             capturedFrames += static_cast<unsigned int>(sampleCount / 2);
             for (std::size_t i = 0; i < sampleCount; ++i) {
@@ -1852,7 +1807,7 @@ int main(int argc, char** argv) {
         waitpid(mprisHelperPid, nullptr, 0);
         close(mprisHelperFd);
     }
-    stopAudioCapture();
+    audioCapture.stop();
     nativeRenderer.reset();
     projectm_destroy(engines[0]);
     projectm_destroy(engines[1]);
