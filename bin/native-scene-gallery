@@ -25,6 +25,7 @@ palettes=(
 )
 
 palette_sheets=()
+ascii_palette_sheets=()
 for entry in "${palettes[@]}"; do
   name=${entry%%:*}
   color=${entry#*:}
@@ -39,6 +40,11 @@ for entry in "${palettes[@]}"; do
     -tile 5x2 -geometry +6+22 -background '#05070a' -fill white \
     -font Adwaita-Mono -pointsize 15 "$sheet"
   palette_sheets+=("$sheet")
+  ascii_sheet="$output/ascii-$name.png"
+  magick montage "$directory"/ascii/*.ppm -thumbnail 384x216 -set label '%t' \
+    -tile 5x2 -geometry +6+22 -background '#05070a' -fill white \
+    -font Adwaita-Mono -pointsize 15 "$ascii_sheet"
+  ascii_palette_sheets+=("$ascii_sheet")
 done
 
 magick montage "${palette_sheets[@]}" -thumbnail 960x520 -set label '%t' \
@@ -46,6 +52,13 @@ magick montage "${palette_sheets[@]}" -thumbnail 960x520 -set label '%t' \
   -font Adwaita-Mono -pointsize 18 "$output/palette-matrix.png"
 magick "$output/neutral.png" -colorspace Gray \
   "$output/grayscale-matrix.png"
+magick montage "${ascii_palette_sheets[@]}" -thumbnail 960x520 -set label '%t' \
+  -tile 2x3 -geometry +10+24 -background '#05070a' -fill white \
+  -font Adwaita-Mono -pointsize 18 "$output/ascii-palette-matrix.png"
+magick "$output/ascii-neutral.png" -colorspace Gray \
+  "$output/ascii-grayscale-matrix.png"
 
 echo "palette review: $output/palette-matrix.png"
 echo "grayscale review: $output/grayscale-matrix.png"
+echo "ASCII palette review: $output/ascii-palette-matrix.png"
+echo "ASCII grayscale review: $output/ascii-grayscale-matrix.png"

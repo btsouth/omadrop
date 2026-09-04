@@ -22,7 +22,9 @@ Run the native music-contract and render audits with:
 ```
 
 Pass an optional output directory to `native-renderer-test` to write one
-deterministic reference frame per native scene for visual review.
+deterministic continuous frame and one production-equivalent ASCII frame per
+native scene for visual review. The ASCII reference exercises the native,
+no-cover, no-transient branch of the live display material at 1280x720.
 
 Replay a full 44.1 kHz stereo f32 song through the complete native analyzer,
 director, and renderer with `native-song-replay SHADERS RAW OUTPUT_DIRECTORY`.
@@ -51,7 +53,7 @@ motion, palettes, continuous rendering, and ASCII rendering still require
 human visual review.
 
 Render the production tone map across six difficult album colors, plus a
-grayscale review sheet, with:
+grayscale review sheet, for both continuous and ASCII materials with:
 
 ```sh
 ./bin/native-scene-gallery /tmp/omadrop-native-gallery

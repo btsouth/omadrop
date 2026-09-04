@@ -136,6 +136,112 @@ bool writeReferencePpm(const std::filesystem::path& path,
     return static_cast<bool>(output);
 }
 
+float smoothStep(float edge0, float edge1, float value) {
+    const float position = std::clamp(
+        (value - edge0) / std::max(1e-7f, edge1 - edge0), 0.0f, 1.0f);
+    return position * position * (3.0f - 2.0f * position);
+}
+
+std::array<float, 3> displaySample(const std::vector<float>& pixels,
+                                   int x, int y) {
+    const int sourceX = std::clamp(x * width / 1280, 0, width - 1);
+    const int sourceY = std::clamp(y * height / 720, 0, height - 1);
+    const std::size_t offset
+        = static_cast<std::size_t>(sourceY * width + sourceX) * 4;
+    std::array<float, 3> sample{};
+    for (int channel = 0; channel < 3; ++channel) {
+        const float linear = pixels[offset + channel];
+        sample[channel] = linear / (1.0f + linear * 0.85f);
+    }
+    const float light = 0.299f * sample[0] + 0.587f * sample[1]
+                      + 0.114f * sample[2];
+    for (float& channel : sample) {
+        channel = std::clamp(light + (channel - light) * 1.34f, 0.0f, 1.0f);
+    }
+    return sample;
+}
+
+bool writeAsciiReferencePpm(const std::filesystem::path& path,
+                            const std::vector<float>& pixels,
+                            float exposure) {
+    constexpr int outputWidth = 1280;
+    constexpr int outputHeight = 720;
+    constexpr int cellWidth = 12;
+    constexpr int cellHeight = 24;
+    constexpr std::array<float, 8> thresholds{
+        0.08f, 0.58f, 0.33f, 0.83f, 0.70f, 0.20f, 0.95f, 0.45f};
+    struct DotSample {
+        std::array<float, 3> color{};
+        float level = 0.0f;
+        bool active = false;
+    };
+    constexpr int cellsAcross = (outputWidth + cellWidth - 1) / cellWidth;
+    constexpr int cellsDown = (outputHeight + cellHeight - 1) / cellHeight;
+    std::array<DotSample, cellsAcross * cellsDown * 8> dots{};
+    for (int cellY = 0; cellY < cellsDown; ++cellY) {
+        for (int cellX = 0; cellX < cellsAcross; ++cellX) {
+            for (int dotY = 0; dotY < 4; ++dotY) {
+                for (int dotX = 0; dotX < 2; ++dotX) {
+                    DotSample& dot = dots[(cellY * cellsAcross + cellX) * 8
+                                         + dotY * 2 + dotX];
+                    const int dotOriginX = cellX * cellWidth + dotX * 6;
+                    const int dotOriginY = cellY * cellHeight + dotY * 6;
+                    float best = 0.0f;
+                    for (int offsetY = 0; offsetY < 6; ++offsetY) {
+                        for (int offsetX = 0; offsetX < 6; ++offsetX) {
+                            const auto candidate = displaySample(
+                                pixels, dotOriginX + offsetX,
+                                dotOriginY + offsetY);
+                            const float sampleLight = 0.299f * candidate[0]
+                                                    + 0.587f * candidate[1]
+                                                    + 0.114f * candidate[2];
+                            if (sampleLight > best) {
+                                best = sampleLight;
+                                dot.color = candidate;
+                            }
+                        }
+                    }
+                    dot.level = std::min(1.0f,
+                        std::sqrt(std::max(best, 0.0f)) * 1.25f
+                        * std::sqrt(exposure));
+                    dot.level = std::floor(dot.level * 5.0f + 0.5f) / 5.0f;
+                    dot.active = dot.level >= thresholds[dotY * 2 + dotX];
+                }
+            }
+        }
+    }
+    std::ofstream output(path, std::ios::binary);
+    if (!output) return false;
+    output << "P6\n" << outputWidth << " " << outputHeight << "\n255\n";
+    for (int y = outputHeight - 1; y >= 0; --y) {
+        for (int x = 0; x < outputWidth; ++x) {
+            const int localX = x % cellWidth;
+            const int localY = y % cellHeight;
+            const int dotX = localX < 6 ? 0 : 1;
+            const int dotY = std::clamp(localY / 6, 0, 3);
+            const float centerX = dotX == 0 ? 3.0f : 9.0f;
+            const float centerY = 3.0f + dotY * 6.0f;
+            const float distance = std::hypot(localX - centerX,
+                                              localY - centerY);
+            const float glyphMask = 1.0f - smoothStep(1.42f, 2.38f, distance);
+            const DotSample& dot = dots[((y / cellHeight) * cellsAcross
+                                        + x / cellWidth) * 8
+                                        + dotY * 2 + dotX];
+            const float lightResponse = 0.80f + dot.level * 0.32f;
+            for (int channel = 0; channel < 3; ++channel) {
+                const float linear = dot.active
+                    ? dot.color[channel] * lightResponse * exposure * glyphMask
+                    : 0.0f;
+                const float mapped = std::clamp(linear, 0.0f, 1.0f);
+                const auto value = static_cast<unsigned char>(
+                    std::pow(mapped, 1.0f / 2.2f) * 255.0f + 0.5f);
+                output.write(reinterpret_cast<const char*>(&value), 1);
+            }
+        }
+    }
+    return static_cast<bool>(output);
+}
+
 MusicFrame baseMusic() {
     MusicFrame music;
     music.bandLevel.fill(1.0f);
@@ -564,10 +670,14 @@ bool captureReference(NativeRenderer& renderer, NativeSceneKind kind,
                              1.0f / 60.0f, error)) return false;
     }
     std::filesystem::create_directories(outputDirectory);
+    std::filesystem::create_directories(outputDirectory / "ascii");
     const std::string slug(nativeSceneDefinition(kind).slug);
-    return writeReferencePpm(outputDirectory / (slug + ".ppm"),
-                             readTexture(renderer.texture(kind)),
-                             nativeSceneMaterial(kind).fieldExposure);
+    const std::vector<float> pixels = readTexture(renderer.texture(kind));
+    const NativeSceneMaterial material = nativeSceneMaterial(kind);
+    return writeReferencePpm(outputDirectory / (slug + ".ppm"), pixels,
+                             material.fieldExposure)
+        && writeAsciiReferencePpm(outputDirectory / "ascii" / (slug + ".ppm"),
+                                  pixels, material.asciiExposure);
 }
 
 std::optional<std::array<float, 3>> referenceColorFromEnvironment() {

@@ -7,18 +7,18 @@ continuous material, ASCII material, palettes, and transitions all pass.
 `Pass` below applies only to the evidence already reviewed. It is not a final
 ship decision.
 
-| Scene | Still | Response | Grammar | Color | Gray | Main issue | Next review |
-| --- | :---: | :---: | :---: | :---: | :---: | --- | --- |
-| Bloom Engine | Pass | Pass | Selective | Pass | Pass | Close radial similarity to Orbital Loom | Full-song motion, ASCII |
-| Centrifuge | Pass | Pass | Selective | Pass | Pass | Side rails can dominate quiet passages | Full-song motion, ASCII |
-| Constellation Field | Pass | Pass | Sparse | Pass | Pass | Central rings can compete with the network | Full-song motion, ASCII |
-| Depth Tunnel | Pass | Pass | Flow | Pass | Tune | Layers lose hierarchy without hue separation | Full-song motion, grayscale |
-| Orbital Loom | Pass | Pass | Selective | Pass | Pass | Needs clearer separation from other radial scenes | Full-song motion, ASCII |
-| Prism Garden | Tune | Pass | Sparse | Pass | Tune | Repeated columns need more depth and development | Composition, ASCII |
-| Pulse Cathedral | Tune | Pass | Selective | Pass | Tune | Bright arches flatten into one layer in grayscale | Composition, grayscale |
-| Spectral Ribbons | Tune | Pass | Flow | Pass | Tune | Bands merge and remain visually repetitive | Composition, full-song motion |
-| Tidal Grid | Tune | Pass | Selective | Pass | Pass | Horizon, grid, and foreground compete for attention | Composition, ASCII |
-| Wire Organism | Tune | Pass | Sparse | Pass | Pass | Strong identity but too little supporting structure | Composition, quiet passages |
+| Scene | Still | Response | Grammar | Color | Gray | ASCII | Main issue | Next review |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: | --- | --- |
+| Bloom Engine | Pass | Pass | Selective | Pass | Pass | Pass | Close radial similarity to Orbital Loom | Full-song motion |
+| Centrifuge | Pass | Pass | Selective | Pass | Pass | Pass | Side rails can dominate quiet passages | Full-song motion |
+| Constellation Field | Pass | Pass | Sparse | Pass | Pass | Pass | Central rings can compete with the network | Full-song motion |
+| Depth Tunnel | Pass | Pass | Flow | Pass | Tune | Pass | Layers lose hierarchy without hue separation | Grayscale and full-song motion |
+| Orbital Loom | Pass | Pass | Selective | Pass | Pass | Pass | Needs clearer separation from other radial scenes | Full-song motion |
+| Prism Garden | Tune | Pass | Sparse | Pass | Tune | Pass | Repeated columns need more depth and development | Composition |
+| Pulse Cathedral | Tune | Pass | Selective | Pass | Tune | Pass | Focal hierarchy is improved but still needs motion review | Full-song motion |
+| Spectral Ribbons | Tune | Pass | Flow | Pass | Tune | Pass | Bands merge and remain visually repetitive | Composition, full-song motion |
+| Tidal Grid | Tune | Pass | Selective | Pass | Pass | Pass | Horizon, grid, and foreground compete for attention | Composition |
+| Wire Organism | Tune | Pass | Sparse | Pass | Pass | Pass | Strong identity but too little supporting structure | Composition, quiet passages |
 
 ## Current priorities
 
@@ -28,8 +28,7 @@ ship decision.
    and Wire Organism.
 3. Review Depth Tunnel and Orbital Loom over full songs to confirm that their
    deliberately broad motion does not become constant pulsing.
-4. Fix the four grayscale hierarchy failures, then review every scene in ASCII
-   before promoting another scene.
+4. Fix the grayscale hierarchy failures before promoting another scene.
 5. Add new scenes only when their composition and motion grammar are clearly
    different from this matrix.
 
