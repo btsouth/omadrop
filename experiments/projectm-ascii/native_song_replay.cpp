@@ -44,13 +44,9 @@ std::vector<float> readTexture(GLuint texture, int width, int height) {
     return pixels;
 }
 
-bool writePpm(const std::filesystem::path& path,
-              const std::vector<float>& source,
+bool writeRgb(std::ostream& output, const std::vector<float>& source,
               const std::vector<float>& incoming, float transition,
               float exposure, int width, int height) {
-    std::ofstream output(path, std::ios::binary);
-    if (!output) return false;
-    output << "P6\n" << width << " " << height << "\n255\n";
     const float mix = std::clamp(transition, 0.0f, 1.0f);
     for (int y = height - 1; y >= 0; --y) {
         for (int x = 0; x < width; ++x) {
@@ -67,6 +63,17 @@ bool writePpm(const std::filesystem::path& path,
         }
     }
     return static_cast<bool>(output);
+}
+
+bool writePpm(const std::filesystem::path& path,
+              const std::vector<float>& source,
+              const std::vector<float>& incoming, float transition,
+              float exposure, int width, int height) {
+    std::ofstream output(path, std::ios::binary);
+    if (!output) return false;
+    output << "P6\n" << width << " " << height << "\n255\n";
+    return writeRgb(output, source, incoming, transition, exposure,
+                    width, height);
 }
 
 std::string sceneSlug(NativeSceneKind scene) {
@@ -158,6 +165,14 @@ int main(int argc, char** argv) {
         "OMADROP_REPLAY_WIDTH", defaultWidth, 320, 1920);
     const int height = replayDimension(
         "OMADROP_REPLAY_HEIGHT", defaultHeight, 180, 1080);
+    std::ofstream frameStream;
+    if (const char* streamPath = std::getenv("OMADROP_REPLAY_FRAME_STREAM")) {
+        frameStream.open(streamPath, std::ios::binary);
+        if (!frameStream) {
+            std::cerr << "could not open frame stream: " << streamPath << "\n";
+            return 1;
+        }
+    }
     std::ofstream timeline(outputDirectory / "timeline.tsv");
     timeline << "seconds\tscene\tkick\tsnare\that\tonset_pulse\tbeat_pulse\tbeat_phase"
                 "\tbar\tsection\tflux_sub\tflux_bass\tflux_low_mid\tflux_mid"
@@ -257,6 +272,26 @@ int main(int argc, char** argv) {
                       << nativeSceneName(reportedScene) << "\n";
         }
         if (structure.sectionCrossed) ++sections;
+
+        if (frameStream.is_open()) {
+            const std::vector<float> source = readTexture(
+                renderer.texture(scene.currentScene), width, height);
+            const std::vector<float> incoming = scene.transitioning
+                ? readTexture(renderer.texture(scene.incomingScene), width, height)
+                : source;
+            const NativeSceneMaterial sourceMaterial
+                = nativeSceneMaterial(scene.currentScene);
+            const NativeSceneMaterial incomingMaterial = nativeSceneMaterial(
+                scene.transitioning ? scene.incomingScene : scene.currentScene);
+            const float transition = scene.transitioning ? scene.transition : 0.0f;
+            const float exposure = sourceMaterial.fieldExposure * (1.0f - transition)
+                                 + incomingMaterial.fieldExposure * transition;
+            if (!writeRgb(frameStream, source, incoming, transition, exposure,
+                          width, height)) {
+                std::cerr << "could not write replay frame stream\n";
+                return 1;
+            }
+        }
 
         float frameMotion = -1.0f;
         float frameCoverage = -1.0f;

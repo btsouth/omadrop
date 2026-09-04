@@ -1,0 +1,101 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+replay="$root/experiments/projectm-ascii/native-song-replay"
+shaders="$root/shaders/native"
+
+if (($# < 3 || $# > 4)); then
+  echo "usage: native-song-video RAW_F32_STEREO OUTPUT_MP4 SCENE [MAX_SECONDS]" >&2
+  exit 2
+fi
+
+[[ -x $replay ]] || {
+  echo "native-song-video: run experiments/projectm-ascii/build.sh first" >&2
+  exit 2
+}
+command -v ffmpeg >/dev/null || {
+  echo "native-song-video: ffmpeg is required" >&2
+  exit 2
+}
+
+music=$(readlink -f "$1")
+[[ -f $music ]] || {
+  echo "native-song-video: input not found: $1" >&2
+  exit 2
+}
+output=$2
+scene=$3
+maximum_seconds=${4:-}
+if [[ -e $output ]]; then
+  echo "native-song-video: output already exists: $output" >&2
+  exit 2
+fi
+if [[ -n $maximum_seconds && ! $maximum_seconds =~ ^[1-9][0-9]*$ ]]; then
+  echo "native-song-video: MAX_SECONDS must be a positive integer" >&2
+  exit 2
+fi
+
+width=${OMADROP_VIDEO_WIDTH:-960}
+height=${OMADROP_VIDEO_HEIGHT:-540}
+if [[ ! $width =~ ^[0-9]+$ || ! $height =~ ^[0-9]+$ \
+      || $width -lt 320 || $width -gt 1920 \
+      || $height -lt 180 || $height -gt 1080 ]]; then
+  echo "native-song-video: resolution must be within 320x180 and 1920x1080" >&2
+  exit 2
+fi
+
+mkdir -p "$(dirname "$output")"
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-song-video.XXXXXX")
+frame_stream="$scratch/frames.rgb"
+mkdir -p "$scratch/replay"
+mkfifo "$frame_stream"
+encoder=0
+cleanup() {
+  if ((encoder > 0)); then
+    kill "$encoder" 2>/dev/null || true
+    wait "$encoder" 2>/dev/null || true
+  fi
+  rm -rf -- "$scratch"
+}
+trap cleanup EXIT
+
+ffmpeg -hide_banner -loglevel error -y \
+  -f rawvideo -pixel_format rgb24 -video_size "${width}x${height}" \
+  -framerate 60 -i "$frame_stream" \
+  -f f32le -ar 44100 -ac 2 -i "$music" \
+  -map 0:v:0 -map 1:a:0 -c:v libx264 -preset fast -crf 18 \
+  -pix_fmt yuv420p -c:a aac -b:a 192k -shortest "$output" \
+  >"$scratch/ffmpeg.log" 2>&1 &
+encoder=$!
+
+replay_environment=(
+  env
+  OMADROP_REPLAY_SCENE="$scene"
+  OMADROP_REPLAY_CAPTURE_HOPS=100000
+  OMADROP_REPLAY_WIDTH="$width"
+  OMADROP_REPLAY_HEIGHT="$height"
+  OMADROP_REPLAY_FRAME_STREAM="$frame_stream"
+)
+if [[ -n $maximum_seconds ]]; then
+  replay_environment+=(OMADROP_REPLAY_MAX_SECONDS="$maximum_seconds")
+fi
+
+set +e
+"${replay_environment[@]}" \
+  "$replay" "$shaders" "$music" "$scratch/replay" \
+  >"$scratch/replay.log" 2>&1
+replay_status=$?
+wait "$encoder"
+encoder_status=$?
+encoder=0
+set -e
+
+if ((replay_status != 0 || encoder_status != 0)); then
+  echo "native-song-video: replay or encoding failed" >&2
+  cat "$scratch/replay.log" >&2
+  cat "$scratch/ffmpeg.log" >&2
+  exit 1
+fi
+
+echo "continuous review: $output"

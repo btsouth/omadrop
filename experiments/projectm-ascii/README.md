@@ -52,6 +52,17 @@ plus a five-point comparison matrix with:
 The output directory must be empty. The optional final argument limits the
 review to that many seconds.
 
+Encode the exact 60 FPS replay with its matching audio for continuous-motion
+review with:
+
+```sh
+./bin/native-song-video song.f32 /tmp/depth-review.mp4 depth-tunnel 30
+```
+
+The encoder streams frames through a FIFO, so it does not leave a directory of
+raw frames behind. Set `OMADROP_VIDEO_WIDTH` and `OMADROP_VIDEO_HEIGHT` to
+change the default 960x540 review resolution.
+
 Generate the deterministic structured fixture and measure every native scene
 with the same input:
 

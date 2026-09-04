@@ -387,6 +387,8 @@ Completed after v0.3:
 - Added configurable full-resolution song replay and an all-scene full-song
   gallery. The deterministic fixture and the current 30-second real-song
   review both pass all ten scene gates.
+- Added a FIFO-backed 60 FPS replay encoder with source-matched audio for
+  continuous motion review without desktop capture or temporary raw frames.
 - Added true 1280x720 continuous and ASCII review galleries across six album
   colors and grayscale.
 - Raised all ten current scenes to the still-frame quality floor. Time-sampled
