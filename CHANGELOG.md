@@ -14,6 +14,8 @@
   kick, snare, hat, harmony, and section gestures.
 - Add Living Mosaic, a stable field of stained cells whose seams, cuts, nuclei,
   and selected interiors carry separate musical roles.
+- Add Lumen Fold, a calm installation of fixed translucent sheets with separate
+  timing, floor, incision, suspension, and structural responses.
 - Choose native transitions from scene compatibility, with separate flow,
   focal, depth, fracture, and negative-space paths.
 - Add a hidden production-compositor gallery test for deterministic transition

@@ -351,8 +351,8 @@ Allow more people to create scenes while keeping the official rotation strict.
 4. Add the developer signal monitor and repeatable presentation-delay tool.
 5. Continue splitting track state, display session, cover presentation,
    direction, and rendering out of the live application loop.
-6. Prototype Light Sculpture as the next scene family, using fixed volumetric
-   planes and localized light changes instead of camera or object bounce.
+6. Prototype Paper Horizon as the next scene family, using fixed layered
+   cut-paper silhouettes and localized illumination instead of layer bounce.
 7. Promote only candidates that pass still-frame, motion, music-response,
    ASCII, transition, and performance review.
 
@@ -492,6 +492,12 @@ Completed after v0.3:
   a stable full-frame composition while beat timing selects narrow seams and
   percussion activates separate cells, cuts, and nuclei. Continuous color,
   grayscale, high-exposure ASCII, six album palettes, the 80-combination
+  replay suite, and a 3,600-frame 1080p soak pass with zero pulse-duty activity
+  in every profile and no slow-frame streak.
+- Added Lumen Fold as a quiet light-installation scene. Five fixed translucent
+  sheets keep different lengths, widths, faces, and reflections while beat,
+  kick, snare, hats, and section cues occupy separate surfaces. Continuous
+  color, grayscale, high-exposure ASCII, six album palettes, the 85-combination
   replay suite, and a 3,600-frame 1080p soak pass with zero pulse-duty activity
   in every profile and no slow-frame streak.
 - Added five native transition grammars selected from scene compatibility:
