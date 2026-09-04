@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Rebuild Centrifuge as an asymmetric physical rotor with six fixed sample
+  chambers, a broken rim, stable hub, and curved ejection rail. Weight rings,
+  opposing clamps, rim ticks, and one beat counterweight replace full-screen
+  concentric rings and feedback rotation. All locked profiles and both
+  approved full songs pass with zero broad-pulse frames.
 - Rebuild Glass Choir as seven suspended asymmetric voices with thin bevels,
   internal facets and caustics, suspension threads, and subdued reflections.
   Resonance rings, fractures, tip glints, and one beat conductor expose the

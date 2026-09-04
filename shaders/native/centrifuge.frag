@@ -3,150 +3,217 @@
 in vec2 uv;
 out vec4 color;
 
-uniform sampler2D previousFrame;
-uniform vec2 resolution;
-uniform vec3 albumColor;
-uniform float bandLevel[6];
-uniform float spectrumLevel[32];
-uniform float flowTime;
-uniform float beatPhase;
-uniform float beatAnticipation;
-uniform float beatPulse;
-uniform float onsetPulse;
-uniform float downbeat;
-uniform float barPhase;
-uniform float phrasePhase;
-uniform float clockConfidence;
-uniform float kick;
-uniform float snare;
-uniform float hat;
-uniform float percussive;
-uniform float harmonic;
-uniform float spectralCentroid;
-uniform float stereoWidth;
-uniform float energyFast;
-uniform float energySlow;
-uniform float energySlope;
-uniform float section;
-uniform float development;
-uniform float drive;
-uniform float peak;
-uniform float release;
-uniform float sceneBeats;
-uniform float motionScale;
+#include "scene-uniforms.glsl"
 
-#include "common.glsl"
+float segmentDistance(vec2 p, vec2 a, vec2 b) {
+    vec2 ab = b - a;
+    float position = clamp(dot(p - a, ab) / max(dot(ab, ab), 0.0001),
+                           0.0, 1.0);
+    return length(p - a - ab * position);
+}
+
+float curvedDistance(vec2 p, vec2 a, vec2 b, float bend) {
+    vec2 direction = b - a;
+    vec2 normal = normalize(vec2(-direction.y, direction.x));
+    vec2 control = (a + b) * 0.5 + normal * bend;
+    float closest = 10.0;
+    vec2 previous = a;
+    for (int index = 1; index <= 8; ++index) {
+        float t = float(index) / 8.0;
+        vec2 point = mix(mix(a, control, t), mix(control, b, t), t);
+        closest = min(closest, segmentDistance(p, previous, point));
+        previous = point;
+    }
+    return closest;
+}
+
+vec2 curvedPoint(vec2 a, vec2 b, float bend, float t) {
+    vec2 direction = b - a;
+    vec2 normal = normalize(vec2(-direction.y, direction.x));
+    vec2 control = (a + b) * 0.5 + normal * bend;
+    return mix(mix(a, control, t), mix(control, b, t), t);
+}
+
+float disc(vec2 p, vec2 center, float radius) {
+    return 1.0 - smoothstep(radius, radius * 2.15, length(p - center));
+}
 
 void main() {
     vec2 aspect = vec2(resolution.x / max(1.0, resolution.y), 1.0);
-    vec2 center = vec2(0.022 * sin(flowTime * 0.16 + phrasePhase * tau),
-                       0.017 * cos(flowTime * 0.13 + barPhase * tau));
-    center.x += stereoWidth * 0.032 * sin(flowTime * 0.24);
-    vec2 p = (uv - 0.5) * aspect - center;
-    float radius = max(0.001, length(p));
-    float angle = atan(p.y, p.x);
+    vec2 p = (uv - 0.5) * aspect;
+    vec2 center = vec2(-0.13, -0.015);
+    vec2 rotorP = p - center;
+    float radius = length(rotorP);
+    float angle = atan(rotorP.y, rotorP.x);
 
-    // The outer frame and inner aperture counter-rotate. Snare transfers
-    // angular momentum between them while kick changes aperture depth.
-    float region = smoothstep(0.25, 0.68, radius);
-    float idleSpin = (0.00012 + 0.00025 * drive) * motionScale;
-    float snareSpin = 0.016 * snare;
-    float feedbackRotation = mix(-idleSpin - snareSpin,
-                                  idleSpin + snareSpin * 0.46, region);
-    float apertureZone = 1.0 - smoothstep(0.28, 0.64, radius);
-    float aperturePull = (0.00012 + 0.00018 * energySlow) * motionScale
-                       + apertureZone * (0.0030 * beatPulse
-                                         + 0.0020 * onsetPulse
-                                         + 0.0040 * kick)
-                       - 0.0014 * beatAnticipation * clockConfidence;
-    vec2 previousP = rotate2d(feedbackRotation) * p * (1.0 - aperturePull);
-    previousP += vec2(sin(p.y * 26.0), cos(p.x * 23.0)) * 0.0018 * hat;
-    vec2 previousUv = previousP / aspect + 0.5 + center / aspect;
-    float edge = smoothstep(0.0, 0.07, uv.x)
-               * smoothstep(0.0, 0.07, uv.y)
-               * smoothstep(0.0, 0.07, 1.0 - uv.x)
-               * smoothstep(0.0, 0.07, 1.0 - uv.y);
-    vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
-                  * mix(0.900, 0.945, harmonic)
-                  * mix(1.0, 1.012, release) * edge;
+    float overload = smoothstep(2.55, 3.0, kick + snare + hat);
+    float gestureBudget = mix(1.0, 0.68, overload);
+    float sceneKick = kick * gestureBudget;
+    float sceneSnare = snare * gestureBudget;
+    float sceneHat = hat * gestureBudget;
+    float lowSustain = 1.0 - exp(-0.34 * (bandLevel[0] + bandLevel[1]));
+    float midSustain = 1.0 - exp(-0.34 * (bandLevel[2] + bandLevel[3]));
+    float highSustain = 1.0 - exp(-0.34 * (bandLevel[4] + bandLevel[5]));
 
-    float low = clamp(0.5 * spectrumLevel[3] + 0.5 * spectrumLevel[8], 0.0, 2.0);
-    float middle = clamp(0.5 * spectrumLevel[14] + 0.5 * spectrumLevel[18], 0.0, 2.0);
-    float high = clamp(0.5 * spectrumLevel[25] + 0.5 * spectrumLevel[30], 0.0, 2.0);
+    vec3 primary = mix(palettePrimary(0.42), vec3(0.02, 0.74, 0.88), 0.18);
+    vec3 secondary = mix(paletteSecondary(0.42), vec3(0.92, 0.16, 0.64), 0.18);
+    vec3 accent = mix(paletteAccent(0.42), vec3(1.0, 0.75, 0.20), 0.13);
 
-    float apertureRadius = mix(0.13, 0.22, development)
-                         + 0.060 * beatPulse + 0.050 * onsetPulse
-                         + 0.045 * kick;
-    float apertureEdge = line(radius - apertureRadius, 0.010 + 0.009 * low);
-    float shellPhase = radius * mix(24.0, 38.0, development)
-                     - flowTime * (0.30 + 0.45 * drive)
-                     - beatPulse * 1.8 - kick * 1.1;
-    float shells = line(sin(shellPhase), 0.10 + 0.025 * energyFast);
-    shells *= smoothstep(apertureRadius + 0.015, apertureRadius + 0.13, radius)
-            * smoothstep(1.18, 0.52, radius);
+    float plate = 1.0 - smoothstep(0.225, 0.235, radius);
+    float plateEdge = line(radius - 0.235, 0.0032);
+    float brokenRim = line(radius - 0.302, 0.0040)
+                    * smoothstep(0.20, 0.78,
+                        0.5 + 0.5 * sin(angle * 3.0 + 0.62));
+    float innerRim = line(radius - 0.092, 0.0032);
+    float hub = 1.0 - smoothstep(0.046, 0.052, radius);
+    float hubEdge = line(radius - 0.052, 0.0032);
 
-    vec2 frameP = rotate2d(0.15 * sin(flowTime * 0.11)
-                                 + 0.38 * snare) * p;
-    float squareRadius = max(abs(frameP.x), abs(frameP.y));
-    float frameSize = mix(0.52, 0.70, development) + 0.025 * middle;
-    float squareFrame = line(squareRadius - frameSize, 0.012 + 0.008 * middle);
-    squareFrame *= smoothstep(0.08, 0.32, radius);
+    float arms = 0.0;
+    float armHalos = 0.0;
+    float chambers = 0.0;
+    float chamberEdges = 0.0;
+    float chamberCores = 0.0;
+    float chamberBolts = 0.0;
+    float kickWeights = 0.0;
+    float snareClamps = 0.0;
+    float highTicks = 0.0;
+    vec3 chamberColor = vec3(0.0);
 
-    float spokeCount = mix(8.0, 14.0, development) + 4.0 * peak;
-    float spokes = line(sin(angle * spokeCount + snare * 1.4
-                          - flowTime * (0.22 + 0.45 * drive)), 0.050);
-    spokes *= smoothstep(apertureRadius, apertureRadius + 0.10, radius)
-            * smoothstep(frameSize + 0.08, frameSize - 0.12, radius);
+    for (int index = 0; index < 6; ++index) {
+        float fi = float(index);
+        float armAngle = 0.18 + fi * tau / 6.0;
+        vec2 direction = vec2(cos(armAngle), sin(armAngle));
+        vec2 tangent = vec2(-direction.y, direction.x);
+        vec2 armStart = center + direction * 0.078;
+        vec2 armEnd = center + direction * 0.253;
+        float armDistance = segmentDistance(p, armStart, armEnd);
+        arms = max(arms, line(armDistance, 0.0032));
+        armHalos += line(armDistance, 0.011) * 0.10;
 
-    // Hats run around the existing square boundary and divide its corners.
-    float frameTravel = fract(angle / tau + flowTime * 0.55 + beatPhase);
-    float cornerTicks = line(sin(frameTravel * tau * 18.0), 0.065);
-    cornerTicks *= squareFrame * hat * (0.66 + 0.24 * high);
-    float downbeatSquare = line(squareRadius - mix(0.16, frameSize, beatPhase),
-                                0.008 + 0.008 * percussive)
-                         * downbeat * clockConfidence * 0.55;
-    float beatSquare = line(squareRadius - mix(0.18, frameSize,
-                             1.0 - clamp(beatPulse, 0.0, 1.0)), 0.010)
-                     * beatPulse * clockConfidence;
-    float kickRotor = line(radius - (apertureRadius + 0.07 + 0.075 * kick),
-                           0.010 + 0.006 * kick)
-                    * kick * smoothstep(apertureRadius, apertureRadius + 0.04,
-                                        radius);
-    float sectionSquare = line(squareRadius - section * frameSize,
-                               0.014) * section * 0.52;
+        vec2 chamberCenter = center + direction * 0.274;
+        float chamberDistance = segmentDistance(
+            p, chamberCenter - tangent * 0.030,
+            chamberCenter + tangent * 0.030);
+        float chamber = 1.0 - smoothstep(0.012, 0.022, chamberDistance);
+        float chamberEdge = line(chamberDistance - 0.018, 0.0030);
+        float core = disc(p, chamberCenter, 0.008 + 0.0015 * mod(fi, 2.0));
+        chambers = max(chambers, chamber);
+        chamberEdges = max(chamberEdges, chamberEdge);
+        chamberCores += core;
 
-    float backgroundMedium = line(
-        sin(radius * 5.0 + angle * 3.0 + flowTime * 0.35), 0.25);
-    backgroundMedium *= harmonic * smoothstep(0.12, 0.34, radius)
-                      * smoothstep(1.24, 0.66, radius) * 0.22;
-    float focalSubject = max(apertureEdge * (0.42 + 0.40 * low + 0.28 * kick),
-                             shells * (0.24 + 0.34 * bandLevel[1]));
-    focalSubject = max(focalSubject,
-                       squareFrame * (0.26 + 0.32 * middle + 0.14 * snare));
-    focalSubject = max(focalSubject, spokes * (0.18 + 0.28 * bandLevel[3]));
-    float accents = cornerTicks + beatSquare + downbeatSquare + sectionSquare
-                  + kickRotor;
+        vec2 boltA = chamberCenter - tangent * 0.024;
+        vec2 boltB = chamberCenter + tangent * 0.024;
+        chamberBolts += disc(p, boltA, 0.0026) + disc(p, boltB, 0.0026);
 
-    vec3 primary = palettePrimary(0.42);
-    vec3 secondary = paletteSecondary(0.42);
-    vec3 focalColor = mix(primary, secondary,
-                          0.26 + 0.24 * spectralCentroid
-                          + 0.20 * sin(angle * 2.0 - flowTime * 0.10));
-    vec3 mediumColor = mix(primary * 0.38, secondary * 0.38,
-                           0.5 + 0.5 * sin(angle - flowTime * 0.07));
-    vec3 accentColor = mix(paletteAccent(0.42), vec3(0.94, 0.98, 1.0),
-                           0.48 + 0.22 * hat);
-    float lifecycleLight = 0.12 + 0.045 * development + 0.055 * drive
-                         + 0.065 * peak;
-    vec3 injection = mediumColor * backgroundMedium * (0.11 + 0.10 * harmonic)
-                   + focalColor * focalSubject
-                     * (lifecycleLight + 0.065 * max(0.0, energySlope))
-                   + accentColor * accents * (0.17 + 0.11 * peak);
-    injection += mix(accentColor, vec3(1.0), 0.42) * cornerTicks * 0.14;
-    injection *= 1.0 - 0.56 * release;
+        float spectrum = 1.0 - exp(-0.26 * spectrumLevel[index * 5 + 2]);
+        vec3 localColor = mix(primary, secondary,
+            clamp(0.08 + fi * 0.16 + 0.10 * tonalMotion, 0.0, 1.0));
+        chamberColor += localColor * chamber
+                      * (0.018 + 0.020 * spectrum)
+                      + mix(localColor, accent, 0.22) * chamberEdge * 0.13;
 
-    float core = smoothstep(apertureRadius * 0.52, apertureRadius, radius);
-    vec3 result = (feedback + injection) * core;
-    result = max(result - vec3(0.0042), vec3(0.0));
-    color = vec4(result, 1.0);
+        float kickRole = (index == 1 || index == 4) ? 1.0 : 0.0;
+        kickWeights += line(length(p - chamberCenter)
+            - (0.012 + 0.018 * sceneKick), 0.0038)
+            * sceneKick * kickRole;
+
+        float snareRole = (index == 0 || index == 3) ? 1.0 : 0.0;
+        float clampDistance = segmentDistance(
+            p, chamberCenter - tangent * (0.038 + 0.018 * sceneSnare),
+            chamberCenter + tangent * (0.038 + 0.018 * sceneSnare));
+        snareClamps += line(clampDistance, 0.0033)
+                     * sceneSnare * snareRole;
+
+        float tickRole = mod(fi, 2.0) < 0.5 ? 1.0 : 0.42;
+        vec2 tickStart = center + direction * 0.312;
+        vec2 tickEnd = center + direction * (0.322 + 0.015 * sceneHat);
+        highTicks += line(segmentDistance(p, tickStart, tickEnd), 0.0026)
+                   * sceneHat * tickRole;
+    }
+
+    float plateGrain = 0.5 + 0.5
+        * sin(rotorP.x * 39.0 + rotorP.y * 13.0)
+        * sin(rotorP.y * 33.0 - rotorP.x * 9.0);
+    float plateFacet = line(sin(angle * 6.0 + radius * 11.0), 0.10)
+                     * plate * (0.18 + 0.82 * midSustain);
+
+    // One local counterweight carries beat position around the fixed rotor.
+    float beatAngle = beatPhase * tau + 0.18;
+    vec2 beatDirection = vec2(cos(beatAngle), sin(beatAngle));
+    vec2 beatPosition = center + beatDirection * 0.302;
+    float counterweight = disc(p, beatPosition,
+        0.006 + 0.008 * beatPulse) * clockConfidence
+        * (0.12 * energySlow + 0.88 * beatPulse);
+    float anticipation = line(length(p - center)
+        - (0.064 + 0.020 * beatAnticipation), 0.0030)
+        * beatAnticipation * clockConfidence;
+    float downbeatHub = line(length(p - center) - 0.040, 0.0040)
+                      * downbeat * clockConfidence;
+
+    vec2 streamStart = center + vec2(0.275, 0.075);
+    vec2 streamEnd = vec2(0.73, 0.19);
+    float streamPath = line(curvedDistance(
+        p, streamStart, streamEnd, 0.082), 0.0024);
+    float streamHalo = line(curvedDistance(
+        p, streamStart, streamEnd, 0.082), 0.010);
+    float sampleParticles = 0.0;
+    float hatParticles = 0.0;
+    for (int index = 0; index < 9; ++index) {
+        float fi = float(index);
+        float t = (fi + 0.45) / 9.0;
+        vec2 particle = curvedPoint(streamStart, streamEnd, 0.082, t);
+        particle += vec2(0.006 * sin(fi * 2.7),
+                         0.012 * sin(fi * 1.9 + 0.6));
+        float spectrum = 1.0 - exp(-0.28 * spectrumLevel[index * 3 + 1]);
+        sampleParticles += disc(p, particle,
+            0.0035 + 0.0035 * spectrum) * (0.12 + 0.88 * spectrum);
+        float hatRole = mod(fi, 3.0) < 0.5 ? 1.0 : 0.0;
+        hatParticles += disc(p, particle,
+            0.004 + 0.007 * sceneHat) * sceneHat * hatRole;
+    }
+
+    float sectionJet = streamPath * section;
+    float sectionGate = line(curvedDistance(
+        p, center + vec2(-0.28, -0.12), streamEnd, -0.25), 0.0030)
+        * section;
+    float lowPlate = plate * (1.0 - smoothstep(-0.02, 0.20, rotorP.y))
+                   * lowSustain;
+    float middleArms = arms * midSustain;
+    float upperRim = brokenRim * smoothstep(-0.05, 0.20, rotorP.y)
+                   * highSustain;
+
+    float background = exp(-pow(radius / 0.52, 2.0)) * 0.010
+                     + exp(-pow((p.y + 0.32) / 0.16, 2.0))
+                     * smoothstep(0.82, 0.55, abs(p.x)) * 0.006;
+    vec3 result = mix(primary, secondary, 0.48) * background
+                + mix(primary, secondary, 0.32) * plate
+                  * (0.010 + 0.006 * plateGrain)
+                + primary * plateEdge * 0.11
+                + secondary * brokenRim * 0.14
+                + primary * innerRim * 0.080
+                + mix(primary, secondary, 0.42) * hub * 0.035
+                + accent * hubEdge * 0.16
+                + primary * arms * 0.13
+                + primary * armHalos * 0.018
+                + chamberColor
+                + accent * chamberCores * 0.080
+                + mix(accent, vec3(1.0), 0.35) * chamberBolts * 0.13
+                + secondary * plateFacet * 0.030
+                + primary * lowPlate * 0.025
+                + secondary * middleArms * 0.080
+                + accent * upperRim * 0.060
+                + accent * kickWeights * 0.27
+                + mix(secondary, vec3(1.0), 0.36) * snareClamps * 0.32
+                + mix(accent, vec3(1.0), 0.52) * highTicks * 0.22
+                + accent * counterweight * 0.30
+                + secondary * anticipation * 0.19
+                + accent * downbeatHub * 0.28
+                + primary * streamPath * (0.045 + 0.030 * harmonic)
+                + primary * streamHalo * 0.012
+                + mix(primary, accent, 0.34) * sampleParticles * 0.080
+                + mix(accent, vec3(1.0), 0.45) * hatParticles * 0.18
+                + accent * sectionJet * 0.13
+                + secondary * sectionGate * 0.12;
+    result *= 1.0 - 0.60 * release;
+    color = vec4(max(result, vec3(0.0)), 1.0);
 }

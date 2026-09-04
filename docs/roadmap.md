@@ -548,6 +548,12 @@ Completed after v0.3:
   tip glints, and one beat conductor stay local to the fixed ensemble. All five
   replay profiles and both complete approved songs pass with zero moderate or
   severe broad-pulse frames.
+- Rebuilt Centrifuge from a full-screen field of concentric rings, spokes, and
+  feedback rotation into an asymmetric physical rotor with six fixed sample
+  chambers, a broken rim, and a curved ejection rail. Weight rings, opposing
+  clamps, rim ticks, and one beat counterweight expose rhythm without spinning
+  or scaling the machine. All five replay profiles and both complete approved
+  songs pass with zero moderate or severe broad-pulse frames.
 - Added visual-family metadata to all 18 scenes. Automatic selection now adds
   a recency penalty for radial, filament, depth, vertical, landscape, network,
   minimal, fluid, faceted, and cellular repetition while manual scene requests

@@ -11,7 +11,7 @@ ship decision.
 | --- | :---: | :---: | :---: | :---: | :---: | :---: | --- | --- |
 | Bloom Engine | Pass | Pass | Selective | Pass | Pass | Pass | Keep petal growth distinct from directional thread motion | Two full songs pass; live output |
 | Negative Space | Pass | Pass | Sparse | Pass | Pass | Pass | Preserve the dominant void when several roles overlap | Two full songs pass; live output |
-| Centrifuge | Pass | Pass | Selective | Pass | Pass | Pass | Side rails can dominate quiet passages | Two full songs pass; live output |
+| Centrifuge | Pass | Pass | Selective | Pass | Pass | Pass | Keep chamber accents subordinate to the fixed rotor and ejection rail | Two full songs pass; live output |
 | Constellation Field | Pass | Pass | Sparse | Pass | Pass | Pass | Keep the fixed route and satellite branches legible when cues overlap | Two full songs pass; live output |
 | Depth Tunnel | Pass | Pass | Flow | Pass | Pass | Pass | Keep deliberate depth travel broad while percussion remains local | Two full songs pass; live output |
 | Glass Choir | Pass | Pass | Selective | Pass | Pass | Pass | Keep resonance, fractures, tip glints, and the conductor separate | Two full songs pass; live output |
@@ -131,6 +131,15 @@ tips, and one conductor carries beat position through the ensemble. Sustained
 frequency groups illuminate separate glass details without changing the fixed
 silhouettes. All five replay profiles and both approved full songs pass with
 zero moderate or severe broad-pulse frames.
+
+Centrifuge's previous full-screen concentric rings, spokes, square frame, and
+feedback rotation duplicated the radial language of stronger scenes and made
+continuous spinning the subject. Its replacement is an asymmetric physical
+rotor with six fixed arms and sample chambers, a broken rim, a stable hub, and
+a curved ejection rail. Kicks ring two weights, snares extend opposing clamps,
+hats use short rim ticks and selected samples, and one counterweight carries
+beat position around the machine. All five replay profiles and both approved
+full songs pass with zero moderate or severe broad-pulse frames.
 
 Run the anonymous final review without exposing scene names:
 

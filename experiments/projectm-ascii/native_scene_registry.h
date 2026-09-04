@@ -27,7 +27,7 @@ enum class NativeSceneKind : std::uint8_t {
 };
 
 inline constexpr std::size_t nativeSceneCount = 18;
-inline constexpr unsigned int nativeSceneRegistryVersion = 20;
+inline constexpr unsigned int nativeSceneRegistryVersion = 21;
 
 enum class NativeTransitionAnchor : std::uint8_t {
     Center,
