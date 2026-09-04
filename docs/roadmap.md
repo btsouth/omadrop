@@ -342,16 +342,18 @@ Allow more people to create scenes while keeping the official rotation strict.
 
 ## Immediate work order
 
-1. Create the ten-scene quality scorecard and replay matrix.
-2. Quantify and improve Spectral Ribbons and Constellation Field first.
-3. Add automated contaminated-audio detection to the demo acceptance script.
-4. Split the 2,000-line live application into stable modules before adding
-   renderer complexity.
-5. Add rhythmic density, tonal motion, and harmonic-change signals to
-   `MusicFrame` with deterministic tests.
+1. Lock a rights-cleared multi-genre replay set and complete continuous-motion
+   review for the current ten scenes.
+2. Finish output-change, display-hotplug, shutdown, and long-run operational
+   regressions needed to close Phase 0.
+3. Normalize transient response and stabilize tempo, downbeat, and phrase
+   detection across the replay set.
+4. Add the developer signal monitor and repeatable presentation-delay tool.
+5. Continue splitting track state, display session, cover presentation,
+   direction, and rendering out of the live application loop.
 6. Prototype Ink Current, Glass Choir, and Negative Space as the first three
    deliberately different scene families.
-7. Promote only the candidates that pass still-frame, motion, music-response,
+7. Promote only candidates that pass still-frame, motion, music-response,
    ASCII, transition, and performance review.
 
 This order improves the existing product before increasing its surface area.
@@ -378,10 +380,18 @@ Completed after v0.3:
 - Added sparse, selective, and flow motion grammars with enforced continuous
   coverage and global-pulse limits, then removed generic full-frame pulsing
   from the selective scenes.
+- Removed transient-driven full-frame feedback fading from all native scenes.
+  Role response now stays inside each composition's own geometry. Added pulse
+  duty limits so frequent frame-wide pumping cannot pass on response strength
+  alone.
+- Added configurable full-resolution song replay and an all-scene full-song
+  gallery. The deterministic fixture and the current 30-second real-song
+  review both pass all ten scene gates.
 - Added true 1280x720 continuous and ASCII review galleries across six album
   colors and grayscale.
-- Raised all ten current scenes to the still-frame quality floor. Full-song
-  motion and operational regression review remain before Phase 0 is complete.
+- Raised all ten current scenes to the still-frame quality floor. Time-sampled
+  full-song review now passes; continuous multi-genre motion and the remaining
+  operational regressions are still required before Phase 0 is complete.
 - Added active-playback, pause, resume, seek, and track-change clock tests.
   Extracted paired-display transport from the live loop with atomic state,
   music, and focused-monitor control-request coverage.

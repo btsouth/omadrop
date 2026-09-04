@@ -21,10 +21,23 @@
 #include <vector>
 
 namespace {
-constexpr int width = 480;
-constexpr int height = 270;
+constexpr int defaultWidth = 480;
+constexpr int defaultHeight = 270;
 
-std::vector<float> readTexture(GLuint texture) {
+int replayDimension(const char* name, int fallback, int minimum, int maximum) {
+    const char* value = std::getenv(name);
+    if (!value || !*value) return fallback;
+    char* end = nullptr;
+    const long parsed = std::strtol(value, &end, 10);
+    if (!end || *end != '\0') {
+        std::cerr << "invalid " << name << ": " << value << "\n";
+        return fallback;
+    }
+    return static_cast<int>(std::clamp(parsed,
+        static_cast<long>(minimum), static_cast<long>(maximum)));
+}
+
+std::vector<float> readTexture(GLuint texture, int width, int height) {
     std::vector<float> pixels(width * height * 4);
     glBindTexture(GL_TEXTURE_2D, texture);
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, pixels.data());
@@ -34,7 +47,7 @@ std::vector<float> readTexture(GLuint texture) {
 bool writePpm(const std::filesystem::path& path,
               const std::vector<float>& source,
               const std::vector<float>& incoming, float transition,
-              float exposure) {
+              float exposure, int width, int height) {
     std::ofstream output(path, std::ios::binary);
     if (!output) return false;
     output << "P6\n" << width << " " << height << "\n255\n";
@@ -95,11 +108,18 @@ struct MotionBucket {
     float total = 0.0f;
     float coverageTotal = 0.0f;
     float coherenceTotal = 0.0f;
+    float globalPulseTotal = 0.0f;
+    int pulseFrames10 = 0;
+    int pulseFrames20 = 0;
     int count = 0;
     void add(const FrameDelta& delta) {
         total += delta.motion;
         coverageTotal += delta.coverage;
         coherenceTotal += delta.coherence;
+        const float globalPulse = delta.coverage * delta.coherence;
+        globalPulseTotal += globalPulse;
+        pulseFrames10 += globalPulse >= 0.10f;
+        pulseFrames20 += globalPulse >= 0.20f;
         ++count;
     }
     float mean() const { return count > 0 ? total / count : 0.0f; }
@@ -108,6 +128,15 @@ struct MotionBucket {
     }
     float meanCoherence() const {
         return count > 0 ? coherenceTotal / count : 0.0f;
+    }
+    float meanGlobalPulse() const {
+        return count > 0 ? globalPulseTotal / count : 0.0f;
+    }
+    float pulseDuty10() const {
+        return count > 0 ? static_cast<float>(pulseFrames10) / count : 0.0f;
+    }
+    float pulseDuty20() const {
+        return count > 0 ? static_cast<float>(pulseFrames20) / count : 0.0f;
     }
 };
 }
@@ -125,11 +154,16 @@ int main(int argc, char** argv) {
     }
     const std::filesystem::path outputDirectory = argv[3];
     std::filesystem::create_directories(outputDirectory);
+    const int width = replayDimension(
+        "OMADROP_REPLAY_WIDTH", defaultWidth, 320, 1920);
+    const int height = replayDimension(
+        "OMADROP_REPLAY_HEIGHT", defaultHeight, 180, 1080);
     std::ofstream timeline(outputDirectory / "timeline.tsv");
     timeline << "seconds\tscene\tkick\tsnare\that\tonset_pulse\tbeat_pulse\tbeat_phase"
                 "\tbar\tsection\tflux_sub\tflux_bass\tflux_low_mid\tflux_mid"
                 "\tflux_presence\tflux_high\trhythmic_density\tsyncopation"
-                "\ttonal_motion\tharmonic_change\tmotion\n";
+                "\ttonal_motion\tharmonic_change\tmotion\tmotion_coverage"
+                "\tmotion_coherence\tglobal_pulse\n";
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) return 1;
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -172,6 +206,7 @@ int main(int argc, char** argv) {
     NativeSceneKind reportedScene = sceneDirector.state().currentScene;
     std::vector<float> previousFrame;
     MotionBucket quietMotion;
+    MotionBucket allMotion;
     MotionBucket beatMotion;
     MotionBucket kickMotion;
     MotionBucket snareMotion;
@@ -224,12 +259,17 @@ int main(int argc, char** argv) {
         if (structure.sectionCrossed) ++sections;
 
         float frameMotion = -1.0f;
+        float frameCoverage = -1.0f;
+        float frameCoherence = -1.0f;
         if (measureMotion) {
             std::vector<float> currentFrame = readTexture(
-                renderer.texture(scene.currentScene));
+                renderer.texture(scene.currentScene), width, height);
             if (!previousFrame.empty()) {
                 const FrameDelta delta = measureFrameDelta(previousFrame, currentFrame);
                 frameMotion = delta.motion;
+                frameCoverage = delta.coverage;
+                frameCoherence = delta.coherence;
+                allMotion.add(delta);
                 const bool kickRaised = music.kick > previousKick + 0.15f;
                 const bool snareRaised = music.snare > previousSnare + 0.15f;
                 const bool hatRaised = music.hat > previousHat + 0.15f;
@@ -287,15 +327,19 @@ int main(int argc, char** argv) {
                  << '\t' << music.bandFlux[4] << '\t' << music.bandFlux[5]
                  << '\t' << music.rhythmicDensity << '\t' << music.syncopation
                  << '\t' << music.tonalMotion << '\t' << music.harmonicChange
-                 << '\t' << frameMotion << '\n';
+                 << '\t' << frameMotion << '\t' << frameCoverage
+                 << '\t' << frameCoherence << '\t'
+                 << (frameCoverage >= 0.0f
+                     ? frameCoverage * frameCoherence : -1.0f) << '\n';
 
         const bool periodicCapture = hops % captureInterval == 0;
         const bool structuralCapture = structure.sectionCrossed;
         if (periodicCapture || structuralCapture) {
             const std::vector<float> source = readTexture(
-                renderer.texture(scene.currentScene));
+                renderer.texture(scene.currentScene), width, height);
             const std::vector<float> incoming = scene.transitioning
-                ? readTexture(renderer.texture(scene.incomingScene)) : source;
+                ? readTexture(renderer.texture(scene.incomingScene), width, height)
+                : source;
             std::ostringstream filename;
             filename << std::setw(6) << std::setfill('0') << hops << '-'
                      << sceneSlug(scene.currentScene)
@@ -308,7 +352,7 @@ int main(int argc, char** argv) {
             const float exposure = sourceMaterial.fieldExposure * (1.0f - transition)
                                  + incomingMaterial.fieldExposure * transition;
             if (!writePpm(outputDirectory / filename.str(), source, incoming,
-                          transition, exposure)) {
+                          transition, exposure, width, height)) {
                 std::cerr << "could not write replay frame\n";
                 return 1;
             }
@@ -324,7 +368,8 @@ int main(int argc, char** argv) {
     const double duration = hops * AudioFeatureBus::hopSize
                           / static_cast<double>(AudioFeatureBus::sampleRate);
     std::cout << "native song replay " << duration << " sec, " << captures
-              << " frames, " << sections << " sections\n";
+              << " frames, " << sections << " sections, " << width << "x"
+              << height << "\n";
     if (measureMotion) {
         const float quiet = std::max(1e-7f, quietMotion.mean());
         const NativeSceneDefinition& definition = nativeSceneDefinition(
@@ -344,6 +389,9 @@ int main(int argc, char** argv) {
                   << " quiet_coverage_limit="
                   << definition.maximumQuietMotionCoverage
                   << " global_pulse_limit=" << definition.maximumGlobalPulse
+                  << " mean_global_pulse=" << allMotion.meanGlobalPulse()
+                  << " pulse_duty_10=" << allMotion.pulseDuty10()
+                  << " pulse_duty_20=" << allMotion.pulseDuty20()
                   << " beat_coverage=" << beatMotion.meanCoverage()
                   << " kick_coverage=" << kickMotion.meanCoverage()
                   << " snare_coverage=" << snareMotion.meanCoverage()

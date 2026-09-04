@@ -25,8 +25,7 @@ void main() {
                * smoothstep(0.0, 0.07, 1.0 - uv.x)
                * smoothstep(0.0, 0.07, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
-                  * mix(0.87, 0.945, harmonic)
-                  * (1.0 - 0.038 * beatPulse - 0.050 * onsetPulse) * edge;
+                  * mix(0.87, 0.945, harmonic) * edge;
 
     float surfaceY = horizon + wave;
     float surface = line(p.y - surfaceY, 0.010 + 0.006 * bandLevel[1]);
@@ -40,7 +39,13 @@ void main() {
     float verticalGrid = line(sin((p.x * spread + snare * p.y * 0.9) * 18.0), 0.06)
                        * smoothstep(surfaceY + 0.03, surfaceY - 0.08, p.y);
     float crestTicks = line(sin(p.x * 44.0 - flowTime * 2.2), 0.055)
-                     * surface * hat;
+                     * surface * hat * (1.0 + 1.8 * bandLevel[5]);
+    float snareWake = line(
+        p.y - surfaceY - 0.08 * sin(p.x * 18.0 + barPhase * tau), 0.008)
+        * snare * exp(-1.8 * abs(p.x));
+    float hatDrops = line(sin(p.x * 58.0 + beatPhase * tau), 0.034)
+                   * line(p.y - surfaceY - 0.045, 0.050)
+                   * hat;
     float downbeatTide = line(p.y - mix(-0.44, surfaceY, beatPhase), 0.010)
                        * downbeat * clockConfidence
                        * exp(-2.4 * abs(p.x));
@@ -54,7 +59,9 @@ void main() {
     vec3 injection = primary * horizontalGrid * (0.065 + 0.045 * bandLevel[0])
                    + secondary * verticalGrid * (0.055 + 0.040 * bandLevel[2])
                    + mix(primary, secondary, 0.42) * surface * 0.11
-                   + accent * crestTicks * 0.20
+                   + accent * crestTicks * 0.58
+                   + mix(secondary, vec3(1.0), 0.40) * snareWake * 0.56
+                   + mix(accent, vec3(1.0), 0.48) * hatDrops * 0.86
                    + accent * downbeatTide * 0.10
                    + accent * sectionHorizon * 0.18
                    + secondary * sky * 0.05;

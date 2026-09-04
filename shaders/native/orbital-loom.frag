@@ -24,8 +24,7 @@ void main() {
                * smoothstep(0.0, 0.07, 1.0 - uv.x)
                * smoothstep(0.0, 0.07, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
-                  * mix(0.875, 0.945, harmonic)
-                  * (1.0 - 0.018 * beatPulse - 0.022 * onsetPulse) * edge;
+                  * mix(0.875, 0.945, harmonic) * edge;
 
     float threads = 0.0;
     float crossings = 0.0;

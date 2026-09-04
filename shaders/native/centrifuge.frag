@@ -48,13 +48,15 @@ void main() {
     // The outer frame and inner aperture counter-rotate. Snare transfers
     // angular momentum between them while kick changes aperture depth.
     float region = smoothstep(0.25, 0.68, radius);
-    float idleSpin = 0.00020 + 0.00040 * drive;
+    float idleSpin = 0.00012 + 0.00025 * drive;
     float snareSpin = 0.016 * snare;
     float feedbackRotation = mix(-idleSpin - snareSpin,
                                   idleSpin + snareSpin * 0.46, region);
-    float aperturePull = 0.00020 + 0.00045 * energySlow
-                       + 0.0120 * beatPulse + 0.0080 * onsetPulse
-                       + 0.0040 * kick
+    float apertureZone = 1.0 - smoothstep(0.28, 0.64, radius);
+    float aperturePull = 0.00012 + 0.00018 * energySlow
+                       + apertureZone * (0.0030 * beatPulse
+                                         + 0.0020 * onsetPulse
+                                         + 0.0040 * kick)
                        - 0.0014 * beatAnticipation * clockConfidence;
     vec2 previousP = rotate2d(feedbackRotation) * p * (1.0 - aperturePull);
     previousP += vec2(sin(p.y * 26.0), cos(p.x * 23.0)) * 0.0018 * hat;
@@ -64,8 +66,8 @@ void main() {
                * smoothstep(0.0, 0.07, 1.0 - uv.x)
                * smoothstep(0.0, 0.07, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
-                  * mix(0.938, 0.974, harmonic) * mix(1.0, 1.012, release)
-                  * (1.0 - 0.034 * beatPulse - 0.050 * onsetPulse) * edge;
+                  * mix(0.900, 0.945, harmonic)
+                  * mix(1.0, 1.012, release) * edge;
 
     float low = clamp(0.5 * spectrumLevel[3] + 0.5 * spectrumLevel[8], 0.0, 2.0);
     float middle = clamp(0.5 * spectrumLevel[14] + 0.5 * spectrumLevel[18], 0.0, 2.0);
@@ -76,7 +78,7 @@ void main() {
                          + 0.045 * kick;
     float apertureEdge = line(radius - apertureRadius, 0.010 + 0.009 * low);
     float shellPhase = radius * mix(24.0, 38.0, development)
-                     - flowTime * (1.2 + 1.7 * drive)
+                     - flowTime * (0.30 + 0.45 * drive)
                      - beatPulse * 1.8 - kick * 1.1;
     float shells = line(sin(shellPhase), 0.10 + 0.025 * energyFast);
     shells *= smoothstep(apertureRadius + 0.015, apertureRadius + 0.13, radius)
@@ -139,6 +141,7 @@ void main() {
                    + focalColor * focalSubject
                      * (lifecycleLight + 0.065 * max(0.0, energySlope))
                    + accentColor * accents * (0.17 + 0.11 * peak);
+    injection += mix(accentColor, vec3(1.0), 0.42) * cornerTicks * 0.14;
     injection *= 1.0 - 0.56 * release;
 
     float core = smoothstep(apertureRadius * 0.52, apertureRadius, radius);

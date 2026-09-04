@@ -60,8 +60,7 @@ void main() {
     previousP.x += hat * 0.0018 * sin(previousP.y * 34.0 - flowTime * 2.8);
     float previousSpine = backboneX(previousP.y);
     previousP.x = previousSpine + (previousP.x - previousSpine)
-                * (1.0 - 0.0180 * beatPulse - 0.0400 * onsetPulse
-                   - 0.0100 * kick
+                * (1.0 - 0.0100 * kick
                    + 0.0025 * beatAnticipation * clockConfidence);
     vec2 previousUv = previousP / aspect + 0.5;
     float edge = smoothstep(0.0, 0.075, uv.x)
@@ -70,9 +69,7 @@ void main() {
                * smoothstep(0.0, 0.075, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
                   * mix(0.74, 0.86, harmonic)
-                  * mix(1.0, 1.012, release)
-                  * (1.0 - 0.040 * beatPulse - 0.090 * onsetPulse
-                         - 0.045 * hat) * edge;
+                  * mix(1.0, 1.012, release) * edge;
 
     float low = clamp(0.5 * spectrumLevel[3] + 0.5 * spectrumLevel[7], 0.0, 2.0);
     float middle = clamp(0.5 * spectrumLevel[13] + 0.5 * spectrumLevel[18],

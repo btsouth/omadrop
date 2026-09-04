@@ -20,8 +20,7 @@ void main() {
                * smoothstep(0.0, 0.07, 1.0 - uv.x)
                * smoothstep(0.0, 0.07, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
-                  * mix(0.91, 0.956, harmonic)
-                  * (1.0 - 0.016 * beatPulse) * edge;
+                  * mix(0.91, 0.956, harmonic) * edge;
 
     float architecture = 0.0;
     float distantArchitecture = 0.0;

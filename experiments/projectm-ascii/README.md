@@ -39,6 +39,18 @@ director, and renderer with `native-song-replay SHADERS RAW OUTPUT_DIRECTORY`.
 It writes a two-second visual contact sequence plus a per-frame music timeline.
 `OMADROP_REPLAY_CAPTURE_HOPS` changes the capture interval from its 120-hop
 default, and `OMADROP_REPLAY_MAX_SECONDS` limits a motion-review excerpt.
+`OMADROP_REPLAY_WIDTH` and `OMADROP_REPLAY_HEIGHT` select a review resolution
+between 320x180 and 1920x1080.
+
+Render all ten scenes across one song and assemble per-scene contact sheets
+plus a five-point comparison matrix with:
+
+```sh
+./bin/native-song-gallery song.f32 /tmp/omadrop-song-review 60
+```
+
+The output directory must be empty. The optional final argument limits the
+review to that many seconds.
 
 Generate the deterministic structured fixture and measure every native scene
 with the same input:
@@ -55,10 +67,12 @@ the 1.75x kick, snare, or hat response floor or exceeds the 0.003 absolute
 silence-drift ceiling. It also enforces per-scene non-transient motion coverage
 budgets for sparse, selective, and flow motion grammars, so broad pulsing does
 not become the default reaction. A global-pulse gate also rejects reactions
-that move a large part of the frame in the same brightness direction. The
-scorecard is a regression gate. Still frames,
-motion, palettes, continuous rendering, and ASCII rendering still require
-human visual review.
+that move a large part of the frame in the same brightness direction. A pulse
+duty gate prevents sparse and selective scenes from spending more than 12
+percent of their frames above a 20 percent global-pulse score. Flow scenes have
+a separate 75 percent ceiling. The scorecard is a regression gate. Still
+frames, motion, palettes, continuous rendering, and ASCII rendering still
+require human visual review.
 
 Render the production tone map across six difficult album colors, plus a
 grayscale review sheet, for both continuous and ASCII materials with:

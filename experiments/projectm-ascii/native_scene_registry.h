@@ -80,7 +80,7 @@ nativeSceneRegistry{{
     {NativeSceneKind::DepthTunnel, "depth-tunnel", "Depth Tunnel",
      "depth-tunnel.frag", {"depth", "tunnel", ""}, {1.05f, 1.08f},
      {0.72f, 0.58f, 0.42f, 0.24f, 0.34f}, NativeTransitionAnchor::DepthPoint,
-     NativeMotionGrammar::Flow, 0.45f, 0.55f,
+     NativeMotionGrammar::Flow, 0.50f, 0.55f,
      transientRoles | GrooveRole | StructureRole, 6.0f},
     {NativeSceneKind::Centrifuge, "centrifuge", "Centrifuge",
      "centrifuge.frag", {"", "", ""}, {0.92f, 1.00f},

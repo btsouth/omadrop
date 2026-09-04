@@ -21,14 +21,13 @@ void main() {
     vec2 p = (uv - 0.5) * aspect;
 
     vec2 previousP = p;
-    previousP = rotate2d(0.000045) * previousP;
-    previousP *= 1.0 + 0.0010 * beatAnticipation;
+    previousP = rotate2d(0.000020) * previousP;
     vec2 previousUv = previousP / aspect + 0.5;
     float edge = smoothstep(0.0, 0.06, uv.x) * smoothstep(0.0, 0.06, uv.y)
                * smoothstep(0.0, 0.06, 1.0 - uv.x)
                * smoothstep(0.0, 0.06, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
-                  * mix(0.82, 0.91, harmonic) * edge;
+                  * mix(0.825, 0.915, harmonic) * edge;
 
     float stars = 0.0;
     float links = 0.0;
@@ -37,20 +36,24 @@ void main() {
     for (int index = 0; index < 12; ++index) {
         float fi = float(index);
         vec2 a = starPosition(fi);
-        vec2 b = starPosition(mod(fi + 3.0 + floor(fi / 4.0), 12.0));
-        a *= 1.0 + 0.010 * beatPulse + 0.110 * kick;
-        b *= 1.0 + 0.010 * beatPulse + 0.110 * kick;
+        float bi = mod(fi + 3.0 + floor(fi / 4.0), 12.0);
+        vec2 b = starPosition(bi);
+        float aTension = 0.025 + 0.075 * sin(fi * 2.39996);
+        float bTension = 0.025 + 0.075 * sin(bi * 2.39996);
+        float anticipation = beatAnticipation * clockConfidence;
+        a *= 1.0 + kick * aTension + anticipation * aTension * 0.22;
+        b *= 1.0 + kick * bTension + anticipation * bTension * 0.22;
         a.x += stereoWidth * 0.035 * sign(a.x);
         b.x += stereoWidth * 0.035 * sign(b.x);
         a += snare * 0.100 * vec2(-a.y, a.x);
         b += snare * 0.100 * vec2(b.y, -b.x);
-        float starRadius = 0.009 + 0.010 * spectrumLevel[index * 2]
+        float starRadius = 0.009 + 0.0025 * spectrumLevel[index * 2]
                          + 0.003 * beatPulse
                          + 0.036 * kick * (0.5 + 0.5 * sin(fi))
                          + 0.011 * hat * (0.5 + 0.5 * sin(fi * 2.1));
         stars += 1.0 - smoothstep(starRadius, starRadius * 2.2, length(p - a));
         float connection = line(segmentDistance(p, a, b),
-                                0.0035 + 0.002 * harmonic
+                                0.0035 + 0.001 * harmonic
                                 + 0.0035 * beatPulse);
         links = max(links, connection);
         float travel = fract(flowTime * (0.18 + 0.22 * drive) + fi * 0.137 + beatPhase);

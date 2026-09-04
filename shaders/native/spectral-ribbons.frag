@@ -15,7 +15,7 @@ void main() {
     float roleGesture = kick * lowZone + snare * middleZone + hat * highZone;
 
     vec2 previousP = p;
-    previousP.x += 0.00012 + 0.00035 * energySlow;
+    previousP.x += 0.00008 + 0.00014 * energySlow;
     previousP.y *= 1.0 - 0.003 * beatPulse - 0.026 * kick * lowZone
                          + 0.0012 * beatAnticipation;
     previousP.x -= snare * 0.013 * middleZone * sign(previousP.y);
@@ -26,7 +26,7 @@ void main() {
                * smoothstep(0.0, 0.07, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
                   * mix(0.835, 0.915, harmonic)
-                  * (1.0 - 0.018 * beatPulse - 0.070 * roleGesture) * edge;
+                  * (1.0 - 0.070 * roleGesture) * edge;
 
     float lowRibbon = 0.0;
     float midRibbon = 0.0;
@@ -43,7 +43,7 @@ void main() {
                   * sin(fi * 2.1 + phrasePhase * tau);
         float band = spectrumLevel[index * 4 + 1];
         float frequency = 2.2 + fi * 0.72;
-        float amplitude = 0.013 + 0.020 * band + 0.008 * development
+        float amplitude = 0.013 + 0.004 * band + 0.008 * development
                         + (beatPulse + 0.45 * onsetPulse)
                           * (0.007 + 0.0010 * fi);
         float roleWidth = 0.0;
@@ -54,16 +54,16 @@ void main() {
             roleWidth = 0.0045 * kick;
         } else if (index < 6) {
             // Snares make the middle voices fold through one another.
-            amplitude += snare * 0.100;
+            amplitude += snare * 0.180;
             y += snare * 0.063 * sin(fi * 2.3 + barPhase * tau);
             roleWidth = 0.0040 * snare;
         } else {
             // Hats reveal short, high-frequency ripples on the upper voices.
-            amplitude += hat * 0.076;
+            amplitude += hat * 0.150;
             roleWidth = 0.0032 * hat;
         }
         float curve = y + amplitude * sin(p.x * frequency * tau
-                    - flowTime * (0.065 + 0.018 * fi)
+                    - flowTime * (0.035 + 0.010 * fi)
                     + phrasePhase * tau * 0.18);
         curve += (0.018 + 0.020 * development)
                * sin(p.x * tau * 0.72 + fi * 0.66
@@ -72,10 +72,10 @@ void main() {
             curve += kick * 0.044
                    * sin(p.x * (frequency + 1.4) * tau + fi * 0.7);
         } else if (index < 6) {
-            curve += snare * 0.090
+            curve += snare * 0.170
                    * sin(p.x * frequency * 1.75 * tau + fi * 0.9);
         } else {
-            curve += hat * 0.062
+            curve += hat * 0.130
                    * sin(p.x * frequency * 3.2 * tau - flowTime * 3.0 + fi);
         }
         float roleDepth = index < 3 ? 1.0 : index < 6 ? 0.78 : 0.62;
@@ -99,13 +99,13 @@ void main() {
     vec3 accent = paletteAccent(3.76);
     vec3 injection = primary * lowRibbon
                      * (0.14 + 0.08 * bandLevel[0]
-                        + 0.06 * beatPulse + 0.88 * kick)
+                        + 0.88 * kick)
                    + secondary * midRibbon
                      * (0.11 + 0.06 * bandLevel[3]
-                        + 0.06 * beatPulse + 1.00 * snare)
+                        + 1.30 * snare)
                    + accent * highRibbon
                      * (0.10 + 0.07 * bandLevel[5]
-                        + 0.06 * beatPulse + 1.28 * hat)
+                        + 1.65 * hat)
                    + accent * (intersections + travelers + sectionBand) * 0.20
                    + mix(primary, secondary, 0.5) * harmonicField * 0.07;
     injection *= 1.0 - 0.57 * release;

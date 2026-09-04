@@ -23,9 +23,8 @@ void main() {
     float sceneHat = hat * overloadScale;
 
     vec2 previousP = p;
-    previousP.y -= 0.00010 + 0.00028 * energySlow;
-    previousP.x *= 1.0 - 0.020 * beatPulse - 0.013 * onsetPulse
-                         - 0.012 * sceneKick
+    previousP.y -= 0.00003 + 0.00010 * energySlow;
+    previousP.x *= 1.0 - 0.012 * sceneKick
                          + 0.0012 * beatAnticipation;
     previousP.x -= sceneSnare * 0.009 * previousP.y;
     previousP += vec2(sin(p.y * 47.0), cos(p.x * 41.0))
@@ -35,8 +34,7 @@ void main() {
                * smoothstep(0.0, 0.07, 1.0 - uv.x)
                * smoothstep(0.0, 0.07, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
-                  * mix(0.91, 0.958, harmonic)
-                  * (1.0 - 0.038 * beatPulse - 0.055 * onsetPulse) * edge;
+                  * mix(0.87, 0.930, harmonic) * edge;
 
     float stems = 0.0;
     float facets = 0.0;

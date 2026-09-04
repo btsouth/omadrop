@@ -84,9 +84,11 @@ void main() {
 
     // Sample the previous frame through the tunnel's own flow field. The
     // vanishing point remains stable while detail travels through depth.
-    float pull = 0.00018 + 0.00035 * energySlow + 0.00025 * drive
-               + 0.0120 * beatPulse + 0.0160 * sceneKick
-               - 0.0024 * beatAnticipation * clockConfidence;
+    float wallRegion = smoothstep(0.12, 0.36, radius)
+                     * smoothstep(1.18, 0.72, radius);
+    float pull = 0.00005 + 0.00008 * energySlow + 0.00005 * drive
+               + wallRegion * (0.0020 * beatPulse + 0.0060 * sceneKick)
+               - 0.0012 * beatAnticipation * clockConfidence;
     float twist = 0.0005 * sin(radius * 8.0 + flowTime * 0.31)
                 + 0.0210 * sceneSnare * smoothstep(0.08, 0.75, radius);
     vec2 previousP = rotate2d(twist) * p * (1.0 - pull);
@@ -99,12 +101,11 @@ void main() {
                * smoothstep(0.0, 0.08, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
                   * mix(0.905, 0.958, harmonic)
-                  * mix(1.0, 1.014, release)
-                  * (1.0 - 0.015 * beatPulse) * edge;
+                  * mix(1.0, 1.014, release) * edge;
 
     float depth = mix(0.24, 0.34, development) / radius
-                + flowTime * (0.20 + 0.20 * development + 0.28 * drive
-                              + 0.18 * bandLevel[0]);
+                + flowTime * (0.035 + 0.040 * development + 0.050 * drive
+                              + 0.030 * bandLevel[0]);
     depth += beatPulse * 0.55 + sceneKick * 4.5
            - beatAnticipation * 0.8;
     depth += artworkStructure * mix(0.58, 0.16, development);
@@ -192,7 +193,8 @@ void main() {
 
     // Preserve a dark, readable vanishing point and prevent feedback haze.
     float core = smoothstep(0.055, 0.15, radius);
-    vec3 result = (feedback + injection) * core;
+    float outerAperture = 1.0 - smoothstep(0.62, 0.92, radius);
+    vec3 result = (feedback + injection) * core * outerAperture;
     result = max(result - vec3(0.0045), vec3(0.0));
     color = vec4(result, 1.0);
 }

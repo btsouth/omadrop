@@ -25,8 +25,7 @@ void main() {
                * smoothstep(0.0, 0.07, 1.0 - uv.x)
                * smoothstep(0.0, 0.07, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
-                  * mix(0.88, 0.952, harmonic)
-                  * (1.0 - 0.020 * beatPulse - 0.018 * onsetPulse) * edge;
+                  * mix(0.88, 0.952, harmonic) * edge;
 
     float petalRadius = 0.27 + 0.12 * development
                       + (0.052 * beatPulse + 0.038 * onsetPulse
