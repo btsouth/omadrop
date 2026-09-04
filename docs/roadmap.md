@@ -740,3 +740,8 @@ Completed after v0.3:
   scene map, still contact sheet, silent motion boards, and individual clips.
   Review excerpts preserve analyzer and visual history from the start of the
   track, so a later window is evaluated in the same state as normal playback.
+- Used the anonymous review to separate the closest motion pair. Orbital Loom
+  now carries six offset horizontal threads with directional transport and
+  local rhythmic shuttles instead of sharing Bloom Engine's radial expansion.
+  It passes all five locked profiles and both complete approved songs with
+  moderate whole-frame pulse duty below 0.5 percent on the real tracks.

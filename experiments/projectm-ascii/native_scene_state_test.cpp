@@ -73,7 +73,7 @@ NativeSceneKind automaticChoiceWithPreferences(
 }
 
 int main() {
-    assert(nativeSceneRegistryVersion == 15);
+    assert(nativeSceneRegistryVersion == 16);
     std::set<std::string> sceneSlugs;
     std::set<std::string> sceneShaders;
     for (std::size_t index = 0; index < nativeSceneRegistry.size(); ++index) {

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Redesign Orbital Loom around an offset horizontal weave, directional
+  transport, and local rhythmic shuttles. This separates it from Bloom Engine,
+  removes shared snare rotation and expanding onset rings, and keeps broad
+  pulse duty below 0.5 percent across both approved full-song replays.
 - Add an anonymous full-library visual review with stable letter IDs, a hidden
   facilitator map, still contact sheet, silent motion boards, and individual
   clips. Nonzero excerpts now retain analyzer and visual history from the start

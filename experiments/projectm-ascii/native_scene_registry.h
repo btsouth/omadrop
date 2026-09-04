@@ -27,7 +27,7 @@ enum class NativeSceneKind : std::uint8_t {
 };
 
 inline constexpr std::size_t nativeSceneCount = 18;
-inline constexpr unsigned int nativeSceneRegistryVersion = 15;
+inline constexpr unsigned int nativeSceneRegistryVersion = 16;
 
 enum class NativeTransitionAnchor : std::uint8_t {
     Center,
@@ -179,7 +179,7 @@ nativeSceneRegistry{{
      {0.60f, 0.44f, 0.74f, 0.54f, 0.92f}, NativeTransitionAnchor::Center,
      NativeMotionGrammar::Selective, NativeVisualFamily::Radial, 0.28f, 0.35f,
      transientRoles | GrooveRole | HarmonyRole, 6.0f,
-     makeNativeTransitionGeometry(0.50f, 0.50f, 0.70f, -0.71f, 0.30f)},
+     makeNativeTransitionGeometry(0.44f, 0.48f, 0.92f, 0.38f, 0.24f)},
     {NativeSceneKind::TidalGrid, "tidal-grid", "Tidal Grid",
      "tidal-grid.frag", {"tide", "grid", ""}, {1.12f, 1.10f},
      {0.34f, 0.24f, 0.84f, 0.20f, 0.66f}, NativeTransitionAnchor::HorizontalAxis,

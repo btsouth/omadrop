@@ -9,7 +9,7 @@ ship decision.
 
 | Scene | Still | Response | Grammar | Color | Gray | ASCII | Main issue | Next review |
 | --- | :---: | :---: | :---: | :---: | :---: | :---: | --- | --- |
-| Bloom Engine | Pass | Pass | Selective | Pass | Pass | Pass | Close radial similarity to Orbital Loom | Two full songs pass; live output |
+| Bloom Engine | Pass | Pass | Selective | Pass | Pass | Pass | Keep petal growth distinct from directional thread motion | Two full songs pass; live output |
 | Negative Space | Pass | Pass | Sparse | Pass | Pass | Pass | Preserve the dominant void when several roles overlap | Two full songs pass; live output |
 | Centrifuge | Pass | Pass | Selective | Pass | Pass | Pass | Side rails can dominate quiet passages | Two full songs pass; live output |
 | Constellation Field | Pass | Pass | Sparse | Pass | Pass | Pass | Keep its role-specific node groups legible when events overlap | Two full songs pass; live output |
@@ -18,7 +18,7 @@ ship decision.
 | Ink Current | Pass | Pass | Selective | Pass | Pass | Pass | Keep event marks subordinate to the stable current | Two full songs pass; live output |
 | Living Mosaic | Pass | Pass | Selective | Pass | Pass | Pass | Keep response inside selected cells and seams | Two full songs pass; live output |
 | Lumen Fold | Pass | Pass | Selective | Pass | Pass | Pass | Preserve the calm installation while events use separate sheets, floor pools, cuts, and pins | Two full songs pass; live output |
-| Orbital Loom | Pass | Pass | Selective | Pass | Pass | Pass | Needs clearer separation from other radial scenes | Two full songs pass; live output |
+| Orbital Loom | Pass | Pass | Selective | Pass | Pass | Pass | Keep the horizontal weave and local shuttles legible | Two full songs pass; live output |
 | Paper Horizon | Pass | Pass | Sparse | Pass | Pass | Pass | Keep every response on a ridge, tear, star, lantern, or moon detail | Two full songs pass; live output |
 | Particle Weave | Pass | Pass | Selective | Pass | Pass | Pass | Keep percussion on separate beads and knots, never the whole textile | Two full songs pass; live output |
 | Prism Garden | Pass | Pass | Sparse | Pass | Pass | Pass | Preserve the varied skyline during dense passages | Two full songs pass; live output |
@@ -85,6 +85,14 @@ recovery, role-separation, and silence gates.
 Spectral Ribbons now reports zero frames above the 20 percent broad-pulse level
 on all five locked profiles after assigning percussion to separate local
 windows and removing raw spectrum changes from its full-width geometry.
+
+The anonymous motion review exposed Bloom Engine and Orbital Loom as the
+closest motion pair. Orbital Loom now uses six offset horizontal threads,
+directional feedback transport, local beat and anticipation shuttles, separate
+kick knots and snare heddles, and no shared snare rotation or expanding onset
+rings. All five replay profiles and both complete approved songs pass with the
+new motion. Across the real tracks, moderate whole-frame pulse duty stays below
+0.5 percent and severe pulse duty stays below 0.02 percent.
 
 Run the anonymous final review without exposing scene names:
 
