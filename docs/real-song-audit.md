@@ -23,17 +23,26 @@ gesture recovery, and no broad continuous pulse.
 | Result | beat me | To Free Me |
 | --- | ---: | ---: |
 | Scenes passing | 18/18 | 18/18 |
-| Highest mean global pulse | 11.98% | 9.96% |
-| Highest broad-pulse duty | 15.01% | 9.21% |
+| Highest mean global pulse | 9.85% | 8.40% |
+| Highest moderate-pulse duty | 45.09% | 32.84% |
+| Highest severe-pulse duty | 7.86% | 5.92% |
 | Weakest kick response | 2.09x | 2.75x |
-| Weakest snare response | 1.81x | 2.34x |
-| Weakest hat response | 2.06x | 2.37x |
+| Weakest snare response | 1.81x | 1.94x |
+| Weakest hat response | 2.06x | 2.12x |
 | Highest silence drift | 0.00117 | 0.00117 |
 
 Ink Current initially failed the first track because its beat and kick were too
 subtle. Its tuned gestures now exceed 2.30x quiet motion while each transient
 changes less than two percent of the image. The correction is localized and
 does not add whole-frame scale, flash, bounce, zoom, or shake.
+
+The stricter moderate-pulse gate then found two issues hidden by the earlier
+severe threshold. Depth Tunnel kept its slow full-field depth travel, but kick,
+snare, and hat movement moved into separate local windows. On the faster track,
+its severe-pulse duty fell from 15.01 to 7.86 percent. Constellation Field now
+assigns four nodes to each percussion role instead of activating the complete
+network. Its moderate-pulse duty fell from 35.47 to 6.77 percent while kick,
+snare, and hat response remained 7.47x, 4.02x, and 4.43x quiet motion.
 
 The automatic director also passes both songs:
 

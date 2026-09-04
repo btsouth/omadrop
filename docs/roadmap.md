@@ -637,3 +637,6 @@ Completed after v0.3:
   variety, six-second minimum change spacing, 48-second maximum holds, and
   bounded blend duration. Both approved songs pass without stalled or frantic
   direction.
+- Added a moderate-pulse duty gate beside the severe-pulse limit. It exposed
+  and removed shared percussion transforms from Depth Tunnel and Constellation
+  Field while preserving deliberate depth flow and stronger local role cues.

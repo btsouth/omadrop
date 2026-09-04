@@ -50,7 +50,7 @@ ffmpeg -hide_banner -loglevel error -f lavfi -i anullsrc=r=44100:cl=stereo \
 mkdir -p "$output"
 tsv="$output/scorecard.tsv"
 markdown="$output/scorecard.md"
-printf 'scene\tquiet_motion\tquiet_coverage\tmotion_grammar\tquiet_coverage_limit\tglobal_pulse_limit\tmean_global_pulse\tpulse_duty_10\tpulse_duty_20\tpulse_duty_limit\tbeat_gain\tkick_gain\tsnare_gain\that_gain\tonset_gain\tkick_coverage\tsnare_coverage\that_coverage\tkick_coherence\tsnare_coherence\that_coherence\tkick_global_pulse\tsnare_global_pulse\that_global_pulse\tkick_recovery\tsnare_recovery\that_recovery\tmotion_review\tsilence_drift\tstatus\n' > "$tsv"
+printf 'scene\tquiet_motion\tquiet_coverage\tmotion_grammar\tquiet_coverage_limit\tglobal_pulse_limit\tmean_global_pulse\tpulse_duty_10\tpulse_duty_10_limit\tpulse_duty_20\tpulse_duty_20_limit\tbeat_gain\tkick_gain\tsnare_gain\that_gain\tonset_gain\tkick_coverage\tsnare_coverage\that_coverage\tkick_coherence\tsnare_coherence\that_coherence\tkick_global_pulse\tsnare_global_pulse\that_global_pulse\tkick_recovery\tsnare_recovery\that_recovery\tmotion_review\tsilence_drift\tstatus\n' > "$tsv"
 
 metric() {
   local line=$1 key=$2
@@ -97,8 +97,18 @@ for row in "${scenes[@]}"; do
   pulse_duty_10=$(metric "$music_line" pulse_duty_10)
   pulse_duty_20=$(metric "$music_line" pulse_duty_20)
   case "$grammar" in
-    sparse|selective) pulse_duty_limit=0.12 ;;
-    flow) pulse_duty_limit=0.25 ;;
+    sparse)
+      pulse_duty_10_limit=0.25
+      pulse_duty_20_limit=0.12
+      ;;
+    selective)
+      pulse_duty_10_limit=0.45
+      pulse_duty_20_limit=0.12
+      ;;
+    flow)
+      pulse_duty_10_limit=0.48
+      pulse_duty_20_limit=0.25
+      ;;
     *)
       echo "native-scene-scorecard: unknown motion grammar for $name: $grammar" >&2
       exit 1
@@ -145,8 +155,11 @@ for row in "${scenes[@]}"; do
     -v quiet_coverage="$quiet_coverage" -v limit="$quiet_coverage_limit" \
     -v pulse_limit="$global_pulse_limit" -v kick_pulse="$kick_global_pulse" \
     -v snare_pulse="$snare_global_pulse" -v hat_pulse="$hat_global_pulse" \
-    -v pulse_duty="$pulse_duty_20" -v duty_limit="$pulse_duty_limit" \
-    'BEGIN { exit !(kick >= 1.75 && snare >= 1.75 && hat >= 1.75 && drift <= 0.003 && quiet_coverage <= limit && kick_pulse <= pulse_limit && snare_pulse <= pulse_limit && hat_pulse <= pulse_limit && pulse_duty <= duty_limit) }' || {
+    -v pulse_duty_10="$pulse_duty_10" \
+    -v duty_10_limit="$pulse_duty_10_limit" \
+    -v pulse_duty_20="$pulse_duty_20" \
+    -v duty_20_limit="$pulse_duty_20_limit" \
+    'BEGIN { exit !(kick >= 1.75 && snare >= 1.75 && hat >= 1.75 && drift <= 0.003 && quiet_coverage <= limit && kick_pulse <= pulse_limit && snare_pulse <= pulse_limit && hat_pulse <= pulse_limit && pulse_duty_10 <= duty_10_limit && pulse_duty_20 <= duty_20_limit) }' || {
       status=TUNE
       failed=1
     }
@@ -154,10 +167,10 @@ for row in "${scenes[@]}"; do
     status=TUNE
     failed=1
   fi
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$name" "$quiet" "$quiet_coverage" "$grammar" "$quiet_coverage_limit" \
     "$global_pulse_limit" "$mean_global_pulse" "$pulse_duty_10" \
-    "$pulse_duty_20" "$pulse_duty_limit" \
+    "$pulse_duty_10_limit" "$pulse_duty_20" "$pulse_duty_20_limit" \
     "$beat" "$kick" "$snare" "$hat" "$onset" \
     "$kick_coverage" "$snare_coverage" "$hat_coverage" \
     "$kick_coherence" "$snare_coherence" "$hat_coherence" \
@@ -172,17 +185,19 @@ done
   echo
   echo "Audio: $source_label"
   echo
-  echo 'The transient floor is 1.75x quiet motion for kick, snare, and hat. The absolute silence-drift ceiling is 0.003. Each scene also has a non-transient motion coverage budget based on its sparse, selective, or flow grammar. Global pulse combines changed area with same-direction luminance motion, so a full-frame flash approaches 1.0 while localized or counter-moving detail stays lower. Pulse duty is the share of frames whose global-pulse score exceeds 20 percent. Sparse and selective scenes may spend at most 12 percent of frames there; flow scenes may spend at most 25 percent. A scene fails when kick, snare, and hat all move a similarly broad area, or when their gestures recover so slowly that they accumulate into constant motion. Recovery compares motion 167 ms after an isolated hit with motion on the hit; a new transient cancels that sample. These are regression gates, not a substitute for visual review.'
+  echo 'The transient floor is 1.75x quiet motion for kick, snare, and hat. The absolute silence-drift ceiling is 0.003. Each scene also has a non-transient motion coverage budget based on its sparse, selective, or flow grammar. Global pulse combines changed area with same-direction luminance motion, so a full-frame flash approaches 1.0 while localized or counter-moving detail stays lower. Two duty limits prevent moderate broad motion from becoming constant before it reaches the existing severe-pulse threshold. A scene also fails when kick, snare, and hat all move a similarly broad area, or when their responses recover so slowly that they accumulate into constant motion. Recovery compares motion 167 ms after an isolated hit with motion on the hit; a new transient cancels that sample. These are regression gates, not a substitute for visual review.'
   echo
-  echo '| Scene | Grammar | Quiet coverage | Pulse duty | Beat | Kick | Snare | Hat | K/S/H coverage | K/S/H global pulse | K/S/H recovery | Motion | Silence | Status |'
+  echo '| Scene | Grammar | Quiet coverage | Pulse duty 10/20 | Beat | Kick | Snare | Hat | K/S/H coverage | K/S/H global pulse | K/S/H recovery | Motion | Silence | Status |'
   echo '| --- | :---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :---: | ---: | :---: |'
-  tail -n +2 "$tsv" | while IFS=$'\t' read -r name quiet quiet_coverage grammar quiet_coverage_limit global_pulse_limit mean_global_pulse pulse_duty_10 pulse_duty_20 pulse_duty_limit beat kick snare hat onset kick_coverage snare_coverage hat_coverage kick_coherence snare_coherence hat_coherence kick_global_pulse snare_global_pulse hat_global_pulse kick_recovery snare_recovery hat_recovery motion_review drift status; do
-    printf '| %s | %s | %.0f/%.0f%% | %.0f/%.0f%% | %.2fx | %.2fx | %.2fx | %.2fx | %.0f/%.0f/%.0f%% | %.0f/%.0f/%.0f%% | %.0f/%.0f/%.0f%% | %s | %.5f | %s |\n' \
+  tail -n +2 "$tsv" | while IFS=$'\t' read -r name quiet quiet_coverage grammar quiet_coverage_limit global_pulse_limit mean_global_pulse pulse_duty_10 pulse_duty_10_limit pulse_duty_20 pulse_duty_20_limit beat kick snare hat onset kick_coverage snare_coverage hat_coverage kick_coherence snare_coherence hat_coherence kick_global_pulse snare_global_pulse hat_global_pulse kick_recovery snare_recovery hat_recovery motion_review drift status; do
+    printf '| %s | %s | %.0f/%.0f%% | %.0f/%.0f%%, %.0f/%.0f%% | %.2fx | %.2fx | %.2fx | %.2fx | %.0f/%.0f/%.0f%% | %.0f/%.0f/%.0f%% | %.0f/%.0f/%.0f%% | %s | %.5f | %s |\n' \
       "$name" "$grammar" \
       "$(awk -v value="$quiet_coverage" 'BEGIN { print value * 100 }')" \
       "$(awk -v value="$quiet_coverage_limit" 'BEGIN { print value * 100 }')" \
+      "$(awk -v value="$pulse_duty_10" 'BEGIN { print value * 100 }')" \
+      "$(awk -v value="$pulse_duty_10_limit" 'BEGIN { print value * 100 }')" \
       "$(awk -v value="$pulse_duty_20" 'BEGIN { print value * 100 }')" \
-      "$(awk -v value="$pulse_duty_limit" 'BEGIN { print value * 100 }')" \
+      "$(awk -v value="$pulse_duty_20_limit" 'BEGIN { print value * 100 }')" \
       "$beat" "$kick" "$snare" "$hat" \
       "$(awk -v value="$kick_coverage" 'BEGIN { print value * 100 }')" \
       "$(awk -v value="$snare_coverage" 'BEGIN { print value * 100 }')" \

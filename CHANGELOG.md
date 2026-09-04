@@ -104,6 +104,12 @@
   into broad continuous pulsing.
 - Tune Ink Current on both approved tracks so its beat and kick gestures remain
   clearly visible while changing less than two percent of the frame at once.
+- Keep Depth Tunnel's deliberate continuous travel while moving percussion off
+  its shared tunnel transform and into local shock, shutter, and glint regions.
+  Add a second pulse-duty gate so moderate broad motion cannot become constant.
+- Split Constellation Field into separate kick, snare, and hat node groups.
+  Its real-song moderate-pulse duty falls from 35 to 7 percent while all three
+  roles remain clearly above the response floor.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 
