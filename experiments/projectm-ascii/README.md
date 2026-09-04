@@ -85,6 +85,19 @@ a separate 75 percent ceiling. The scorecard is a regression gate. Still
 frames, motion, palettes, continuous rendering, and ASCII rendering still
 require human visual review.
 
+The locked replay suite adds sparse acoustic-like, dense compressed,
+sustained vocal-like, and syncopated fast-section probes to the structured
+electronic baseline. The waveforms are synthesized entirely by repository
+code. Verify their reference hashes and run all fifty scene combinations with:
+
+```sh
+./bin/native-replay-fixtures --verify
+./bin/native-scene-scorecard-suite --enforce
+```
+
+See [the fixture specification](../../docs/replay-fixtures.md) for scope and
+limitations.
+
 Render the production tone map across six difficult album colors, plus a
 grayscale review sheet, for both continuous and ASCII materials with:
 

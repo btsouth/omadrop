@@ -121,7 +121,7 @@ void main() {
     float focalSubject = max(apertureEdge * (0.42 + 0.40 * low + 0.28 * kick),
                              shells * (0.24 + 0.34 * bandLevel[1]));
     focalSubject = max(focalSubject,
-                       squareFrame * (0.26 + 0.32 * middle + 0.20 * snare));
+                       squareFrame * (0.26 + 0.32 * middle + 0.14 * snare));
     focalSubject = max(focalSubject, spokes * (0.18 + 0.28 * bandLevel[3]));
     float accents = cornerTicks + beatSquare + downbeatSquare + sectionSquare
                   + kickRotor;

@@ -342,8 +342,8 @@ Allow more people to create scenes while keeping the official rotation strict.
 
 ## Immediate work order
 
-1. Lock a rights-cleared multi-genre replay set and complete continuous-motion
-   review for the current ten scenes.
+1. Add reviewed real, rights-cleared songs to the locked synthetic replay set
+   and complete continuous-motion review for the current ten scenes.
 2. Finish output-change, display-hotplug, shutdown, and long-run operational
    regressions needed to close Phase 0.
 3. Normalize transient response and stabilize tempo, downbeat, and phrase
@@ -389,6 +389,13 @@ Completed after v0.3:
   review both pass all ten scene gates.
 - Added a FIFO-backed 60 FPS replay encoder with source-matched audio for
   continuous motion review without desktop capture or temporary raw frames.
+- Added five hash-locked, repository-synthesized replay profiles covering
+  structured electronic, sparse acoustic-like, dense compressed, sustained
+  vocal-like, and syncopated fast-section material. All fifty scene and profile
+  combinations pass the enforced scorecard.
+- Split Orbital Loom's percussion across distinct thread families and reduced
+  synchronized snare luminance in Spectral Ribbons and Centrifuge after the
+  expanded suite exposed pulse regressions that one song did not.
 - Added true 1280x720 continuous and ASCII review galleries across six album
   colors and grayscale.
 - Raised all ten current scenes to the still-frame quality floor. Time-sampled

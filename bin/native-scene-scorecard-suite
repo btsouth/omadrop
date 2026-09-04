@@ -1,0 +1,80 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+fixture="$root/experiments/projectm-ascii/scorecard-fixture"
+scorecard="$root/bin/native-scene-scorecard"
+manifest="$root/experiments/projectm-ascii/fixtures/replay-suite.sha256"
+enforce=0
+
+if [[ ${1:-} == --enforce ]]; then
+  enforce=1
+  shift
+fi
+if (($# > 1)); then
+  echo "usage: native-scene-scorecard-suite [--enforce] [OUTPUT_DIRECTORY]" >&2
+  exit 2
+fi
+[[ -x $fixture ]] || {
+  echo "native-scene-scorecard-suite: run experiments/projectm-ascii/build.sh first" >&2
+  exit 2
+}
+
+output=${1:-$root/cache/native-scene-scorecard-suite}
+mkdir -p "$output"
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-scorecard-suite.XXXXXX")
+trap 'rm -rf -- "$scratch"' EXIT
+
+profiles=(
+  structured-electronic
+  sparse-acoustic
+  dense-compressed
+  sustained-vocal
+  syncopated-sections
+)
+for profile in "${profiles[@]}"; do
+  "$fixture" "$scratch/$profile.f32" "$profile"
+done
+(
+  cd "$scratch"
+  sha256sum --check "$manifest" >/dev/null
+)
+
+summary="$output/suite.tsv"
+printf 'profile\tpassed\ttune\tstatus\n' >"$summary"
+failed=0
+for profile in "${profiles[@]}"; do
+  echo "scoring $profile"
+  profile_output="$output/$profile"
+  "$scorecard" "$scratch/$profile.f32" "$profile_output"
+  passed=$(awk -F '\t' 'NR > 1 && $NF == "PASS" { count++ } END { print count + 0 }' \
+    "$profile_output/scorecard.tsv")
+  tune=$((10 - passed))
+  status=PASS
+  if ((tune > 0)); then
+    status=TUNE
+    failed=1
+  fi
+  printf '%s\t%s\t%s\t%s\n' "$profile" "$passed" "$tune" "$status" \
+    >>"$summary"
+done
+
+{
+  echo '# Native scene replay suite'
+  echo
+  echo 'All audio is generated deterministically from repository code. No external recordings are used.'
+  echo
+  echo '| Profile | Passed scenes | Needs tuning | Status |'
+  echo '| --- | ---: | ---: | :---: |'
+  tail -n +2 "$summary" | while IFS=$'\t' read -r profile passed tune status; do
+    printf '| %s | %s/10 | %s | %s |\n' "$profile" "$passed" "$tune" "$status"
+  done
+} >"$output/suite.md"
+
+echo "replay suite: $output/suite.md"
+if ((failed)); then
+  echo "native scene replay suite has scenes to tune" >&2
+  ((enforce == 0)) || exit 1
+else
+  echo "native scene replay suite passed"
+fi

@@ -22,8 +22,10 @@ ship decision.
 
 ## Current priorities
 
-1. Expand the current full-song pass into a locked multi-genre replay set with
-   quiet, dense, sustained, acoustic, and heavily compressed passages.
+1. Add reviewed real, rights-cleared music to the locked synthetic suite. The
+   five current profiles cover quiet, dense, sustained, acoustic-like,
+   vocal-like, compressed, and syncopated passages across fifty enforced scene
+   combinations.
 2. Review continuous motion, not only time-sampled frames, and confirm that
    Depth Tunnel and Spectral Ribbons remain controlled as the two deliberately
    broad flow scenes.

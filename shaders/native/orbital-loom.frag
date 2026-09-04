@@ -11,13 +11,9 @@ void main() {
     float radius = max(0.002, length(p));
     float angle = atan(p.y, p.x);
 
-    float rotation = 0.00020 + 0.00055 * drive + 0.024 * snare;
+    float rotation = 0.00020 + 0.00055 * drive + 0.010 * snare;
     vec2 previousP = rotate2d(rotation * smoothstep(0.08, 0.72, radius)) * p;
-    float radialGesture = 0.38 + 0.62 * smoothstep(
-        -0.25, 0.85, sin(angle * 6.0 + phrasePhase * tau));
-    previousP *= 1.0 - (0.009 * beatPulse + 0.006 * onsetPulse
-                              + 0.007 * kick) * radialGesture
-                         + 0.0012 * beatAnticipation;
+    previousP *= 1.0 + 0.0012 * beatAnticipation;
     previousP += normalize(p) * sin(angle * 24.0 - flowTime * 3.2) * 0.0016 * hat;
     vec2 previousUv = previousP / aspect + 0.5;
     float edge = smoothstep(0.0, 0.07, uv.x) * smoothstep(0.0, 0.07, uv.y)
@@ -27,28 +23,39 @@ void main() {
                   * mix(0.875, 0.945, harmonic) * edge;
 
     float threads = 0.0;
+    float kickThreads = 0.0;
+    float snareThreads = 0.0;
+    float airThreads = 0.0;
     float crossings = 0.0;
     for (int index = 0; index < 6; ++index) {
         float fi = float(index);
         float threadGesture = 0.30 + 0.70
                             * (0.5 + 0.5 * sin(fi * 2.3 + barPhase * tau));
-        float tilt = fi * tau / 6.0 + phrasePhase * 0.35 + snare * 0.46;
+        float kickThread = index < 2 ? kick : 0.0;
+        float snareThread = index >= 2 && index < 4 ? snare : 0.0;
+        float snareDirection = mod(fi, 2.0) < 0.5 ? -1.0 : 1.0;
+        float tilt = fi * tau / 6.0 + phrasePhase * 0.35
+                   + snareThread * snareDirection * 0.62;
         vec2 q = rotate2d(tilt) * p;
         q.y /= 0.34 + 0.08 * sin(fi * 2.2 + flowTime * 0.13);
         q.x /= 0.52 + 0.09 * development
-              + (0.042 * beatPulse + 0.044 * onsetPulse
-                 + 0.075 * kick) * threadGesture;
+              + (0.035 * beatPulse * (index < 2 ? 1.0 : 0.0)
+                 + 0.012 * kickThread)
+                * threadGesture;
         float ellipse = abs(length(q) - 1.0);
-        float strand = line(ellipse, 0.012 + 0.006 * bandLevel[index]);
+        float strand = line(ellipse, 0.012 + 0.003 * bandLevel[index]);
         threads = max(threads, strand);
+        if (index < 2) kickThreads = max(kickThreads, strand);
+        else if (index < 4) snareThreads = max(snareThreads, strand);
+        else airThreads = max(airThreads, strand);
         crossings += strand * line(
             sin(angle * 12.0 + fi + flowTime * 0.18), 0.08);
     }
-    float aperture = line(radius - (0.10 + 0.055 * kick), 0.009);
+    float aperture = line(radius - (0.10 + 0.035 * kick), 0.009);
     float shuttlePhase = fract(angle / tau + flowTime * (0.42 + 0.3 * drive)
                              + beatPhase);
     float shuttles = line(shuttlePhase - 0.5, 0.035) * threads * hat;
-    float kickKnot = line(radius - (0.14 + 0.11 * kick),
+    float kickKnot = line(radius - (0.14 + 0.07 * kick),
                           0.011 + 0.008 * kick) * kick;
     float snareSpokes = line(
         sin(angle * 10.0 + phrasePhase * tau + snare * 2.0), 0.028)
@@ -70,13 +77,15 @@ void main() {
     vec3 primary = palettePrimary(1.86);
     vec3 secondary = paletteSecondary(1.86);
     vec3 accent = paletteAccent(1.86);
-    vec3 injection = mix(primary, secondary,
-                         0.5 + 0.5 * sin(angle * 3.0))
-                         * threads * (0.12 + 0.07 * energySlow)
+    float threadLight = 0.12 + 0.055 * energySlow;
+    vec3 injection = primary * kickThreads * threadLight
+                   + secondary * snareThreads
+                         * (threadLight + 0.08 * snare)
+                   + mix(primary, secondary, 0.58) * airThreads * threadLight
                    + secondary * crossings * 0.10
                    + accent * (aperture + shuttles + beatOrbit
                                + downbeatOrbit + sectionKnot) * 0.22
-                   + mix(accent, vec3(1.0), 0.32) * kickKnot * 0.34
+                   + mix(accent, vec3(1.0), 0.32) * kickKnot * 0.18
                    + mix(secondary, vec3(1.0), 0.40) * snareSpokes * 0.27
                    + mix(primary, vec3(1.0), 0.52) * hatGlints * 0.34
                    + mix(accent, vec3(1.0), 0.46) * onsetRing * 0.36
