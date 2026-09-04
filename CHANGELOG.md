@@ -7,6 +7,9 @@
   album-cover color intact.
 - Add a silent 18-scene motion-board generator for judging musical legibility
   without audio cues.
+- Require an absolute visible kick, snare, and hat response in addition to the
+  relative quiet-motion ratio. Particle Weave and Living Mosaic now give their
+  existing hat details enough local presence to clear that floor.
 
 - Add Negative Space, a restrained eleventh native scene whose beat, kick,
   snare, hats, and section changes carve separate parts of one stable field.

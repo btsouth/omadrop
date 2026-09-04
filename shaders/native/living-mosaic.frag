@@ -121,10 +121,10 @@ void main() {
 
     // Hats flash a few nuclei in small upper cells.
     float nucleus = 1.0 - smoothstep(0.030,
-        0.060 + 0.010 * sceneHat, nearest);
+        0.075 + 0.015 * sceneHat, nearest);
     float upperCells = smoothstep(0.08, 0.28, p.y);
-    float hatSelection = smoothstep(0.72, 0.90, cellIdentity)
-                       * smoothstep(0.54, 0.78, cellIdentityB);
+    float hatSelection = smoothstep(0.68, 0.86, cellIdentity)
+                       * smoothstep(0.48, 0.72, cellIdentityB);
     float hatNuclei = nucleus * upperCells * hatSelection * sceneHat;
 
     float anticipation = line(p.x + 0.78, 0.004)
@@ -150,7 +150,7 @@ void main() {
             + accent * beatEdge * frameWindow * 0.145
             + mix(primary, accent, 0.28) * kickCells * 0.135
             + mix(accent, vec3(1.0), 0.28) * snareLine * 0.28
-            + accent * hatNuclei * frameWindow * 0.34
+            + accent * hatNuclei * frameWindow * 0.54
             + secondary * anticipation * 0.11
             + accent * downbeatCell * frameWindow * 0.15
             + secondary * dormantSeams * frameWindow * 0.095;

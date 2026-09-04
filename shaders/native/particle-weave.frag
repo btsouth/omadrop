@@ -136,7 +136,7 @@ void main() {
         vec2 point = vec2(x, curveY(x, 2.0));
         float gate = 0.45 + 0.55 * sin(fi * 2.18 + 0.6);
         hatBeads += (1.0 - smoothstep(0.006,
-            0.013 + 0.004 * sceneHat, length(q - point)))
+            0.017 + 0.006 * sceneHat, length(q - point)))
             * sceneHat * max(0.0, gate);
     }
 
@@ -169,7 +169,7 @@ void main() {
             + accent * shuttleTail * 0.075
             + primary * kickKnots * 0.27
             + mix(accent, vec3(1.0), 0.28) * snareStitch * 0.29
-            + accent * hatBeads * 0.34
+            + accent * hatBeads * 0.40
             + secondary * anticipation * 0.11
             + accent * downbeatKnot * 0.13
             + secondary * sectionThread * 0.12;

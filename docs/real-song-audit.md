@@ -56,6 +56,14 @@ were weakest here gained small local details such as ridge contours, wall
 courses, petal tips, light sheets, and horizon stars. Both complete tracks and
 all 90 generated scene-profile combinations still pass after these changes.
 
+An absolute gesture floor now complements the relative quiet-motion ratio.
+Each isolated kick, snare, and hat must change at least 0.025 percent mean
+frame luminance, so a nearly still scene cannot pass with a mathematically
+large but visually negligible ratio. Particle Weave's upper beads and Living
+Mosaic's selected nuclei were the only details below that floor. After their
+local correction, all 90 generated combinations and both complete songs pass;
+neither scene records a severe broad-pulse frame.
+
 The automatic director also passes both songs:
 
 | Result | beat me | To Free Me |

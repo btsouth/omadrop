@@ -394,6 +394,10 @@ Completed after v0.3:
   through all 18 scenes. The two 3x3 films make overreaction, static passages,
   duplicated motion, and music that is unreadable without audio visible in one
   review pass.
+- Added an absolute isolated-gesture visibility gate so an almost motionless
+  scene cannot pass through a large response ratio alone. Particle Weave's hat
+  beads and Living Mosaic's upper nuclei gained local presence without moving
+  either composition or adding a full-frame reaction.
 - Added a FIFO-backed 60 FPS replay encoder with source-matched audio for
   continuous motion review without desktop capture or temporary raw frames.
 - Added five hash-locked, repository-synthesized replay profiles covering

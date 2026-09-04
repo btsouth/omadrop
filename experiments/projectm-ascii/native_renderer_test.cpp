@@ -43,6 +43,9 @@ struct SustainResult {
 
 struct SceneAudit {
     float idleMean = 0.0f;
+    float kickDifference = 0.0f;
+    float snareDifference = 0.0f;
+    float hatDifference = 0.0f;
     float kickRatio = 0.0f;
     float snareRatio = 0.0f;
     float hatRatio = 0.0f;
@@ -698,9 +701,15 @@ SceneAudit auditScene(NativeRenderer& renderer, NativeSceneKind kind,
 
     SceneAudit audit;
     audit.idleMean = mean(idleMotion);
-    audit.kickRatio = mean(kickMotion) / std::max(1e-7f, audit.idleMean);
-    audit.snareRatio = mean(snareMotion) / std::max(1e-7f, audit.idleMean);
-    audit.hatRatio = mean(hatMotion) / std::max(1e-7f, audit.idleMean);
+    audit.kickDifference = mean(kickMotion);
+    audit.snareDifference = mean(snareMotion);
+    audit.hatDifference = mean(hatMotion);
+    audit.kickRatio = audit.kickDifference
+                    / std::max(1e-7f, audit.idleMean);
+    audit.snareRatio = audit.snareDifference
+                     / std::max(1e-7f, audit.idleMean);
+    audit.hatRatio = audit.hatDifference
+                   / std::max(1e-7f, audit.idleMean);
     audit.moderateKickRatio = mean(moderateKickMotion)
                             / std::max(1e-7f, audit.idleMean);
     audit.moderateSnareRatio = mean(moderateSnareMotion)
@@ -738,6 +747,8 @@ void printAudit(NativeSceneKind kind, const SceneAudit& audit) {
               << " kick=" << audit.kickRatio
               << " snare=" << audit.snareRatio
               << " hat=" << audit.hatRatio
+              << " gesture_motion=" << audit.kickDifference << ","
+              << audit.snareDifference << "," << audit.hatDifference
               << " moderate=" << audit.moderateKickRatio << ","
               << audit.moderateSnareRatio << "," << audit.moderateHatRatio
               << " beat=" << audit.beatRatio
@@ -764,6 +775,13 @@ void printAudit(NativeSceneKind kind, const SceneAudit& audit) {
 }
 
 bool auditPasses(const SceneAudit& audit) {
+    // A ratio against a nearly motionless baseline can make an imperceptible
+    // detail look strong. Each isolated role must also change enough image
+    // luminance to remain visible at ordinary display size.
+    constexpr float minimumGestureDifference = 0.00025f;
+    if (audit.kickDifference < minimumGestureDifference
+        || audit.snareDifference < minimumGestureDifference
+        || audit.hatDifference < minimumGestureDifference) return false;
     if (audit.kickRatio < 1.25f || audit.snareRatio < 1.25f
         || audit.hatRatio < 1.12f) return false;
     if (audit.moderateKickRatio < 1.15f
