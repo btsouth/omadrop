@@ -18,6 +18,8 @@ Run the native music-contract and render audits with:
 ```sh
 ./experiments/projectm-ascii/music-frame-test
 ./experiments/projectm-ascii/mpris-state-test
+./experiments/projectm-ascii/audio-output-session-test \
+  ./experiments/projectm-ascii/fixtures/fake-pw-record
 ./experiments/projectm-ascii/paired-transport-test
 ./experiments/projectm-ascii/native-scene-state-test
 ./experiments/projectm-ascii/native-renderer-test ./shaders/native
@@ -30,6 +32,11 @@ routed to the intended monitor and made fullscreen, the first exit terminates
 its sibling, and all runtime synchronization files are removed. It also removes
 one display at runtime and verifies that the old pair closes before a correctly
 routed one-display session is revealed.
+
+The audio-output session test uses a fake capture process. It verifies the
+exact sink passed to `pw-record`, orderly capture replacement, state reset, a
+per-output delay change, and a clean failure when the capture executable cannot
+start.
 
 Pass an optional output directory to `native-renderer-test` to write one
 deterministic continuous frame and one production-equivalent ASCII frame per

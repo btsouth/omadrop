@@ -7,14 +7,18 @@ g++ -std=c++20 -O2 -Wall -Wextra main.cpp -o projectm-ascii \
   $(pkg-config --cflags projectM-4 sdl2) \
   $(pkg-config --libs sdl2) -lprojectM-4 -lGL
 
-g++ -std=c++20 -O2 -Wall -Wextra live.cpp live_assets.cpp live_projectm.cpp \
-  live_settings.cpp native_renderer.cpp paired_transport.cpp pipewire_capture.cpp \
+g++ -std=c++20 -O2 -Wall -Wextra live.cpp audio_output_session.cpp live_assets.cpp \
+  live_projectm.cpp live_settings.cpp native_renderer.cpp paired_transport.cpp \
+  pipewire_capture.cpp \
   -o projectm-ascii-live \
   $(pkg-config --cflags projectM-4 sdl2 glew libpng fftw3f json-c) \
   $(pkg-config --libs sdl2 glew libpng fftw3f json-c) -lprojectM-4 -lGL
 
 g++ -std=c++20 -O2 -Wall -Wextra live_settings_test.cpp live_settings.cpp \
   -o live-settings-test
+
+g++ -std=c++20 -O2 -Wall -Wextra audio_output_session_test.cpp \
+  audio_output_session.cpp pipewire_capture.cpp -o audio-output-session-test
 
 g++ -std=c++20 -O2 -Wall -Wextra mpris_state_test.cpp \
   -o mpris-state-test $(pkg-config --cflags --libs json-c)

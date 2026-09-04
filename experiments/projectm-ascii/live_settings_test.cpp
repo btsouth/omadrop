@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <unistd.h>
@@ -19,6 +20,15 @@ int main() {
     assert(!loadAsciiEnabled());
     saveAsciiEnabled(true);
     assert(loadAsciiEnabled());
+
+    const auto sinkPath = root / "default-sink";
+    {
+        std::ofstream sinkOutput(sinkPath);
+        sinkOutput << "alsa_output.usb_interface\n";
+    }
+    setenv("OMADROP_TEST_SINK_PATH", sinkPath.c_str(), 1);
+    assert(defaultSinkName() == "alsa_output.usb_interface");
+    unsetenv("OMADROP_TEST_SINK_PATH");
 
     assert(loadSyncDelay("alsa_output.default") == 35u);
     assert(loadSyncDelay("bluez_output.headphones") == 180u);

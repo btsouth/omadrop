@@ -1,7 +1,9 @@
 #include "pipewire_capture.h"
 
 #include <algorithm>
+#include <cerrno>
 #include <cstddef>
+#include <cstdlib>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/types.h>
@@ -16,31 +18,58 @@ bool PipeWireCapture::start(const std::string& targetSink) {
     stop();
     int audioPipe[2];
     if (pipe2(audioPipe, O_CLOEXEC) != 0) return false;
+    int execPipe[2];
+    if (pipe2(execPipe, O_CLOEXEC) != 0) {
+        close(audioPipe[0]);
+        close(audioPipe[1]);
+        return false;
+    }
     const pid_t child = fork();
     if (child == 0) {
+        close(execPipe[0]);
         dup2(audioPipe[1], STDOUT_FILENO);
         const int nullFd = open("/dev/null", O_WRONLY);
         if (nullFd >= 0) dup2(nullFd, STDERR_FILENO);
         close(audioPipe[0]);
         close(audioPipe[1]);
+        const char* command = std::getenv("OMADROP_PW_RECORD_COMMAND");
+        if (!command || !*command) command = "pw-record";
         if (targetSink.empty()) {
-            execlp("pw-record", "pw-record", "--raw", "--rate", "44100",
+            execlp(command, "pw-record", "--raw", "--rate", "44100",
                    "--channels", "2", "--format", "f32", "--latency", "20ms",
                    "-P", "{ stream.capture.sink=true }", "-",
                    static_cast<char*>(nullptr));
         } else {
-            execlp("pw-record", "pw-record", "--raw", "--rate", "44100",
+            execlp(command, "pw-record", "--raw", "--rate", "44100",
                    "--channels", "2", "--format", "f32", "--latency", "20ms",
                    "-P", "{ stream.capture.sink=true }", "--target",
                    targetSink.c_str(), "-", static_cast<char*>(nullptr));
         }
+        const int execError = errno;
+        static_cast<void>(write(execPipe[1], &execError, sizeof(execError)));
         _exit(127);
     }
     close(audioPipe[1]);
+    close(execPipe[1]);
     if (child < 0) {
         close(audioPipe[0]);
+        close(execPipe[0]);
         return false;
     }
+
+    int execError = 0;
+    ssize_t execBytes = -1;
+    do {
+        execBytes = ::read(execPipe[0], &execError, sizeof(execError));
+    } while (execBytes < 0 && errno == EINTR);
+    close(execPipe[0]);
+    if (execBytes != 0) {
+        close(audioPipe[0]);
+        if (execBytes < 0) kill(child, SIGKILL);
+        waitpid(child, nullptr, 0);
+        return false;
+    }
+
     process_ = child;
     descriptor_ = audioPipe[0];
     fcntl(descriptor_, F_SETFL, fcntl(descriptor_, F_GETFL) | O_NONBLOCK);

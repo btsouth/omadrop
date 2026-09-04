@@ -1,0 +1,10 @@
+#!/bin/bash
+set -euo pipefail
+
+printf 'started %s %s\n' "$$" "$*" >>"${OMADROP_TEST_CAPTURE_LOG:?}"
+finish() {
+  printf 'terminated %s\n' "$$" >>"$OMADROP_TEST_CAPTURE_LOG"
+  exit 0
+}
+trap finish TERM INT
+while :; do sleep 0.05; done

@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "audio_features.h"
+#include "audio_output_session.h"
 #include "audio_queue.h"
 #include "live_assets.h"
 #include "live_projectm.h"
@@ -940,22 +941,26 @@ int main(int argc, char** argv) {
         if (now >= nextSinkPollAt) {
             nextSinkPollAt = now + 2000;
             const std::string currentSink = defaultSinkName();
-            if (!currentSink.empty() && currentSink != sink) {
-                audioCapture.stop();
-                sink = currentSink;
-                syncDelayMs = loadSyncDelay(sink);
-                delayedPcm.clear();
-                featureBus.resetClock();
-                musicFrameBuilder.reset();
-                lastNonSilentAudioAt = now;
-                reportedAudioMode = false;
-                if (!audioCapture.start(sink)) {
-                    std::cerr << "audio: could not follow default sink " << sink << "\n";
-                    running = false;
-                } else {
-                    std::cerr << "audio: followed default sink " << sink
-                              << ", sync delay " << syncDelayMs << " ms\n";
-                }
+            const AudioOutputFollowResult followResult = followAudioOutput(
+                currentSink, sink,
+                [&] { audioCapture.stop(); },
+                [&](const std::string& newSink) {
+                    syncDelayMs = loadSyncDelay(newSink);
+                    delayedPcm.clear();
+                    featureBus.resetClock();
+                    musicFrameBuilder.reset();
+                    lastNonSilentAudioAt = now;
+                    reportedAudioMode = false;
+                },
+                [&](const std::string& newSink) {
+                    return audioCapture.start(newSink);
+                });
+            if (followResult == AudioOutputFollowResult::Failed) {
+                std::cerr << "audio: could not follow default sink " << sink << "\n";
+                running = false;
+            } else if (followResult == AudioOutputFollowResult::Followed) {
+                std::cerr << "audio: followed default sink " << sink
+                          << ", sync delay " << syncDelayMs << " ms\n";
             }
         }
         if (automaticQuitAt > 0 && now >= automaticQuitAt) closeRequested = true;

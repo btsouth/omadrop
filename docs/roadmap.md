@@ -410,3 +410,7 @@ Completed after v0.3:
 - Added runtime display-topology supervision. Connecting or removing a monitor
   now closes the old synchronized pair before revealing a newly routed set, and
   the launcher harness covers the two-display to one-display hotplug path.
+- Extracted and tested the default-output handoff sequence. Sink changes now
+  prove capture shutdown, analysis reset, per-output delay selection, and
+  capture restart order, and capture startup detects an executable failure
+  instead of silently leaving the visualizer without audio.
