@@ -30,6 +30,22 @@ It writes a two-second visual contact sequence plus a per-frame music timeline.
 `OMADROP_REPLAY_CAPTURE_HOPS` changes the capture interval from its 120-hop
 default, and `OMADROP_REPLAY_MAX_SECONDS` limits a motion-review excerpt.
 
+Generate the deterministic structured fixture and measure every native scene
+with the same input:
+
+```sh
+./experiments/projectm-ascii/scorecard-fixture /tmp/omadrop-scorecard.f32
+./bin/native-scene-scorecard /tmp/omadrop-scorecard.f32
+```
+
+With no arguments, `native-scene-scorecard` generates the fixture itself and
+writes HTML-friendly Markdown plus raw TSV data to
+`cache/native-scene-scorecard`. Add `--enforce` to fail when any scene misses
+the 1.75x kick, snare, or hat response floor or exceeds the 0.003 absolute
+silence-drift ceiling. The scorecard is a regression gate. Still frames,
+motion, palettes, continuous rendering, and ASCII rendering still require
+human visual review.
+
 Run:
 
 ```sh

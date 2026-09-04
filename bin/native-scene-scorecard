@@ -1,0 +1,174 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+replay="$root/experiments/projectm-ascii/native-song-replay"
+fixture="$root/experiments/projectm-ascii/scorecard-fixture"
+shaders="$root/shaders/native"
+enforce=0
+
+if [[ ${1:-} == --enforce ]]; then
+  enforce=1
+  shift
+fi
+if (($# > 2)); then
+  echo "usage: native-scene-scorecard [--enforce] [RAW_F32_STEREO] [OUTPUT_DIRECTORY]" >&2
+  exit 2
+fi
+
+[[ -x $replay && -x $fixture ]] || {
+  echo "native-scene-scorecard: run experiments/projectm-ascii/build.sh first" >&2
+  exit 2
+}
+command -v ffmpeg >/dev/null || {
+  echo "native-scene-scorecard: ffmpeg is required" >&2
+  exit 2
+}
+
+output=${2:-$root/cache/native-scene-scorecard}
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-scorecard.XXXXXX")
+trap 'rm -rf -- "$scratch"' EXIT
+
+if (($# >= 1)); then
+  music=$(readlink -f "$1")
+  [[ -f $music ]] || {
+    echo "native-scene-scorecard: input not found: $1" >&2
+    exit 2
+  }
+  source_label=$music
+else
+  music="$scratch/structured-fixture.f32"
+  "$fixture" "$music"
+  source_label="deterministic scorecard fixture"
+fi
+
+silence="$scratch/silence.f32"
+ffmpeg -hide_banner -loglevel error -f lavfi -i anullsrc=r=44100:cl=stereo \
+  -t 10 -f f32le "$silence"
+
+mkdir -p "$output"
+tsv="$output/scorecard.tsv"
+markdown="$output/scorecard.md"
+printf 'scene\tquiet_motion\tbeat_gain\tkick_gain\tsnare_gain\that_gain\tonset_gain\tkick_coverage\tsnare_coverage\that_coverage\tkick_recovery\tsnare_recovery\that_recovery\tmotion_review\tsilence_drift\tstatus\n' > "$tsv"
+
+metric() {
+  local line=$1 key=$2
+  sed -n "s/.* ${key}=\\([^ ]*\\).*/\\1/p" <<< "$line"
+}
+
+scene_name() {
+  case "$1" in
+    depth-tunnel) echo 'Depth Tunnel' ;;
+    centrifuge) echo 'Centrifuge' ;;
+    wire-organism) echo 'Wire Organism' ;;
+    prism-garden) echo 'Prism Garden' ;;
+    orbital-loom) echo 'Orbital Loom' ;;
+    tidal-grid) echo 'Tidal Grid' ;;
+    pulse-cathedral) echo 'Pulse Cathedral' ;;
+    constellation-field) echo 'Constellation Field' ;;
+    spectral-ribbons) echo 'Spectral Ribbons' ;;
+    bloom-engine) echo 'Bloom Engine' ;;
+  esac
+}
+
+scenes=(
+  depth-tunnel centrifuge wire-organism prism-garden orbital-loom
+  tidal-grid pulse-cathedral constellation-field spectral-ribbons bloom-engine
+)
+failed=0
+for scene in "${scenes[@]}"; do
+  name=$(scene_name "$scene")
+  scene_output="$output/$scene"
+  mkdir -p "$scene_output/music" "$scene_output/silence"
+  echo "measuring $name"
+  music_log=$(OMADROP_REPLAY_SCENE="$scene" OMADROP_REPLAY_MEASURE=1 \
+    OMADROP_REPLAY_CAPTURE_HOPS=100000 \
+    "$replay" "$shaders" "$music" "$scene_output/music" 2>&1)
+  printf '%s\n' "$music_log" > "$scene_output/music.log"
+  music_line=$(sed -n '/^motion /p' <<< "$music_log")
+  [[ -n $music_line ]] || {
+    echo "native-scene-scorecard: missing music metrics for $name" >&2
+    exit 1
+  }
+
+  silence_log=$(OMADROP_REPLAY_SCENE="$scene" OMADROP_REPLAY_MEASURE=1 \
+    OMADROP_REPLAY_CAPTURE_HOPS=100000 \
+    "$replay" "$shaders" "$silence" "$scene_output/silence" 2>&1)
+  printf '%s\n' "$silence_log" > "$scene_output/silence.log"
+  silence_line=$(sed -n '/^motion /p' <<< "$silence_log")
+  [[ -n $silence_line ]] || {
+    echo "native-scene-scorecard: missing silence metrics for $name" >&2
+    exit 1
+  }
+
+  quiet=$(metric "$music_line" quiet)
+  beat=$(metric "$music_line" beat | tr -d x)
+  kick=$(metric "$music_line" kick | tr -d x)
+  snare=$(metric "$music_line" snare | tr -d x)
+  hat=$(metric "$music_line" hat | tr -d x)
+  onset=$(metric "$music_line" onset | tr -d x)
+  kick_coverage=$(metric "$music_line" kick_coverage)
+  snare_coverage=$(metric "$music_line" snare_coverage)
+  hat_coverage=$(metric "$music_line" hat_coverage)
+  kick_recovery=$(metric "$music_line" kick_recovery)
+  snare_recovery=$(metric "$music_line" snare_recovery)
+  hat_recovery=$(metric "$music_line" hat_recovery)
+  drift=$(metric "$silence_line" quiet)
+  motion_review=selective
+  awk -v kick="$kick_coverage" -v snare="$snare_coverage" -v hat="$hat_coverage" '
+    BEGIN {
+      minimum = kick < snare ? kick : snare
+      minimum = minimum < hat ? minimum : hat
+      maximum = kick > snare ? kick : snare
+      maximum = maximum > hat ? maximum : hat
+      average = (kick + snare + hat) / 3.0
+      exit !(average >= 0.60 && maximum - minimum < 0.18)
+    }' && motion_review=broad || true
+  awk -v kick="$kick_recovery" -v snare="$snare_recovery" -v hat="$hat_recovery" '
+    BEGIN { exit !((kick + snare + hat) / 3.0 >= 0.75) }' && {
+      [[ $motion_review == selective ]] && motion_review=slow-recovery \
+        || motion_review=broad+slow-recovery
+    } || true
+  status=PASS
+  awk -v kick="$kick" -v snare="$snare" -v hat="$hat" -v drift="$drift" \
+    'BEGIN { exit !(kick >= 1.75 && snare >= 1.75 && hat >= 1.75 && drift <= 0.003) }' || {
+      status=TUNE
+      failed=1
+    }
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$name" "$quiet" "$beat" "$kick" "$snare" "$hat" "$onset" \
+    "$kick_coverage" "$snare_coverage" "$hat_coverage" \
+    "$kick_recovery" "$snare_recovery" "$hat_recovery" "$motion_review" \
+    "$drift" "$status" \
+    >> "$tsv"
+done
+
+{
+  echo '# Native scene scorecard'
+  echo
+  echo "Audio: $source_label"
+  echo
+  echo 'The transient floor is 1.75x quiet motion for kick, snare, and hat. The absolute silence-drift ceiling is 0.003. Broad coverage flags scenes where all three roles move a similar amount of the frame. Recovery compares motion 83 ms after each hit with motion on the hit. Broad or slow-recovery results require anti-thump review. These are regression gates, not a substitute for visual review.'
+  echo
+  echo '| Scene | Quiet | Beat | Kick | Snare | Hat | K/S/H coverage | K/S/H recovery | Motion | Silence | Status |'
+  echo '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :---: | ---: | :---: |'
+  tail -n +2 "$tsv" | while IFS=$'\t' read -r name quiet beat kick snare hat onset kick_coverage snare_coverage hat_coverage kick_recovery snare_recovery hat_recovery motion_review drift status; do
+    printf '| %s | %.5f | %.2fx | %.2fx | %.2fx | %.2fx | %.0f/%.0f/%.0f%% | %.0f/%.0f/%.0f%% | %s | %.5f | %s |\n' \
+      "$name" "$quiet" "$beat" "$kick" "$snare" "$hat" \
+      "$(awk -v value="$kick_coverage" 'BEGIN { print value * 100 }')" \
+      "$(awk -v value="$snare_coverage" 'BEGIN { print value * 100 }')" \
+      "$(awk -v value="$hat_coverage" 'BEGIN { print value * 100 }')" \
+      "$(awk -v value="$kick_recovery" 'BEGIN { print value * 100 }')" \
+      "$(awk -v value="$snare_recovery" 'BEGIN { print value * 100 }')" \
+      "$(awk -v value="$hat_recovery" 'BEGIN { print value * 100 }')" \
+      "$motion_review" "$drift" "$status"
+  done
+} > "$markdown"
+
+echo "scorecard: $markdown"
+if ((failed)); then
+  echo "native scene scorecard has scenes to tune" >&2
+  ((enforce == 0)) || exit 1
+else
+  echo "native scene scorecard passed"
+fi

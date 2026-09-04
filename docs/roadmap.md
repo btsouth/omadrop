@@ -44,6 +44,14 @@ Every scene, transition, and release must pass the same review.
 - Produce a measurable response to each declared input within 100 ms of its
   presentation time.
 - Keep each role spatially or behaviorally distinct from the others.
+- Do not scale, flash, bounce, zoom, or shake the whole composition for every
+  onset. Broad motion is allowed only when it is a deliberate role in that
+  scene, not the default response to any sound.
+- Measure the fraction of the frame changed by each transient. Similar broad
+  coverage for kick, snare, and hat requires visual review even when response
+  strength passes.
+- Require transient gestures to decay or resolve on their intended musical
+  time scale instead of accumulating into constant pulsing or jitter.
 - Keep quiet-frame motion below 15 percent of typical active motion.
 - Avoid continuous high response caused by long envelopes or false onsets.
 - Preserve readable beat motion across sparse acoustic, dense electronic, and
@@ -101,8 +109,9 @@ Do not add scenes yet. Establish a reliable baseline for the ten that exist.
 - Build a locked, rights-cleared replay set covering sparse percussion, dense
   rock, electronic music, acoustic music, vocals, quiet intros, breakdowns, and
   fast section changes.
-- Add a scene scorecard that records role response, false activity, frame
-  pacing, brightness, continuity, and transition behavior.
+- Add a scene scorecard that records role response, motion coverage, recovery,
+  false activity, frame pacing, brightness, continuity, and transition
+  behavior.
 - Raise Spectral Ribbons and Constellation Field to the response level of the
   strongest current scenes without destroying their form.
 - Review all ten scenes in grayscale, continuous color, ASCII, and at least six

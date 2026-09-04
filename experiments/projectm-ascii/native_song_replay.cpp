@@ -72,10 +72,16 @@ std::string sceneSlug(NativeSceneKind scene) {
     return "unknown";
 }
 
-float meanFrameMotion(const std::vector<float>& before,
-                      const std::vector<float>& after) {
-    if (before.size() != after.size() || before.empty()) return 0.0f;
+struct FrameDelta {
+    float motion = 0.0f;
+    float coverage = 0.0f;
+};
+
+FrameDelta measureFrameDelta(const std::vector<float>& before,
+                             const std::vector<float>& after) {
+    if (before.size() != after.size() || before.empty()) return {};
     float total = 0.0f;
+    int changed = 0;
     for (std::size_t index = 0; index < before.size(); index += 4) {
         const float beforeLight = 0.299f * before[index]
                                 + 0.587f * before[index + 1]
@@ -83,16 +89,27 @@ float meanFrameMotion(const std::vector<float>& before,
         const float afterLight = 0.299f * after[index]
                                + 0.587f * after[index + 1]
                                + 0.114f * after[index + 2];
-        total += std::abs(afterLight - beforeLight);
+        const float delta = std::abs(afterLight - beforeLight);
+        total += delta;
+        changed += delta >= 0.0125f;
     }
-    return total / static_cast<float>(before.size() / 4);
+    const float pixels = static_cast<float>(before.size() / 4);
+    return {total / pixels, changed / pixels};
 }
 
 struct MotionBucket {
     float total = 0.0f;
+    float coverageTotal = 0.0f;
     int count = 0;
-    void add(float motion) { total += motion; ++count; }
+    void add(const FrameDelta& delta) {
+        total += delta.motion;
+        coverageTotal += delta.coverage;
+        ++count;
+    }
     float mean() const { return count > 0 ? total / count : 0.0f; }
+    float meanCoverage() const {
+        return count > 0 ? coverageTotal / count : 0.0f;
+    }
 };
 }
 
@@ -160,6 +177,12 @@ int main(int argc, char** argv) {
     MotionBucket snareMotion;
     MotionBucket hatMotion;
     MotionBucket onsetMotion;
+    MotionBucket kickRecoveryMotion;
+    MotionBucket snareRecoveryMotion;
+    MotionBucket hatRecoveryMotion;
+    int kickRecoveryFrames = 0;
+    int snareRecoveryFrames = 0;
+    int hatRecoveryFrames = 0;
     float previousBeat = 0.0f;
     float previousKick = 0.0f;
     float previousSnare = 0.0f;
@@ -205,18 +228,37 @@ int main(int argc, char** argv) {
             std::vector<float> currentFrame = readTexture(
                 renderer.texture(scene.currentScene));
             if (!previousFrame.empty()) {
-                frameMotion = meanFrameMotion(previousFrame, currentFrame);
-                if (music.beatPulse > previousBeat + 0.20f) beatMotion.add(frameMotion);
-                if (music.kick > previousKick + 0.15f) kickMotion.add(frameMotion);
-                if (music.snare > previousSnare + 0.15f) snareMotion.add(frameMotion);
-                if (music.hat > previousHat + 0.15f) hatMotion.add(frameMotion);
+                const FrameDelta delta = measureFrameDelta(previousFrame, currentFrame);
+                frameMotion = delta.motion;
+                if (kickRecoveryFrames > 0 && --kickRecoveryFrames == 0) {
+                    kickRecoveryMotion.add(delta);
+                }
+                if (snareRecoveryFrames > 0 && --snareRecoveryFrames == 0) {
+                    snareRecoveryMotion.add(delta);
+                }
+                if (hatRecoveryFrames > 0 && --hatRecoveryFrames == 0) {
+                    hatRecoveryMotion.add(delta);
+                }
+                if (music.beatPulse > previousBeat + 0.20f) beatMotion.add(delta);
+                if (music.kick > previousKick + 0.15f) {
+                    kickMotion.add(delta);
+                    kickRecoveryFrames = 5;
+                }
+                if (music.snare > previousSnare + 0.15f) {
+                    snareMotion.add(delta);
+                    snareRecoveryFrames = 5;
+                }
+                if (music.hat > previousHat + 0.15f) {
+                    hatMotion.add(delta);
+                    hatRecoveryFrames = 5;
+                }
                 if (music.onsetPulse > previousOnset + 0.15f) {
-                    onsetMotion.add(frameMotion);
+                    onsetMotion.add(delta);
                 }
                 if (music.beatPulse < 0.035f && music.kick < 0.035f
                     && music.snare < 0.035f && music.hat < 0.035f
                     && music.onsetPulse < 0.035f) {
-                    quietMotion.add(frameMotion);
+                    quietMotion.add(delta);
                 }
             }
             previousFrame = std::move(currentFrame);
@@ -282,7 +324,19 @@ int main(int argc, char** argv) {
                   << snareMotion.mean() / quiet << "x (" << snareMotion.count
                   << ") hat=" << hatMotion.mean() / quiet << "x ("
                   << hatMotion.count << ") onset=" << onsetMotion.mean() / quiet
-                  << "x (" << onsetMotion.count << ")\n";
+                  << "x (" << onsetMotion.count << ")"
+                  << " quiet_coverage=" << quietMotion.meanCoverage()
+                  << " beat_coverage=" << beatMotion.meanCoverage()
+                  << " kick_coverage=" << kickMotion.meanCoverage()
+                  << " snare_coverage=" << snareMotion.meanCoverage()
+                  << " hat_coverage=" << hatMotion.meanCoverage()
+                  << " onset_coverage=" << onsetMotion.meanCoverage()
+                  << " kick_recovery=" << kickRecoveryMotion.mean()
+                      / std::max(1e-7f, kickMotion.mean())
+                  << " snare_recovery=" << snareRecoveryMotion.mean()
+                      / std::max(1e-7f, snareMotion.mean())
+                  << " hat_recovery=" << hatRecoveryMotion.mean()
+                      / std::max(1e-7f, hatMotion.mean()) << "\n";
     }
     return hops > 0 && captures > 0 ? 0 : 1;
 }
