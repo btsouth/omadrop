@@ -35,7 +35,7 @@ done
 }
 
 dependencies=(
-  gcc pkgconf libprojectm sdl2-compat glew libpng fftw
+  gcc pkgconf glslang libprojectm sdl2-compat glew libpng fftw
   json-c pipewire-audio libpulse imagemagick curl glib2 jq
   ffmpeg gpu-screen-recorder
 )
@@ -57,6 +57,7 @@ install -Dm755 "$root/bin/omadrop-demo" "$install_root/bin/omadrop-demo"
 install -Dm755 "$root/bin/omadrop-demo-record" "$install_root/bin/omadrop-demo-record"
 install -Dm755 "$root/bin/demo-audio-audit" "$install_root/bin/demo-audio-audit"
 install -Dm755 "$root/bin/omadrop-doctor" "$install_root/bin/omadrop-doctor"
+install -Dm755 "$root/bin/omadrop-pack" "$install_root/bin/omadrop-pack"
 install -Dm755 "$root/bin/mpris-art" "$install_root/bin/mpris-art"
 install -Dm755 "$root/bin/mpris-state" "$install_root/bin/mpris-state"
 install -Dm755 "$root/bin/art-fetch" "$install_root/bin/art-fetch"

@@ -73,6 +73,18 @@ included for direct comparison with classic MilkDrop behavior.
 
 The full check writes its scorecards and soak log under `cache/release-check-*`.
 
+## Create a native scene pack
+
+Use the checked-in [scene-pack example](examples/scene-pack) and validate it
+without installing anything:
+
+```bash
+omadrop pack validate examples/scene-pack
+```
+
+The [format and safety rules](docs/scene-packs.md) keep community scenes
+separate from the official automatic rotation.
+
 ## Install on Omarchy
 
 ```bash

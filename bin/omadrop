@@ -6,6 +6,11 @@ pair_state=$runtime_dir/pair-state
 start_gate=$runtime_dir/start-gate
 hyprctl_command=${OMADROP_HYPRCTL:-hyprctl}
 
+if [[ ${1:-} == pack ]]; then
+  shift
+  exec "$root/bin/omadrop-pack" "$@"
+fi
+
 case ${1:-} in
   --version)
     printf 'Omadrop %s\n' "$(<"$root/VERSION")"
@@ -14,11 +19,13 @@ case ${1:-} in
   -h|--help)
     cat <<'EOF'
 Usage: omadrop [--single|--all|--toggle-secondary|--version]
+       omadrop pack validate PACK_DIRECTORY
 
   --single            Visualize on one display
   --all               Visualize on every connected display (default)
   --toggle-secondary  Hide or restore the secondary Omadrop display
   --version            Print the installed version
+  pack validate        Validate a native scene pack without installing it
 EOF
     exit 0
     ;;

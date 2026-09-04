@@ -1,0 +1,325 @@
+#!/usr/bin/env python3
+"""Validate Omadrop native scene packs without installing them."""
+
+from __future__ import annotations
+
+import json
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any
+
+
+SCHEMA_VERSION = 1
+SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+PACK_ID = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)+$")
+SEMVER = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
+INCLUDE = re.compile(r'^\s*#include\s+"([^"]+)"\s*$', re.MULTILINE)
+VALID_ROLES = {
+    "kick", "snare", "hat", "groove", "harmony", "structure"
+}
+REQUIRED_ROLES = {"kick", "snare", "hat"}
+VALID_ANCHORS = {"center", "horizontal-axis", "vertical-axis", "depth-point"}
+VALID_GRAMMARS = {"sparse", "selective", "flow"}
+VALID_FAMILIES = {
+    "depth", "radial", "filament", "vertical", "landscape", "network",
+    "minimal", "fluid", "faceted", "cellular", "custom"
+}
+SELECTION_FIELDS = {"energy", "percussive", "harmonic", "centroid", "stereo"}
+LIMIT_FIELDS = {"quietMotionCoverage", "globalPulse", "frameMilliseconds"}
+PACK_FIELDS = {"schemaVersion", "id", "name", "version", "author", "license", "scenes"}
+SCENE_FIELDS = {
+    "slug", "name", "shader", "roles", "transitionAnchor", "motionGrammar",
+    "visualFamily", "selection", "limits", "attribution"
+}
+ATTRIBUTION_FIELDS = {"author", "license"}
+GRAMMAR_COVERAGE_LIMITS = {"sparse": 0.12, "selective": 0.30, "flow": 0.50}
+FORBIDDEN_SHADER_PATTERNS = {
+    r"^\s*#extension\b": "shader extensions",
+    r"\b(?:imageLoad|imageStore|imageAtomic\w*)\b": "image access",
+    r"\batomic\w*\b": "atomic operations",
+    r"\b(?:buffer|shared)\b": "shared or storage buffers",
+    r"\bsampler(?:1D|3D|Cube|2DArray|Buffer|2DMS)\b": "unsupported samplers",
+    r"\b(?:while|discard|gl_FragDepth)\b": "unbounded or pipeline-changing operations",
+    r"\bdo\s*\{": "unbounded loops",
+}
+
+
+class ValidationError(Exception):
+    pass
+
+
+def require_exact_fields(value: dict[str, Any], fields: set[str],
+                         context: str) -> None:
+    missing = fields - set(value)
+    unknown = set(value) - fields
+    if missing:
+        raise ValidationError(
+            f"{context} is missing fields: {', '.join(sorted(missing))}")
+    if unknown:
+        raise ValidationError(
+            f"{context} has unknown fields: {', '.join(sorted(unknown))}")
+
+
+def object_field(value: Any, field: str, context: str) -> dict[str, Any]:
+    item = value.get(field) if isinstance(value, dict) else None
+    if not isinstance(item, dict):
+        raise ValidationError(f"{context}.{field} must be an object")
+    return item
+
+
+def string_field(value: Any, field: str, context: str) -> str:
+    item = value.get(field) if isinstance(value, dict) else None
+    if not isinstance(item, str) or not item.strip():
+        raise ValidationError(f"{context}.{field} must be a non-empty string")
+    return item.strip()
+
+
+def number_field(value: Any, field: str, context: str) -> float:
+    item = value.get(field) if isinstance(value, dict) else None
+    if isinstance(item, bool) or not isinstance(item, (int, float)):
+        raise ValidationError(f"{context}.{field} must be a number")
+    return float(item)
+
+
+def contained_file(root: Path, relative: str, context: str) -> Path:
+    candidate = Path(relative)
+    if candidate.is_absolute() or ".." in candidate.parts:
+        raise ValidationError(f"{context} must stay inside the pack")
+    unresolved = root / candidate
+    cursor = unresolved
+    while cursor != root:
+        if cursor.is_symlink():
+            raise ValidationError(f"{context} may not use symlinks")
+        cursor = cursor.parent
+    resolved = unresolved.resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError as error:
+        raise ValidationError(f"{context} escapes the pack") from error
+    if not resolved.is_file():
+        raise ValidationError(f"{context} does not exist: {relative}")
+    if resolved.stat().st_size > 256 * 1024:
+        raise ValidationError(f"{context} exceeds 256 KiB")
+    return resolved
+
+
+def expand_shader(path: Path, pack_root: Path, api_root: Path,
+                  stack: tuple[Path, ...] = ()) -> str:
+    if len(stack) >= 8:
+        raise ValidationError("shader include depth exceeds 8")
+    resolved = path.resolve()
+    if resolved in stack:
+        raise ValidationError(f"shader include cycle at {resolved.name}")
+    text = resolved.read_text(encoding="utf-8")
+
+    def replace(match: re.Match[str]) -> str:
+        name = match.group(1)
+        if Path(name).is_absolute() or ".." in Path(name).parts:
+            raise ValidationError(f"shader include escapes the pack: {name}")
+        official = (api_root / name).resolve()
+        local = (resolved.parent / name).resolve()
+        if name in {"scene-uniforms.glsl", "common.glsl"}:
+            include = official
+        else:
+            unresolved_include = resolved.parent / name
+            cursor = unresolved_include
+            while cursor != pack_root:
+                if cursor.is_symlink():
+                    raise ValidationError(
+                        f"shader include may not use symlinks: {name}")
+                cursor = cursor.parent
+            try:
+                local.relative_to(pack_root)
+            except ValueError as error:
+                raise ValidationError(f"shader include escapes the pack: {name}") from error
+            include = local
+        if not include.is_file() or include.suffix != ".glsl":
+            raise ValidationError(f"shader include not found: {name}")
+        if include.stat().st_size > 256 * 1024:
+            raise ValidationError(f"shader include exceeds 256 KiB: {name}")
+        return expand_shader(include, pack_root, api_root, stack + (resolved,))
+
+    expanded = INCLUDE.sub(replace, text)
+    if len(expanded.encode("utf-8")) > 512 * 1024:
+        raise ValidationError("expanded shader exceeds 512 KiB")
+    return expanded
+
+
+def validate_shader(path: Path, pack_root: Path, api_root: Path,
+                    context: str) -> None:
+    source = path.read_text(encoding="utf-8")
+    if not re.search(r"^#version\s+330\s+core\s*$", source, re.MULTILINE):
+        raise ValidationError(f"{context} must declare #version 330 core")
+    if '#include "scene-uniforms.glsl"' not in source:
+        raise ValidationError(f"{context} must include scene-uniforms.glsl")
+    if not re.search(r"\bvoid\s+main\s*\(\s*\)", source):
+        raise ValidationError(f"{context} must define void main()")
+    expanded = expand_shader(path, pack_root, api_root)
+    for pattern, feature in FORBIDDEN_SHADER_PATTERNS.items():
+        if re.search(pattern, expanded, re.MULTILINE):
+            raise ValidationError(f"{context} uses forbidden {feature}")
+    for header in re.findall(r"\bfor\s*\(([^)]*)\)", expanded):
+        parts = header.split(";")
+        condition = parts[1].strip() if len(parts) == 3 else ""
+        bound = re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*\s*<\s*([0-9]+)",
+                             condition)
+        if not bound:
+            raise ValidationError(f"{context} uses a non-static for loop")
+        if int(bound.group(1)) > 256:
+            raise ValidationError(f"{context} uses a for loop above 256 iterations")
+    for array_size in re.findall(r"\[\s*([0-9]+)\s*\]", expanded):
+        if int(array_size) > 256:
+            raise ValidationError(f"{context} declares an array above 256 elements")
+    sampler_names = set(re.findall(
+        r"\buniform\s+sampler2D\s+([A-Za-z_][A-Za-z0-9_]*)", expanded))
+    unsupported = sampler_names - {"previousFrame", "artworkFrame"}
+    if unsupported:
+        raise ValidationError(
+            f"{context} declares unsupported sampler: {sorted(unsupported)[0]}")
+    compiler = shutil.which("glslangValidator")
+    if not compiler:
+        raise ValidationError("glslangValidator is required to compile scene packs")
+    with tempfile.NamedTemporaryFile("w", suffix=".frag", encoding="utf-8") as shader:
+        shader.write(expanded)
+        shader.flush()
+        result = subprocess.run(
+            [compiler, "-S", "frag", shader.name], capture_output=True,
+            text=True, timeout=15, check=False)
+    if result.returncode != 0:
+        details = (result.stdout + result.stderr).strip().splitlines()
+        useful = next((line.strip() for line in details if "ERROR:" in line),
+                      "GLSL compilation failed")
+        raise ValidationError(f"{context}: {useful}")
+
+
+def validate_scene(scene: Any, index: int, root: Path, api_root: Path) -> str:
+    context = f"scenes[{index}]"
+    if not isinstance(scene, dict):
+        raise ValidationError(f"{context} must be an object")
+    require_exact_fields(scene, SCENE_FIELDS, context)
+    slug = string_field(scene, "slug", context)
+    if not SLUG.fullmatch(slug):
+        raise ValidationError(f"{context}.slug must be lowercase kebab-case")
+    string_field(scene, "name", context)
+    shader_name = string_field(scene, "shader", context)
+    if not shader_name.endswith(".frag"):
+        raise ValidationError(f"{context}.shader must be a .frag file")
+    roles = scene.get("roles")
+    if not isinstance(roles, list) or not all(isinstance(role, str) for role in roles):
+        raise ValidationError(f"{context}.roles must be a string array")
+    role_set = set(roles)
+    if len(role_set) != len(roles):
+        raise ValidationError(f"{context}.roles may not contain duplicates")
+    if not REQUIRED_ROLES.issubset(role_set):
+        missing = ", ".join(sorted(REQUIRED_ROLES - role_set))
+        raise ValidationError(f"{context}.roles is missing: {missing}")
+    if not role_set.issubset(VALID_ROLES):
+        invalid = ", ".join(sorted(role_set - VALID_ROLES))
+        raise ValidationError(f"{context}.roles contains unsupported values: {invalid}")
+    anchor = string_field(scene, "transitionAnchor", context)
+    if anchor not in VALID_ANCHORS:
+        raise ValidationError(f"{context}.transitionAnchor is unsupported: {anchor}")
+    grammar = string_field(scene, "motionGrammar", context)
+    if grammar not in VALID_GRAMMARS:
+        raise ValidationError(f"{context}.motionGrammar is unsupported: {grammar}")
+    family = string_field(scene, "visualFamily", context)
+    if family not in VALID_FAMILIES:
+        raise ValidationError(f"{context}.visualFamily is unsupported: {family}")
+
+    selection = object_field(scene, "selection", context)
+    if set(selection) != SELECTION_FIELDS:
+        raise ValidationError(
+            f"{context}.selection must contain exactly: {', '.join(sorted(SELECTION_FIELDS))}")
+    for field in SELECTION_FIELDS:
+        value = number_field(selection, field, f"{context}.selection")
+        if not 0.0 <= value <= 1.0:
+            raise ValidationError(f"{context}.selection.{field} must be between 0 and 1")
+
+    limits = object_field(scene, "limits", context)
+    if set(limits) != LIMIT_FIELDS:
+        raise ValidationError(
+            f"{context}.limits must contain exactly: {', '.join(sorted(LIMIT_FIELDS))}")
+    quiet = number_field(limits, "quietMotionCoverage", f"{context}.limits")
+    pulse = number_field(limits, "globalPulse", f"{context}.limits")
+    frame = number_field(limits, "frameMilliseconds", f"{context}.limits")
+    if not 0.0 < quiet <= GRAMMAR_COVERAGE_LIMITS[grammar]:
+        raise ValidationError(
+            f"{context}.limits.quietMotionCoverage exceeds the {grammar} limit")
+    if not 0.0 < pulse <= 0.70:
+        raise ValidationError(f"{context}.limits.globalPulse must be in (0, 0.70]")
+    if not 0.0 < frame <= 18.5:
+        raise ValidationError(
+            f"{context}.limits.frameMilliseconds must be in (0, 18.5]")
+
+    attribution = object_field(scene, "attribution", context)
+    require_exact_fields(attribution, ATTRIBUTION_FIELDS,
+                         f"{context}.attribution")
+    string_field(attribution, "author", f"{context}.attribution")
+    string_field(attribution, "license", f"{context}.attribution")
+    validate_shader(contained_file(root, shader_name, f"{context}.shader"),
+                    root, api_root, f"{context}.shader")
+    return slug
+
+
+def validate(pack_path: str) -> None:
+    supplied_root = Path(pack_path).expanduser()
+    if supplied_root.is_symlink():
+        raise ValidationError("pack directory may not be a symlink")
+    root = supplied_root.resolve()
+    if not root.is_dir():
+        raise ValidationError(f"pack directory does not exist: {pack_path}")
+    manifest_path = contained_file(root, "pack.json", "pack.json")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValidationError(f"pack.json is invalid JSON: {error}") from error
+    if not isinstance(manifest, dict):
+        raise ValidationError("pack.json must contain an object")
+    require_exact_fields(manifest, PACK_FIELDS, "pack")
+    if manifest.get("schemaVersion") != SCHEMA_VERSION:
+        raise ValidationError(
+            f"schemaVersion must be {SCHEMA_VERSION}, got {manifest.get('schemaVersion')!r}")
+    pack_id = string_field(manifest, "id", "pack")
+    if not PACK_ID.fullmatch(pack_id):
+        raise ValidationError("pack.id must be a lowercase dotted identifier")
+    string_field(manifest, "name", "pack")
+    version = string_field(manifest, "version", "pack")
+    if not SEMVER.fullmatch(version):
+        raise ValidationError("pack.version must use semantic versioning")
+    string_field(manifest, "author", "pack")
+    string_field(manifest, "license", "pack")
+    scenes = manifest.get("scenes")
+    if not isinstance(scenes, list) or not 1 <= len(scenes) <= 64:
+        raise ValidationError("pack.scenes must contain between 1 and 64 scenes")
+    api_root = Path(__file__).resolve().parent.parent / "shaders" / "native"
+    slugs: set[str] = set()
+    for index, scene in enumerate(scenes):
+        slug = validate_scene(scene, index, root, api_root)
+        if slug in slugs:
+            raise ValidationError(f"duplicate scene slug: {slug}")
+        slugs.add(slug)
+    print(f"scene pack valid: {pack_id} {version} ({len(slugs)} scene{'s' if len(slugs) != 1 else ''})")
+
+
+def main() -> int:
+    if len(sys.argv) == 2 and sys.argv[1] in {"-h", "--help"}:
+        print("Usage: omadrop pack validate PACK_DIRECTORY")
+        return 0
+    if len(sys.argv) != 3 or sys.argv[1] != "validate":
+        print("Usage: omadrop pack validate PACK_DIRECTORY", file=sys.stderr)
+        return 2
+    try:
+        validate(sys.argv[2])
+    except (OSError, UnicodeError, subprocess.SubprocessError,
+            ValidationError) as error:
+        print(f"scene pack invalid: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

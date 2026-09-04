@@ -1,0 +1,82 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+validator=$root/bin/omadrop-pack
+example=$root/examples/scene-pack
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-pack-test.XXXXXX")
+trap 'rm -rf -- "$scratch"' EXIT
+
+"$validator" validate "$example" >"$scratch/valid.log"
+grep -q '^scene pack valid:' "$scratch/valid.log"
+
+make_case() {
+  local name=$1
+  cp -R "$example" "$scratch/$name"
+}
+
+expect_invalid() {
+  local name=$1 expected=$2
+  if "$validator" validate "$scratch/$name" >"$scratch/$name.log" 2>&1; then
+    echo "omadrop-pack-test: invalid case passed: $name" >&2
+    exit 1
+  fi
+  grep -q "$expected" "$scratch/$name.log"
+}
+
+make_case missing-role
+python3 - "$scratch/missing-role/pack.json" <<'PY'
+import json
+import sys
+path = sys.argv[1]
+data = json.load(open(path, encoding="utf-8"))
+data["scenes"][0]["roles"].remove("hat")
+json.dump(data, open(path, "w", encoding="utf-8"))
+PY
+expect_invalid missing-role 'roles is missing: hat'
+
+make_case path-escape
+python3 - "$scratch/path-escape/pack.json" <<'PY'
+import json
+import sys
+path = sys.argv[1]
+data = json.load(open(path, encoding="utf-8"))
+data["scenes"][0]["shader"] = "../outside.frag"
+json.dump(data, open(path, "w", encoding="utf-8"))
+PY
+expect_invalid path-escape 'must stay inside the pack'
+
+make_case forbidden-sampler
+printf '\nuniform samplerCube externalTexture;\n' \
+  >>"$scratch/forbidden-sampler/scenes/local-orbit.frag"
+expect_invalid forbidden-sampler 'forbidden unsupported samplers'
+
+make_case dynamic-loop
+printf '\nvoid unsafeLoop() { for (int i = 0; i < int(sceneBeats); ++i) {} }\n' \
+  >>"$scratch/dynamic-loop/scenes/local-orbit.frag"
+expect_invalid dynamic-loop 'non-static for loop'
+
+make_case shader-symlink
+ln -s local-orbit.frag "$scratch/shader-symlink/scenes/link.frag"
+python3 - "$scratch/shader-symlink/pack.json" <<'PY'
+import json
+import sys
+path = sys.argv[1]
+data = json.load(open(path, encoding="utf-8"))
+data["scenes"][0]["shader"] = "scenes/link.frag"
+json.dump(data, open(path, "w", encoding="utf-8"))
+PY
+expect_invalid shader-symlink 'may not use symlinks'
+
+make_case future-schema
+python3 - "$scratch/future-schema/pack.json" <<'PY'
+import json
+import sys
+path = sys.argv[1]
+data = json.load(open(path, encoding="utf-8"))
+data["schemaVersion"] = 2
+json.dump(data, open(path, "w", encoding="utf-8"))
+PY
+expect_invalid future-schema 'schemaVersion must be 1'
+
+echo "scene pack validation passed"

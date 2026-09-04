@@ -585,3 +585,7 @@ Completed after v0.3:
   transitions, synchronized launcher, demo-audio isolation, and replay hashes
   run as one quick gate. Full mode adds all 90 scene/profile scorecards and a
   ten-minute simulated 1080p soak with persisted evidence.
+- Defined scene-pack format 1, its JSON Schema, and a minimal authored example.
+  `omadrop pack validate` performs read-only manifest, path-containment,
+  resource-safety, loop-bound, API-version, and GLSL compilation checks. It
+  does not install a pack or place community work in the official rotation.

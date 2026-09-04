@@ -58,6 +58,10 @@
 - Add `omadrop-check` as one pre-release gate for the native build, unit tests,
   shaders, transitions, synchronized launch, demo audio isolation, replay
   hashes, all 90 scene/profile combinations, and a 1080p stability soak.
+- Define scene-pack format 1 with a checked-in example and a read-only
+  `omadrop pack validate` command. Static validation covers metadata, musical
+  roles, limits, attribution, path containment, shader resources, bounded
+  loops, API compatibility, and GLSL compilation without installing the pack.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

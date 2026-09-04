@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "org.omadrop.example.local-orbit",
+  "name": "Local Orbit",
+  "version": "1.0.0",
+  "author": "Omadrop contributors",
+  "license": "MIT",
+  "scenes": [
+    {
+      "slug": "local-orbit",
+      "name": "Local Orbit",
+      "shader": "scenes/local-orbit.frag",
+      "roles": ["kick", "snare", "hat", "groove", "harmony", "structure"],
+      "transitionAnchor": "center",
+      "motionGrammar": "selective",
+      "visualFamily": "custom",
+      "selection": {
+        "energy": 0.55,
+        "percussive": 0.50,
+        "harmonic": 0.68,
+        "centroid": 0.52,
+        "stereo": 0.60
+      },
+      "limits": {
+        "quietMotionCoverage": 0.18,
+        "globalPulse": 0.25,
+        "frameMilliseconds": 6.0
+      },
+      "attribution": {
+        "author": "Omadrop contributors",
+        "license": "MIT"
+      }
+    }
+  ]
+}
