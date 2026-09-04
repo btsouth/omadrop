@@ -1,6 +1,6 @@
 # Native scene packs
 
-Scene-pack format 1 describes native fragment shaders without adding them to
+Scene-pack format 2 describes native fragment shaders without adding them to
 Omadrop's official rotation. Validation is read-only. It never installs a pack.
 
 Start from [`examples/scene-pack`](../examples/scene-pack), then run:
@@ -23,9 +23,10 @@ keys to seek by one second, and press Escape to quit. Valid file changes reload
 automatically. A rejected edit leaves the last valid shader running and prints
 the exact error in the launching terminal.
 
-The manifest contract is
-[`scene-pack-v1.schema.json`](scene-pack-v1.schema.json). A pack declares its
-identity, version, author, license, and one to 64 scenes. Every scene declares:
+The current manifest contract is
+[`scene-pack-v2.schema.json`](scene-pack-v2.schema.json). A pack declares its
+manifest `schemaVersion`, shader `sceneApiVersion`, identity, version, author,
+license, and one to 64 scenes. Every scene declares:
 
 - a lowercase slug, display name, and fragment shader;
 - kick, snare, and hat roles, plus any groove, harmony, or structure roles;
@@ -34,9 +35,17 @@ identity, version, author, license, and one to 64 scenes. Every scene declares:
 - quiet-motion, global-pulse, and frame-time limits;
 - scene-level author and license attribution.
 
-Shaders use GLSL 330 core and include `scene-uniforms.glsl`. This provides the
-same music, structure, palette, feedback, artwork, and motion inputs as official
-scenes. Local `.glsl` includes may stay inside the pack.
+Shaders use GLSL 330 core and include `scene-uniforms.glsl`. Scene API 1
+provides the music, structure, palette, feedback, artwork, and motion inputs
+documented by the bundled `scene-api/1` snapshot. Local `.glsl` includes may
+stay inside the pack.
+
+Format 1 packs remain valid and implicitly select scene API 1. Format 2 makes
+that dependency explicit with `"sceneApiVersion": 1`. The validator compiles
+each pack against its immutable bundled API directory, not Omadrop's changing
+internal shader headers. A future Omadrop can therefore add another scene API
+without changing the files used by already validated API 1 packs. Unknown
+manifest or scene API versions fail with a specific compatibility error.
 
 The validator rejects unknown manifest fields, duplicate scenes or roles, path
 escapes, symlinks, oversized files, unsupported samplers, storage or atomic

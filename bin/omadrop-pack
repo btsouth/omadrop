@@ -15,7 +15,8 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSIONS = {1, 2}
+SCENE_API_VERSIONS = {1}
 SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 PACK_ID = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)+$")
 SEMVER = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
@@ -32,7 +33,11 @@ VALID_FAMILIES = {
 }
 SELECTION_FIELDS = {"energy", "percussive", "harmonic", "centroid", "stereo"}
 LIMIT_FIELDS = {"quietMotionCoverage", "globalPulse", "frameMilliseconds"}
-PACK_FIELDS = {"schemaVersion", "id", "name", "version", "author", "license", "scenes"}
+PACK_FIELDS = {
+    1: {"schemaVersion", "id", "name", "version", "author", "license", "scenes"},
+    2: {"schemaVersion", "sceneApiVersion", "id", "name", "version", "author",
+        "license", "scenes"},
+}
 SCENE_FIELDS = {
     "slug", "name", "shader", "roles", "transitionAnchor", "motionGrammar",
     "visualFamily", "selection", "limits", "attribution"
@@ -306,10 +311,21 @@ def validate(pack_path: str, run_dynamic: bool = True,
         raise ValidationError(f"pack.json is invalid JSON: {error}") from error
     if not isinstance(manifest, dict):
         raise ValidationError("pack.json must contain an object")
-    require_exact_fields(manifest, PACK_FIELDS, "pack")
-    if manifest.get("schemaVersion") != SCHEMA_VERSION:
+    schema_version = manifest.get("schemaVersion")
+    if isinstance(schema_version, bool) or schema_version not in SCHEMA_VERSIONS:
         raise ValidationError(
-            f"schemaVersion must be {SCHEMA_VERSION}, got {manifest.get('schemaVersion')!r}")
+            "schemaVersion must be one of "
+            f"{', '.join(str(version) for version in sorted(SCHEMA_VERSIONS))}, "
+            f"got {schema_version!r}")
+    require_exact_fields(manifest, PACK_FIELDS[schema_version], "pack")
+    scene_api_version = 1 if schema_version == 1 \
+        else manifest.get("sceneApiVersion")
+    if (isinstance(scene_api_version, bool)
+            or scene_api_version not in SCENE_API_VERSIONS):
+        raise ValidationError(
+            "sceneApiVersion must be one of "
+            f"{', '.join(str(version) for version in sorted(SCENE_API_VERSIONS))}, "
+            f"got {scene_api_version!r}")
     pack_id = string_field(manifest, "id", "pack")
     if not PACK_ID.fullmatch(pack_id):
         raise ValidationError("pack.id must be a lowercase dotted identifier")
@@ -322,7 +338,11 @@ def validate(pack_path: str, run_dynamic: bool = True,
     scenes = manifest.get("scenes")
     if not isinstance(scenes, list) or not 1 <= len(scenes) <= 64:
         raise ValidationError("pack.scenes must contain between 1 and 64 scenes")
-    api_root = Path(__file__).resolve().parent.parent / "shaders" / "native"
+    api_root = (Path(__file__).resolve().parent.parent / "scene-api"
+                / str(scene_api_version))
+    if not api_root.is_dir():
+        raise ValidationError(
+            f"scene API {scene_api_version} is not installed")
     slugs: set[str] = set()
     audits: list[tuple[str, str]] = []
     for index, scene in enumerate(scenes):

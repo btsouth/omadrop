@@ -107,7 +107,8 @@ and keep community work separate from the official automatic rotation. The
 authoring view automatically reloads valid edits and shows continuous and ASCII
 output together against a deterministic 16-second signal loop. Installed
 community packs live in a separate local store and never enter automatic scene
-selection.
+selection. The current manifest pins its shader API explicitly, while legacy
+format 1 packs keep compiling against their original bundled API snapshot.
 
 ## Install on Omarchy
 

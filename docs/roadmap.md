@@ -661,6 +661,11 @@ Completed after v0.3:
 - Added an isolated community-pack store with atomic installation, discovery,
   exact-version removal, file and size limits, and no connection to official
   automatic scene selection.
+- Added explicit scene-API negotiation in scene-pack format 2 while retaining
+  validation and authoring for format 1. Legacy packs implicitly use API 1;
+  current packs declare it. Both compile against the immutable bundled
+  `scene-api/1` snapshot instead of mutable production headers, and unsupported
+  manifest or shader API versions fail before compilation with a precise error.
 - Added atomic privacy-safe crash reports for both one-display and paired
   launches. Reports contain only allowlisted technical fields and explicitly
   exclude audio, media metadata, artwork, process IDs, and output names.

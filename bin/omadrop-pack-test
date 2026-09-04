@@ -24,6 +24,29 @@ expect_invalid() {
   grep -q "$expected" "$scratch/$name.log"
 }
 
+make_case legacy-v1
+python3 - "$scratch/legacy-v1/pack.json" <<'PY'
+import json
+import sys
+path = sys.argv[1]
+data = json.load(open(path, encoding="utf-8"))
+data["schemaVersion"] = 1
+data.pop("sceneApiVersion")
+json.dump(data, open(path, "w", encoding="utf-8"))
+PY
+"$validator" validate "$scratch/legacy-v1" >"$scratch/legacy-v1.log"
+grep -q '^scene pack valid:' "$scratch/legacy-v1.log"
+python3 - "$validator" "$scratch/legacy-v1" "$root" <<'PY'
+import pathlib
+import runpy
+import sys
+validator, pack, root = sys.argv[1:]
+module = runpy.run_path(validator)
+_, _, api_root = module["validate"](pack, run_dynamic=False, emit=False)
+assert api_root == pathlib.Path(root) / "scene-api" / "1"
+assert (api_root / "scene-uniforms.glsl").is_file()
+PY
+
 make_case missing-role
 python3 - "$scratch/missing-role/pack.json" <<'PY'
 import json
@@ -74,10 +97,21 @@ import json
 import sys
 path = sys.argv[1]
 data = json.load(open(path, encoding="utf-8"))
-data["schemaVersion"] = 2
+data["schemaVersion"] = 3
 json.dump(data, open(path, "w", encoding="utf-8"))
 PY
-expect_invalid future-schema 'schemaVersion must be 1'
+expect_invalid future-schema 'schemaVersion must be one of 1, 2'
+
+make_case future-scene-api
+python3 - "$scratch/future-scene-api/pack.json" <<'PY'
+import json
+import sys
+path = sys.argv[1]
+data = json.load(open(path, encoding="utf-8"))
+data["sceneApiVersion"] = 2
+json.dump(data, open(path, "w", encoding="utf-8"))
+PY
+expect_invalid future-scene-api 'sceneApiVersion must be one of 1'
 
 make_case global-pulse
 python3 - "$scratch/global-pulse/scenes/local-orbit.frag" <<'PY'

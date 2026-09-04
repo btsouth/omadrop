@@ -79,6 +79,10 @@ install -Dm755 "$root/experiments/projectm-ascii/run-curated.sh" \
 for shader in "$root"/shaders/native/*.{vert,glsl,frag}; do
   install -Dm644 "$shader" "$install_root/shaders/native/$(basename "$shader")"
 done
+for api_file in "$root"/scene-api/1/*.{vert,glsl}; do
+  install -Dm644 "$api_file" \
+    "$install_root/scene-api/1/$(basename "$api_file")"
+done
 install -d "$install_root/presets/curated"
 rm -f "$install_root/presets/curated/A New Definition for Milk - AdamFX - Laser Show in a Crystalstorm  ft Orb n Martin Inside the Forge of Isengard.milk"
 rm -f "$install_root/presets/curated/shifter - lattice (eclipse) Phat + EoS more color mix_v2.milk"
@@ -107,6 +111,10 @@ install -Dm644 "$root/docs/controls.md" "$install_root/docs/controls.md"
 install -Dm644 "$root/docs/troubleshooting.md" \
   "$install_root/docs/troubleshooting.md"
 install -Dm644 "$root/docs/scene-packs.md" "$install_root/docs/scene-packs.md"
+install -Dm644 "$root/docs/scene-pack-v1.schema.json" \
+  "$install_root/docs/scene-pack-v1.schema.json"
+install -Dm644 "$root/docs/scene-pack-v2.schema.json" \
+  "$install_root/docs/scene-pack-v2.schema.json"
 install -Dm644 "$root/docs/demo-music.md" "$install_root/docs/demo-music.md"
 install -Dm644 "$root/docs/real-song-audit.md" \
   "$install_root/docs/real-song-audit.md"

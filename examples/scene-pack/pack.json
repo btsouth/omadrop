@@ -1,5 +1,6 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "sceneApiVersion": 1,
   "id": "org.omadrop.example.local-orbit",
   "name": "Local Orbit",
   "version": "1.0.0",
