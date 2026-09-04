@@ -15,6 +15,9 @@ g++ -std=c++20 -O2 -Wall -Wextra live.cpp live_assets.cpp live_projectm.cpp \
 g++ -std=c++20 -O2 -Wall -Wextra live_settings_test.cpp live_settings.cpp \
   -o live-settings-test
 
+g++ -std=c++20 -O2 -Wall -Wextra mpris_state_test.cpp \
+  -o mpris-state-test $(pkg-config --cflags --libs json-c)
+
 g++ -std=c++20 -O2 -Wall -Wextra audio_features_test.cpp \
   -o audio-features-test $(pkg-config --cflags --libs fftw3f)
 

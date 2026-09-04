@@ -4,6 +4,7 @@ __pycache__/
 experiments/projectm-ascii/projectm-ascii
 experiments/projectm-ascii/projectm-ascii-live
 experiments/projectm-ascii/live-settings-test
+experiments/projectm-ascii/mpris-state-test
 experiments/projectm-ascii/audio-features-test
 experiments/projectm-ascii/preset-profiles-test
 experiments/projectm-ascii/preset-selector-test
