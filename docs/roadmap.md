@@ -425,3 +425,9 @@ Completed after v0.3:
   audit exposed a stacked-percussion jolt. Its worst-frame similarity improved
   from 0.63 to 0.80 while the real-song snare response remained above the
   required floor and all fifty synthetic replay combinations continued to pass.
+- Separated transient normalization from continuous visual energy. Quiet,
+  normal, loud, and compressed masters now produce the same deterministic
+  kick, snare, and hat counts without making low-level texture drive constant
+  motion. A locked noise-floor case prevents sensitivity changes from creating
+  false percussion, and Orbital Loom now keeps kick changes local to its
+  threads and aperture instead of repeatedly scaling the full composition.

@@ -40,10 +40,10 @@ void main() {
         q.y /= 0.34 + 0.08 * sin(fi * 2.2 + flowTime * 0.13);
         q.x /= 0.52 + 0.09 * development
               + (0.035 * beatPulse * (index < 2 ? 1.0 : 0.0)
-                 + 0.012 * kickThread)
+                 + 0.001 * kickThread)
                 * threadGesture;
         float ellipse = abs(length(q) - 1.0);
-        float strand = line(ellipse, 0.012 + 0.003 * bandLevel[index]);
+        float strand = line(ellipse, 0.012 + 0.0015 * bandLevel[index]);
         threads = max(threads, strand);
         if (index < 2) kickThreads = max(kickThreads, strand);
         else if (index < 4) snareThreads = max(snareThreads, strand);
@@ -51,11 +51,11 @@ void main() {
         crossings += strand * line(
             sin(angle * 12.0 + fi + flowTime * 0.18), 0.08);
     }
-    float aperture = line(radius - (0.10 + 0.035 * kick), 0.009);
+    float aperture = line(radius - (0.10 + 0.018 * kick), 0.009);
     float shuttlePhase = fract(angle / tau + flowTime * (0.42 + 0.3 * drive)
                              + beatPhase);
     float shuttles = line(shuttlePhase - 0.5, 0.035) * threads * hat;
-    float kickKnot = line(radius - (0.14 + 0.07 * kick),
+    float kickKnot = line(radius - (0.14 + 0.04 * kick),
                           0.011 + 0.008 * kick) * kick;
     float snareSpokes = line(
         sin(angle * 10.0 + phrasePhase * tau + snare * 2.0), 0.028)
@@ -83,8 +83,9 @@ void main() {
                          * (threadLight + 0.08 * snare)
                    + mix(primary, secondary, 0.58) * airThreads * threadLight
                    + secondary * crossings * 0.10
-                   + accent * (aperture + shuttles + beatOrbit
+                   + accent * (aperture + shuttles
                                + downbeatOrbit + sectionKnot) * 0.22
+                   + accent * beatOrbit * 0.10
                    + mix(accent, vec3(1.0), 0.32) * kickKnot * 0.18
                    + mix(secondary, vec3(1.0), 0.40) * snareSpokes * 0.27
                    + mix(primary, vec3(1.0), 0.52) * hatGlints * 0.34

@@ -231,13 +231,18 @@ private:
         features_.snareImpact *= 0.84f;
         features_.hatImpact *= 0.72f;
         std::array<float, AudioFeatures::roleCount> positiveFlux{};
+        std::array<float, AudioFeatures::roleCount> detectionLevel{};
         for (std::size_t role = 0; role < AudioFeatures::roleCount; ++role) {
             const float positive = std::max(0.0f, magnitude[role] - previous_[role]);
             positiveFlux[role] = positive;
             fluxMean_[role] = fluxMean_[role] * 0.94f + positive * 0.06f;
-            levelMean_[role] = levelMean_[role] * 0.992f + magnitude[role] * 0.008f;
-            features_.flux[role] = positive / std::max(0.015f, fluxMean_[role]);
-            features_.level[role] = magnitude[role] / std::max(0.02f, levelMean_[role]);
+            levelMean_[role] = levelMean_[role] * 0.992f
+                             + magnitude[role] * 0.008f;
+            features_.flux[role] = positive / std::max(0.003f, fluxMean_[role]);
+            detectionLevel[role]
+                = magnitude[role] / std::max(0.004f, levelMean_[role]);
+            features_.level[role]
+                = magnitude[role] / std::max(0.02f, levelMean_[role]);
             previous_[role] = magnitude[role];
         }
         for (std::size_t band = 0; band < AudioFeatures::spectrumCount; ++band) {
@@ -245,12 +250,13 @@ private:
                 0.0f, spectrumMagnitude[band] - previousSpectrum_[band]);
             spectrumFluxMean_[band]
                 = spectrumFluxMean_[band] * 0.94f + positive * 0.06f;
-            spectrumLevelMean_[band]
-                = spectrumLevelMean_[band] * 0.992f + spectrumMagnitude[band] * 0.008f;
+            spectrumLevelMean_[band] = spectrumLevelMean_[band] * 0.992f
+                                     + spectrumMagnitude[band] * 0.008f;
             features_.spectrumFlux[band]
-                = positive / std::max(0.015f, spectrumFluxMean_[band]);
+                = positive / std::max(0.003f, spectrumFluxMean_[band]);
             features_.spectrumLevel[band]
-                = spectrumMagnitude[band] / std::max(0.02f, spectrumLevelMean_[band]);
+                = spectrumMagnitude[band]
+                / std::max(0.02f, spectrumLevelMean_[band]);
             previousSpectrum_[band] = spectrumMagnitude[band];
         }
 
@@ -273,31 +279,32 @@ private:
         };
         const bool warmedUp = frame_ >= 12;
         if (warmedUp && kickCooldown_ == 0 && kickFlux > 2.25f
-            && std::max(features_.level[0], features_.level[1]) > 1.08f
+            && lowEnergy > 0.030f
+            && std::max(detectionLevel[0], detectionLevel[1]) > 1.08f
             && lowChange > middleChange * 1.25f
             && lowChange > highChange * 1.45f
             && lowEnergy > middleEnergy * 1.20f
             && lowEnergy > highEnergy * 1.40f) {
             features_.kick = true;
             features_.kickImpact = impactStrength(
-                std::max(features_.level[0], features_.level[1]), 1.08f);
+                std::max(detectionLevel[0], detectionLevel[1]), 1.08f);
             kickCooldown_ = 16;
         }
         if (warmedUp && snareCooldown_ == 0 && snareFlux > 1.45f
-            && std::max(features_.level[3], features_.level[4]) > 1.03f
+            && std::max(detectionLevel[3], detectionLevel[4]) > 1.03f
             && middleChange > lowChange * 0.72f
             && middleChange > highChange * 0.92f) {
             features_.snare = true;
             features_.snareImpact = impactStrength(
-                std::max(features_.level[3], features_.level[4]), 1.06f);
+                std::max(detectionLevel[3], detectionLevel[4]), 1.06f);
             snareCooldown_ = 10;
         }
         if (warmedUp && hatCooldown_ == 0 && hatFlux > 2.0f
-            && features_.level[5] > 1.05f
+            && detectionLevel[5] > 1.05f
             && highChange > lowChange * 0.55f
             && highChange > middleChange * 0.88f) {
             features_.hat = true;
-            features_.hatImpact = impactStrength(features_.level[5], 1.05f);
+            features_.hatImpact = impactStrength(detectionLevel[5], 1.05f);
             hatCooldown_ = 5;
         }
         if (kickCooldown_ > 0) --kickCooldown_;

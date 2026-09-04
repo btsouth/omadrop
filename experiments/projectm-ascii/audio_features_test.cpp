@@ -1,7 +1,9 @@
 #include "audio_features.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -30,6 +32,64 @@ struct TextureResult {
     float stereoWidth = 0.0f;
     int dominantChroma = -1;
 };
+struct MasteringResult {
+    Counts counts;
+    float meanEnergy = 0.0f;
+    float meanKickImpact = 0.0f;
+};
+
+MasteringResult runMasteringFixture(float gain, bool compressed) {
+    AudioFeatureBus bus;
+    std::vector<float> mono(AudioFeatureBus::hopSize, 0.0f);
+    double kickPhase = 0.0;
+    double snarePhase = 0.0;
+    double hatPhase = 0.0;
+    double bedPhase = 0.0;
+    MasteringResult result;
+    int measuredFrames = 0;
+    int kickImpacts = 0;
+    for (int frame = 0; frame < 720; ++frame) {
+        const bool active = frame >= 60;
+        const bool kick = active && (frame - 60) % 60 == 0;
+        const bool snare = active && (frame - 90) % 60 == 0;
+        const bool hat = active && (frame - 60) % 15 == 0;
+        for (int i = 0; i < AudioFeatureBus::hopSize; ++i) {
+            float sample = active ? 0.022f * static_cast<float>(std::sin(bedPhase)) : 0.0f;
+            if (kick) sample += 0.62f * static_cast<float>(std::sin(kickPhase));
+            if (snare) sample += 0.24f * static_cast<float>(std::sin(snarePhase));
+            if (hat) sample += 0.11f * static_cast<float>(std::sin(hatPhase));
+            if (compressed) sample = std::tanh(sample * 3.2f) * 0.42f;
+            mono[i] = sample * gain;
+            kickPhase += tau * 62.0 / AudioFeatureBus::sampleRate;
+            snarePhase += tau * 1800.0 / AudioFeatureBus::sampleRate;
+            hatPhase += tau * 7200.0 / AudioFeatureBus::sampleRate;
+            bedPhase += tau * 260.0 / AudioFeatureBus::sampleRate;
+            if (kickPhase >= tau) kickPhase -= tau;
+            if (snarePhase >= tau) snarePhase -= tau;
+            if (hatPhase >= tau) hatPhase -= tau;
+            if (bedPhase >= tau) bedPhase -= tau;
+        }
+        const auto& features = bus.processMono(mono.data(), mono.size());
+        if (frame < 240) continue;
+        result.counts.kick += features.kick;
+        result.counts.snare += features.snare;
+        result.counts.hat += features.hat;
+        if (features.kick) {
+            result.meanKickImpact += features.kickImpact;
+            ++kickImpacts;
+        }
+        result.meanEnergy += 0.22f * features.level[0]
+                           + 0.22f * features.level[1]
+                           + 0.16f * features.level[2]
+                           + 0.16f * features.level[3]
+                           + 0.14f * features.level[4]
+                           + 0.10f * features.level[5];
+        ++measuredFrames;
+    }
+    result.meanEnergy /= std::max(1, measuredFrames);
+    result.meanKickImpact /= std::max(1, kickImpacts);
+    return result;
+}
 
 TextureResult runTexture(float frequency, float sideAmount) {
     AudioFeatureBus bus;
@@ -74,6 +134,28 @@ Counts runFixture(float frequency) {
         counts.kick += features.kick;
         counts.snare += features.snare;
         counts.hat += features.hat;
+    }
+    return counts;
+}
+
+Counts runNoiseFixture(float amplitude) {
+    AudioFeatureBus bus;
+    std::vector<float> mono(AudioFeatureBus::hopSize, 0.0f);
+    Counts counts;
+    std::uint32_t state = 0x7f4a7c15u;
+    for (int frame = 0; frame < 600; ++frame) {
+        for (float& sample : mono) {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            sample = amplitude * (static_cast<float>(state & 0xffffu) / 32767.5f - 1.0f);
+        }
+        const auto& features = bus.processMono(mono.data(), mono.size());
+        if (frame >= 120) {
+            counts.kick += features.kick;
+            counts.snare += features.snare;
+            counts.hat += features.hat;
+        }
     }
     return counts;
 }
@@ -204,6 +286,7 @@ int main() {
     const Counts kick = runFixture(62.0f);
     const Counts snare = runFixture(2200.0f);
     const Counts hat = runFixture(7000.0f);
+    const Counts noise = runNoiseFixture(0.0005f);
     const ImpactResult softKick = runMixedKickFixture(0.16f);
     const ImpactResult mediumKick = runMixedKickFixture(0.34f);
     const ImpactResult hardKick = runMixedKickFixture(0.72f);
@@ -217,6 +300,10 @@ int main() {
     const TextureResult wideTexture = runTexture(440.0f, 0.24f);
     const TextureResult aChroma = runTexture(440.0f, 0.0f);
     const TextureResult cChroma = runTexture(261.626f, 0.0f);
+    const MasteringResult quietMaster = runMasteringFixture(0.03f, false);
+    const MasteringResult referenceMaster = runMasteringFixture(0.35f, false);
+    const MasteringResult loudMaster = runMasteringFixture(0.90f, false);
+    const MasteringResult compressedMaster = runMasteringFixture(0.90f, true);
 
     bool ok = true;
     const double expectedHopSeconds = AudioFeatureBus::hopSize
@@ -235,6 +322,9 @@ int main() {
     ok &= expect("2.2 kHz kick leakage", snare.kick, 0, 0);
     ok &= expect("7 kHz hat", hat.hat, 3, 4);
     ok &= expect("7 kHz kick leakage", hat.kick, 0, 0);
+    ok &= expect("noise kick", noise.kick, 0, 0);
+    ok &= expect("noise snare", noise.snare, 0, 0);
+    ok &= expect("noise hat", noise.hat, 0, 0);
     if (softKick.hits == 0 || mediumKick.hits == 0 || hardKick.hits == 0) {
         std::cerr << "mixed kick fixture: missing detections "
                   << softKick.hits << "," << mediumKick.hits << "," << hardKick.hits << "\n";
@@ -300,6 +390,54 @@ int main() {
                   << "\n";
         ok = false;
     }
+
+    const auto sameCounts = [](const Counts& left, const Counts& right) {
+        return left.kick == right.kick && left.snare == right.snare
+            && left.hat == right.hat;
+    };
+    if (!sameCounts(quietMaster.counts, referenceMaster.counts)
+        || !sameCounts(loudMaster.counts, referenceMaster.counts)
+        || !sameCounts(compressedMaster.counts, referenceMaster.counts)) {
+        std::cerr << "mastering normalization changed transient counts\n";
+        ok = false;
+    }
+    const std::array<float, 4> masteringEnergy{
+        quietMaster.meanEnergy, referenceMaster.meanEnergy,
+        loudMaster.meanEnergy, compressedMaster.meanEnergy};
+    const auto [minimumEnergy, maximumEnergy] = std::minmax_element(
+        masteringEnergy.begin(), masteringEnergy.end());
+    if (*minimumEnergy <= 0.0f || *maximumEnergy > *minimumEnergy * 1.60f) {
+        std::cerr << "mastering normalization energy ratio was "
+                  << *maximumEnergy / std::max(1e-6f, *minimumEnergy) << "\n";
+        ok = false;
+    }
+    const std::array<float, 4> kickImpacts{
+        quietMaster.meanKickImpact, referenceMaster.meanKickImpact,
+        loudMaster.meanKickImpact, compressedMaster.meanKickImpact};
+    const auto [minimumImpact, maximumImpact] = std::minmax_element(
+        kickImpacts.begin(), kickImpacts.end());
+    if (*maximumImpact - *minimumImpact > 0.15f) {
+        std::cerr << "mastering normalization impact spread was "
+                  << *maximumImpact - *minimumImpact << "\n";
+        ok = false;
+    }
+
+    std::cout << "mastering quiet=" << quietMaster.counts.kick << "/"
+              << quietMaster.counts.snare << "/" << quietMaster.counts.hat
+              << " reference=" << referenceMaster.counts.kick << "/"
+              << referenceMaster.counts.snare << "/" << referenceMaster.counts.hat
+              << " loud=" << loudMaster.counts.kick << "/"
+              << loudMaster.counts.snare << "/" << loudMaster.counts.hat
+              << " compressed=" << compressedMaster.counts.kick << "/"
+              << compressedMaster.counts.snare << "/"
+              << compressedMaster.counts.hat << " energy="
+              << quietMaster.meanEnergy << "/" << referenceMaster.meanEnergy
+              << "/" << loudMaster.meanEnergy << "/"
+              << compressedMaster.meanEnergy << " kick_impact="
+              << quietMaster.meanKickImpact << "/"
+              << referenceMaster.meanKickImpact << "/"
+              << loudMaster.meanKickImpact << "/"
+              << compressedMaster.meanKickImpact << "\n";
 
     if (!ok) return 1;
     std::cout << "audio fixtures passed"
