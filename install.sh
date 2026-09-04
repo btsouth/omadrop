@@ -122,6 +122,8 @@ install -Dm644 "$root/demo/music-rights.json" \
   "$install_root/demo/music-rights.json"
 install -Dm644 "$root/demo/scene-sequence.txt" \
   "$install_root/demo/scene-sequence.txt"
+install -Dm644 "$root/site/public/og.png" \
+  "$install_root/site/public/og.png"
 mkdir -p "$bin_dir"
 ln -sfn "$install_root/bin/omadrop" "$bin_dir/omadrop"
 ln -sfn "$install_root/bin/omadrop-demo" "$bin_dir/omadrop-demo"

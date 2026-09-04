@@ -922,9 +922,10 @@ int main(int argc, char** argv) {
         ? std::getenv("OMADROP_COVER_PATH") : "";
     const bool disableArt = std::getenv("OMADROP_DISABLE_ART") != nullptr
                          || !forcedCoverPath.empty();
+    const bool disableMpris = std::getenv("OMADROP_DISABLE_MPRIS") != nullptr;
     TrackSession trackSession(
         projectRoot / "bin" / "mpris-state", disableArt,
-        timeline.has_value(), SDL_GetTicks64());
+        timeline.has_value(), SDL_GetTicks64(), disableMpris);
     PlaybackClock& playbackClock = trackSession.playbackClock();
     if (!forcedCoverPath.empty()
         && loadPngTexture(forcedCoverPath, coverTexture, coverAspect)) {

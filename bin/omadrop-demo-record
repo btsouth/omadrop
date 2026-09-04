@@ -17,7 +17,7 @@ case ${1:-} in
   --*) echo "omadrop-demo-record: unknown option: $1" >&2; usage >&2; exit 2 ;;
 esac
 
-for command in ffmpeg ffprobe gpu-screen-recorder hyprctl jq; do
+for command in ffmpeg ffprobe gpu-screen-recorder hyprctl identify jq; do
   command -v "$command" >/dev/null || {
     echo "omadrop-demo-record: required command not found: $command" >&2
     exit 1
@@ -25,8 +25,21 @@ for command in ffmpeg ffprobe gpu-screen-recorder hyprctl jq; do
 done
 
 controlled_audio_file=${OMADROP_DEMO_AUDIO_FILE:-}
+demo_cover_file=${OMADROP_DEMO_COVER_FILE:-$root/site/public/og.png}
 controlled_sink_input=
+demo_sink_name=
+demo_sink_index=
+demo_sink_module=
+record_audio_device=default_output
 rights_attribution=
+[[ -f $demo_cover_file ]] || {
+  echo "omadrop-demo-record: demo cover not found: $demo_cover_file" >&2
+  exit 1
+}
+identify -quiet "$demo_cover_file" >/dev/null 2>&1 || {
+  echo "omadrop-demo-record: demo cover is not a readable image: $demo_cover_file" >&2
+  exit 1
+}
 if [[ -n $controlled_audio_file ]]; then
   for command in ffplay pactl; do
     command -v "$command" >/dev/null || {
@@ -47,9 +60,11 @@ check_competing_audio() {
   [[ -n $controlled_audio_file ]] || return 0
   local streams
   streams=$(pactl -f json list sink-inputs | jq -r \
-    --arg controlled "$controlled_sink_input" '
+    --arg controlled "$controlled_sink_input" \
+    --argjson sink "$demo_sink_index" '
     .[]
     | select(.corked != true and .mute != true)
+    | select(.sink == $sink)
     | select((.index | tostring) != $controlled)
     | (.properties["application.name"]
        // .properties["media.name"]
@@ -62,8 +77,6 @@ check_competing_audio() {
     return 1
   }
 }
-
-check_competing_audio
 
 monitor=$(hyprctl monitors -j | jq -r '.[] | select(.focused) | .name' | head -n 1)
 [[ -n $monitor && $monitor != null ]] || {
@@ -114,6 +127,10 @@ cleanup() {
     kill -TERM "$audio_player_pid" 2>/dev/null || true
     wait "$audio_player_pid" 2>/dev/null || true
   fi
+  if [[ -n $demo_sink_module ]]; then
+    pactl unload-module "$demo_sink_module" 2>/dev/null || true
+    demo_sink_module=
+  fi
   if ((notification_dnd_changed)); then
     notification_ipc setDnd off >/dev/null || true
   fi
@@ -122,6 +139,29 @@ cleanup() {
   rmdir "$record_dir" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
+
+if [[ -n $controlled_audio_file ]]; then
+  demo_sink_name=omadrop_demo_$$
+  demo_sink_module=$(pactl load-module module-null-sink \
+    sink_name="$demo_sink_name" rate=48000 channels=2 \
+    sink_properties=device.description=OmadropDemoCapture)
+  [[ $demo_sink_module =~ ^[0-9]+$ ]] || {
+    echo "omadrop-demo-record: could not create the private demo audio sink" >&2
+    exit 1
+  }
+  demo_sink_index=$(pactl -f json list sinks | jq -r \
+    --arg name "$demo_sink_name" \
+    '.[] | select(.name == $name) | .index' | head -n 1)
+  [[ $demo_sink_index =~ ^[0-9]+$ ]] || {
+    echo "omadrop-demo-record: private demo audio sink did not appear" >&2
+    exit 1
+  }
+  record_audio_device=$demo_sink_name.monitor
+  export OMADROP_AUDIO_SINK=$demo_sink_name
+  echo "omadrop-demo-record: isolated audio sink $demo_sink_name"
+fi
+
+check_competing_audio
 
 if command -v qs >/dev/null && [[ -d /usr/share/omarchy/shell ]]; then
   notification_state=$(notification_ipc dndState || true)
@@ -137,6 +177,10 @@ export OMADROP_RECORD_START_FILE=$start_file
 export OMADROP_RECORD_STOP_FILE=$stop_file
 export OMADROP_DEMO_COVER_HOLD_SECONDS=${OMADROP_DEMO_COVER_HOLD_SECONDS:-2.5}
 export OMADROP_DEMO_SCENE_MAX_SECONDS=${OMADROP_DEMO_SCENE_MAX_SECONDS:-5.25}
+# A recording is a controlled presentation. Never allow an unrelated desktop
+# player to supply its track identity or artwork.
+export OMADROP_DISABLE_MPRIS=1
+export OMADROP_COVER_PATH=$demo_cover_file
 # The recording contains the digital output stream, before any Bluetooth or
 # speaker latency. Device compensation would make the published visuals late.
 export OMADROP_SYNC_MS=0
@@ -162,7 +206,7 @@ gpu-screen-recorder \
   -w "$monitor" -k h264 -q very_high -tune quality \
   -f 60 -fm cfr -cursor no -fallback-cpu-encoding yes \
   -write-first-frame-ts yes \
-  -a default_output -ac aac -o "$capture_file" \
+  -a "$record_audio_device" -ac aac -o "$capture_file" \
   >"$recorder_log" 2>&1 &
 recorder_pid=$!
 
@@ -181,20 +225,41 @@ done
   exit 1
 }
 if [[ -n $controlled_audio_file ]]; then
-  ffplay -nodisp -autoexit -loglevel error "$controlled_audio_file" &
+  PULSE_SINK=$demo_sink_name SDL_AUDIODRIVER=pulseaudio \
+    ffplay -nodisp -autoexit -loglevel error "$controlled_audio_file" &
   audio_player_pid=$!
-  sleep 0.08
-  mapfile -t controlled_inputs < <(pactl -f json list sink-inputs | jq -r '
-    .[]
-    | select(.corked != true and .mute != true)
-    | select((.properties["application.name"] // "") == "ffplay")
-    | .index
-  ')
+  controlled_inputs=()
+  for ((attempt = 0; attempt < 40; attempt++)); do
+    mapfile -t controlled_inputs < <(pactl -f json list sink-inputs | jq -r \
+      --arg pid "$audio_player_pid" '
+      .[]
+      | select(.corked != true and .mute != true)
+      | select((.properties["application.process.id"] // "") == $pid)
+      | select((.properties["application.process.binary"] // "") == "ffplay")
+      | .index
+    ')
+    ((${#controlled_inputs[@]} == 1)) && break
+    kill -0 "$audio_player_pid" 2>/dev/null || break
+    sleep 0.05
+  done
   if ((${#controlled_inputs[@]} != 1)); then
     echo "omadrop-demo-record: could not isolate the controlled ffplay stream" >&2
     exit 1
   fi
   controlled_sink_input=${controlled_inputs[0]}
+  pactl move-sink-input "$controlled_sink_input" "$demo_sink_name"
+  routed_sink=
+  for ((attempt = 0; attempt < 20; attempt++)); do
+    routed_sink=$(pactl -f json list sink-inputs | jq -r \
+      --argjson input "$controlled_sink_input" \
+      '.[] | select(.index == $input) | .sink')
+    [[ $routed_sink == "$demo_sink_index" ]] && break
+    sleep 0.05
+  done
+  if [[ $routed_sink != "$demo_sink_index" ]]; then
+    echo "omadrop-demo-record: controlled audio did not enter the private sink" >&2
+    exit 1
+  fi
   check_competing_audio
 fi
 touch "$start_file"

@@ -73,5 +73,12 @@ int main() {
     assert(update.playback && update.playback->first);
     assert(!update.artworkCandidate);
 
+    TrackSession metadataDisabled(
+        "/definitely/missing/omadrop-mpris-helper", true, false, 100, true);
+    update = metadataDisabled.update(140);
+    assert(update.error.empty());
+    assert(!update.state);
+    assert(metadataDisabled.artworkLookupComplete());
+
     std::cout << "track session passed\n";
 }

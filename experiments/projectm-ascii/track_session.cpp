@@ -67,12 +67,14 @@ void TrackPresentationState::acceptArtwork(const std::string& path) {
 }
 
 TrackSession::TrackSession(std::filesystem::path helper, bool artworkDisabled,
-                           bool frequentPolling, std::uint64_t startedAtMs)
+                           bool frequentPolling, std::uint64_t startedAtMs,
+                           bool metadataDisabled)
     : poller_(std::move(helper)),
       presentation_(artworkDisabled, startedAtMs),
       nextPollAtMs_(startedAtMs),
       artworkDisabled_(artworkDisabled),
-      frequentPolling_(frequentPolling) {}
+      frequentPolling_(frequentPolling),
+      metadataDisabled_(metadataDisabled) {}
 
 void TrackSession::merge(TrackSessionUpdate& target,
                          TrackSessionUpdate incoming) {
@@ -89,6 +91,7 @@ void TrackSession::merge(TrackSessionUpdate& target,
 
 TrackSessionUpdate TrackSession::update(std::uint64_t nowMs) {
     TrackSessionUpdate update = presentation_.advance(nowMs);
+    if (metadataDisabled_) return update;
     if (nowMs >= nextPollAtMs_ && !poller_.running()) {
         if (!poller_.start(artworkDisabled_, nowMs)) {
             update.error = "could not start MPRIS helper";

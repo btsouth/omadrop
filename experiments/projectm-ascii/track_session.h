@@ -43,7 +43,8 @@ private:
 class TrackSession {
 public:
     TrackSession(std::filesystem::path helper, bool artworkDisabled,
-                 bool frequentPolling, std::uint64_t startedAtMs);
+                 bool frequentPolling, std::uint64_t startedAtMs,
+                 bool metadataDisabled = false);
 
     TrackSessionUpdate update(std::uint64_t nowMs);
     void acceptArtwork(const std::string& path) {
@@ -69,4 +70,5 @@ private:
     std::uint64_t nextPollAtMs_ = 0;
     bool artworkDisabled_ = false;
     bool frequentPolling_ = false;
+    bool metadataDisabled_ = false;
 };

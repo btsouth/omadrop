@@ -6,6 +6,18 @@ duration before capture, verifies the recorded opening against that source,
 rejects competing audio streams, and writes the required credit next to the
 finished MP4.
 
+When an approved file is supplied, the recorder creates a temporary private
+audio sink. The visualizer and recorder listen only to that sink, and the
+approved player is routed into it. Browser, notification, and other desktop
+audio remain on the user's normal output and cannot enter the visual analysis
+or recording. The private sink is removed on success, failure, or interruption.
+
+Recordings also disable desktop media-session discovery and begin with
+Omadrop's checked-in showcase card. This prevents an unrelated browser or
+music player from supplying the title, playback state, or cover art. Set
+`OMADROP_DEMO_COVER_FILE` only when a different, rights-cleared local image has
+been deliberately approved for the recording.
+
 ## Approved tracks
 
 ### beat me

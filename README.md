@@ -281,10 +281,13 @@ Use `omadrop-demo --single` for one display or `omadrop-demo --loop` to repeat
 the sequence.
 
 For a release recording, set `OMADROP_DEMO_AUDIO_FILE` to the approved local
-audio file. The recorder rejects competing output streams during capture and
-verifies its checked-in rights record and captured opening before accepting the
-MP4. It writes the exact required credit to `OUTPUT.mp4.attribution.txt`. See
-the [approved demo music and license records](docs/demo-music.md).
+audio file. The recorder routes that file through a private capture sink, so
+browser and desktop audio cannot affect the visuals or enter the MP4. It also
+uses Omadrop's own showcase card instead of reading unrelated player metadata.
+Before accepting the MP4, it verifies the checked-in rights record and matches
+the captured opening to the approved source. The exact required credit is
+written to `OUTPUT.mp4.attribution.txt`. See the
+[approved demo music and license records](docs/demo-music.md).
 
 </details>
 

@@ -114,6 +114,10 @@ int main() {
     assert(defaultSinkName() == "alsa_output.usb_interface");
     unsetenv("OMADROP_TEST_SINK_PATH");
 
+    setenv("OMADROP_AUDIO_SINK", "omadrop_demo_private", 1);
+    assert(defaultSinkName() == "omadrop_demo_private");
+    unsetenv("OMADROP_AUDIO_SINK");
+
     assert(loadSyncDelay("alsa_output.default") == 35u);
     assert(loadSyncDelay("bluez_output.headphones") == 180u);
     saveSyncDelay(74u, "alsa/output with spaces");

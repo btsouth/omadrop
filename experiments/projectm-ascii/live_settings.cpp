@@ -298,6 +298,9 @@ unsigned int loadSyncDelay(const std::string& sink) {
 }
 
 std::string defaultSinkName() {
+    if (const char* configuredSink = std::getenv("OMADROP_AUDIO_SINK")) {
+        if (*configuredSink) return configuredSink;
+    }
     if (const char* testPath = std::getenv("OMADROP_TEST_SINK_PATH")) {
         std::ifstream input(testPath);
         std::string sink;
