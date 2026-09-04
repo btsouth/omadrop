@@ -52,6 +52,9 @@
 - Add a synchronized, persistent flash-limit control on `S`. It lowers fast
   event gain, caps requested brightness, compresses bright final output, and
   disables the optional contrast boost without removing local rhythm cues.
+- Validate every scene and successor transition over a two-hour simulated
+  1080p run: 432,000 frames, 1.33 ms p99, 6.76 ms maximum, no slow streak, and
+  7.38 MiB resident-memory growth on the reference machine.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

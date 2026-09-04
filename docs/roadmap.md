@@ -548,8 +548,8 @@ Completed after v0.3:
   separate renderer check proves intensity still changes a local gesture. All
   90 default scene/profile combinations still pass, as do separate 18-scene
   structured-track audits at 125 percent intensity and in reduced-motion mode.
-  A 3,600-frame 1080p soak reports 0.40 ms at the 99th percentile, no slow
-  streak, and 0.88 MiB resident-memory growth.
+  A two-hour, 432,000-frame 1080p soak reports 1.33 ms at the 99th percentile,
+  a 6.76 ms maximum, no slow streak, and 7.38 MiB resident-memory growth.
 - Added a synchronized, self-contained status overlay for interactive changes.
   Scene skips explicitly show `AUTO: <scene>`, while ASCII, fullscreen, sync,
   intensity, brightness, ambient motion, reduced motion, flash limit, and high contrast show
