@@ -30,6 +30,7 @@ tests=(
   live-settings-test
   mpris-state-test
   mpris-poller-test
+  track-session-test
   paired-transport-test
   paired-sync-test
   session-lifecycle-test

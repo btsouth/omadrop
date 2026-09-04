@@ -466,6 +466,10 @@ Completed after v0.3:
   output buffering, invalid state, no active player, duplicate starts, and
   shutdown cleanup, while `PlaybackClock` remains the sole owner of projected
   song position.
+- Extracted track-session policy from the live loop. A tested state machine now
+  owns polling cadence, playback observation, artwork deduplication, startup
+  cover timeout, late-player handling, track-change clearing, resume, and
+  shutdown while the render loop only applies typed updates.
 - Extracted cover timing into a deterministic presentation state machine with
   hold, dissolve, completion, synchronized start-gate restart, clear, and
   replacement tests. Track changes now remove the previous artwork before a

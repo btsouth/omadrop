@@ -9,7 +9,7 @@ g++ -std=c++20 -O2 -Wall -Wextra main.cpp -o projectm-ascii \
 
 g++ -std=c++20 -O2 -Wall -Wextra live.cpp audio_output_session.cpp \
   cover_presentation.cpp live_assets.cpp live_compositor.cpp live_projectm.cpp \
-  live_settings.cpp mpris_poller.cpp \
+  live_settings.cpp mpris_poller.cpp track_session.cpp \
   native_renderer.cpp paired_transport.cpp pipewire_capture.cpp \
   status_overlay.cpp \
   -o projectm-ascii-live \
@@ -27,6 +27,9 @@ g++ -std=c++20 -O2 -Wall -Wextra mpris_state_test.cpp \
 
 g++ -std=c++20 -O2 -Wall -Wextra mpris_poller_test.cpp mpris_poller.cpp \
   -o mpris-poller-test $(pkg-config --cflags --libs json-c)
+
+g++ -std=c++20 -O2 -Wall -Wextra track_session_test.cpp track_session.cpp \
+  mpris_poller.cpp -o track-session-test $(pkg-config --cflags --libs json-c)
 
 g++ -std=c++20 -O2 -Wall -Wextra paired_transport_test.cpp \
   paired_transport.cpp -o paired-transport-test

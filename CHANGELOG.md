@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Isolate MPRIS polling, playback observation, artwork deduplication, and the
+  startup cover deadline in a tested track-session state machine.
 - Measure native-scene and final-compositor GPU time without blocking the
   render loop. Sustained overload now lowers ray-march detail while preserving
   composition and recovers conservatively after long performance headroom.

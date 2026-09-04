@@ -32,8 +32,7 @@
 #include "live_compositor.h"
 #include "live_projectm.h"
 #include "live_settings.h"
-#include "mpris_poller.h"
-#include "mpris_state.h"
+#include "track_session.h"
 #include "musical_structure.h"
 #include "music_frame.h"
 #include "native_renderer.h"
@@ -836,7 +835,6 @@ int main(int argc, char** argv) {
     uint64_t lastClockLogAt = 0;
     float coverAspect = 1.0f;
     std::array<float, 3> albumColor{0.72f, 0.82f, 1.0f};
-    std::string currentArtPath;
     const float coverHoldSeconds = std::getenv("OMADROP_COVER_HOLD_SECONDS")
         ? std::clamp(std::strtof(
             std::getenv("OMADROP_COVER_HOLD_SECONDS"), nullptr), 0.0f, 20.0f)
@@ -847,10 +845,6 @@ int main(int argc, char** argv) {
         : 5.0f;
     CoverPresentation coverPresentation(
         coverHoldSeconds, coverDissolveSeconds);
-    uint64_t nextMprisPollAt = 0;
-    const std::filesystem::path mprisHelper = projectRoot / "bin" / "mpris-state";
-    MprisPoller mprisPoller(mprisHelper);
-    PlaybackClock playbackClock;
     bool timelineMismatchReported = false;
     uint64_t timelineClockStartedAt = SDL_GetTicks64();
     double forcedTimelinePosition = -1.0;
@@ -894,12 +888,12 @@ int main(int argc, char** argv) {
         ? std::getenv("OMADROP_COVER_PATH") : "";
     const bool disableArt = std::getenv("OMADROP_DISABLE_ART") != nullptr
                          || !forcedCoverPath.empty();
-    bool artLookupComplete = disableArt;
-    const uint64_t initialArtDeadlineAt = SDL_GetTicks64() + 4500;
-    bool suppressLateInitialCover = false;
+    TrackSession trackSession(
+        projectRoot / "bin" / "mpris-state", disableArt,
+        timeline.has_value(), SDL_GetTicks64());
+    PlaybackClock& playbackClock = trackSession.playbackClock();
     if (!forcedCoverPath.empty()
         && loadPngTexture(forcedCoverPath, coverTexture, coverAspect)) {
-        currentArtPath = forcedCoverPath;
         albumColor = loadPaletteColor(forcedCoverPath);
         const uint64_t coverLoadedAt = SDL_GetTicks64();
         coverPresentation.show(coverLoadedAt);
@@ -1057,8 +1051,7 @@ int main(int argc, char** argv) {
             lastNonSilentAudioAt = now;
             previousFrameAt = now;
             reportedAudioMode = false;
-            mprisPoller.stop();
-            nextMprisPollAt = now;
+            trackSession.resume(now);
             audioCapture.stop();
             const std::string resumedDefaultSink = defaultSinkName();
             const std::string resumedSink = resumedDefaultSink.empty()
@@ -1271,12 +1264,6 @@ int main(int argc, char** argv) {
             revealStartedAt = now;
             coverPresentation.restart(now);
         }
-        if (!artLookupComplete && now >= initialArtDeadlineAt) {
-            artLookupComplete = true;
-            suppressLateInitialCover = true;
-            std::cerr << "cover: startup artwork unavailable; continuing cleanly"
-                      << " without a late cover\n";
-        }
         if (now >= nextSinkPollAt) {
             nextSinkPollAt = now + 2000;
             const std::string currentSink = defaultSinkName();
@@ -1325,86 +1312,59 @@ int main(int argc, char** argv) {
             automaticNextAt = 0;
         }
         bool seekedThisFrame = false;
-        if (now >= nextMprisPollAt && !mprisPoller.running()) {
-            mprisPoller.start(disableArt, now);
+        const TrackSessionUpdate trackUpdate = trackSession.update(now);
+        if (trackUpdate.startupArtworkTimedOut) {
+            std::cerr << "cover: startup artwork unavailable; continuing cleanly"
+                      << " without a late cover\n";
         }
-        if (const auto poll = mprisPoller.update()) {
-            nextMprisPollAt = now + (!artLookupComplete ? 250
-                                         : timeline ? 500 : 1000);
-            if (!poll->error.empty()) {
-                std::cerr << "mpris: " << poll->error << "\n";
-                if (!artLookupComplete) {
-                    artLookupComplete = true;
-                    suppressLateInitialCover = true;
-                }
-            } else if (poll->state) {
-                const MprisState& state = *poll->state;
-                const PlaybackObservation observation
-                    = playbackClock.observe(state, now / 1000.0);
-                // A player that appears after Omadrop has already started is
-                // a new presentation, not a late result from the launch-time
-                // artwork lookup. Let that first track use its cover normally.
-                if (observation.first && suppressLateInitialCover
-                    && poll->startedAtMs >= initialArtDeadlineAt) {
-                    suppressLateInitialCover = false;
-                }
-                if (observation.trackChanged) suppressLateInitialCover = false;
-                seekedThisFrame = observation.seeked;
-                if (observation.first || observation.trackChanged) {
-                    timelineDirector.reset();
-                    featureBus.resetAnalysis();
-                    structureTracker.reset();
-                    musicFrameBuilder.reset();
-                    nativeSceneDirector.resetForTrack();
-                    visualMotifs.reset();
-                    structureClockLocked = false;
-                    pendingTimelinePreset.reset();
-                    timelineClockStartedAt = now;
-                    timelineMismatchReported = false;
-                }
-                if (observation.trackChanged) {
-                    coverPresentation.clear();
-                    currentArtPath.clear();
-                }
-                if (observation.trackChanged && !pairedFollower) {
-                    presetIndex = chooseAutomaticPreset(PresetEnergy::Medium);
-                    recentPresets.clear();
-                    recentPresets.push_back(presetIndex);
-                    presetTransitionActive = false;
-                    loadPresetAtVisualTempo(
-                        engines[activeEngine], presets[presetIndex], false);
-                    transitionWindowAt = now + 19000;
-                    transitionDeadlineAt = now + 23000;
-                    publishPairedState(
-                        presetIndex, 0, nativeEnabled ? 6 : 0, true,
-                        nativeEnabled
-                            ? static_cast<int>(
-                                nativeSceneDirector.state().currentScene)
-                            : -1,
-                        nativeEnabled
-                            ? static_cast<int>(
-                                nativeSceneDirector.state().currentScene)
-                            : -1);
-                    std::cerr << "track: " << state.identity << "\n";
-                }
-                if (!suppressLateInitialCover
-                    && !state.artPath.empty()
-                    && state.artPath != currentArtPath
-                    && loadPngTexture(state.artPath, coverTexture, coverAspect)) {
-                    currentArtPath = state.artPath;
-                    albumColor = loadPaletteColor(state.artPath);
-                    coverPresentation.show(now);
-                    std::cerr << "cover: " << state.artPath << "\n";
-                }
-                if (!artLookupComplete && coverPresentation.hasArtwork()) {
-                    artLookupComplete = true;
-                }
-            } else if (!artLookupComplete) {
-                // No MPRIS player is active, so there is no artwork to wait
-                // for. Begin with the native scene and never reverse into a
-                // cover from this launch attempt.
-                artLookupComplete = true;
-                suppressLateInitialCover = true;
+        if (!trackUpdate.error.empty()) {
+            std::cerr << "mpris: " << trackUpdate.error << "\n";
+        }
+        if (trackUpdate.state && trackUpdate.playback) {
+            const MprisState& state = *trackUpdate.state;
+            const PlaybackObservation& observation = *trackUpdate.playback;
+            seekedThisFrame = observation.seeked;
+            if (observation.first || observation.trackChanged) {
+                timelineDirector.reset();
+                featureBus.resetAnalysis();
+                structureTracker.reset();
+                musicFrameBuilder.reset();
+                nativeSceneDirector.resetForTrack();
+                visualMotifs.reset();
+                structureClockLocked = false;
+                pendingTimelinePreset.reset();
+                timelineClockStartedAt = now;
+                timelineMismatchReported = false;
+            }
+            if (trackUpdate.clearArtwork) coverPresentation.clear();
+            if (observation.trackChanged && !pairedFollower) {
+                presetIndex = chooseAutomaticPreset(PresetEnergy::Medium);
+                recentPresets.clear();
+                recentPresets.push_back(presetIndex);
+                presetTransitionActive = false;
+                loadPresetAtVisualTempo(
+                    engines[activeEngine], presets[presetIndex], false);
+                transitionWindowAt = now + 19000;
+                transitionDeadlineAt = now + 23000;
+                publishPairedState(
+                    presetIndex, 0, nativeEnabled ? 6 : 0, true,
+                    nativeEnabled
+                        ? static_cast<int>(
+                            nativeSceneDirector.state().currentScene)
+                        : -1,
+                    nativeEnabled
+                        ? static_cast<int>(
+                            nativeSceneDirector.state().currentScene)
+                        : -1);
+                std::cerr << "track: " << state.identity << "\n";
+            }
+            if (trackUpdate.artworkCandidate
+                && loadPngTexture(*trackUpdate.artworkCandidate,
+                                  coverTexture, coverAspect)) {
+                trackSession.acceptArtwork(*trackUpdate.artworkCandidate);
+                albumColor = loadPaletteColor(*trackUpdate.artworkCandidate);
+                coverPresentation.show(now);
+                std::cerr << "cover: " << *trackUpdate.artworkCandidate << "\n";
             }
         }
         unsigned int capturedFrames = 0;
@@ -2256,7 +2216,8 @@ int main(int argc, char** argv) {
         }
         SDL_GL_SwapWindow(window);
         if (!windowShown
-            && (coverPresentation.hasArtwork() || artLookupComplete)
+            && (coverPresentation.hasArtwork()
+                || trackSession.artworkLookupComplete())
             && (!nativeEnabled || !pairedFollower || reportedPairedMusic)) {
             if (!startReadyPath.empty()) {
                 std::ofstream ready(startReadyPath, std::ios::trunc);
@@ -2281,7 +2242,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    mprisPoller.stop();
+    trackSession.stop();
     audioCapture.stop();
     nativeRenderer.reset();
     projectm_destroy(engines[0]);
