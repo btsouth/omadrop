@@ -27,13 +27,14 @@ The expected SHA-256 values are stored in
 requires an intentional fixture update, a complete scorecard-suite run, and a
 reviewed manifest change.
 
-Run all five profiles through all ten scenes with:
+Run all five profiles through every registered scene with:
 
 ```sh
 ./bin/native-scene-scorecard-suite --enforce
 ```
 
-This produces fifty scene and audio combinations. Passing proves the declared
-response, motion coverage, global-pulse, pulse-duty, recovery, and silence
-limits on the synthetic suite. It does not prove aesthetic quality, genre-wide
-behavior, accessibility, or correct operation with every real recording.
+This currently produces 55 scene and audio combinations. Passing proves the
+declared response, motion coverage, global-pulse, pulse-duty, recovery, and
+silence limits on the synthetic suite. It does not prove aesthetic quality,
+genre-wide behavior, accessibility, or correct operation with every real
+recording.

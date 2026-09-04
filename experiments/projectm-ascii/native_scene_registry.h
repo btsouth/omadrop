@@ -16,10 +16,11 @@ enum class NativeSceneKind : std::uint8_t {
     ConstellationField = 7,
     SpectralRibbons = 8,
     BloomEngine = 9,
+    NegativeSpace = 10,
 };
 
-inline constexpr std::size_t nativeSceneCount = 10;
-inline constexpr unsigned int nativeSceneRegistryVersion = 3;
+inline constexpr std::size_t nativeSceneCount = 11;
+inline constexpr unsigned int nativeSceneRegistryVersion = 4;
 
 enum class NativeTransitionAnchor : std::uint8_t {
     Center,
@@ -128,6 +129,12 @@ nativeSceneRegistry{{
      {0.74f, 0.66f, 0.66f, 0.48f, 0.54f}, NativeTransitionAnchor::Center,
      NativeMotionGrammar::Selective, 0.18f, 0.30f,
      transientRoles | GrooveRole | StructureRole, 6.0f},
+    {NativeSceneKind::NegativeSpace, "negative-space", "Negative Space",
+     "negative-space.frag", {"negative", "void", ""}, {1.08f, 1.14f},
+     {0.18f, 0.22f, 0.78f, 0.40f, 0.38f},
+     NativeTransitionAnchor::HorizontalAxis,
+     NativeMotionGrammar::Sparse, 0.10f, 0.22f,
+     transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
 }};
 
 inline constexpr std::string_view nativeMotionGrammarName(

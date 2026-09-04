@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add Negative Space, a restrained eleventh native scene whose beat, kick,
+  snare, hats, and section changes carve separate parts of one stable field.
+- Make scene galleries follow the registry so palette and grayscale review
+  automatically includes new scenes.
+
 ## 0.3.0 - 2026-09-04
 
 - Add an Omadrop-native HDR feedback renderer with ten original scenes as the

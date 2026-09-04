@@ -123,7 +123,8 @@ gallery, and scorecard tooling.
 - [x] Gate paired startup until every borderless window is placed and fullscreen.
 - [x] Fade the complete display pair in and out without exposing renderer setup.
 - [x] Route every interactive control through the paired-display leader.
-- [x] Audit color separation, rhythmic roles, continuity, and landmarks for all ten scenes.
+- [x] Audit color separation, rhythmic roles, continuity, and landmarks for
+  every registered scene.
 
 ## Acceptance tests
 

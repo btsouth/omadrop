@@ -3,9 +3,10 @@ set -euo pipefail
 
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 renderer="$root/experiments/projectm-ascii/native-renderer-test"
+scene_list="$root/experiments/projectm-ascii/native-scene-list"
 output=${1:-$root/cache/native-scene-gallery}
 
-[[ -x $renderer ]] || {
+[[ -x $renderer && -x $scene_list ]] || {
   echo "native-scene-gallery: run experiments/projectm-ascii/build.sh first" >&2
   exit 2
 }
@@ -15,6 +16,21 @@ command -v magick >/dev/null || {
 }
 
 mkdir -p "$output"
+mapfile -t scenes < <("$scene_list")
+scene_count=${#scenes[@]}
+((scene_count > 0)) || {
+  echo "native-scene-gallery: native scene registry is empty" >&2
+  exit 1
+}
+if ((scene_count <= 4)); then
+  scene_columns=2
+elif ((scene_count <= 9)); then
+  scene_columns=3
+else
+  scene_columns=4
+fi
+scene_rows=$(((scene_count + scene_columns - 1) / scene_columns))
+scene_tile="${scene_columns}x${scene_rows}"
 palettes=(
   'neutral:#B5A8A7'
   'electric:#FAF50A'
@@ -35,14 +51,21 @@ for entry in "${palettes[@]}"; do
   OMADROP_REFERENCE_COLOR="$color" \
     "$renderer" "$root/shaders/native" "$directory" \
     >"$directory/audit.log"
+  palette_images=()
+  ascii_images=()
+  for row in "${scenes[@]}"; do
+    slug=${row%%$'\t'*}
+    palette_images+=("$directory/$slug.ppm")
+    ascii_images+=("$directory/ascii/$slug.ppm")
+  done
   sheet="$output/$name.png"
-  magick montage "$directory"/*.ppm -thumbnail 384x216 -set label '%t' \
-    -tile 5x2 -geometry +6+22 -background '#05070a' -fill white \
+  magick montage "${palette_images[@]}" -thumbnail 384x216 -set label '%t' \
+    -tile "$scene_tile" -geometry +6+22 -background '#05070a' -fill white \
     -font Adwaita-Mono -pointsize 15 "$sheet"
   palette_sheets+=("$sheet")
   ascii_sheet="$output/ascii-$name.png"
-  magick montage "$directory"/ascii/*.ppm -thumbnail 384x216 -set label '%t' \
-    -tile 5x2 -geometry +6+22 -background '#05070a' -fill white \
+  magick montage "${ascii_images[@]}" -thumbnail 384x216 -set label '%t' \
+    -tile "$scene_tile" -geometry +6+22 -background '#05070a' -fill white \
     -font Adwaita-Mono -pointsize 15 "$ascii_sheet"
   ascii_palette_sheets+=("$ascii_sheet")
 done

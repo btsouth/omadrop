@@ -27,7 +27,7 @@ NativeSceneKind automaticChoice(MusicFrame music) {
 }
 
 int main() {
-    assert(nativeSceneRegistryVersion == 3);
+    assert(nativeSceneRegistryVersion == 4);
     std::set<std::string> sceneSlugs;
     std::set<std::string> sceneShaders;
     for (std::size_t index = 0; index < nativeSceneRegistry.size(); ++index) {
@@ -43,7 +43,7 @@ int main() {
         assert(definition.maximumFrameMilliseconds > 0.0f);
     }
     assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Flow) == 2);
-    assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Sparse) == 3);
+    assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Sparse) == 4);
     assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Selective) == 5);
     NativeSceneKind parsedScene = NativeSceneKind::DepthTunnel;
     assert(nativeSceneFromName("wire", parsedScene));
@@ -54,6 +54,8 @@ int main() {
     assert(parsedScene == NativeSceneKind::ConstellationField);
     assert(nativeSceneFromName("bloom", parsedScene));
     assert(parsedScene == NativeSceneKind::BloomEngine);
+    assert(nativeSceneFromName("void", parsedScene));
+    assert(parsedScene == NativeSceneKind::NegativeSpace);
     assert(!nativeSceneFromName("unknown", parsedScene));
     assert(nativeSceneMaterial(NativeSceneKind::DepthTunnel).fieldExposure
            != nativeSceneMaterial(NativeSceneKind::DepthTunnel).asciiExposure);

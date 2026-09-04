@@ -343,7 +343,7 @@ Allow more people to create scenes while keeping the official rotation strict.
 ## Immediate work order
 
 1. Add reviewed real, rights-cleared songs to the locked synthetic replay set
-   and complete continuous-motion review for the current ten scenes.
+   and complete continuous-motion review for the established scene set.
 2. Finish output-change, display-hotplug, shutdown, and long-run operational
    regressions needed to close Phase 0.
 3. Normalize transient response and stabilize tempo, downbeat, and phrase
@@ -351,8 +351,8 @@ Allow more people to create scenes while keeping the official rotation strict.
 4. Add the developer signal monitor and repeatable presentation-delay tool.
 5. Continue splitting track state, display session, cover presentation,
    direction, and rendering out of the live application loop.
-6. Prototype Ink Current, Glass Choir, and Negative Space as the first three
-   deliberately different scene families.
+6. Prototype Ink Current and Glass Choir as the next two deliberately different
+   scene families after the accepted Negative Space scene.
 7. Promote only candidates that pass still-frame, motion, music-response,
    ASCII, transition, and performance review.
 
@@ -461,3 +461,8 @@ Completed after v0.3:
 - Removed hardcoded scene arrays from the gallery and scorecard tools. A
   validated registry-list executable now supplies canonical scene identity to
   every review path, and suite totals adapt automatically as the library grows.
+- Added Negative Space as the first post-v0.3 scene. Its stable luminous field
+  uses a dominant organic void, localized rim timing, a kick cutout, a snare
+  incision, hat perforations, and a section cut instead of full-frame pulsing.
+  Continuous color, grayscale, ASCII, six album palettes, the 55-combination
+  replay suite, a real-song scorecard, and a ten-minute 1080p soak all pass.

@@ -482,6 +482,7 @@ float landmarkContrast(const std::vector<float>& light, NativeSceneKind kind) {
         case NativeSceneKind::TidalGrid:
         case NativeSceneKind::ConstellationField:
         case NativeSceneKind::SpectralRibbons:
+        case NativeSceneKind::NegativeSpace:
             break;
     }
     return spatialContrast;
