@@ -3,7 +3,11 @@ set -euo pipefail
 
 case ${1:-} in
   monitors)
-    printf '[{"id":0,"name":"DP-1"},{"id":1,"name":"HDMI-A-1"}]\n'
+    if [[ -n ${OMADROP_TEST_MONITOR_FILE:-} ]]; then
+      command cat "$OMADROP_TEST_MONITOR_FILE"
+    else
+      printf '[{"id":0,"name":"DP-1"},{"id":1,"name":"HDMI-A-1"}]\n'
+    fi
     ;;
   clients)
     printf '['

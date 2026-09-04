@@ -3,10 +3,27 @@ set -euo pipefail
 
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-launcher-test.XXXXXX")
+launcher_pid=
 cleanup() {
+  if [[ -n $launcher_pid ]] && kill -0 "$launcher_pid" 2>/dev/null; then
+    kill -TERM "$launcher_pid" 2>/dev/null || true
+    wait "$launcher_pid" 2>/dev/null || true
+  fi
   rm -rf -- "$scratch"
 }
 trap cleanup EXIT
+
+wait_for_count() {
+  local pattern=$1 expected=$2 file=$3 label=$4
+  local count
+  for ((attempt = 0; attempt < 250; attempt++)); do
+    count=$(grep -c "$pattern" "$file" || true)
+    ((count >= expected)) && return 0
+    sleep 0.02
+  done
+  echo "launcher test: timed out waiting for $label" >&2
+  return 1
+}
 
 mkdir -p "$scratch/runtime"
 events=$scratch/events.log
@@ -51,4 +68,51 @@ if compgen -G "$runtime/display-*.pid" >/dev/null; then
   exit 1
 fi
 
-echo "launcher synchronization passed"
+hotplug=$scratch/hotplug
+mkdir -p "$hotplug/runtime"
+hotplug_events=$hotplug/events.log
+hotplug_processes=$hotplug/processes.log
+hotplug_hypr_log=$hotplug/hypr.log
+hotplug_monitors=$hotplug/monitors.json
+touch "$hotplug_events" "$hotplug_processes" "$hotplug_hypr_log"
+printf '[{"id":0,"name":"DP-1"},{"id":1,"name":"HDMI-A-1"}]\n' \
+  >"$hotplug_monitors"
+
+XDG_RUNTIME_DIR=$hotplug/runtime \
+OMADROP_HYPRCTL=$root/experiments/projectm-ascii/fixtures/fake-hyprctl \
+OMADROP_LIVE_EXECUTABLE=$root/experiments/projectm-ascii/fixtures/fake-launch-renderer \
+OMADROP_RUN_CURATED=$root/experiments/projectm-ascii/fixtures/fake-launch-renderer \
+OMADROP_TEST_EVENT_LOG=$hotplug_events \
+OMADROP_TEST_PROCESS_FILE=$hotplug_processes \
+OMADROP_TEST_HYPR_LOG=$hotplug_hypr_log \
+OMADROP_TEST_MONITOR_FILE=$hotplug_monitors \
+OMADROP_TEST_RENDERER_STAY=1 \
+OMADROP_FULLSCREEN=1 \
+  "$root/bin/omadrop" --all &
+launcher_pid=$!
+
+wait_for_count '^revealed ' 2 "$hotplug_events" 'initial pair reveal'
+printf '[{"id":0,"name":"DP-1"}]\n' >"$hotplug_monitors.next"
+mv "$hotplug_monitors.next" "$hotplug_monitors"
+wait_for_count '^terminated ' 2 "$hotplug_events" 'old pair shutdown'
+wait_for_count '^ready 0$' 2 "$hotplug_events" 'replacement display readiness'
+wait_for_count '^revealed 0$' 2 "$hotplug_events" 'replacement display reveal'
+
+if (( $(grep -c '^ready 1$' "$hotplug_events") != 1 )); then
+  echo "launcher test: replacement retained a disconnected display" >&2
+  exit 1
+fi
+replacement_pid=$(awk '$2 == 0 { pid = $1 } END { print pid }' "$hotplug_processes")
+grep -Fq "monitor = 'DP-1', window = 'pid:$replacement_pid'" "$hotplug_hypr_log"
+
+kill -TERM "$launcher_pid"
+wait "$launcher_pid"
+launcher_pid=
+hotplug_runtime=$hotplug/runtime/omadrop
+if compgen -G "$hotplug_runtime/display-*.pid" >/dev/null; then
+  echo "launcher test: hotplug pid files were not cleaned" >&2
+  exit 1
+fi
+[[ ! -e $hotplug_runtime/start-gate ]]
+
+echo "launcher synchronization and hotplug passed"

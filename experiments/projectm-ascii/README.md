@@ -27,7 +27,9 @@ Run the native music-contract and render audits with:
 The launcher test uses two deterministic fake displays and renderers. It
 verifies that both windows become ready before either is revealed, each PID is
 routed to the intended monitor and made fullscreen, the first exit terminates
-its sibling, and all runtime synchronization files are removed.
+its sibling, and all runtime synchronization files are removed. It also removes
+one display at runtime and verifies that the old pair closes before a correctly
+routed one-display session is revealed.
 
 Pass an optional output directory to `native-renderer-test` to write one
 deterministic continuous frame and one production-equivalent ASCII frame per

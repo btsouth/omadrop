@@ -407,3 +407,6 @@ Completed after v0.3:
 - Added a two-display launcher harness that verifies readiness barriers,
   per-PID monitor routing, fullscreen placement, synchronized reveal, sibling
   shutdown, and runtime-file cleanup without opening real windows.
+- Added runtime display-topology supervision. Connecting or removing a monitor
+  now closes the old synchronized pair before revealing a newly routed set, and
+  the launcher harness covers the two-display to one-display hotplug path.

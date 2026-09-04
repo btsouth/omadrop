@@ -22,7 +22,7 @@ trap finish TERM INT
 
 while [[ ! -e $gate ]]; do sleep 0.01; done
 printf 'revealed %s\n' "$index" >>"$events"
-if ((index == 1)); then
+if [[ ${OMADROP_TEST_RENDERER_STAY:-0} != 1 ]] && ((index == 1)); then
   sleep 0.15
   printf 'exited %s\n' "$index" >>"$events"
   exit 0
