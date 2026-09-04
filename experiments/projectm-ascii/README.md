@@ -26,6 +26,7 @@ Run the native music-contract and render audits with:
 ./experiments/projectm-ascii/audio-output-session-test \
   ./experiments/projectm-ascii/fixtures/fake-pw-record
 ./experiments/projectm-ascii/paired-transport-test
+./experiments/projectm-ascii/paired-sync-test
 ./experiments/projectm-ascii/native-scene-state-test
 ./experiments/projectm-ascii/native-scene-list
 ./experiments/projectm-ascii/native-renderer-test ./shaders/native
@@ -43,6 +44,11 @@ routed to the intended monitor and made fullscreen, the first exit terminates
 its sibling, and all runtime synchronization files are removed. It also removes
 one display at runtime and verifies that the old pair closes before a correctly
 routed one-display session is revealed.
+
+The paired-sync test simulates two hours at independent, uneven display-frame
+rates with repeated two-read gaps. It verifies monotonic validated music
+packets, bounded beat/bar/phrase and autonomous-flow lag, self-contained scene
+and control snapshots, topology-session restart, and no accumulated drift.
 
 `native-scene-list` validates registry order, identity, and uniqueness before
 printing the canonical slug and display name for every scene. Gallery and

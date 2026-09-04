@@ -82,6 +82,12 @@
 - Replace the stale ten-scene website copy with a registry-aligned gallery of
   all 18 current scenes rendered from the native engine. The normal check now
   rejects missing, extra, renamed, or incorrectly sized gallery assets.
+- Keep every paired control snapshot self-contained so it cannot erase an
+  unread scene transition. Followers wait for the leader's first music frame,
+  reject non-finite packets, and resynchronize autonomous flow every frame.
+- Add a deterministic two-hour paired-display simulation with uneven frame
+  timing and repeated dropped reads. Audio-state lag stays at or below 50 ms
+  and scene-state disagreement clears within 34 ms without accumulated drift.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

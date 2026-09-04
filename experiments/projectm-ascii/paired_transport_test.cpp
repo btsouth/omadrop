@@ -3,6 +3,7 @@
 #include <cassert>
 #include <filesystem>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <unistd.h>
 
@@ -85,12 +86,24 @@ int main() {
     frame.audioTimeSeconds = 9.25;
     frame.bpm = 128.0f;
     frame.kick = 0.82f;
-    assert(leader.publishMusic({.serial = 1, .frame = frame}));
+    assert(leader.publishMusic({.serial = 1, .flowTime = 4.75f, .frame = frame}));
     PairedMusicFollower musicFollower;
     const auto music = musicFollower.consume(follower.readMusic());
-    assert(music && music->audioTimeSeconds == 9.25);
-    assert(music->bpm == 128.0f && music->kick == 0.82f);
+    assert(music && music->frame.audioTimeSeconds == 9.25);
+    assert(music->frame.bpm == 128.0f && music->frame.kick == 0.82f);
+    assert(music->flowTime == 4.75f);
     assert(!musicFollower.consume(follower.readMusic()));
+
+    PairedMusicState corrupt{
+        .serial = 2,
+        .flowTime = 4.8f,
+        .frame = frame,
+    };
+    corrupt.frame.spectrumFlux[7] = std::numeric_limits<float>::quiet_NaN();
+    assert(!decodePairedMusicState(encodePairedMusicState(corrupt)));
+    corrupt.frame.spectrumFlux[7] = 0.0f;
+    corrupt.flowTime = std::numeric_limits<float>::infinity();
+    assert(!decodePairedMusicState(encodePairedMusicState(corrupt)));
 
     assert(follower.publishRequest("ascii"));
     const auto request = leader.consumeRequest();

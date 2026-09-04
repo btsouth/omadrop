@@ -31,6 +31,9 @@ g++ -std=c++20 -O2 -Wall -Wextra mpris_poller_test.cpp mpris_poller.cpp \
 g++ -std=c++20 -O2 -Wall -Wextra paired_transport_test.cpp \
   paired_transport.cpp -o paired-transport-test
 
+g++ -std=c++20 -O2 -Wall -Wextra paired_sync_test.cpp \
+  -o paired-sync-test
+
 g++ -std=c++20 -O2 -Wall -Wextra audio_features_test.cpp \
   -o audio-features-test $(pkg-config --cflags --libs fftw3f)
 

@@ -642,11 +642,27 @@ int main(int argc, char** argv) {
     std::uint64_t pairedMusicSerial = 0;
     PairedDisplayFollower pairedDisplayFollower;
     PairedMusicFollower pairedMusicFollower;
+    NativeSceneDirector nativeSceneDirector;
+    nativeSceneDirector.setProfile(preferences.directorProfile);
+    nativeSceneDirector.setScenePreferences(
+        preferences.favoriteScenes, preferences.hiddenScenes);
     auto publishPairedState = [&](std::size_t index, std::uint64_t duration,
                                   int mode, bool hardSync, int nativeScene = -1,
                                   int nativeSourceScene = -1,
                                   bool manualSceneCue = false) {
         if (!pairedLeader) return;
+        // Display state is a replaceable snapshot, not an event queue. Include
+        // the current native transition in every control update so a key press
+        // can never overwrite the only copy of a scene change before a
+        // follower reads it.
+        if (nativeEnabled && nativeScene < 0) {
+            const NativeSceneState& scene = nativeSceneDirector.state();
+            nativeSourceScene = static_cast<int>(scene.currentScene);
+            nativeScene = static_cast<int>(scene.transitioning
+                ? scene.incomingScene : scene.currentScene);
+            mode = static_cast<int>(scene.transitioning
+                ? scene.transitionStyle : NativeTransitionStyle::FlowCarry);
+        }
         pairedTransport.publishDisplay({
             .serial = ++pairedSerial,
             .presetIndex = index,
@@ -672,10 +688,11 @@ int main(int argc, char** argv) {
             .flashLimitMode = preferences.flashLimited ? 1 : 0,
         });
     };
-    auto publishPairedMusic = [&](const MusicFrame& frame) {
+    auto publishPairedMusic = [&](const MusicFrame& frame, float flowTime) {
         if (!pairedLeader) return;
         const PairedMusicState state{
             .serial = ++pairedMusicSerial,
+            .flowTime = flowTime,
             .frame = frame,
         };
         pairedTransport.publishMusic(state);
@@ -739,10 +756,6 @@ int main(int argc, char** argv) {
     MusicalStructureTracker structureTracker;
     MusicFrameBuilder musicFrameBuilder;
     MusicFrame musicFrame;
-    NativeSceneDirector nativeSceneDirector;
-    nativeSceneDirector.setProfile(preferences.directorProfile);
-    nativeSceneDirector.setScenePreferences(
-        preferences.favoriteScenes, preferences.hiddenScenes);
     NativeSceneState nativeSceneState;
     bool nativeTransitionWasActive = false;
     NativeSceneKind initialNativeScene = NativeSceneKind::DepthTunnel;
@@ -1366,7 +1379,6 @@ int main(int argc, char** argv) {
             musicFrame = musicFrameBuilder.update(
                 audioFeatures, structure, 1.0f / 60.0f,
                 syncDelayMs / 1000.0f);
-            if (nativeEnabled) publishPairedMusic(musicFrame);
             structureClockLocked = structure.clockLocked;
             phraseBoundaryThisFrame = phraseBoundaryThisFrame || structure.phraseCrossed;
             sectionBoundaryThisFrame = sectionBoundaryThisFrame || structure.sectionCrossed;
@@ -1477,10 +1489,17 @@ int main(int argc, char** argv) {
             }
         }
 
+        // Publish once per displayed frame. The synchronized flow clock keeps
+        // autonomous motion from accumulating a different phase on monitors
+        // whose compositor frame timing is slightly uneven.
+        if (nativeEnabled && pairedLeader) {
+            publishPairedMusic(musicFrame, nativeRenderer->flowTime());
+        }
         if (nativeEnabled && pairedFollower) {
             if (const auto synchronized = pairedMusicFollower.consume(
                     pairedTransport.readMusic())) {
-                musicFrame = *synchronized;
+                musicFrame = synchronized->frame;
+                nativeRenderer->synchronizeFlowTime(synchronized->flowTime);
                 if (!reportedPairedMusic) {
                     std::cerr << "paired music: synchronized to leader\n";
                     reportedPairedMusic = true;
@@ -2081,7 +2100,8 @@ int main(int argc, char** argv) {
         }
         SDL_GL_SwapWindow(window);
         if (!windowShown
-            && (coverPresentation.hasArtwork() || artLookupComplete)) {
+            && (coverPresentation.hasArtwork() || artLookupComplete)
+            && (!nativeEnabled || !pairedFollower || reportedPairedMusic)) {
             if (!startReadyPath.empty()) {
                 std::ofstream ready(startReadyPath, std::ios::trunc);
                 ready << getpid() << '\n';

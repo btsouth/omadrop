@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <filesystem>
 #include <string>
 
@@ -52,6 +53,10 @@ public:
                 const NativeRenderPolicy& policy = NativeRenderPolicy{});
     GLuint texture(NativeSceneKind scene) const;
     GLuint texture() const { return texture(NativeSceneKind::DepthTunnel); }
+    float flowTime() const { return flowTime_; }
+    void synchronizeFlowTime(float flowTime) {
+        if (std::isfinite(flowTime) && flowTime >= 0.0f) flowTime_ = flowTime;
+    }
     void reset();
     void shutdown();
 

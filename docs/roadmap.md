@@ -610,3 +610,8 @@ Completed after v0.3:
 - Added a complete 18-scene website gallery generated from current native
   renderer frames, direct anti-thumping copy, corrected signal-path copy, and a
   registry-alignment test that also builds the site when dependencies exist.
+- Made every paired display update a complete scene snapshot, gated follower
+  reveal on the first validated leader frame, and synchronized the autonomous
+  flow clock every frame. A two-hour deterministic run with uneven frame timing
+  and repeated dropped reads holds audio-state lag to 50 ms, resolves scene
+  disagreement within 34 ms, and shows no accumulated drift.

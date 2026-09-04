@@ -56,8 +56,9 @@ from the v0.3 release demo, not mockups.
 - **High-resolution album art.** MPRIS artwork opens the show, supplies the
   scene palette, and dissolves into the first visual. ASCII mode keeps the
   full-resolution cover underneath its dot field.
-- **Synchronized multi-monitor output.** Launch, scene changes, ASCII state,
-  and keyboard input stay synchronized across displays.
+- **Synchronized multi-monitor output.** Launch, musical timing, autonomous
+  flow, scene changes, ASCII state, and keyboard input stay synchronized across
+  displays.
 - **Local by design.** Audio analysis runs on the machine. There is no account,
   model download, hosted AI service, or song upload.
 - **Output-change recovery.** Switching speakers, reconnecting Bluetooth, or a

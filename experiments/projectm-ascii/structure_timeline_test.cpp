@@ -133,13 +133,15 @@ int main(int argc, char** argv) {
     PairedMusicFollower musicFollower;
     const std::string encodedMusic = encodePairedMusicState({
         .serial = 9,
+        .flowTime = 3.5f,
         .frame = sharedMusic,
     });
     const auto receivedMusic = musicFollower.consume(encodedMusic);
-    assert(receivedMusic && receivedMusic->audioTimeSeconds == 42.25);
-    assert(receivedMusic->bpm == 127.0f);
-    assert(receivedMusic->kick == 0.82f);
-    assert(receivedMusic->spectrumLevel[12] == 1.4f);
+    assert(receivedMusic && receivedMusic->frame.audioTimeSeconds == 42.25);
+    assert(receivedMusic->flowTime == 3.5f);
+    assert(receivedMusic->frame.bpm == 127.0f);
+    assert(receivedMusic->frame.kick == 0.82f);
+    assert(receivedMusic->frame.spectrumLevel[12] == 1.4f);
     assert(!musicFollower.consume(encodedMusic));
     assert(!decodePairedMusicState("invalid"));
 
