@@ -36,6 +36,12 @@ void main() {
     float sceneKick = kick * gestureBudget;
     float sceneSnare = snare * gestureBudget;
     float sceneHat = hat * gestureBudget;
+    float lowSustain = 1.0 - exp(
+        -0.34 * (bandLevel[0] + bandLevel[1]));
+    float midSustain = 1.0 - exp(
+        -0.34 * (bandLevel[2] + bandLevel[3]));
+    float highSustain = 1.0 - exp(
+        -0.34 * (bandLevel[4] + bandLevel[5]));
 
     vec3 primary = mix(palettePrimary(5.81), vec3(0.05, 0.52, 0.88), 0.13);
     vec3 secondary = mix(paletteSecondary(5.81), vec3(0.92, 0.18, 0.62), 0.12);
@@ -152,6 +158,14 @@ void main() {
                       * smoothstep(0.72, 0.32, p.x) * section;
 
     result += mix(primary, accent, 0.55) * restingStars * 0.045
+            + primary * layerEdges[3]
+              * exp(-5.0 * (p.x + 0.38) * (p.x + 0.38))
+              * lowSustain * 0.095
+            + secondary * layerEdges[1]
+              * exp(-6.0 * (p.x - 0.02) * (p.x - 0.02))
+              * midSustain * 0.085
+            + mix(accent, vec3(1.0), 0.24) * restingStars
+              * highSustain * 0.34
             + accent * lantern * 0.24
             + accent * lanternGlow * 0.045
             + primary * kickEdge * 0.24

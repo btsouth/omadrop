@@ -23,6 +23,12 @@ void main() {
     float sceneKick = kick * gestureBudget;
     float sceneSnare = snare * gestureBudget;
     float sceneHat = hat * gestureBudget;
+    float lowSustain = 1.0 - exp(
+        -0.34 * (bandLevel[0] + bandLevel[1]));
+    float midSustain = 1.0 - exp(
+        -0.34 * (bandLevel[2] + bandLevel[3]));
+    float highSustain = 1.0 - exp(
+        -0.34 * (bandLevel[4] + bandLevel[5]));
 
     vec2 previousP = p;
     previousP.x -= 0.000025 * harmonic * motionScale;
@@ -89,6 +95,7 @@ void main() {
 
     float perforations = 0.0;
     float perforationRims = 0.0;
+    float highEtching = 0.0;
     for (int index = 0; index < 11; ++index) {
         float fi = float(index);
         vec2 center = vec2(-0.48 + fi * 0.095,
@@ -101,7 +108,16 @@ void main() {
             (1.0 - smoothstep(-0.003, 0.008, distanceToHole))
             * smoothstep(0.06, 0.24, sceneHat));
         perforationRims += line(distanceToHole, 0.0035) * sceneHat;
+        highEtching += line(distanceToHole - 0.009, 0.0025)
+                     * highSustain * (0.45 + 0.55 * step(5.0, fi));
     }
+
+    float lowContour = line(
+        length(p - vec2(-0.42, -0.15)) - (0.064 + 0.018 * lowSustain),
+        0.005) * lowSustain;
+    float midThread = line(segmentDistance(
+        p, vec2(-0.34, -0.02), vec2(0.02, 0.24)), 0.0045)
+        * midSustain * body;
 
     float sectionCut = 1.0 - smoothstep(
         0.004, 0.022 + 0.060 * section,
@@ -126,7 +142,10 @@ void main() {
                    + secondary * anticipationMarker * 0.11
                    + mix(secondary, accent, 0.35) * contours * body * 0.032
                    + secondary * kickRim * 0.16
-                   + accent * perforationRims * 0.30;
+                   + accent * perforationRims * 0.30
+                   + primary * lowContour * 0.12
+                   + secondary * midThread * 0.13
+                   + mix(accent, vec3(1.0), 0.25) * highEtching * 0.08;
     injection *= 1.0 - 0.62 * release;
 
     vec3 result = feedback + injection;

@@ -92,6 +92,12 @@ void main() {
     float sceneKick = kick * gestureBudget;
     float sceneSnare = snare * gestureBudget;
     float sceneHat = hat * gestureBudget;
+    float lowSustain = 1.0 - exp(
+        -0.34 * (bandLevel[0] + bandLevel[1]));
+    float midSustain = 1.0 - exp(
+        -0.34 * (bandLevel[2] + bandLevel[3]));
+    float highSustain = 1.0 - exp(
+        -0.34 * (bandLevel[4] + bandLevel[5]));
 
     vec2 p = (uv * 2.0 - 1.0)
            * vec2(resolution.x / max(1.0, resolution.y), 1.0);
@@ -215,11 +221,23 @@ void main() {
         float silhouetteEdge = max(normalEdge, depthEdge) * (1.0 - floorMaterial);
         float insetLight = line(position.y + 0.46 + 0.055 * material, 0.012)
                          * sideMaterial;
+        float lowFloorCourse = floorMaterial
+            * line(sin(position.z * 2.4 + position.x * 1.2), 0.080)
+            * lowSustain;
+        float midWallCourse = sideMaterial
+            * line(sin(position.y * 5.5 + position.z * 1.8), 0.11)
+            * midSustain * smoothstep(3.4, 0.3, abs(position.z));
+        float highBeamJoints = beamMaterial
+            * line(sin(position.x * 8.0 + material * 0.7), 0.095)
+            * highSustain;
         result += mix(primary, secondary, 0.45) * embeddedLine * 0.055
                 + secondary * beamUnderside * 0.060
                 + accent * bevelLight * (0.034 + 0.018 * deepLayer)
                 + mix(primary, accent, 0.28) * silhouetteEdge * 0.17
-                + mix(secondary, accent, 0.40) * insetLight * 0.075;
+                + mix(secondary, accent, 0.40) * insetLight * 0.075
+                + primary * lowFloorCourse * 0.075
+                + secondary * midWallCourse * 0.12
+                + mix(accent, vec3(1.0), 0.24) * highBeamJoints * 0.095;
 
         vec3 kickSource = vec3(-0.54, -0.82, 1.06);
         vec3 toKick = kickSource - position;

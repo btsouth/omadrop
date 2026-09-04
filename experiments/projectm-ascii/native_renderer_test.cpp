@@ -32,6 +32,15 @@ struct ContinuityResult {
     int minimumFrame = -1;
 };
 
+struct SustainResult {
+    float lowDifference = 0.0f;
+    float middleDifference = 0.0f;
+    float highDifference = 0.0f;
+    float lowMiddleSimilarity = 1.0f;
+    float lowHighSimilarity = 1.0f;
+    float middleHighSimilarity = 1.0f;
+};
+
 struct SceneAudit {
     float idleMean = 0.0f;
     float kickRatio = 0.0f;
@@ -48,6 +57,7 @@ struct SceneAudit {
     float anticipationRatio = 0.0f;
     float downbeatRatio = 0.0f;
     float meanChroma = 0.0f;
+    SustainResult sustain;
     LatencyResult kickLatency;
     LatencyResult snareLatency;
     LatencyResult hatLatency;
@@ -270,6 +280,31 @@ MusicFrame baseMusic() {
     return music;
 }
 
+MusicFrame sustainMusic(int role) {
+    MusicFrame music = baseMusic();
+    music.bandLevel.fill(0.12f);
+    music.spectrumLevel.fill(0.12f);
+    music.kick = 0.0f;
+    music.snare = 0.0f;
+    music.hat = 0.0f;
+    music.beatPulse = 0.0f;
+    music.onsetPulse = 0.0f;
+    music.downbeat = 0.0f;
+    music.section = 0.0f;
+    music.clockConfidence = 0.0f;
+    if (role < 0) return music;
+    const int firstBand = role * 2;
+    music.bandLevel[firstBand] = 1.15f;
+    music.bandLevel[firstBand + 1] = 1.15f;
+    const int firstBin = role == 0 ? 0 : role == 1 ? 11 : 22;
+    const int lastBin = role == 0 ? 11 : role == 1 ? 22 : 32;
+    for (int index = firstBin; index < lastBin; ++index) {
+        music.spectrumLevel[index] = 1.15f;
+    }
+    music.spectralCentroid = role == 0 ? 0.18f : role == 1 ? 0.50f : 0.82f;
+    return music;
+}
+
 NativeSceneState baseScene(NativeSceneKind kind) {
     NativeSceneState scene;
     scene.development = 0.72f;
@@ -403,6 +438,47 @@ float measureAmbientMotion(NativeRenderer& renderer, NativeSceneKind kind,
         previous = current;
     }
     return total / 90.0f;
+}
+
+std::vector<float> renderSustainFrame(NativeRenderer& renderer,
+                                      NativeSceneKind kind, int role,
+                                      std::string& error) {
+    renderer.reset();
+    MusicFrame music = sustainMusic(-1);
+    for (int frame = 0; frame < 75; ++frame) {
+        if (!renderer.render(music, baseScene(kind), width, height,
+                             {0.46f, 0.72f, 1.0f}, 0, 1.0f,
+                             1.0f / 60.0f, error)) return {};
+    }
+    music = sustainMusic(role);
+    for (int frame = 0; frame < 45; ++frame) {
+        if (!renderer.render(music, baseScene(kind), width, height,
+                             {0.46f, 0.72f, 1.0f}, 0, 1.0f,
+                             1.0f / 60.0f, error)) return {};
+    }
+    return readTexture(renderer.texture(kind));
+}
+
+SustainResult measureSustain(NativeRenderer& renderer, NativeSceneKind kind,
+                             std::string& error) {
+    const auto baseline = renderSustainFrame(renderer, kind, -1, error);
+    const auto low = renderSustainFrame(renderer, kind, 0, error);
+    const auto middle = renderSustainFrame(renderer, kind, 1, error);
+    const auto high = renderSustainFrame(renderer, kind, 2, error);
+    if (baseline.empty() || low.empty() || middle.empty() || high.empty()) {
+        return {};
+    }
+    const auto lowDifference = luminanceDifference(baseline, low);
+    const auto middleDifference = luminanceDifference(baseline, middle);
+    const auto highDifference = luminanceDifference(baseline, high);
+    return {
+        .lowDifference = mean(lowDifference),
+        .middleDifference = mean(middleDifference),
+        .highDifference = mean(highDifference),
+        .lowMiddleSimilarity = similarity(lowDifference, middleDifference),
+        .lowHighSimilarity = similarity(lowDifference, highDifference),
+        .middleHighSimilarity = similarity(middleDifference, highDifference),
+    };
 }
 
 LatencyResult measureLatency(NativeRenderer& renderer,
@@ -646,6 +722,7 @@ SceneAudit auditScene(NativeRenderer& renderer, NativeSceneKind kind,
     audit.downbeatRatio = mean(luminanceDifference(
         regularBeatFrame, downbeatFrame)) / std::max(1e-7f, audit.idleMean);
     audit.meanChroma = meanChroma(regularBeatFrame);
+    audit.sustain = measureSustain(renderer, kind, error);
     const auto baseline = renderBaseline(renderer, 24, kind, error);
     if (baseline.empty()) return {};
     audit.kickLatency = measureLatency(renderer, baseline, 0, kind, error);
@@ -670,6 +747,13 @@ void printAudit(NativeSceneKind kind, const SceneAudit& audit) {
               << " anticipation=" << audit.anticipationRatio
               << " downbeat=" << audit.downbeatRatio
               << " chroma=" << audit.meanChroma
+              << " sustain=" << audit.sustain.lowDifference << ","
+              << audit.sustain.middleDifference << ","
+              << audit.sustain.highDifference
+              << " sustain_similarity="
+              << audit.sustain.lowMiddleSimilarity << ","
+              << audit.sustain.lowHighSimilarity << ","
+              << audit.sustain.middleHighSimilarity
               << " latency_frames=" << audit.kickLatency.peakFrame << ","
               << audit.snareLatency.peakFrame << ","
               << audit.hatLatency.peakFrame
@@ -690,6 +774,16 @@ bool auditPasses(const SceneAudit& audit) {
         || audit.snareHatSimilarity > 0.97f) return false;
     if (audit.anticipationRatio < 0.10f || audit.downbeatRatio < 0.10f
         || audit.meanChroma < 0.12f) return false;
+    // Sustained low, middle, and high material must remain visible between
+    // attacks, and each group must change a different part of the composition.
+    // This prevents scenes from reading only as percussion-triggered effects.
+    constexpr float minimumSustainDifference = 0.00004f;
+    if (audit.sustain.lowDifference < minimumSustainDifference
+        || audit.sustain.middleDifference < minimumSustainDifference
+        || audit.sustain.highDifference < minimumSustainDifference
+        || audit.sustain.lowMiddleSimilarity > 0.92f
+        || audit.sustain.lowHighSimilarity > 0.92f
+        || audit.sustain.middleHighSimilarity > 0.92f) return false;
     if (audit.kickLatency.peakFrame < 0 || audit.kickLatency.peakFrame > 6
         || audit.snareLatency.peakFrame < 0 || audit.snareLatency.peakFrame > 6
         || audit.hatLatency.peakFrame < 0 || audit.hatLatency.peakFrame > 6) {

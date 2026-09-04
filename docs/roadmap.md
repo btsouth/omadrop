@@ -643,3 +643,6 @@ Completed after v0.3:
 - Added separate sustained low, middle, and high contours to Spectral Ribbons.
   The lines now carry instrumentation between attacks while every band and
   percussion role stays spatially local and severe pulse duty remains zero.
+- Added an 18-scene sustained-frequency renderer gate. Low, middle, and high
+  material must each produce visible change in a different part of the scene,
+  so every composition continues to carry instrumentation between attacks.

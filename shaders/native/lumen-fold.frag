@@ -40,6 +40,12 @@ void main() {
     vec3 sheetColor = vec3(0.0);
     vec3 sheetGlow = vec3(0.0);
     vec3 reflectionColor = vec3(0.0);
+    float lowSustain = 1.0 - exp(
+        -0.32 * (bandLevel[0] + bandLevel[1]));
+    float midSustain = 1.0 - exp(
+        -0.32 * (bandLevel[2] + bandLevel[3]));
+    float highSustain = 1.0 - exp(
+        -0.32 * (bandLevel[4] + bandLevel[5]));
     for (int index = 0; index < 5; ++index) {
         float fi = float(index);
         float center = -0.56 + fi * 0.28 + 0.018 * sin(fi * 2.2);
@@ -61,7 +67,8 @@ void main() {
         float crease = line(across + halfWidth * 0.20
                            * sin(p.y * 8.0 + fi), 0.007)
                      * sheetWindow;
-        float level = 1.0 - exp(-0.18 * spectrumLevel[index * 6 + 2]);
+        float level = index < 2 ? lowSustain
+                    : index < 4 ? midSustain : highSustain;
         float lightBandY = -0.25 + 0.12 * float(index % 4);
         float lightBand = exp(-pow((p.y - lightBandY) / 0.075, 2.0))
                         * body * level;
@@ -157,7 +164,7 @@ void main() {
             + reflectionColor
             + sheetGlow
             + sheetColor
-            + accent * internalLight * 0.028
+            + accent * internalLight * 0.060
             + accent * beatPacket * 0.24
             + accent * beatTail * 0.080
             + primary * kickPools * 0.19

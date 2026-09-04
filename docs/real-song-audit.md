@@ -49,6 +49,13 @@ separate portions of its lines. The base composition now changes between
 attacks without any full-width scale or luminance control. Its severe-pulse
 duty remains zero on both complete songs and all five generated profiles.
 
+Every native scene now also passes a sustained-frequency gate. A held low,
+middle, or high signal must remain visible between percussion attacks, and
+each range must change a different part of the frame. The seven scenes that
+were weakest here gained small local details such as ridge contours, wall
+courses, petal tips, light sheets, and horizon stars. Both complete tracks and
+all 90 generated scene-profile combinations still pass after these changes.
+
 The automatic director also passes both songs:
 
 | Result | beat me | To Free Me |

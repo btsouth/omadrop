@@ -55,6 +55,9 @@ ship decision.
   frame. No more than one third of the library may use this grammar.
 
 A scene fails the automated quality floor when it exceeds its coverage budget.
+It also fails when sustained low, middle, or high-frequency material disappears
+between attacks, or when those groups change the same pixels. This keeps the
+song readable without requiring the scene to bounce on every transient.
 Full-frame brightness and scale pulses are not valid substitutes for distinct
 kick, snare, and hat gestures. Constant bounce, jitter, and whole-composition
 thumping also fail review even when they remain below an automated threshold.

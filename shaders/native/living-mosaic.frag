@@ -84,7 +84,7 @@ void main() {
         smoothstep(0.72, 0.96, cellIdentityB) * 0.34);
 
     int bandIndex = int(mod(abs(nearestCell.x * 2.0 + nearestCell.y * 3.0), 6.0));
-    float level = 1.0 - exp(-0.18 * bandLevel[bandIndex]);
+    float level = 1.0 - exp(-0.30 * bandLevel[bandIndex]);
     float spectralInlay = smoothstep(0.79, 0.94, cellIdentityB)
                         * relief * level;
 
@@ -146,7 +146,7 @@ void main() {
             + mix(cellColor, accent, 0.30) * innerSeam * frameWindow * 0.030
             + mix(primary, accent, 0.52) * seam * frameWindow * 0.030
             + accent * restingNuclei * frameWindow * 0.055
-            + accent * spectralInlay * frameWindow * 0.026
+            + accent * spectralInlay * frameWindow * 0.060
             + accent * beatEdge * frameWindow * 0.145
             + mix(primary, accent, 0.28) * kickCells * 0.135
             + mix(accent, vec3(1.0), 0.28) * snareLine * 0.28

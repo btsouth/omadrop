@@ -113,6 +113,10 @@
 - Let Spectral Ribbons' low, middle, and high lines carry separate sustained
   frequency contours between attacks. Each contour stays in its own horizontal
   window, so melodic movement does not become another full-field pulse.
+- Require every native scene to show spatially distinct sustained low, middle,
+  and high-frequency material between attacks. Add local currents, petal
+  details, void etchings, architectural courses, cell inlays, sheet light, and
+  landscape accents to the seven scenes that did not meet that floor.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

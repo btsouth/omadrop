@@ -65,6 +65,18 @@ void main() {
                        * line(radius - 0.48 * section, 0.014) * section;
     float medium = line(sin(radius * 18.0 - flowTime * 0.34), 0.20)
                  * harmonic * smoothstep(0.64, 0.12, radius) * 0.16;
+    float lowSustain = 1.0 - exp(
+        -0.32 * (bandLevel[0] + bandLevel[1]));
+    float highSustain = 1.0 - exp(
+        -0.32 * (bandLevel[4] + bandLevel[5]));
+    float rootArc = line(radius - (0.095 + 0.024 * lowSustain), 0.007)
+                  * smoothstep(0.86, 0.15,
+                      0.5 + 0.5 * sin(angle * 3.0 - 0.8))
+                  * lowSustain;
+    float tipGrain = line(
+        sin(angle * petals * 2.0 - flowTime * 0.10), 0.050)
+        * line(radius - petalRadius - 0.018, 0.030)
+        * highSustain;
 
     vec3 primary = palettePrimary(4.28);
     vec3 secondary = paletteSecondary(4.28);
@@ -78,6 +90,8 @@ void main() {
                                + sectionPetal + kickShock) * 0.30
                    + mix(accent, vec3(1.0), 0.34) * snareSpokes * 0.34
                    + mix(primary, vec3(1.0), 0.48) * hatHalo * 0.42
+                   + primary * rootArc * 0.13
+                   + mix(accent, vec3(1.0), 0.26) * tipGrain * 0.12
                    + mix(primary, secondary, 0.5) * medium * 0.08;
     injection *= 1.0 - 0.56 * release;
     float darkCore = smoothstep(0.045, 0.11, radius);

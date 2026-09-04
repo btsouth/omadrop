@@ -52,6 +52,12 @@ void main() {
     float sectionHorizon = line(p.y - horizon - section * 0.22, 0.014) * section;
     float sky = line(sin(p.x * 5.0 + p.y * 9.0 + flowTime * 0.13), 0.24)
               * harmonic * smoothstep(horizon + 0.5, horizon, p.y) * 0.16;
+    float highSustain = 1.0 - exp(
+        -0.30 * (bandLevel[4] + bandLevel[5]));
+    float highCurrent = line(
+        sin(p.x * 28.0 + p.y * 7.0 - flowTime * 0.18), 0.060)
+        * line(p.y - surfaceY - 0.13, 0.075)
+        * exp(-2.5 * abs(p.x - 0.30)) * highSustain;
 
     vec3 primary = palettePrimary(2.34);
     vec3 secondary = paletteSecondary(2.34);
@@ -64,6 +70,7 @@ void main() {
                    + mix(accent, vec3(1.0), 0.48) * hatDrops * 0.86
                    + accent * downbeatTide * 0.10
                    + accent * sectionHorizon * 0.18
+                   + mix(accent, vec3(1.0), 0.30) * highCurrent * 0.13
                    + secondary * sky * 0.05;
     injection *= 1.0 - 0.58 * release;
     vec3 result = feedback + injection;
