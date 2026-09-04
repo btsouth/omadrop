@@ -50,6 +50,9 @@ g++ -std=c++20 -O2 -Wall -Wextra musical_structure_test.cpp \
 g++ -std=c++20 -O2 -Wall -Wextra music_frame_test.cpp \
   -o music-frame-test $(pkg-config --cflags --libs fftw3f)
 
+g++ -std=c++20 -O2 -Wall -Wextra signal_monitor_test.cpp \
+  -o signal-monitor-test $(pkg-config --cflags --libs fftw3f)
+
 g++ -std=c++20 -O2 -Wall -Wextra native_scene_state_test.cpp \
   -o native-scene-state-test $(pkg-config --cflags --libs fftw3f)
 

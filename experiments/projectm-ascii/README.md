@@ -63,6 +63,14 @@ default, and `OMADROP_REPLAY_MAX_SECONDS` limits a motion-review excerpt.
 `OMADROP_REPLAY_WIDTH` and `OMADROP_REPLAY_HEIGHT` select a review resolution
 between 320x180 and 1920x1080.
 
+Set `OMADROP_REPLAY_SIGNAL_MONITOR=1` to add the developer signal monitor to
+replay frames and encoded review videos. Its eight lanes, from top to bottom,
+show beat phase, bar phase, clock confidence, kick, snare, hat, rhythmic
+density, and section novelty. Phase lanes use moving cursors; the remaining
+lanes use level bars. The monitor exists only in deterministic replay and can
+never appear during normal playback. Replay timelines also include BPM and
+clock confidence as numeric columns.
+
 Render all ten scenes across one song and assemble per-scene contact sheets
 plus a five-point comparison matrix with:
 

@@ -440,3 +440,7 @@ Completed after v0.3:
   area, when their responses accumulate into constant activity, or when even a
   deliberate flow scene spends more than 60 percent of its frames in coherent
   full-frame motion.
+- Added a replay-only signal monitor for deterministic tuning. It shows beat
+  and bar phase, clock confidence, separate percussion roles, rhythmic density,
+  and section novelty over the rendered scene, while the timeline records BPM
+  and confidence numerically. Normal playback cannot enable the monitor.

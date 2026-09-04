@@ -15,6 +15,7 @@ experiments/projectm-ascii/audio-queue-test
 experiments/projectm-ascii/structure-timeline-test
 experiments/projectm-ascii/musical-structure-test
 experiments/projectm-ascii/music-frame-test
+experiments/projectm-ascii/signal-monitor-test
 experiments/projectm-ascii/native-scene-state-test
 experiments/projectm-ascii/native-renderer-test
 experiments/projectm-ascii/native-renderer-soak

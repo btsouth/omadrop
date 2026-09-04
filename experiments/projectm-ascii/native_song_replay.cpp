@@ -3,6 +3,7 @@
 #include "musical_structure.h"
 #include "native_renderer.h"
 #include "native_scene_state.h"
+#include "signal_monitor.h"
 
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
@@ -46,18 +47,27 @@ std::vector<float> readTexture(GLuint texture, int width, int height) {
 
 bool writeRgb(std::ostream& output, const std::vector<float>& source,
               const std::vector<float>& incoming, float transition,
-              float exposure, int width, int height) {
+              float exposure, int width, int height,
+              const MusicFrame* signalMonitor = nullptr) {
     const float mix = std::clamp(transition, 0.0f, 1.0f);
     for (int y = height - 1; y >= 0; --y) {
         for (int x = 0; x < width; ++x) {
             const std::size_t offset = static_cast<std::size_t>(y * width + x) * 4;
+            std::array<float, 3> pixel{};
             for (int channel = 0; channel < 3; ++channel) {
                 const float linear = source[offset + channel] * (1.0f - mix)
                                    + incoming[offset + channel] * mix;
                 const float mapped = linear / (1.0f + linear * 0.85f);
-                const float exposed = std::clamp(mapped * exposure, 0.0f, 1.0f);
+                pixel[channel] = std::clamp(mapped * exposure, 0.0f, 1.0f);
+            }
+            if (signalMonitor) {
+                const int displayY = height - 1 - y;
+                pixel = signalMonitorPixel(
+                    *signalMonitor, x, displayY, width, height, pixel);
+            }
+            for (int channel = 0; channel < 3; ++channel) {
                 const auto value = static_cast<unsigned char>(
-                    std::pow(exposed, 1.0f / 2.2f) * 255.0f + 0.5f);
+                    std::pow(pixel[channel], 1.0f / 2.2f) * 255.0f + 0.5f);
                 output.write(reinterpret_cast<const char*>(&value), 1);
             }
         }
@@ -68,12 +78,13 @@ bool writeRgb(std::ostream& output, const std::vector<float>& source,
 bool writePpm(const std::filesystem::path& path,
               const std::vector<float>& source,
               const std::vector<float>& incoming, float transition,
-              float exposure, int width, int height) {
+              float exposure, int width, int height,
+              const MusicFrame* signalMonitor = nullptr) {
     std::ofstream output(path, std::ios::binary);
     if (!output) return false;
     output << "P6\n" << width << " " << height << "\n255\n";
     return writeRgb(output, source, incoming, transition, exposure,
-                    width, height);
+                    width, height, signalMonitor);
 }
 
 std::string sceneSlug(NativeSceneKind scene) {
@@ -175,7 +186,8 @@ int main(int argc, char** argv) {
     }
     std::ofstream timeline(outputDirectory / "timeline.tsv");
     timeline << "seconds\tscene\tkick\tsnare\that\tonset_pulse\tbeat_pulse\tbeat_phase"
-                "\tbar\tsection\tflux_sub\tflux_bass\tflux_low_mid\tflux_mid"
+                "\tbpm\tclock_confidence\tbar\tsection\tflux_sub\tflux_bass"
+                "\tflux_low_mid\tflux_mid"
                 "\tflux_presence\tflux_high\trhythmic_density\tsyncopation"
                 "\ttonal_motion\tharmonic_change\tmotion\tmotion_coverage"
                 "\tmotion_coherence\tglobal_pulse\n";
@@ -214,6 +226,8 @@ int main(int argc, char** argv) {
         fixedScene = true;
     }
     const bool measureMotion = std::getenv("OMADROP_REPLAY_MEASURE") != nullptr;
+    const bool showSignalMonitor
+        = std::getenv("OMADROP_REPLAY_SIGNAL_MONITOR") != nullptr;
     std::vector<float> pcm(AudioFeatureBus::hopSize * 2);
     std::size_t hops = 0;
     int captures = 0;
@@ -287,7 +301,7 @@ int main(int argc, char** argv) {
             const float exposure = sourceMaterial.fieldExposure * (1.0f - transition)
                                  + incomingMaterial.fieldExposure * transition;
             if (!writeRgb(frameStream, source, incoming, transition, exposure,
-                          width, height)) {
+                          width, height, showSignalMonitor ? &music : nullptr)) {
                 std::cerr << "could not write replay frame stream\n";
                 return 1;
             }
@@ -356,6 +370,7 @@ int main(int argc, char** argv) {
                  << '\t' << music.kick << '\t' << music.snare << '\t' << music.hat
                  << '\t' << music.onsetPulse << '\t' << music.beatPulse
                  << '\t' << music.beatPhase
+                 << '\t' << music.bpm << '\t' << music.clockConfidence
                  << '\t' << music.barPhase << '\t' << music.section
                  << '\t' << music.bandFlux[0] << '\t' << music.bandFlux[1]
                  << '\t' << music.bandFlux[2] << '\t' << music.bandFlux[3]
@@ -387,7 +402,8 @@ int main(int argc, char** argv) {
             const float exposure = sourceMaterial.fieldExposure * (1.0f - transition)
                                  + incomingMaterial.fieldExposure * transition;
             if (!writePpm(outputDirectory / filename.str(), source, incoming,
-                          transition, exposure, width, height)) {
+                          transition, exposure, width, height,
+                          showSignalMonitor ? &music : nullptr)) {
                 std::cerr << "could not write replay frame\n";
                 return 1;
             }
