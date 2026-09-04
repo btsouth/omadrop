@@ -24,6 +24,8 @@ uniform float percussive;
 uniform float harmonic;
 uniform float spectralCentroid;
 uniform float stereoWidth;
+uniform float tonalMotion;
+uniform float harmonicChange;
 uniform float energyFast;
 uniform float energySlow;
 uniform float energySlope;
@@ -82,6 +84,15 @@ void main() {
     float filamentWidth = 0.0065 + 0.0045 * middle + 0.0020 * development;
     float filament = line(p.x - spineX, filamentWidth)
                    * smoothstep(0.63, 0.49, abs(p.y));
+    float bodyWidth = 0.090 + 0.035 * development
+                    + 0.018 * sin(p.y * 7.0 - flowTime * 0.12
+                                  + phrasePhase * tau);
+    float membrane = line(abs(p.x - spineX) - bodyWidth,
+                          0.007 + 0.003 * harmonic);
+    membrane *= smoothstep(0.60, 0.47, abs(p.y));
+    float membraneRibs = membrane * line(
+        sin((p.y + 0.62) * 19.0 + (p.x - spineX) * 12.0
+            + flowTime * 0.16), 0.10);
 
     float loops = 0.0;
     float attachments = 0.0;
@@ -162,6 +173,10 @@ void main() {
     float lifecycleLight = 0.13 + 0.045 * development + 0.050 * drive
                          + 0.065 * peak;
     vec3 injection = mediumColor * backgroundMedium * (0.11 + 0.10 * harmonic)
+                   + mediumColor * membrane
+                     * (0.055 + 0.045 * harmonic + 0.040 * tonalMotion)
+                   + mix(mediumColor, accentColor, 0.24) * membraneRibs
+                     * (0.035 + 0.050 * harmonicChange)
                    + filamentColor * filament * (0.31 + lifecycleLight)
                    + loopColor * (focalSubject - filament * (0.58 + 0.42 * bandLevel[2]))
                      * (lifecycleLight + 0.060 * max(0.0, energySlope))

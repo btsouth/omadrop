@@ -43,12 +43,16 @@ void main() {
     float tips = 0.0;
     for (int index = 0; index < 9; ++index) {
         float fi = float(index);
-        float x = (fi - 4.0) * 0.105;
+        float centerWeight = 1.0 - abs(fi - 4.0) / 4.0;
+        float x = (fi - 4.0) * 0.105 + 0.014 * sin(fi * 2.4);
         float spectral = spectrumLevel[index * 3 + 2];
         float height = 0.22 + 0.31 * development + 0.075 * spectral
+                     + 0.075 * centerWeight
+                     + 0.032 * sin(fi * 1.7 + phrasePhase * tau)
                      + 0.070 * beatPulse + 0.055 * onsetPulse
                      + sceneKick * (0.055 + 0.014 * mod(fi, 3.0));
-        float width = 0.024 + 0.008 * bandLevel[index % 6];
+        float width = 0.021 + 0.008 * bandLevel[index % 6]
+                    + 0.004 * centerWeight;
         vec2 q = p;
         q.x -= sceneSnare * 0.065 * sin(fi * 1.7 + barPhase * tau);
         float crystal = line(crystalDistance(q, x, height, width), 0.055);

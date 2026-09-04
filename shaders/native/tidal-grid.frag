@@ -25,7 +25,7 @@ void main() {
                * smoothstep(0.0, 0.07, 1.0 - uv.x)
                * smoothstep(0.0, 0.07, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
-                  * mix(0.91, 0.965, harmonic)
+                  * mix(0.87, 0.945, harmonic)
                   * (1.0 - 0.038 * beatPulse - 0.050 * onsetPulse) * edge;
 
     float surfaceY = horizon + wave;
@@ -34,7 +34,7 @@ void main() {
     float depth = 0.18 / perspectiveY + flowTime * (0.28 + 0.20 * drive)
                 + beatPulse * 1.25 + onsetPulse * 0.95 + kick * 2.0
                 - beatAnticipation * 0.45;
-    float horizontalGrid = line(sin(depth * tau), 0.10 + 0.025 * energyFast)
+    float horizontalGrid = line(sin(depth * tau), 0.055 + 0.018 * energyFast)
                          * smoothstep(surfaceY + 0.03, surfaceY - 0.08, p.y);
     float spread = 1.0 / max(0.12, perspectiveY * 4.0);
     float verticalGrid = line(sin((p.x * spread + snare * p.y * 0.9) * 18.0), 0.06)
@@ -42,7 +42,8 @@ void main() {
     float crestTicks = line(sin(p.x * 44.0 - flowTime * 2.2), 0.055)
                      * surface * hat;
     float downbeatTide = line(p.y - mix(-0.44, surfaceY, beatPhase), 0.010)
-                       * downbeat * clockConfidence;
+                       * downbeat * clockConfidence
+                       * exp(-2.4 * abs(p.x));
     float sectionHorizon = line(p.y - horizon - section * 0.22, 0.014) * section;
     float sky = line(sin(p.x * 5.0 + p.y * 9.0 + flowTime * 0.13), 0.24)
               * harmonic * smoothstep(horizon + 0.5, horizon, p.y) * 0.16;
@@ -50,11 +51,13 @@ void main() {
     vec3 primary = palettePrimary(2.34);
     vec3 secondary = paletteSecondary(2.34);
     vec3 accent = paletteAccent(2.34);
-    vec3 injection = primary * horizontalGrid * (0.09 + 0.06 * bandLevel[0])
-                   + secondary * verticalGrid * (0.08 + 0.06 * bandLevel[2])
-                   + mix(primary, secondary, 0.42) * surface * 0.16
-                   + accent * (crestTicks + downbeatTide + sectionHorizon) * 0.22
-                   + secondary * sky * 0.07;
+    vec3 injection = primary * horizontalGrid * (0.065 + 0.045 * bandLevel[0])
+                   + secondary * verticalGrid * (0.055 + 0.040 * bandLevel[2])
+                   + mix(primary, secondary, 0.42) * surface * 0.11
+                   + accent * crestTicks * 0.20
+                   + accent * downbeatTide * 0.10
+                   + accent * sectionHorizon * 0.18
+                   + secondary * sky * 0.05;
     injection *= 1.0 - 0.58 * release;
     vec3 result = feedback + injection;
     result = max(result - vec3(0.0044), vec3(0.0));

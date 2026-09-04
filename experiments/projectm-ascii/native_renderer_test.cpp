@@ -53,11 +53,16 @@ struct SceneAudit {
     ContinuityResult continuity;
 };
 
-std::vector<float> readTexture(GLuint texture) {
-    std::vector<float> pixels(width * height * 4);
+std::vector<float> readTexture(GLuint texture, int textureWidth,
+                               int textureHeight) {
+    std::vector<float> pixels(textureWidth * textureHeight * 4);
     glBindTexture(GL_TEXTURE_2D, texture);
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, pixels.data());
     return pixels;
+}
+
+std::vector<float> readTexture(GLuint texture) {
+    return readTexture(texture, width, height);
 }
 
 std::vector<float> luminance(const std::vector<float>& pixels) {
@@ -116,13 +121,15 @@ float meanChroma(const std::vector<float>& pixels) {
 }
 
 bool writeReferencePpm(const std::filesystem::path& path,
-                       const std::vector<float>& pixels, float exposure) {
+                       const std::vector<float>& pixels, int textureWidth,
+                       int textureHeight, float exposure) {
     std::ofstream output(path, std::ios::binary);
     if (!output) return false;
-    output << "P6\n" << width << " " << height << "\n255\n";
-    for (int y = height - 1; y >= 0; --y) {
-        for (int x = 0; x < width; ++x) {
-            const std::size_t offset = static_cast<std::size_t>(y * width + x) * 4;
+    output << "P6\n" << textureWidth << " " << textureHeight << "\n255\n";
+    for (int y = textureHeight - 1; y >= 0; --y) {
+        for (int x = 0; x < textureWidth; ++x) {
+            const std::size_t offset
+                = static_cast<std::size_t>(y * textureWidth + x) * 4;
             for (int channel = 0; channel < 3; ++channel) {
                 const float linear = pixels[offset + channel];
                 const float mapped = linear / (1.0f + linear * 0.85f);
@@ -143,11 +150,14 @@ float smoothStep(float edge0, float edge1, float value) {
 }
 
 std::array<float, 3> displaySample(const std::vector<float>& pixels,
+                                   int textureWidth, int textureHeight,
                                    int x, int y) {
-    const int sourceX = std::clamp(x * width / 1280, 0, width - 1);
-    const int sourceY = std::clamp(y * height / 720, 0, height - 1);
+    const int sourceX = std::clamp(x * textureWidth / 1280,
+                                   0, textureWidth - 1);
+    const int sourceY = std::clamp(y * textureHeight / 720,
+                                   0, textureHeight - 1);
     const std::size_t offset
-        = static_cast<std::size_t>(sourceY * width + sourceX) * 4;
+        = static_cast<std::size_t>(sourceY * textureWidth + sourceX) * 4;
     std::array<float, 3> sample{};
     for (int channel = 0; channel < 3; ++channel) {
         const float linear = pixels[offset + channel];
@@ -163,6 +173,7 @@ std::array<float, 3> displaySample(const std::vector<float>& pixels,
 
 bool writeAsciiReferencePpm(const std::filesystem::path& path,
                             const std::vector<float>& pixels,
+                            int textureWidth, int textureHeight,
                             float exposure) {
     constexpr int outputWidth = 1280;
     constexpr int outputHeight = 720;
@@ -190,7 +201,8 @@ bool writeAsciiReferencePpm(const std::filesystem::path& path,
                     for (int offsetY = 0; offsetY < 6; ++offsetY) {
                         for (int offsetX = 0; offsetX < 6; ++offsetX) {
                             const auto candidate = displaySample(
-                                pixels, dotOriginX + offsetX,
+                                pixels, textureWidth, textureHeight,
+                                dotOriginX + offsetX,
                                 dotOriginY + offsetY);
                             const float sampleLight = 0.299f * candidate[0]
                                                     + 0.587f * candidate[1]
@@ -655,6 +667,8 @@ bool captureReference(NativeRenderer& renderer, NativeSceneKind kind,
                       const std::array<float, 3>& albumColor,
                       std::string& error) {
     renderer.reset();
+    constexpr int referenceWidth = 1280;
+    constexpr int referenceHeight = 720;
     MusicFrame music = baseMusic();
     for (int frame = 0; frame < 120; ++frame) {
         music.beatPhase = std::fmod(frame / 30.0f, 1.0f);
@@ -665,19 +679,23 @@ bool captureReference(NativeRenderer& renderer, NativeSceneKind kind,
             ? std::exp(-(frame % 60 - 30) * 8.0f / 60.0f) : 0.0f;
         music.hat = frame % 15 < 4
             ? std::exp(-(frame % 15) * 13.0f / 60.0f) : 0.0f;
-        if (!renderer.render(music, baseScene(kind), width, height,
+        if (!renderer.render(music, baseScene(kind), referenceWidth,
+                             referenceHeight,
                              albumColor, 0, 1.0f,
                              1.0f / 60.0f, error)) return false;
     }
     std::filesystem::create_directories(outputDirectory);
     std::filesystem::create_directories(outputDirectory / "ascii");
     const std::string slug(nativeSceneDefinition(kind).slug);
-    const std::vector<float> pixels = readTexture(renderer.texture(kind));
+    const std::vector<float> pixels = readTexture(
+        renderer.texture(kind), referenceWidth, referenceHeight);
     const NativeSceneMaterial material = nativeSceneMaterial(kind);
     return writeReferencePpm(outputDirectory / (slug + ".ppm"), pixels,
+                             referenceWidth, referenceHeight,
                              material.fieldExposure)
         && writeAsciiReferencePpm(outputDirectory / "ascii" / (slug + ".ppm"),
-                                  pixels, material.asciiExposure);
+                                  pixels, referenceWidth, referenceHeight,
+                                  material.asciiExposure);
 }
 
 std::optional<std::array<float, 3>> referenceColorFromEnvironment() {

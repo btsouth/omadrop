@@ -375,3 +375,10 @@ Completed after v0.3:
   roles, selection traits, transition anchors, and performance limits.
 - Added an opening-audio correlation audit. Controlled demo recordings now
   fail before export when captured audio does not match the approved source.
+- Added sparse, selective, and flow motion grammars with enforced continuous
+  coverage and global-pulse limits, then removed generic full-frame pulsing
+  from the selective scenes.
+- Added true 1280x720 continuous and ASCII review galleries across six album
+  colors and grayscale.
+- Raised all ten current scenes to the still-frame quality floor. Full-song
+  motion and operational regression review remain before Phase 0 is complete.

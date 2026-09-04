@@ -31,22 +31,23 @@ void main() {
         float depth = fi / 4.0;
         float kickReach = kick * smoothstep(0.22, 0.92, depth)
                         * (0.72 + 0.28 * sin(fi * 2.1 + barPhase * tau));
-        float width = mix(0.18, 0.68, depth) + 0.065 * kickReach;
-        float roof = mix(0.13, 0.48, depth) + 0.06 * development
+        float width = mix(0.18, 0.60, depth) + 0.060 * kickReach;
+        float roof = mix(0.13, 0.43, depth) + 0.055 * development
                    + 0.012 * downbeat;
         vec2 q = p;
         q.x -= snare * (0.025 + 0.045 * depth)
              * sin(fi * 1.8 + barPhase * tau);
         float archRadius = length(vec2(q.x / width, (q.y - roof * 0.28) / roof));
-        float arch = line(archRadius - 1.0, 0.025 + 0.012 * bandLevel[index]);
+        float arch = line(archRadius - 1.0,
+                          0.017 + 0.007 * bandLevel[index]);
         arch *= smoothstep(-0.45, -0.12, q.y);
         float pillars = line(abs(q.x) - width, 0.009 + 0.005 * bandLevel[2]);
         pillars *= smoothstep(roof * 0.25, -0.52, q.y);
         float structure = max(arch, pillars);
-        float layerWeight = mix(1.0, 0.38, depth);
+        float layerWeight = mix(1.0, 0.18, depth);
         architecture = max(architecture, structure * layerWeight);
         distantArchitecture = max(distantArchitecture,
-                                  structure * depth * 0.62);
+                                  structure * depth * 0.38);
         windows += arch * line(sin(atan(q.y, q.x) * 18.0 + flowTime), 0.08) * hat;
     }
     float aisle = line(abs(p.x) - (0.05 + 0.34 * (p.y + 0.5)), 0.009)
@@ -77,14 +78,16 @@ void main() {
     vec3 secondary = paletteSecondary(2.82);
     vec3 accent = paletteAccent(2.82);
     vec3 injection = primary * architecture * (0.14 + 0.08 * harmonic)
-                   + secondary * distantArchitecture * 0.065
+                   + secondary * distantArchitecture * 0.040
                    + secondary * (aisle + floorBars) * (0.09 + 0.06 * energySlow)
                    + accent * windows * (0.34 + 0.28 * hat)
                    + mix(primary, accent, 0.38) * roseWindow * 0.15
                    + accent * (beatArch + downbeatArch + sectionRose) * 0.24
                    + mix(primary, secondary, 0.5) * ambience * 0.08;
     injection *= 1.0 - 0.56 * release;
-    vec3 result = feedback + injection;
+    float compositionMask = mix(1.0, 0.72,
+        smoothstep(0.34, 0.82, length(p)));
+    vec3 result = (feedback + injection) * compositionMask;
     result = max(result - vec3(0.0043), vec3(0.0));
     color = vec4(result, 1.0);
 }

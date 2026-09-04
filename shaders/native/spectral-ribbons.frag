@@ -25,19 +25,25 @@ void main() {
                * smoothstep(0.0, 0.07, 1.0 - uv.x)
                * smoothstep(0.0, 0.07, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
-                  * mix(0.865, 0.935, harmonic)
+                  * mix(0.835, 0.915, harmonic)
                   * (1.0 - 0.018 * beatPulse - 0.070 * roleGesture) * edge;
 
     float lowRibbon = 0.0;
     float midRibbon = 0.0;
     float highRibbon = 0.0;
     float intersections = 0.0;
+    float travelers = 0.0;
+    float weaveFocus = exp(-5.2 * p.x * p.x);
+    float travelerX = mix(-0.72, 0.72, beatPhase);
     for (int index = 0; index < 8; ++index) {
         float fi = float(index);
-        float y = (fi - 3.5) * 0.105;
+        float lane = fi - 3.5;
+        float y = lane * 0.105 * (1.0 - 0.42 * weaveFocus)
+                + weaveFocus * 0.026
+                  * sin(fi * 2.1 + phrasePhase * tau);
         float band = spectrumLevel[index * 4 + 1];
         float frequency = 2.2 + fi * 0.72;
-        float amplitude = 0.016 + 0.023 * band + 0.008 * development
+        float amplitude = 0.013 + 0.020 * band + 0.008 * development
                         + (beatPulse + 0.45 * onsetPulse)
                           * (0.007 + 0.0010 * fi);
         float roleWidth = 0.0;
@@ -59,6 +65,9 @@ void main() {
         float curve = y + amplitude * sin(p.x * frequency * tau
                     - flowTime * (0.065 + 0.018 * fi)
                     + phrasePhase * tau * 0.18);
+        curve += (0.018 + 0.020 * development)
+               * sin(p.x * tau * 0.72 + fi * 0.66
+                     + phrasePhase * tau * 0.24);
         if (index < 3) {
             curve += kick * 0.044
                    * sin(p.x * (frequency + 1.4) * tau + fi * 0.7);
@@ -69,14 +78,18 @@ void main() {
             curve += hat * 0.062
                    * sin(p.x * frequency * 3.2 * tau - flowTime * 3.0 + fi);
         }
-        float ribbon = line(p.y - curve, 0.006 + 0.004 * band + roleWidth);
+        float roleDepth = index < 3 ? 1.0 : index < 6 ? 0.78 : 0.62;
+        float ribbon = line(p.y - curve,
+                            0.005 + 0.0035 * band + roleWidth);
+        ribbon *= smoothstep(0.88, 0.68, abs(p.x)) * roleDepth;
         if (index < 3) lowRibbon = max(lowRibbon, ribbon);
         else if (index < 6) midRibbon = max(midRibbon, ribbon);
         else highRibbon = max(highRibbon, ribbon);
-        intersections += ribbon * line(sin(p.x * 32.0 + fi), 0.06) * hat;
-    }
-    float playhead = line(p.x - mix(-0.72, 0.72, beatPhase), 0.008)
+        intersections += ribbon * line(sin(p.x * 32.0 + fi), 0.06)
+                       * hat * (0.42 + 0.88 * weaveFocus);
+        travelers += ribbon * line(p.x - travelerX, 0.026)
                    * clockConfidence * (0.16 + 0.84 * downbeat);
+    }
     float sectionBand = line(abs(p.y) - mix(0.06, 0.46, section), 0.012) * section;
     float harmonicField = line(sin(p.x * 7.0 + p.y * 13.0 - flowTime * 0.18), 0.24)
                         * harmonic * 0.09;
@@ -85,15 +98,15 @@ void main() {
     vec3 secondary = paletteSecondary(3.76);
     vec3 accent = paletteAccent(3.76);
     vec3 injection = primary * lowRibbon
-                     * (0.12 + 0.07 * bandLevel[0]
+                     * (0.14 + 0.08 * bandLevel[0]
                         + 0.06 * beatPulse + 0.88 * kick)
                    + secondary * midRibbon
-                     * (0.12 + 0.07 * bandLevel[3]
+                     * (0.11 + 0.06 * bandLevel[3]
                         + 0.06 * beatPulse + 1.00 * snare)
                    + accent * highRibbon
-                     * (0.13 + 0.08 * bandLevel[5]
+                     * (0.10 + 0.07 * bandLevel[5]
                         + 0.06 * beatPulse + 1.28 * hat)
-                   + accent * (intersections + playhead + sectionBand) * 0.20
+                   + accent * (intersections + travelers + sectionBand) * 0.20
                    + mix(primary, secondary, 0.5) * harmonicField * 0.07;
     injection *= 1.0 - 0.57 * release;
     vec3 result = feedback + injection;
