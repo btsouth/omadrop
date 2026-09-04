@@ -745,3 +745,8 @@ Completed after v0.3:
   local rhythmic shuttles instead of sharing Bloom Engine's radial expansion.
   It passes all five locked profiles and both complete approved songs with
   moderate whole-frame pulse duty below 0.5 percent on the real tracks.
+- Rebuilt Constellation Field after the current still review exposed its
+  striped links as oversized rods. The new fixed route uses thin curved links,
+  four satellite branches, three local percussion regions, and one traveling
+  beat marker. All five locked profiles and both approved full songs pass with
+  zero broad-pulse frames.

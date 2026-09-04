@@ -340,6 +340,7 @@ int main(int argc, char** argv) {
     }
 
     float minimumSceneColorDifference = 1.0f;
+    NativeSceneKind minimumColorDifferenceScene = NativeSceneKind::DepthTunnel;
     float maximumSceneLuminanceDifference = 0.0f;
     for (std::size_t sceneIndex = 0;
          sceneIndex < nativeSceneCount; ++sceneIndex) {
@@ -362,8 +363,11 @@ int main(int argc, char** argv) {
         assert(compositor.render(frame, error));
         glFinish();
         const std::vector<unsigned char> colorSafe = readFrame();
-        minimumSceneColorDifference = std::min(
-            minimumSceneColorDifference, meanDifference(standard, colorSafe));
+        const float colorDifference = meanDifference(standard, colorSafe);
+        if (colorDifference < minimumSceneColorDifference) {
+            minimumSceneColorDifference = colorDifference;
+            minimumColorDifferenceScene = scene;
+        }
         maximumSceneLuminanceDifference = std::max(
             maximumSceneLuminanceDifference,
             meanLuminanceDifference(standard, colorSafe));
@@ -375,6 +379,8 @@ int main(int argc, char** argv) {
     }
     std::cout << "color-safe scenes=" << nativeSceneCount
               << " minimum_color_difference=" << minimumSceneColorDifference
+              << " minimum_scene="
+              << nativeSceneDefinition(minimumColorDifferenceScene).name
               << " maximum_luminance_difference="
               << maximumSceneLuminanceDifference << '\n';
     assert(minimumSceneColorDifference > 0.002f);

@@ -12,7 +12,7 @@ ship decision.
 | Bloom Engine | Pass | Pass | Selective | Pass | Pass | Pass | Keep petal growth distinct from directional thread motion | Two full songs pass; live output |
 | Negative Space | Pass | Pass | Sparse | Pass | Pass | Pass | Preserve the dominant void when several roles overlap | Two full songs pass; live output |
 | Centrifuge | Pass | Pass | Selective | Pass | Pass | Pass | Side rails can dominate quiet passages | Two full songs pass; live output |
-| Constellation Field | Pass | Pass | Sparse | Pass | Pass | Pass | Keep its role-specific node groups legible when events overlap | Two full songs pass; live output |
+| Constellation Field | Pass | Pass | Sparse | Pass | Pass | Pass | Keep the fixed route and satellite branches legible when cues overlap | Two full songs pass; live output |
 | Depth Tunnel | Pass | Pass | Flow | Pass | Pass | Pass | Keep deliberate depth travel broad while percussion remains local | Two full songs pass; live output |
 | Glass Choir | Pass | Pass | Selective | Pass | Pass | Pass | Keep harmonic movement internal to the fixed shards | Two full songs pass; live output |
 | Ink Current | Pass | Pass | Selective | Pass | Pass | Pass | Keep event marks subordinate to the stable current | Two full songs pass; live output |
@@ -93,6 +93,14 @@ kick knots and snare heddles, and no shared snare rotation or expanding onset
 rings. All five replay profiles and both complete approved songs pass with the
 new motion. Across the real tracks, moderate whole-frame pulse duty stays below
 0.5 percent and severe pulse duty stays below 0.02 percent.
+
+The still review exposed Constellation Field's previous striped links as three
+oversized rods rather than a coherent network. Its replacement is a fixed,
+hand-composed route with thin curved links and four satellite branches. Kicks
+light three low nodes, snares dash only the central bridge, hats activate the
+right satellites, and one marker carries beat position through the route. All
+five replay profiles and both complete approved songs pass with zero moderate
+or severe broad-pulse frames.
 
 Run the anonymous final review without exposing scene names:
 

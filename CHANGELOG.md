@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Rebuild Constellation Field as a hand-composed star route with thin curved
+  links, satellite branches, and separate local kick, snare, hat, and beat
+  roles. The replacement removes its oversized striped rods and produces zero
+  broad-pulse frames across all locked profiles and both approved songs.
 - Redesign Orbital Loom around an offset horizontal weave, directional
   transport, and local rhythmic shuttles. This separates it from Bloom Engine,
   removes shared snare rotation and expanding onset rings, and keeps broad
