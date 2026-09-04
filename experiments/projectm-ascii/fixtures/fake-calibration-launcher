@@ -1,0 +1,9 @@
+#!/bin/bash
+set -euo pipefail
+printf 'launcher calibration=%s art=%s scene=%s replace=%s ready=%s arg=%s\n' \
+  "${OMADROP_CALIBRATION:-}" "${OMADROP_DISABLE_ART:-}" \
+  "${OMADROP_NATIVE_SCENE:-}" "${OMADROP_REPLACE_RUNNING:-}" \
+  "${OMADROP_READY_FILE:-}" "${1:-}" \
+  >>"$OMADROP_TEST_CALIBRATION_LOG"
+: >"$OMADROP_READY_FILE"
+sleep 0.25

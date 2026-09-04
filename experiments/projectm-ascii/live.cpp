@@ -473,6 +473,7 @@ int main(int argc, char** argv) {
         return 2;
     }
     const bool nativeEnabled = rendererName == "native";
+    const bool calibrationMode = std::getenv("OMADROP_CALIBRATION") != nullptr;
     LivePreferences preferences = loadLivePreferences();
     bool asciiEnabled = std::getenv("OMADROP_ASCII")
         ? std::string(std::getenv("OMADROP_ASCII")) != "0"
@@ -865,6 +866,8 @@ int main(int argc, char** argv) {
         ? std::filesystem::path{}
         : std::filesystem::path(startGatePath.string() + "."
             + std::to_string(displayIndex) + ".ready");
+    const std::filesystem::path readyPath = std::getenv("OMADROP_READY_FILE")
+        ? std::getenv("OMADROP_READY_FILE") : "";
     const std::filesystem::path recordStopPath
         = std::getenv("OMADROP_RECORD_STOP_FILE")
         ? std::getenv("OMADROP_RECORD_STOP_FILE") : "";
@@ -879,6 +882,7 @@ int main(int argc, char** argv) {
     uint64_t revealStartedAt = 0;
     bool closing = false;
     uint64_t closeStartedAt = 0;
+    uint64_t calibrationStatusAt = 0;
     const std::string forcedCoverPath = std::getenv("OMADROP_COVER_PATH")
         ? std::getenv("OMADROP_COVER_PATH") : "";
     const bool disableArt = std::getenv("OMADROP_DISABLE_ART") != nullptr
@@ -1080,7 +1084,12 @@ int main(int argc, char** argv) {
         std::string pairedControlRequest;
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_KEYDOWN && event.key.repeat != 0) continue;
+            const bool calibrationDelayKey = calibrationMode
+                && event.type == SDL_KEYDOWN
+                && (event.key.keysym.sym == SDLK_LEFTBRACKET
+                    || event.key.keysym.sym == SDLK_RIGHTBRACKET);
+            if (event.type == SDL_KEYDOWN && event.key.repeat != 0
+                && !calibrationDelayKey) continue;
             if (event.type == SDL_QUIT ||
                 (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
                 if (pairedFollower) pairedControlRequest = "quit";
@@ -1089,8 +1098,13 @@ int main(int argc, char** argv) {
                     pairedControlsChanged = true;
                 }
             }
-            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_n) skipPreset = true;
-            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_p) previousPreset = true;
+            if (calibrationMode && event.type == SDL_KEYDOWN
+                && !calibrationDelayKey
+                && event.key.keysym.sym != SDLK_ESCAPE) continue;
+            if (!calibrationMode && event.type == SDL_KEYDOWN
+                && event.key.keysym.sym == SDLK_n) skipPreset = true;
+            if (!calibrationMode && event.type == SDL_KEYDOWN
+                && event.key.keysym.sym == SDLK_p) previousPreset = true;
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_a) {
                 if (pairedFollower) pairedControlRequest = "ascii";
                 else {
@@ -1165,6 +1179,7 @@ int main(int argc, char** argv) {
                     std::cerr << "audio sync delay: " << syncDelayMs << " ms\n";
                     statusOverlay.show(
                         "SYNC: " + std::to_string(syncDelayMs) + " MS", now);
+                    calibrationStatusAt = 0;
                 }
             }
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_RIGHTBRACKET) {
@@ -1176,6 +1191,7 @@ int main(int argc, char** argv) {
                     std::cerr << "audio sync delay: " << syncDelayMs << " ms\n";
                     statusOverlay.show(
                         "SYNC: " + std::to_string(syncDelayMs) + " MS", now);
+                    calibrationStatusAt = 0;
                 }
             }
         }
@@ -1935,7 +1951,8 @@ int main(int argc, char** argv) {
         const float frameSeconds = std::min(0.1f, (now - previousFrameAt) / 1000.0f);
         previousFrameAt = now;
         if (nativeEnabled) {
-            const bool manualSceneRequest = skipPreset || previousPreset;
+            const bool manualSceneRequest
+                = !calibrationMode && (skipPreset || previousPreset);
             if (skipPreset) nativeSceneDirector.requestNext();
             if (previousPreset) nativeSceneDirector.requestPrevious();
             const bool scriptedLeader = !scriptedScenes.empty() && !pairedFollower;
@@ -1985,7 +2002,7 @@ int main(int argc, char** argv) {
             }
             nativeSceneState = nativeSceneDirector.update(
                 musicFrame, frameSeconds,
-                !pairedFollower && scriptedScenes.empty());
+                !pairedFollower && scriptedScenes.empty() && !calibrationMode);
             if (nativeSceneState.transitioning && !nativeTransitionWasActive) {
                 const int authoredTransitionMode
                     = static_cast<int>(nativeSceneState.transitionStyle);
@@ -2175,6 +2192,14 @@ int main(int argc, char** argv) {
             running = false;
             continue;
         }
+        if (calibrationMode
+            && (calibrationStatusAt == 0 || now - calibrationStatusAt >= 1100)) {
+            statusOverlay.show(
+                "SYNC " + std::to_string(syncDelayMs)
+                    + " MS  [ EARLIER  ] LATER  ESC DONE",
+                now);
+            calibrationStatusAt = now;
+        }
         if (!statusOverlay.render(outputW, outputH, now, compositorError)) {
             std::cerr << "status overlay: " << compositorError << "\n";
             running = false;
@@ -2193,6 +2218,7 @@ int main(int argc, char** argv) {
                 ready << getpid() << '\n';
             }
             SDL_ShowWindow(window);
+            signalRecordingMarker(readyPath);
             if (startGatePath.empty()) revealStartedAt = now;
             SDL_DisableScreenSaver();
             windowShown = true;

@@ -1,0 +1,6 @@
+#!/bin/bash
+set -euo pipefail
+printf 'player' >>"$OMADROP_TEST_CALIBRATION_LOG"
+printf ' %q' "$@" >>"$OMADROP_TEST_CALIBRATION_LOG"
+printf '\n' >>"$OMADROP_TEST_CALIBRATION_LOG"
+sleep 0.05

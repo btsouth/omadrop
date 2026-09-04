@@ -4,10 +4,15 @@ set -euo pipefail
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-launcher-test.XXXXXX")
 launcher_pid=
+existing_renderer=
 cleanup() {
   if [[ -n $launcher_pid ]] && kill -0 "$launcher_pid" 2>/dev/null; then
     kill -TERM "$launcher_pid" 2>/dev/null || true
     wait "$launcher_pid" 2>/dev/null || true
+  fi
+  if [[ -n $existing_renderer ]] && kill -0 "$existing_renderer" 2>/dev/null; then
+    kill -TERM "$existing_renderer" 2>/dev/null || true
+    wait "$existing_renderer" 2>/dev/null || true
   fi
   rm -rf -- "$scratch"
 }
@@ -114,6 +119,41 @@ if compgen -G "$hotplug_runtime/display-*.pid" >/dev/null; then
   exit 1
 fi
 [[ ! -e $hotplug_runtime/start-gate ]]
+
+replace=$scratch/replace
+mkdir -p "$replace/runtime"
+replace_events=$replace/events.log
+replace_processes=$replace/processes.log
+replace_hypr_log=$replace/hypr.log
+touch "$replace_events" "$replace_processes" "$replace_hypr_log"
+fake_live=$root/experiments/projectm-ascii/fixtures/fake-launch-renderer
+bash -c 'exec -a "$1" sleep 60' _ "$fake_live" &
+existing_renderer=$!
+for ((attempt = 0; attempt < 50; attempt++)); do
+  pgrep -f "^${fake_live//./\\.}( |$)" >/dev/null && break
+  sleep 0.02
+done
+pgrep -f "^${fake_live//./\\.}( |$)" >/dev/null || {
+  echo "launcher test: could not establish an existing renderer" >&2
+  exit 1
+}
+OMADROP_REPLACE_RUNNING=1 \
+XDG_RUNTIME_DIR=$replace/runtime \
+OMADROP_HYPRCTL=$root/experiments/projectm-ascii/fixtures/fake-hyprctl \
+OMADROP_LIVE_EXECUTABLE=$fake_live \
+OMADROP_RUN_CURATED=$fake_live \
+OMADROP_TEST_EVENT_LOG=$replace_events \
+OMADROP_TEST_PROCESS_FILE=$replace_processes \
+OMADROP_TEST_HYPR_LOG=$replace_hypr_log \
+  "$root/bin/omadrop" --all
+if kill -0 "$existing_renderer" 2>/dev/null; then
+  echo "launcher test: calibration replacement retained the old renderer" >&2
+  exit 1
+fi
+wait "$existing_renderer" 2>/dev/null || true
+existing_renderer=
+grep -q '^revealed 0$' "$replace_events"
+grep -q '^revealed 1$' "$replace_events"
 
 crash=$scratch/crash
 mkdir -p "$crash/runtime" "$crash/state"

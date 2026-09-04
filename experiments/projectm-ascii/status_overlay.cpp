@@ -54,6 +54,8 @@ std::array<unsigned char, glyphHeight> glyph(char character) {
         case ':': return {0, 4, 4, 0, 4, 4, 0};
         case '%': return {17, 2, 4, 8, 17, 0, 0};
         case '/': return {1, 2, 2, 4, 8, 8, 16};
+        case '[': return {14, 8, 8, 8, 8, 8, 14};
+        case ']': return {14, 2, 2, 2, 2, 2, 14};
         default: return {};
     }
 }

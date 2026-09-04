@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add `omadrop calibrate`, a fixed-scene reference-beat session that measures
+  the real output and capture path and saves `[` earlier / `]` later timing for
+  each audio device.
 - Add a persisted, paired-display color-safe palette on `C`. It preserves
   scene luminance structure, uses a restrained blue and gold range, and leaves
   album-cover color intact.

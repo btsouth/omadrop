@@ -1,0 +1,38 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-calibrate-test.XXXXXX")
+log=$scratch/events.log
+output=$scratch/output.log
+cleanup() {
+  rm -rf -- "$scratch"
+}
+trap cleanup EXIT
+: >"$log"
+
+OMADROP_TEST_CALIBRATION_LOG=$log \
+OMADROP_CALIBRATE_FFMPEG=$root/experiments/projectm-ascii/fixtures/fake-calibration-ffmpeg \
+OMADROP_CALIBRATE_LAUNCHER=$root/experiments/projectm-ascii/fixtures/fake-calibration-launcher \
+OMADROP_CALIBRATE_PLAYER=$root/experiments/projectm-ascii/fixtures/fake-calibration-player \
+OMADROP_CALIBRATE_AUDIO_SECONDS=2 \
+TMPDIR=$scratch \
+  "$root/bin/omadrop-calibrate" >"$output"
+
+grep -q '^ffmpeg ' "$log"
+grep -q 'aevalsrc=' "$log"
+grep -q 'launcher calibration=1 art=1 scene=constellation-field replace=1 ' "$log"
+grep -q ' arg=--single$' "$log"
+grep -q '^player --volume 0\.35 ' "$log"
+grep -q 'Press \[ if the visual lands after the sound.' "$output"
+grep -q 'Press ] if the visual lands before the sound.' "$output"
+grep -q 'Calibration saved for the current audio output.' "$output"
+if compgen -G "$scratch/omadrop-calibrate.*" >/dev/null; then
+  echo "calibration test: temporary session was not cleaned" >&2
+  exit 1
+fi
+
+"$root/bin/omadrop" calibrate --help >"$scratch/help"
+grep -q '^Usage: omadrop calibrate$' "$scratch/help"
+
+echo "output calibration workflow passed"

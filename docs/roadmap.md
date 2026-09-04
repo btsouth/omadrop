@@ -152,7 +152,7 @@ count.
   preprocessing pass.
 - Add an optional developer signal monitor that overlays timing and confidence
   during replay, never during normal playback.
-- Calibrate end-to-end presentation delay per output with a repeatable tool.
+- [x] Calibrate end-to-end presentation delay per output with a repeatable tool.
 
 ### Exit criteria
 
@@ -351,7 +351,7 @@ Allow more people to create scenes while keeping the official rotation strict.
    regressions needed to close Phase 0.
 3. Normalize transient response and stabilize tempo, downbeat, and phrase
    detection across the replay set.
-4. Add the developer signal monitor and repeatable presentation-delay tool.
+4. [x] Add the developer signal monitor and repeatable presentation-delay tool.
 5. Continue splitting track state, display session, cover presentation,
    direction, and rendering out of the live application loop.
 6. Tune automatic direction across the complete 18-scene library and enforce

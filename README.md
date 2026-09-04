@@ -150,6 +150,7 @@ missing Arch packages with `omarchy pkg add`.
 ```bash
 omadrop             # all connected displays
 omadrop --single    # focused display only
+omadrop calibrate   # align visuals with the current audio output
 ```
 
 | Key | Action |
@@ -180,8 +181,10 @@ are remembered between launches. Favorites
 slightly influence automatic selection when several scenes fit the music.
 Hidden scenes leave automatic rotation and N/P navigation. Omadrop always keeps
 at least two scenes available. Per-output audio delay is remembered for each
-output device. A compact status label confirms each change. Manual scene skips
-show `AUTO: <scene>` because `N` and `P` never disable automatic direction.
+output device. `omadrop calibrate` plays a repeating reference beat, holds one
+readable scene, and guides the `[` earlier / `]` later adjustment through the
+real output and capture path. A compact status label confirms each change.
+Manual scene skips show `AUTO: <scene>` because `N` and `P` never disable automatic direction.
 `OMADROP_ASCII=0` remains available as a temporary override.
 
 See the [control reference](docs/controls.md) for persistence and automatic

@@ -21,6 +21,12 @@
 | `F11` | Toggle fullscreen | No |
 | `Esc` | Quit | No |
 
+Run `omadrop calibrate` after changing speakers, headphones, or Bluetooth
+devices when the visual onset does not land with the sound. It plays a repeating
+reference beat through the normal output, keeps one scene fixed, and saves the
+`[` earlier / `]` later correction for that output. Pause other audio while
+calibrating.
+
 Every key works from either Omadrop window. The leader applies the request and
 sends one complete control and scene snapshot to every follower.
 

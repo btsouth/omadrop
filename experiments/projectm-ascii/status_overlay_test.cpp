@@ -30,6 +30,11 @@ int main(int argc, char** argv) {
         "THIS STATUS MESSAGE IS DELIBERATELY LONGER THAN THE DISPLAY LIMIT");
     assert(capped.width <= 885);
 
+    const StatusBitmap calibration = rasterizeStatusLabel(
+        "SYNC 35 MS  [ EARLIER  ] LATER  ESC DONE");
+    assert(calibration.width > 600);
+    assert(calibration.width < 885);
+
     assert(SDL_Init(SDL_INIT_VIDEO) == 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);

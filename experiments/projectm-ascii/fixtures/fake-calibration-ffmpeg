@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+printf 'ffmpeg' >>"$OMADROP_TEST_CALIBRATION_LOG"
+printf ' %q' "$@" >>"$OMADROP_TEST_CALIBRATION_LOG"
+printf '\n' >>"$OMADROP_TEST_CALIBRATION_LOG"
+output=${!#}
+: >"$output"

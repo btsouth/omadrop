@@ -52,6 +52,11 @@ if [[ ${1:-} == pack ]]; then
   exec "$root/bin/omadrop-pack" "$@"
 fi
 
+if [[ ${1:-} == calibrate ]]; then
+  shift
+  exec "$root/bin/omadrop-calibrate" "$@"
+fi
+
 case ${1:-} in
   --version)
     printf 'Omadrop %s\n' "$(<"$root/VERSION")"
@@ -60,6 +65,7 @@ case ${1:-} in
   -h|--help)
     cat <<'EOF'
 Usage: omadrop [--single|--all|--toggle-secondary|--version]
+       omadrop calibrate
        omadrop pack validate PACK_DIRECTORY
        omadrop pack author PACK_DIRECTORY [SCENE_SLUG]
        omadrop pack install PACK_DIRECTORY
@@ -70,6 +76,7 @@ Usage: omadrop [--single|--all|--toggle-secondary|--version]
   --all               Visualize on every connected display (default)
   --toggle-secondary  Hide or restore the secondary Omadrop display
   --version            Print the installed version
+  calibrate            Align visuals with the current audio output
   pack validate        Validate a native scene pack without installing it
   pack author          Preview and live-reload a scene pack
   pack install         Validate and install a community scene pack
@@ -132,7 +139,24 @@ runner=${OMADROP_RUN_CURATED:-$root/experiments/projectm-ascii/run-curated.sh}
 running=$(pgrep -f "^${live//./\\.}( |$)" || true)
 if [[ -n $running ]]; then
   kill -TERM $running 2>/dev/null || true
-  exit 0
+  if [[ ${OMADROP_REPLACE_RUNNING:-0} != 1 ]]; then
+    exit 0
+  fi
+  for ((attempt = 0; attempt < 100; attempt++)); do
+    renderer_alive=0
+    for pid in $running; do
+      if kill -0 "$pid" 2>/dev/null; then
+        renderer_alive=1
+        break
+      fi
+    done
+    ((renderer_alive == 0)) && break
+    sleep 0.05
+  done
+  if ((renderer_alive)); then
+    echo "omadrop: existing renderer did not stop" >&2
+    exit 1
+  fi
 fi
 
 export OMADROP_FULLSCREEN=${OMADROP_FULLSCREEN:-1}

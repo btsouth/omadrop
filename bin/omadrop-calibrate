@@ -1,0 +1,129 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+launcher=${OMADROP_CALIBRATE_LAUNCHER:-$root/bin/omadrop}
+ffmpeg_command=${OMADROP_CALIBRATE_FFMPEG:-ffmpeg}
+player_command=${OMADROP_CALIBRATE_PLAYER:-pw-play}
+audio_seconds=${OMADROP_CALIBRATE_AUDIO_SECONDS:-30}
+ready_attempts=${OMADROP_CALIBRATE_READY_ATTEMPTS:-240}
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-calibrate.XXXXXX")
+click_track=$scratch/calibration.wav
+ready_file=$scratch/renderer-ready
+visualizer_pid=
+player_pid=
+
+usage() {
+  cat <<'EOF'
+Usage: omadrop calibrate
+
+Play a repeating reference beat and align Omadrop with the current audio output.
+The saved delay belongs to that output device.
+
+  [    Move the visuals 10 ms earlier
+  ]    Move the visuals 10 ms later
+  Esc  Save and finish
+EOF
+}
+
+stop_process() {
+  local pid=${1:-}
+  [[ -n $pid ]] || return 0
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+  fi
+}
+
+cleanup() {
+  stop_process "$player_pid"
+  stop_process "$visualizer_pid"
+  rm -f -- "$click_track" "$ready_file"
+  rmdir "$scratch" 2>/dev/null || true
+}
+
+case ${1:-} in
+  -h|--help) usage; exit 0 ;;
+  '') ;;
+  *) echo "omadrop calibrate: unknown option: $1" >&2; usage >&2; exit 2 ;;
+esac
+
+[[ $audio_seconds =~ ^[1-9][0-9]*$ && $ready_attempts =~ ^[1-9][0-9]*$ ]] || {
+  echo "omadrop calibrate: internal durations must be positive integers" >&2
+  exit 2
+}
+command -v "$ffmpeg_command" >/dev/null 2>&1 || {
+  echo "omadrop calibrate: ffmpeg is required" >&2
+  exit 1
+}
+command -v "$player_command" >/dev/null 2>&1 || {
+  echo "omadrop calibrate: pw-play is required" >&2
+  exit 1
+}
+[[ -x $launcher ]] || {
+  echo "omadrop calibrate: Omadrop launcher not found: $launcher" >&2
+  exit 1
+}
+
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
+# A short, moderate reference combines a low thump and a crisp onset once per
+# second. Looping the file keeps disk use small and makes the comparison
+# predictable without introducing a second analysis path.
+reference_signal='aevalsrc=0.32*sin(2*PI*68*t)*exp(-28*mod(t\,1))*lt(mod(t\,1)\,0.16)+0.07*sin(2*PI*1500*t)*exp(-75*mod(t\,1))*lt(mod(t\,1)\,0.05):s=48000:d='
+"$ffmpeg_command" -hide_banner -loglevel error -f lavfi \
+  -i "$reference_signal$audio_seconds" -ac 2 -c:a pcm_s16le -y "$click_track"
+
+printf '%s\n' \
+  'Omadrop output calibration' \
+  'Pause other audio for the cleanest result.' \
+  'Press [ if the visual lands after the sound.' \
+  'Press ] if the visual lands before the sound.' \
+  'Press Esc when they land together. The setting saves automatically.'
+
+OMADROP_CALIBRATION=1 \
+OMADROP_DISABLE_ART=1 \
+OMADROP_NATIVE_SCENE=constellation-field \
+OMADROP_READY_FILE=$ready_file \
+OMADROP_REPLACE_RUNNING=1 \
+  setsid "$launcher" --single &
+visualizer_pid=$!
+
+for ((attempt = 0; attempt < ready_attempts; attempt++)); do
+  [[ -e $ready_file ]] && break
+  if ! kill -0 "$visualizer_pid" 2>/dev/null; then
+    wait "$visualizer_pid" 2>/dev/null || true
+    echo "omadrop calibrate: visualizer exited before calibration started" >&2
+    exit 1
+  fi
+  sleep 0.05
+done
+[[ -e $ready_file ]] || {
+  echo "omadrop calibrate: timed out waiting for the visualizer" >&2
+  exit 1
+}
+
+setsid bash -c '
+  visualizer=$1
+  player=$2
+  audio=$3
+  while kill -0 "$visualizer" 2>/dev/null; do
+    "$player" --volume 0.35 "$audio" || sleep 0.10
+  done
+' _ "$visualizer_pid" "$player_command" "$click_track" &
+player_pid=$!
+
+set +e
+wait "$visualizer_pid"
+visualizer_status=$?
+set -e
+visualizer_pid=
+stop_process "$player_pid"
+player_pid=
+
+if ((visualizer_status != 0 && visualizer_status != 130 && visualizer_status != 143)); then
+  echo "omadrop calibrate: visualizer failed with status $visualizer_status" >&2
+  exit "$visualizer_status"
+fi
+printf '%s\n' 'Calibration saved for the current audio output.'
