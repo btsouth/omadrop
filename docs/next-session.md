@@ -1,5 +1,11 @@
 # Next session handoff
 
+**Superseded aesthetic checkpoint:** the user rejected the live library as
+boring, stale, and insufficiently reactive after this handoff. Follow
+[music-connected-preview.md](music-connected-preview.md) for the current
+direction and listening prototype. The engineering evidence below remains
+historical evidence, not visual acceptance of the new direction.
+
 Updated: 2026-09-04
 
 Implementation checkpoint: `55269930cba1c014a06b914bb7c7995285016bc8`

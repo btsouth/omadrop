@@ -1,5 +1,10 @@
 # Native scene quality matrix
 
+The user rejected this library's visual direction in live review. The
+[music-connected prototype](music-connected-preview.md) rebuilds Ink Current
+around evolving form and stronger musical response. The matrix below describes
+the preceding checkpoint; its Ink Current row is not approval of the rebuild.
+
 This is the working visual review for the current eighteen scenes. A scene is not
 release-ready until its still, motion, transient roles, quiet behavior,
 continuous material, ASCII material, palettes, and transitions all pass.

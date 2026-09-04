@@ -59,6 +59,7 @@ remove_bindings() {
 
 remove_bindings
 remove_link "$bin_dir/omadrop"
+remove_link "$bin_dir/omadrop-preview"
 remove_link "$bin_dir/omadrop-demo"
 remove_link "$bin_dir/omadrop-demo-record"
 remove_link "$bin_dir/omadrop-doctor"

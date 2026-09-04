@@ -1,5 +1,10 @@
 # Controls
 
+`omadrop-preview` opens the music-connected Ink Current prototype in continuous
+rendering and holds the scene for listening. `A` compares ASCII, and `N` / `P`
+change scenes manually. Automatic direction remains off for that preview
+session; the ordinary `omadrop` launcher retains automatic direction.
+
 | Key | Action | Persisted |
 | --- | --- | --- |
 | `Super + Shift + V` | Toggle Omadrop | No |

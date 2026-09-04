@@ -53,6 +53,7 @@ fi
 "$root/experiments/projectm-ascii/build.sh"
 
 install -Dm755 "$root/bin/omadrop" "$install_root/bin/omadrop"
+install -Dm755 "$root/bin/omadrop-preview" "$install_root/bin/omadrop-preview"
 install -Dm755 "$root/bin/omadrop-calibrate" "$install_root/bin/omadrop-calibrate"
 install -Dm755 "$root/bin/omadrop-demo" "$install_root/bin/omadrop-demo"
 install -Dm755 "$root/bin/omadrop-demo-record" "$install_root/bin/omadrop-demo-record"
@@ -128,6 +129,7 @@ install -Dm644 "$root/site/public/og.png" \
   "$install_root/site/public/og.png"
 mkdir -p "$bin_dir"
 ln -sfn "$install_root/bin/omadrop" "$bin_dir/omadrop"
+ln -sfn "$install_root/bin/omadrop-preview" "$bin_dir/omadrop-preview"
 ln -sfn "$install_root/bin/omadrop-demo" "$bin_dir/omadrop-demo"
 ln -sfn "$install_root/bin/omadrop-demo-record" "$bin_dir/omadrop-demo-record"
 ln -sfn "$install_root/bin/omadrop-doctor" "$bin_dir/omadrop-doctor"

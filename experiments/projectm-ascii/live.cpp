@@ -505,6 +505,8 @@ int main(int argc, char** argv) {
         return 2;
     }
     const bool nativeEnabled = rendererName == "native";
+    const bool holdNativeScene = std::getenv("OMADROP_NATIVE_HOLD")
+        && std::string(std::getenv("OMADROP_NATIVE_HOLD")) == "1";
     const bool calibrationMode = std::getenv("OMADROP_CALIBRATION") != nullptr;
     LivePreferences preferences = loadLivePreferences();
     bool asciiEnabled = std::getenv("OMADROP_ASCII")
@@ -859,7 +861,7 @@ int main(int argc, char** argv) {
         }
         std::cerr << "native scene: " << nativeSceneName(initialNativeScene)
                   << (scriptedSequence.active() ? " (scripted opening)"
-                      : selectedNativeScene ? " (selected)"
+                      : selectedNativeScene ? (holdNativeScene ? " (preview held)" : " (selected)")
                       : " (random opening)")
                   << "\n";
         publishPairedState(presetIndex, 0, 6, true,
@@ -1774,7 +1776,8 @@ int main(int argc, char** argv) {
                     pairedState->nativeScene);
                 if (pairedState->manualSceneCue == 1) {
                     statusOverlay.show(
-                        std::string("AUTO: ") + nativeSceneName(target), now);
+                        std::string(holdNativeScene ? "PREVIEW: " : "AUTO: ")
+                            + nativeSceneName(target), now);
                 }
                 if (pairedState->hardSync) nativeSceneDirector.selectScene(target);
                 else {
@@ -1979,7 +1982,7 @@ int main(int argc, char** argv) {
             nativeSceneState = nativeSceneDirector.update(
                 musicFrame, frameSeconds,
                 !pairedFollower && !scriptedSequence.active()
-                    && !calibrationMode);
+                    && !calibrationMode && !holdNativeScene);
             if (nativeSceneState.transitioning && !nativeTransitionWasActive) {
                 const int authoredTransitionMode
                     = static_cast<int>(nativeSceneState.transitionStyle);
@@ -1995,7 +1998,7 @@ int main(int argc, char** argv) {
                     manualSceneRequest);
                 if (manualSceneRequest) {
                     statusOverlay.show(
-                        std::string("AUTO: ")
+                        std::string(holdNativeScene ? "PREVIEW: " : "AUTO: ")
                             + nativeSceneName(nativeSceneState.incomingScene),
                         now);
                 }

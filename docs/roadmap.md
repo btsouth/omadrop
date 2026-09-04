@@ -346,6 +346,11 @@ Allow more people to create scenes while keeping the official rotation strict.
 
 ## Release-candidate work order
 
+The subsequent live review rejected the library's aesthetic direction.
+The immediate priority is the single-scene
+[music-connected preview](music-connected-preview.md) and user listening
+feedback. The release sequence below resumes after that direction is accepted.
+
 The platform work described below is implemented. The current priority is to
 finish release-candidate review and validation, not expand the feature or scene
 count. The exact checkpoint, commands, evidence, and limits are recorded in the
