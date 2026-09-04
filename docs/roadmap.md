@@ -431,3 +431,7 @@ Completed after v0.3:
   motion. A locked noise-floor case prevents sensitivity changes from creating
   false percussion, and Orbital Loom now keeps kick changes local to its
   threads and aperture instead of repeatedly scaling the full composition.
+- Locked tempo-ambiguity, breakdown, and syncopation regressions. The analyzer
+  resolves a 70/140 half-time pattern to 139 BPM, holds its 120 BPM clock
+  through a four-second onset-free gap, reacquires on the first returning beat,
+  and remains aligned under displaced percussion.

@@ -25,6 +25,15 @@ struct TempoResult {
     int checked = 0;
     int bars = 0;
 };
+struct TempoStabilityResult {
+    float bpm = 0.0f;
+    float confidence = 0.0f;
+    float maxStableJump = 0.0f;
+    float maxGapError = 0.0f;
+    int aligned = 0;
+    int checked = 0;
+    int reacquireBeats = -1;
+};
 struct TextureResult {
     float harmonic = 0.0f;
     float percussive = 0.0f;
@@ -267,6 +276,135 @@ TempoResult runMixedTempo120() {
     return result;
 }
 
+TempoStabilityResult runHalfDoubleTempo() {
+    AudioFeatureBus bus;
+    std::vector<float> mono(AudioFeatureBus::hopSize, 0.0f);
+    TempoStabilityResult result;
+    double kickPhase = 0.0;
+    double hatPhase = 0.0;
+    double tickPhase = 0.0;
+    int tickIndex = 0;
+    float previousBpm = 0.0f;
+    for (int frame = 0; frame < 960; ++frame) {
+        tickPhase += 140.0 / 3600.0;
+        const bool tick = frame >= 60 && tickPhase >= 1.0;
+        if (tick) {
+            tickPhase -= 1.0;
+            ++tickIndex;
+        }
+        const bool lowAccent = tick && tickIndex % 2 == 0;
+        for (int i = 0; i < AudioFeatureBus::hopSize; ++i) {
+            float sample = 0.0f;
+            if (lowAccent) sample += 0.66f * static_cast<float>(std::sin(kickPhase));
+            if (tick) sample += 0.13f * static_cast<float>(std::sin(hatPhase));
+            mono[i] = sample;
+            kickPhase += tau * 62.0 / AudioFeatureBus::sampleRate;
+            hatPhase += tau * 7200.0 / AudioFeatureBus::sampleRate;
+            if (kickPhase >= tau) kickPhase -= tau;
+            if (hatPhase >= tau) hatPhase -= tau;
+        }
+        const auto& features = bus.processMono(mono.data(), mono.size());
+        if (frame >= 600 && features.beatConfidence >= 0.30f) {
+            if (previousBpm > 0.0f) {
+                result.maxStableJump = std::max(
+                    result.maxStableJump, std::abs(features.bpm - previousBpm));
+            }
+            previousBpm = features.bpm;
+            if (tick) {
+                const float distance = std::min(
+                    features.beatPhase, 1.0f - features.beatPhase);
+                result.aligned += distance <= 0.15f;
+                ++result.checked;
+            }
+        }
+        result.bpm = features.bpm;
+        result.confidence = features.beatConfidence;
+    }
+    return result;
+}
+
+TempoStabilityResult runBreakdownTempo() {
+    AudioFeatureBus bus;
+    std::vector<float> mono(AudioFeatureBus::hopSize, 0.0f);
+    TempoStabilityResult result;
+    double tonePhase = 0.0;
+    int postGapBeats = 0;
+    for (int frame = 0; frame < 1200; ++frame) {
+        const bool beat = frame >= 60 && (frame - 60) % 30 == 0;
+        const bool inGap = frame >= 540 && frame < 780;
+        const bool event = beat && !inGap;
+        for (int i = 0; i < AudioFeatureBus::hopSize; ++i) {
+            mono[i] = event ? 0.72f * static_cast<float>(std::sin(tonePhase)) : 0.0f;
+            tonePhase += tau * 62.0 / AudioFeatureBus::sampleRate;
+            if (tonePhase >= tau) tonePhase -= tau;
+        }
+        const auto& features = bus.processMono(mono.data(), mono.size());
+        if (inGap) {
+            result.maxGapError = std::max(
+                result.maxGapError, std::abs(features.bpm - 120.0f));
+        }
+        if (event && frame >= 780) {
+            const float distance = std::min(
+                features.beatPhase, 1.0f - features.beatPhase);
+            if (features.beatConfidence >= 0.30f && distance <= 0.15f) {
+                ++result.aligned;
+                if (result.reacquireBeats < 0) result.reacquireBeats = postGapBeats;
+            }
+            ++result.checked;
+            ++postGapBeats;
+        }
+        result.bpm = features.bpm;
+        result.confidence = features.beatConfidence;
+    }
+    return result;
+}
+
+TempoStabilityResult runSyncopatedTempo() {
+    AudioFeatureBus bus;
+    std::vector<float> mono(AudioFeatureBus::hopSize, 0.0f);
+    TempoStabilityResult result;
+    double kickPhase = 0.0;
+    double snarePhase = 0.0;
+    double hatPhase = 0.0;
+    float previousBpm = 0.0f;
+    for (int frame = 0; frame < 960; ++frame) {
+        const int relative = frame - 60;
+        const bool beat = relative >= 0 && relative % 30 == 0;
+        const bool syncopation = relative >= 0 && relative % 30 == 20;
+        const bool snare = beat && (relative / 30) % 4 % 2 == 1;
+        for (int i = 0; i < AudioFeatureBus::hopSize; ++i) {
+            float sample = 0.0f;
+            if (beat) sample += 0.62f * static_cast<float>(std::sin(kickPhase));
+            if (snare) sample += 0.25f * static_cast<float>(std::sin(snarePhase));
+            if (syncopation) sample += 0.18f * static_cast<float>(std::sin(hatPhase));
+            mono[i] = sample;
+            kickPhase += tau * 62.0 / AudioFeatureBus::sampleRate;
+            snarePhase += tau * 2100.0 / AudioFeatureBus::sampleRate;
+            hatPhase += tau * 7000.0 / AudioFeatureBus::sampleRate;
+            if (kickPhase >= tau) kickPhase -= tau;
+            if (snarePhase >= tau) snarePhase -= tau;
+            if (hatPhase >= tau) hatPhase -= tau;
+        }
+        const auto& features = bus.processMono(mono.data(), mono.size());
+        if (frame >= 600 && features.beatConfidence >= 0.30f) {
+            if (previousBpm > 0.0f) {
+                result.maxStableJump = std::max(
+                    result.maxStableJump, std::abs(features.bpm - previousBpm));
+            }
+            previousBpm = features.bpm;
+            if (beat) {
+                const float distance = std::min(
+                    features.beatPhase, 1.0f - features.beatPhase);
+                result.aligned += distance <= 0.15f;
+                ++result.checked;
+            }
+        }
+        result.bpm = features.bpm;
+        result.confidence = features.beatConfidence;
+    }
+    return result;
+}
+
 bool expect(const std::string& name, int actual, int minimum, int maximum) {
     if (actual >= minimum && actual <= maximum) return true;
     std::cerr << name << ": expected " << minimum << ".." << maximum
@@ -295,6 +433,9 @@ int main() {
     const TempoResult tempo140 = runTempo(140.0f);
     const TempoResult tempo174 = runTempo(174.0f);
     const TempoResult mixedTempo120 = runMixedTempo120();
+    const TempoStabilityResult halfDoubleTempo = runHalfDoubleTempo();
+    const TempoStabilityResult breakdownTempo = runBreakdownTempo();
+    const TempoStabilityResult syncopatedTempo = runSyncopatedTempo();
     const TextureResult lowTexture = runTexture(110.0f, 0.0f);
     const TextureResult highTexture = runTexture(4800.0f, 0.0f);
     const TextureResult wideTexture = runTexture(440.0f, 0.24f);
@@ -367,6 +508,45 @@ int main() {
                   << " confidence=" << mixedTempo120.confidence
                   << " aligned=" << mixedTempo120.aligned << "/" << mixedTempo120.checked
                   << " bars=" << mixedTempo120.bars << "\n";
+        ok = false;
+    }
+    if (std::abs(halfDoubleTempo.bpm - 140.0f) > 4.0f
+        || halfDoubleTempo.confidence < 0.30f
+        || halfDoubleTempo.maxStableJump > 4.0f
+        || halfDoubleTempo.checked == 0
+        || halfDoubleTempo.aligned * 4 < halfDoubleTempo.checked * 3) {
+        std::cerr << "half/double tempo: bpm=" << halfDoubleTempo.bpm
+                  << " confidence=" << halfDoubleTempo.confidence
+                  << " jump=" << halfDoubleTempo.maxStableJump
+                  << " aligned=" << halfDoubleTempo.aligned << "/"
+                  << halfDoubleTempo.checked << "\n";
+        ok = false;
+    }
+    if (std::abs(breakdownTempo.bpm - 120.0f) > 4.0f
+        || breakdownTempo.confidence < 0.30f
+        || breakdownTempo.maxGapError > 4.0f
+        || breakdownTempo.reacquireBeats < 0
+        || breakdownTempo.reacquireBeats > 2
+        || breakdownTempo.checked == 0
+        || breakdownTempo.aligned * 4 < breakdownTempo.checked * 3) {
+        std::cerr << "breakdown tempo: bpm=" << breakdownTempo.bpm
+                  << " confidence=" << breakdownTempo.confidence
+                  << " gap_error=" << breakdownTempo.maxGapError
+                  << " reacquire_beats=" << breakdownTempo.reacquireBeats
+                  << " aligned=" << breakdownTempo.aligned << "/"
+                  << breakdownTempo.checked << "\n";
+        ok = false;
+    }
+    if (std::abs(syncopatedTempo.bpm - 120.0f) > 4.0f
+        || syncopatedTempo.confidence < 0.30f
+        || syncopatedTempo.maxStableJump > 4.0f
+        || syncopatedTempo.checked == 0
+        || syncopatedTempo.aligned * 4 < syncopatedTempo.checked * 3) {
+        std::cerr << "syncopated tempo: bpm=" << syncopatedTempo.bpm
+                  << " confidence=" << syncopatedTempo.confidence
+                  << " jump=" << syncopatedTempo.maxStableJump
+                  << " aligned=" << syncopatedTempo.aligned << "/"
+                  << syncopatedTempo.checked << "\n";
         ok = false;
     }
     if (lowTexture.harmonic < 0.45f || highTexture.harmonic < 0.45f) {
@@ -447,6 +627,10 @@ int main() {
               << " impact=" << softKick.strongest << ","
               << mediumKick.strongest << "," << hardKick.strongest
               << " tempos=" << tempo90.bpm << "," << tempo120.bpm << ","
-              << tempo140.bpm << "," << tempo174.bpm << "\n";
+              << tempo140.bpm << "," << tempo174.bpm
+              << " ambiguity=" << halfDoubleTempo.bpm
+              << " breakdown=" << breakdownTempo.bpm << "/"
+              << breakdownTempo.reacquireBeats
+              << " syncopated=" << syncopatedTempo.bpm << "\n";
     return 0;
 }
