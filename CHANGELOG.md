@@ -32,6 +32,9 @@
 - Select compatible native transitions from the musical state at each boundary:
   carry motion into a rise, fracture on a harmonic turn, carve through a
   release, and preserve the focal structure in balanced passages.
+- Add an atomic versioned preferences file with safe legacy ASCII migration and
+  validated storage for display, motion, director, favorite, and hidden-scene
+  settings.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

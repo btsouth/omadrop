@@ -15,11 +15,64 @@ int main() {
     setenv("XDG_CONFIG_HOME", root.c_str(), 1);
     unsetenv("OMADROP_SYNC_MS");
 
-    assert(loadAsciiEnabled());
-    saveAsciiEnabled(false);
+    const auto omadropDirectory = root / "omadrop";
+    std::filesystem::create_directories(omadropDirectory);
+    {
+        std::ofstream legacy(omadropDirectory / "ascii-enabled");
+        legacy << "0\n";
+    }
     assert(!loadAsciiEnabled());
+    assert(std::filesystem::exists(omadropDirectory / "preferences.conf"));
     saveAsciiEnabled(true);
     assert(loadAsciiEnabled());
+
+    LivePreferences preferences;
+    preferences.asciiEnabled = false;
+    preferences.intensity = 1.35f;
+    preferences.brightness = 0.72f;
+    preferences.motion = 0.40f;
+    preferences.reducedMotion = true;
+    preferences.highContrast = true;
+    preferences.directorProfile = DirectorProfile::Restrained;
+    preferences.favoriteScenes = {"paper-horizon", "paper-horizon",
+                                  "not valid"};
+    preferences.hiddenScenes = {"centrifuge"};
+    assert(saveLivePreferences(preferences));
+    const LivePreferences restored = loadLivePreferences();
+    assert(restored.version == livePreferencesVersion);
+    assert(!restored.asciiEnabled);
+    assert(restored.intensity > 1.34f && restored.intensity < 1.36f);
+    assert(restored.brightness > 0.71f && restored.brightness < 0.73f);
+    assert(restored.motion > 0.39f && restored.motion < 0.41f);
+    assert(restored.reducedMotion);
+    assert(restored.highContrast);
+    assert(restored.directorProfile == DirectorProfile::Restrained);
+    assert(restored.favoriteScenes.size() == 1);
+    assert(restored.favoriteScenes.front() == "paper-horizon");
+    assert(restored.hiddenScenes.size() == 1);
+    assert(restored.hiddenScenes.front() == "centrifuge");
+
+    {
+        std::ofstream malformed(omadropDirectory / "preferences.conf");
+        malformed << "version=1\n"
+                  << "ascii=maybe\n"
+                  << "intensity=99\n"
+                  << "brightness=-2\n"
+                  << "motion=nan\n"
+                  << "director=unknown\n"
+                  << "favorite=../escape\n";
+    }
+    const LivePreferences repaired = loadLivePreferences();
+    assert(repaired.asciiEnabled);
+    assert(repaired.intensity == 1.50f);
+    assert(repaired.brightness == 0.50f);
+    assert(repaired.motion == 1.0f);
+    assert(repaired.directorProfile == DirectorProfile::Balanced);
+    assert(repaired.favoriteScenes.empty());
+
+    LivePreferences future = repaired;
+    future.version = livePreferencesVersion + 1;
+    assert(!saveLivePreferences(future));
 
     const auto sinkPath = root / "default-sink";
     {

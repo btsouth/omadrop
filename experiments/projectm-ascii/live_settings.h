@@ -1,6 +1,34 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
+#include <vector>
+
+enum class DirectorProfile : std::uint8_t {
+    Balanced,
+    Kinetic,
+    Restrained,
+    HighContrast,
+};
+
+inline constexpr unsigned int livePreferencesVersion = 1;
+
+struct LivePreferences {
+    unsigned int version = livePreferencesVersion;
+    bool asciiEnabled = true;
+    float intensity = 1.0f;
+    float brightness = 1.0f;
+    float motion = 1.0f;
+    bool reducedMotion = false;
+    bool highContrast = false;
+    DirectorProfile directorProfile = DirectorProfile::Balanced;
+    std::vector<std::string> favoriteScenes;
+    std::vector<std::string> hiddenScenes;
+};
+
+const char* directorProfileName(DirectorProfile profile);
+LivePreferences loadLivePreferences();
+bool saveLivePreferences(const LivePreferences& preferences);
 
 bool loadAsciiEnabled();
 void saveAsciiEnabled(bool enabled);

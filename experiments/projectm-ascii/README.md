@@ -249,7 +249,10 @@ family has no fresh variant, selection widens to its related visual group before
 reusing a recent scene.
 
 Press `a` to switch between Omadrop ASCII and the original MilkDrop rendering.
-Press F11 to toggle fullscreen.
+Press F11 to toggle fullscreen. ASCII mode is stored in the versioned
+`$XDG_CONFIG_HOME/omadrop/preferences.conf` file. Legacy `ascii-enabled`
+settings migrate automatically, and settings writes replace the complete file
+atomically so paired displays never observe a partial update.
 
 Press Escape to exit. The process prints `audio: PipeWire` when nonzero sink
 samples arrive. `OMADROP_SYNTHETIC_AUDIO=1` forces a deterministic repeating

@@ -532,3 +532,10 @@ Completed after v0.3:
   boundary and synchronizes it across displays, preventing momentary hits from
   changing transition behavior mid-flight. Deterministic visual sequences and
   the 128-second analyzer replay cover the new decisions.
+- Replaced the one-off ASCII preference with an atomically written, versioned
+  preferences file. It preserves ASCII mode and has validated fields for
+  intensity, brightness, motion, reduced motion, high contrast, director
+  profile, favorites, and hidden scenes. Existing `ascii-enabled` files migrate
+  on first load, malformed values fall back or clamp safely, duplicate and
+  invalid scene names are rejected, and a newer unknown format is never
+  overwritten by an older build.

@@ -432,9 +432,10 @@ int main(int argc, char** argv) {
         return 2;
     }
     const bool nativeEnabled = rendererName == "native";
+    LivePreferences preferences = loadLivePreferences();
     bool asciiEnabled = std::getenv("OMADROP_ASCII")
         ? std::string(std::getenv("OMADROP_ASCII")) != "0"
-        : loadAsciiEnabled();
+        : preferences.asciiEnabled;
     unsigned int syncDelayMs = 0;
     bool closeRequested = false;
     std::optional<NativeSceneKind> selectedNativeScene;
@@ -853,7 +854,8 @@ int main(int argc, char** argv) {
                 if (pairedFollower) pairedControlRequest = "ascii";
                 else {
                     asciiEnabled = !asciiEnabled;
-                    saveAsciiEnabled(asciiEnabled);
+                    preferences.asciiEnabled = asciiEnabled;
+                    saveLivePreferences(preferences);
                     pairedControlsChanged = true;
                     std::cerr << "display: "
                               << (asciiEnabled ? "Omadrop ASCII" : "continuous")
@@ -903,7 +905,8 @@ int main(int argc, char** argv) {
                 previousPreset = request == "previous";
                 if (request == "ascii") {
                     asciiEnabled = !asciiEnabled;
-                    saveAsciiEnabled(asciiEnabled);
+                    preferences.asciiEnabled = asciiEnabled;
+                    saveLivePreferences(preferences);
                     pairedControlsChanged = true;
                     std::cerr << "display: "
                               << (asciiEnabled ? "Omadrop ASCII" : "continuous")
