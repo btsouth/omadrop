@@ -8,6 +8,8 @@
   travel, kick eddies, snare cuts, hat droplets, and structural branching.
 - Add Glass Choir, a restrained harmonic scene with fixed refractive shards,
   moving internal caustics, localized percussion, and structural reassembly.
+- Add Shadow Architecture, a stable 3D procession of lit concrete portals with
+  separate floor, incision, lintel, beat, and section responses.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

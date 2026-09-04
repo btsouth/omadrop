@@ -33,7 +33,7 @@ Run all five profiles through every registered scene with:
 ./bin/native-scene-scorecard-suite --enforce
 ```
 
-This currently produces 65 scene and audio combinations. Passing proves the
+This currently produces 70 scene and audio combinations. Passing proves the
 declared response, motion coverage, global-pulse, pulse-duty, recovery, and
 silence limits on the synthetic suite. It does not prove aesthetic quality,
 genre-wide behavior, accessibility, or correct operation with every real

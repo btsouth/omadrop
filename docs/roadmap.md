@@ -351,9 +351,8 @@ Allow more people to create scenes while keeping the official rotation strict.
 4. Add the developer signal monitor and repeatable presentation-delay tool.
 5. Continue splitting track state, display session, cover presentation,
    direction, and rendering out of the live application loop.
-6. Prototype Shadow Architecture as the next deliberately different scene
-   family after the accepted Negative Space, Ink Current, and Glass Choir
-   scenes.
+6. Build authored transition paths among Negative Space, Ink Current, Glass
+   Choir, and Shadow Architecture before adding another scene family.
 7. Promote only candidates that pass still-frame, motion, music-response,
    ASCII, transition, and performance review.
 
@@ -477,3 +476,9 @@ Completed after v0.3:
   resonance, snare fractures, hat-tip glints, and section reassembly stay
   local. Continuous color, grayscale, ASCII, six album palettes, the
   65-combination replay suite, and a 1080p renderer soak all pass.
+- Added Shadow Architecture as the first ray-marched deep scene. Three fixed,
+  offset concrete portals preserve a stable silhouette and floor reflection;
+  beats travel through the void while kicks, snares, hats, and sections light
+  separate surfaces. Continuous color, grayscale, ASCII, six album palettes,
+  the 70-combination replay suite, and a 1080p renderer soak pass without
+  global pulse activity or a slow-frame streak.

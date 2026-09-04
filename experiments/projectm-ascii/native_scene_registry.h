@@ -19,10 +19,11 @@ enum class NativeSceneKind : std::uint8_t {
     NegativeSpace = 10,
     InkCurrent = 11,
     GlassChoir = 12,
+    ShadowArchitecture = 13,
 };
 
-inline constexpr std::size_t nativeSceneCount = 13;
-inline constexpr unsigned int nativeSceneRegistryVersion = 6;
+inline constexpr std::size_t nativeSceneCount = 14;
+inline constexpr unsigned int nativeSceneRegistryVersion = 7;
 
 enum class NativeTransitionAnchor : std::uint8_t {
     Center,
@@ -149,6 +150,13 @@ nativeSceneRegistry{{
      NativeTransitionAnchor::VerticalAxis,
      NativeMotionGrammar::Selective, 0.18f, 0.24f,
      transientRoles | HarmonyRole | StructureRole, 6.0f},
+    {NativeSceneKind::ShadowArchitecture, "shadow-architecture",
+     "Shadow Architecture", "shadow-architecture.frag",
+     {"shadow", "architecture", ""}, {1.20f, 1.50f},
+     {0.28f, 0.30f, 0.70f, 0.24f, 0.36f},
+     NativeTransitionAnchor::DepthPoint,
+     NativeMotionGrammar::Sparse, 0.12f, 0.20f,
+     transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
 }};
 
 inline constexpr std::string_view nativeMotionGrammarName(
