@@ -417,3 +417,11 @@ Completed after v0.3:
 - Added an automated opening-audio guard test. A delayed approved source passes
   while an unrelated source is rejected, covering the final recording audit
   that protects release demos from stray desktop audio.
+- Added a synchronized 1080p renderer soak across every scene and successor
+  transition. The initial ten-minute, 36,000-frame run completed without an
+  OpenGL error or slow-frame streak, held 0.71 ms at the 99th percentile on the
+  reference machine, and grew resident memory by 3.4 MiB after warmup.
+- Added role-specific overlap control to Spectral Ribbons after the continuity
+  audit exposed a stacked-percussion jolt. Its worst-frame similarity improved
+  from 0.63 to 0.80 while the real-song snare response remained above the
+  required floor and all fifty synthetic replay combinations continued to pass.

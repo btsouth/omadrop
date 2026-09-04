@@ -23,6 +23,7 @@ Run the native music-contract and render audits with:
 ./experiments/projectm-ascii/paired-transport-test
 ./experiments/projectm-ascii/native-scene-state-test
 ./experiments/projectm-ascii/native-renderer-test ./shaders/native
+./experiments/projectm-ascii/native-renderer-soak ./shaders/native 10
 ./bin/omadrop-launcher-test
 ./bin/demo-audio-audit-test
 ```
@@ -42,6 +43,12 @@ start.
 The demo-audio audit test accepts a capture with the approved opening at a
 known delay and rejects a different source. This protects the release recorder
 from silently accepting desktop audio that does not belong in the demo.
+
+The renderer soak runs at 1920x1080 by default, cycles through every scene and
+the transition to its successor, and synchronizes each frame for real GPU
+timing. It fails on OpenGL errors, a 99th-percentile frame time above 18.5 ms, a
+continuous second below 55 FPS, or more than 64 MiB of resident-memory growth
+after warmup. The final argument is simulated minutes from 1 to 240.
 
 Pass an optional output directory to `native-renderer-test` to write one
 deterministic continuous frame and one production-equivalent ASCII frame per

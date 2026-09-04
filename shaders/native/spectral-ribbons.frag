@@ -12,14 +12,19 @@ void main() {
     float lowZone = 1.0 - smoothstep(-0.20, 0.02, p.y);
     float highZone = smoothstep(0.08, 0.25, p.y);
     float middleZone = clamp(1.0 - lowZone - highZone, 0.0, 1.0);
-    float sceneSnare = 1.0 - exp(-3.0 * snare);
-    float roleGesture = kick * lowZone + sceneSnare * middleZone + hat * highZone;
+    float rawSceneSnare = 1.0 - exp(-3.0 * snare);
+    float sceneKick = kick / (1.0 + 0.42 * hat + 0.15 * rawSceneSnare);
+    float sceneHat = hat / (1.0 + 0.42 * kick + 0.15 * rawSceneSnare);
+    float sceneSnare = rawSceneSnare
+                     / (1.0 + 0.75 * min(kick, hat));
+    float roleGesture = sceneKick * lowZone + sceneSnare * middleZone
+                      + sceneHat * highZone;
 
     vec2 previousP = p;
     previousP.x += 0.00003 + 0.00005 * energySlow;
-    previousP.y *= 1.0 - 0.003 * beatPulse - 0.026 * kick * lowZone
+    previousP.y *= 1.0 - 0.003 * beatPulse - 0.026 * sceneKick * lowZone
                          + 0.0012 * beatAnticipation;
-    previousP.y += hat * highZone * 0.0026 * sin(previousP.x * 52.0);
+    previousP.y += sceneHat * highZone * 0.0026 * sin(previousP.x * 52.0);
     vec2 previousUv = previousP / aspect + 0.5;
     float edge = smoothstep(0.0, 0.07, uv.x) * smoothstep(0.0, 0.07, uv.y)
                * smoothstep(0.0, 0.07, 1.0 - uv.x)
@@ -47,9 +52,9 @@ void main() {
         float roleWidth = 0.0;
         if (index < 3) {
             // Low ribbons open vertically and deepen their large curve.
-            amplitude += kick * (0.105 + 0.012 * fi);
-            y += sign(y) * kick * 0.062;
-            roleWidth = 0.0045 * kick;
+            amplitude += sceneKick * (0.105 + 0.012 * fi);
+            y += sign(y) * sceneKick * 0.062;
+            roleWidth = 0.0045 * sceneKick;
         } else if (index < 6) {
             // Snares make the middle voices fold through one another.
             amplitude += sceneSnare * 0.180;
@@ -57,8 +62,8 @@ void main() {
             roleWidth = 0.0040 * sceneSnare;
         } else {
             // Hats reveal short, high-frequency ripples on the upper voices.
-            amplitude += hat * 0.150;
-            roleWidth = 0.0032 * hat;
+            amplitude += sceneHat * 0.150;
+            roleWidth = 0.0032 * sceneHat;
         }
         float curve = y + amplitude * sin(p.x * frequency * tau
                     - flowTime * (0.015 + 0.004 * fi)
@@ -67,13 +72,13 @@ void main() {
                * sin(p.x * tau * 0.72 + fi * 0.66
                      + phrasePhase * tau * 0.24);
         if (index < 3) {
-            curve += kick * 0.044
+            curve += sceneKick * 0.044
                    * sin(p.x * (frequency + 1.4) * tau + fi * 0.7);
         } else if (index < 6) {
             curve += sceneSnare * 0.170
                    * sin(p.x * frequency * 1.75 * tau + fi * 0.9);
         } else {
-            curve += hat * 0.130
+            curve += sceneHat * 0.130
                    * sin(p.x * frequency * 3.2 * tau - flowTime * 3.0 + fi);
         }
         float roleDepth = index < 3 ? 1.0 : index < 6 ? 0.78 : 0.62;
@@ -84,7 +89,7 @@ void main() {
         else if (index < 6) midRibbon = max(midRibbon, ribbon);
         else highRibbon = max(highRibbon, ribbon);
         intersections += ribbon * line(sin(p.x * 32.0 + fi), 0.06)
-                       * hat * (0.42 + 0.88 * weaveFocus);
+                       * sceneHat * (0.42 + 0.88 * weaveFocus);
         travelers += ribbon * line(p.x - travelerX, 0.026)
                    * clockConfidence * (0.16 + 0.84 * downbeat);
     }
@@ -101,13 +106,13 @@ void main() {
     vec3 accent = paletteAccent(3.76);
     vec3 injection = primary * lowRibbon
                      * (0.14 + 0.08 * bandLevel[0]
-                        + 0.88 * kick)
+                        + 0.88 * sceneKick)
                    + secondary * midRibbon
                      * (0.11 + 0.06 * bandLevel[3]
                         + 0.20 * sceneSnare)
                    + accent * highRibbon
                      * (0.10 + 0.07 * bandLevel[5]
-                        + 1.65 * hat)
+                        + 1.65 * sceneHat)
                    + mix(secondary, vec3(1.0), 0.46)
                      * snareFractures * 2.20
                    + accent * (intersections + travelers + sectionBand) * 0.20

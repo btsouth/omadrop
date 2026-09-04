@@ -56,6 +56,9 @@ g++ -std=c++20 -O2 -Wall -Wextra native_scene_state_test.cpp \
 g++ -std=c++20 -O2 -Wall -Wextra native_renderer_test.cpp native_renderer.cpp \
   -o native-renderer-test $(pkg-config --cflags --libs sdl2 glew fftw3f) -lGL
 
+g++ -std=c++20 -O2 -Wall -Wextra native_renderer_soak.cpp native_renderer.cpp \
+  -o native-renderer-soak $(pkg-config --cflags --libs sdl2 glew fftw3f) -lGL
+
 g++ -std=c++20 -O2 -Wall -Wextra native_song_replay.cpp native_renderer.cpp \
   -o native-song-replay $(pkg-config --cflags --libs sdl2 glew fftw3f) -lGL
 
