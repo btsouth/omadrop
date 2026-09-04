@@ -113,7 +113,7 @@ float meanChroma(const std::vector<float>& pixels) {
 }
 
 bool writeReferencePpm(const std::filesystem::path& path,
-                       const std::vector<float>& pixels) {
+                       const std::vector<float>& pixels, float exposure) {
     std::ofstream output(path, std::ios::binary);
     if (!output) return false;
     output << "P6\n" << width << " " << height << "\n255\n";
@@ -121,8 +121,9 @@ bool writeReferencePpm(const std::filesystem::path& path,
         for (int x = 0; x < width; ++x) {
             const std::size_t offset = static_cast<std::size_t>(y * width + x) * 4;
             for (int channel = 0; channel < 3; ++channel) {
-                const float exposed = std::clamp(pixels[offset + channel] * 3.2f,
-                                                 0.0f, 1.0f);
+                const float linear = pixels[offset + channel];
+                const float mapped = linear / (1.0f + linear * 0.85f);
+                const float exposed = std::clamp(mapped * exposure, 0.0f, 1.0f);
                 const auto value = static_cast<unsigned char>(
                     std::pow(exposed, 1.0f / 2.2f) * 255.0f + 0.5f);
                 output.write(reinterpret_cast<const char*>(&value), 1);
@@ -557,7 +558,8 @@ bool captureReference(NativeRenderer& renderer, NativeSceneKind kind,
     std::filesystem::create_directories(outputDirectory);
     const std::string slug(nativeSceneDefinition(kind).slug);
     return writeReferencePpm(outputDirectory / (slug + ".ppm"),
-                             readTexture(renderer.texture(kind)));
+                             readTexture(renderer.texture(kind)),
+                             nativeSceneMaterial(kind).fieldExposure);
 }
 
 std::vector<float> renderArtworkFrame(NativeRenderer& renderer,
