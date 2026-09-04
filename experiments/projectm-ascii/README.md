@@ -259,6 +259,9 @@ Press `i` to cycle local response intensity, `b` for brightness, `m` for
 ambient motion, `r` for reduced motion, and `h` for high contrast. Reduced
 motion caps feedback drift and transition travel while leaving the local
 percussion, beat, and section cues readable. Press F11 to toggle fullscreen.
+Press `s` for flash limit. It lowers fast event gain, caps requested brightness,
+compresses bright final output, and prevents the high-contrast boost while
+keeping localized timing cues active.
 Press `d` to cycle Balanced, Kinetic, Restrained, and High Contrast direction.
 Profiles change candidate scoring while preserving the same musical boundaries
 and per-scene response limits.
@@ -269,7 +272,8 @@ next visible scene. Hidden scenes are omitted from automatic selection, motif
 recall, and `n`/`p` navigation. Press `Shift+x` to restore them. The director
 refuses a hidden set that would leave fewer than two scenes available.
 These choices are stored in the versioned
-`$XDG_CONFIG_HOME/omadrop/preferences.conf` file. Legacy `ascii-enabled`
+`$XDG_CONFIG_HOME/omadrop/preferences.conf` file. Version 1 preferences load
+with flash limit off and are upgraded on the next write. Legacy `ascii-enabled`
 settings migrate automatically, and settings writes replace the complete file
 atomically so paired displays never observe a partial update.
 

@@ -273,7 +273,8 @@ Give users meaningful control without making configuration necessary.
 ### Work
 
 - Persist favorites, hidden scenes, ASCII state, intensity, brightness, motion
-  level, audio delay, display selection, and director profile.
+  level, reduced motion, flash limit, audio delay, display selection, and
+  director profile.
 - Add a small set of director profiles such as balanced, kinetic, restrained,
   and high contrast. Profiles change selection and intensity, not core timing.
 - Add a first-run control reference and an optional minimal status overlay.
@@ -534,13 +535,13 @@ Completed after v0.3:
   the 128-second analyzer replay cover the new decisions.
 - Replaced the one-off ASCII preference with an atomically written, versioned
   preferences file. It preserves ASCII mode and has validated fields for
-  intensity, brightness, motion, reduced motion, high contrast, director
+  intensity, brightness, motion, reduced motion, flash limit, high contrast, director
   profile, favorites, and hidden scenes. Existing `ascii-enabled` files migrate
   on first load, malformed values fall back or clamp safely, duplicate and
   invalid scene names are rejected, and a newer unknown format is never
   overwritten by an older build.
 - Added synchronized live controls for local response intensity, brightness,
-  ambient motion, reduced motion, and high contrast. Reduced motion caps slow
+  ambient motion, reduced motion, flash limit, and high contrast. Reduced motion caps slow
   feedback drift and transition travel without suppressing the separate kick,
   snare, hat, beat, and section cues. The two broad flow scenes show about 68
   percent less measured ambient movement under the reduced policy, while a
@@ -551,7 +552,7 @@ Completed after v0.3:
   streak, and 0.88 MiB resident-memory growth.
 - Added a synchronized, self-contained status overlay for interactive changes.
   Scene skips explicitly show `AUTO: <scene>`, while ASCII, fullscreen, sync,
-  intensity, brightness, ambient motion, reduced motion, and high contrast show
+  intensity, brightness, ambient motion, reduced motion, flash limit, and high contrast show
   their resulting state. The label fades after 1.8 seconds and is rendered
   after the scene compositor, so it cannot contaminate feedback or recordings
   without a user action. Hidden-context tests cover its raster, final pass,
@@ -575,3 +576,8 @@ Completed after v0.3:
   geometry. Its broad-pulse duty fell from 44 to 55 percent to zero across all
   five locked replay profiles while every transient response remains above
   2.8 times quiet motion.
+- Added a separate flash-limit preference and synchronized `S` control. The
+  policy reduces fast event gain, caps requested brightness, compresses bright
+  final output, and suppresses the optional contrast boost while preserving
+  localized rhythm cues. The compositor test verifies lower peak luminance,
+  and the structured-track scorecard still enforces the response floor.

@@ -49,6 +49,9 @@
   Rework Spectral Ribbons so kicks, snares, and hats act on separate local
   windows instead of changing every line, with zero broad-pulse frames across
   all five deterministic replay profiles.
+- Add a synchronized, persistent flash-limit control on `S`. It lowers fast
+  event gain, caps requested brightness, compresses bright final output, and
+  disables the optional contrast boost without removing local rhythm cues.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

@@ -196,6 +196,8 @@ int main(int argc, char** argv) {
             "OMADROP_REPLAY_MOTION", 1.0f, 0.0f, 1.0f),
         .reducedMotion
             = std::getenv("OMADROP_REPLAY_REDUCED_MOTION") != nullptr,
+        .flashLimited
+            = std::getenv("OMADROP_REPLAY_FLASH_LIMITED") != nullptr,
     };
     std::ofstream frameStream;
     if (const char* streamPath = std::getenv("OMADROP_REPLAY_FRAME_STREAM")) {

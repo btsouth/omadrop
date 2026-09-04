@@ -95,9 +95,17 @@ uniform float fieldExposure;
 uniform int nativeRenderer;
 uniform float motionScale;
 uniform float contrastScale;
+uniform int flashLimited;
 uniform float visibility;
 
 float luminance(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+
+vec3 limitFlashBrightness(vec3 sampleColor) {
+    if (flashLimited == 0) return sampleColor;
+    float light = luminance(sampleColor);
+    float limitedLight = 0.68 * (1.0 - exp(-light / 0.68));
+    return sampleColor * limitedLight / max(0.0001, light);
+}
 
 vec2 reactedUv(vec2 sampleUv, int mode, vec3 gain) {
     vec2 p = sampleUv - 0.5;
@@ -300,7 +308,8 @@ vec3 sceneSample(vec2 sampleUv) {
 
 void main() {
     if (asciiEnabled == 0) {
-        color = vec4(sceneSample(uv) * fieldExposure * visibility, 1.0);
+        color = vec4(limitFlashBrightness(
+            sceneSample(uv) * fieldExposure) * visibility, 1.0);
         return;
     }
     // ASCII mode keeps its identity on the cover, but starts from the same
@@ -342,7 +351,8 @@ void main() {
     float glyphMask = 1.0 - smoothstep(glyphRadius - 0.48, glyphRadius + 0.48,
                                       glyphDistance);
     if (glyphMask <= 0.01) {
-        color = vec4(coverUnderlay * visibility, 1.0); return;
+        color = vec4(limitFlashBrightness(coverUnderlay) * visibility, 1.0);
+        return;
     }
 
     vec2 dotOrigin = cell * cellSize + vec2(float(dx) * 6.0, float(dy) * 6.0);
@@ -400,7 +410,8 @@ void main() {
                           * (0.055 * bassImpact + 0.060 * kickAccent
                              + 0.025 * trebleLevel + 0.045 * trebleImpact);
     if (level < activeThreshold) {
-        color = vec4(coverUnderlay * visibility, 1.0); return;
+        color = vec4(limitFlashBrightness(coverUnderlay) * visibility, 1.0);
+        return;
     }
     vec3 energized = mix(sourceColor, sourceColor * sourceColor * 1.12,
                          0.16 * bassImpact * (1.0 - coverColorLock));
@@ -417,7 +428,7 @@ void main() {
     float dotOpacity = mix(1.0, 0.78, coverColorLock);
     vec3 asciiMaterial = mix(coverUnderlay, dotColor,
                              glyphMask * dotOpacity);
-    color = vec4(asciiMaterial * visibility, 1.0);
+    color = vec4(limitFlashBrightness(asciiMaterial) * visibility, 1.0);
 }
 )GLSL";
 
@@ -658,6 +669,7 @@ int main(int argc, char** argv) {
             .highContrastMode = preferences.highContrast ? 1 : 0,
             .directorProfile = static_cast<int>(preferences.directorProfile),
             .manualSceneCue = manualSceneCue ? 1 : 0,
+            .flashLimitMode = preferences.flashLimited ? 1 : 0,
         });
     };
     auto publishPairedMusic = [&](const MusicFrame& frame) {
@@ -891,6 +903,12 @@ int main(int argc, char** argv) {
                       << (preferences.reducedMotion ? "on" : "off") << "\n";
             status = std::string("REDUCED MOTION: ")
                    + (preferences.reducedMotion ? "ON" : "OFF");
+        } else if (request == "flash-limit") {
+            preferences.flashLimited = !preferences.flashLimited;
+            std::cerr << "flash limit: "
+                      << (preferences.flashLimited ? "on" : "off") << "\n";
+            status = std::string("FLASH LIMIT: ")
+                   + (preferences.flashLimited ? "ON" : "OFF");
         } else if (request == "high-contrast") {
             preferences.highContrast = !preferences.highContrast;
             std::cerr << "high contrast: "
@@ -1017,6 +1035,9 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_KEYDOWN
                        && event.key.keysym.sym == SDLK_h) {
                 visualPreferenceRequest = "high-contrast";
+            } else if (event.type == SDL_KEYDOWN
+                       && event.key.keysym.sym == SDLK_s) {
+                visualPreferenceRequest = "flash-limit";
             } else if (event.type == SDL_KEYDOWN
                        && event.key.keysym.sym == SDLK_d) {
                 visualPreferenceRequest = "director";
@@ -1564,6 +1585,11 @@ int main(int argc, char** argv) {
                                != (pairedState->highContrastMode == 1)) {
                         synchronizedStatus = pairedState->highContrastMode == 1
                             ? "HIGH CONTRAST: ON" : "HIGH CONTRAST: OFF";
+                    } else if (pairedState->flashLimitMode >= 0
+                               && preferences.flashLimited
+                                  != (pairedState->flashLimitMode == 1)) {
+                        synchronizedStatus = pairedState->flashLimitMode == 1
+                            ? "FLASH LIMIT: ON" : "FLASH LIMIT: OFF";
                     } else if (preferences.directorProfile
                                != static_cast<DirectorProfile>(
                                    pairedState->directorProfile)) {
@@ -1580,6 +1606,10 @@ int main(int argc, char** argv) {
                         = pairedState->reducedMotionMode == 1;
                     preferences.highContrast
                         = pairedState->highContrastMode == 1;
+                    if (pairedState->flashLimitMode >= 0) {
+                        preferences.flashLimited
+                            = pairedState->flashLimitMode == 1;
+                    }
                     preferences.directorProfile = static_cast<DirectorProfile>(
                         pairedState->directorProfile);
                     nativeSceneDirector.setProfile(preferences.directorProfile);
@@ -1907,6 +1937,7 @@ int main(int argc, char** argv) {
                 .intensity = preferences.intensity,
                 .motion = preferences.motion,
                 .reducedMotion = preferences.reducedMotion,
+                .flashLimited = preferences.flashLimited,
             };
             if (!nativeRenderer->render(musicFrame, nativeSceneState,
                                         sourceWidth, sourceHeight, albumColor,
@@ -1990,8 +2021,14 @@ int main(int argc, char** argv) {
                     nextProfile.kickGain * reactionScale,
                     nextProfile.snareGain * reactionScale,
                     nextProfile.hatGain * reactionScale},
-            .asciiExposure = displayAsciiExposure * preferences.brightness,
-            .fieldExposure = displayFieldExposure * preferences.brightness,
+            .asciiExposure = displayAsciiExposure
+                * (preferences.flashLimited
+                    ? std::min(preferences.brightness, 0.90f)
+                    : preferences.brightness),
+            .fieldExposure = displayFieldExposure
+                * (preferences.flashLimited
+                    ? std::min(preferences.brightness, 0.90f)
+                    : preferences.brightness),
             .nativeRenderer = nativeEnabled,
             .coverAspect = coverAspect,
             .coverMix = coverBlend,
@@ -2006,7 +2043,9 @@ int main(int argc, char** argv) {
             .asciiEnabled = asciiEnabled,
             .motionScale = preferences.reducedMotion
                 ? std::min(preferences.motion, 0.35f) : preferences.motion,
-            .contrastScale = preferences.highContrast ? 1.16f : 1.0f,
+            .contrastScale = preferences.highContrast
+                && !preferences.flashLimited ? 1.16f : 1.0f,
+            .flashLimited = preferences.flashLimited,
             .visibility = entrance * exit,
         };
         if (!compositor.render(displayFrame, compositorError)) {

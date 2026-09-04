@@ -95,6 +95,17 @@ float meanDifference(const std::vector<unsigned char>& a,
     return static_cast<float>(difference / (a.size() * 0.75 * 255.0));
 }
 
+float maximumLuminance(const std::vector<unsigned char>& pixels) {
+    float maximum = 0.0f;
+    for (std::size_t index = 0; index < pixels.size(); index += 4) {
+        const float light = (0.299f * pixels[index]
+                           + 0.587f * pixels[index + 1]
+                           + 0.114f * pixels[index + 2]) / 255.0f;
+        maximum = std::max(maximum, light);
+    }
+    return maximum;
+}
+
 MusicFrame reviewMusic(int frame) {
     MusicFrame music;
     music.bpm = 120.0f;
@@ -217,7 +228,8 @@ int main(int argc, char** argv) {
         }
     }
 
-    auto renderPolicyFrame = [&](float motion, float contrast) {
+    auto renderPolicyFrame = [&](float motion, float contrast,
+                                 bool flashLimited = false) {
         LiveCompositorFrame frame;
         frame.sourceTexture = renderer.texture(NativeSceneKind::Centrifuge);
         frame.nextTexture = renderer.texture(NativeSceneKind::BloomEngine);
@@ -232,6 +244,7 @@ int main(int argc, char** argv) {
         frame.nativeRenderer = true;
         frame.motionScale = motion;
         frame.contrastScale = contrast;
+        frame.flashLimited = flashLimited;
         frame.visibility = 1.0f;
         assert(compositor.render(frame, error));
         glFinish();
@@ -243,11 +256,19 @@ int main(int argc, char** argv) {
         standardPolicy, renderPolicyFrame(0.35f, 1.0f));
     const float highContrastDifference = meanDifference(
         standardPolicy, renderPolicyFrame(1.0f, 1.16f));
-    assert(reducedMotionDifference > 0.0005f);
-    assert(highContrastDifference > 0.0005f);
+    const std::vector<unsigned char> flashLimitedPolicy
+        = renderPolicyFrame(1.0f, 1.0f, true);
+    const float flashLimitDifference = meanDifference(
+        standardPolicy, flashLimitedPolicy);
     std::cout << "transition policy reduced_motion_difference="
               << reducedMotionDifference << " high_contrast_difference="
-              << highContrastDifference << '\n';
+              << highContrastDifference << " flash_limit_difference="
+              << flashLimitDifference << '\n';
+    assert(reducedMotionDifference > 0.0005f);
+    assert(highContrastDifference > 0.0005f);
+    assert(flashLimitDifference > 0.001f);
+    assert(maximumLuminance(flashLimitedPolicy)
+           < maximumLuminance(standardPolicy));
 
     constexpr std::array<float, 6> progress{0.0f, 0.2f, 0.4f,
                                             0.6f, 0.8f, 1.0f};

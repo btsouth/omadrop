@@ -32,6 +32,7 @@ int main() {
     preferences.brightness = 0.72f;
     preferences.motion = 0.40f;
     preferences.reducedMotion = true;
+    preferences.flashLimited = true;
     preferences.highContrast = true;
     preferences.directorProfile = DirectorProfile::Restrained;
     preferences.favoriteScenes = {"paper-horizon", "paper-horizon",
@@ -45,12 +46,27 @@ int main() {
     assert(restored.brightness > 0.71f && restored.brightness < 0.73f);
     assert(restored.motion > 0.39f && restored.motion < 0.41f);
     assert(restored.reducedMotion);
+    assert(restored.flashLimited);
     assert(restored.highContrast);
     assert(restored.directorProfile == DirectorProfile::Restrained);
     assert(restored.favoriteScenes.size() == 1);
     assert(restored.favoriteScenes.front() == "paper-horizon");
     assert(restored.hiddenScenes.size() == 1);
     assert(restored.hiddenScenes.front() == "centrifuge");
+
+    {
+        std::ofstream versionOne(omadropDirectory / "preferences.conf");
+        versionOne << "version=1\n"
+                   << "ascii=0\n"
+                   << "reduced-motion=1\n";
+    }
+    LivePreferences migrated = loadLivePreferences();
+    assert(migrated.version == 1);
+    assert(!migrated.asciiEnabled && migrated.reducedMotion);
+    assert(!migrated.flashLimited);
+    assert(saveLivePreferences(migrated));
+    migrated = loadLivePreferences();
+    assert(migrated.version == livePreferencesVersion);
 
     {
         std::ofstream malformed(omadropDirectory / "preferences.conf");
@@ -67,6 +83,7 @@ int main() {
     assert(repaired.intensity == 1.50f);
     assert(repaired.brightness == 0.50f);
     assert(repaired.motion == 1.0f);
+    assert(!repaired.flashLimited);
     assert(repaired.directorProfile == DirectorProfile::Balanced);
     assert(repaired.favoriteScenes.empty());
 

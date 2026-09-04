@@ -7,7 +7,7 @@
 
 using DirectorProfile = NativeDirectorProfile;
 
-inline constexpr unsigned int livePreferencesVersion = 1;
+inline constexpr unsigned int livePreferencesVersion = 2;
 
 struct LivePreferences {
     unsigned int version = livePreferencesVersion;
@@ -16,6 +16,7 @@ struct LivePreferences {
     float brightness = 1.0f;
     float motion = 1.0f;
     bool reducedMotion = false;
+    bool flashLimited = false;
     bool highContrast = false;
     DirectorProfile directorProfile = DirectorProfile::Balanced;
     std::vector<std::string> favoriteScenes;

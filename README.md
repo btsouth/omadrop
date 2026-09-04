@@ -111,6 +111,7 @@ omadrop --single    # focused display only
 | `B` | Cycle brightness |
 | `M` | Cycle ambient motion |
 | `R` | Toggle reduced motion |
+| `S` | Toggle flash limit |
 | `H` | Toggle high contrast |
 | `D` | Cycle director profile |
 | `F` | Favorite or unfavorite the current scene |
@@ -121,8 +122,9 @@ omadrop --single    # focused display only
 | `Esc` | Quit |
 
 Controls apply to every Omadrop window, regardless of which display has focus.
-ASCII, intensity, brightness, motion, reduced-motion, high-contrast, director,
-favorite, and hidden-scene choices are remembered between launches. Favorites
+ASCII, intensity, brightness, motion, reduced-motion, flash-limit,
+high-contrast, director, favorite, and hidden-scene choices are remembered
+between launches. Favorites
 slightly influence automatic selection when several scenes fit the music.
 Hidden scenes leave automatic rotation and N/P navigation. Omadrop always keeps
 at least two scenes available. Per-output audio delay is remembered for each
@@ -134,6 +136,10 @@ Director profiles are Balanced, Kinetic, Restrained, and High Contrast. They
 change scene selection, not beat timing or the per-scene pulse limits. Kinetic
 favors scenes that carry dense percussion cleanly; it does not make every scene
 bounce harder.
+
+Flash limit reduces fast event gain, caps display brightness, compresses bright
+output, and disables the optional contrast boost. It keeps local rhythm cues
+active. This is a conservative visual setting, not a medical certification.
 
 ## How it works
 

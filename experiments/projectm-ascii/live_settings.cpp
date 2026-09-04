@@ -169,6 +169,8 @@ LivePreferences loadLivePreferences() {
             parseFloat(value, preferences.motion);
         } else if (key == "reduced-motion") {
             parseBool(value, preferences.reducedMotion);
+        } else if (key == "flash-limited") {
+            parseBool(value, preferences.flashLimited);
         } else if (key == "high-contrast") {
             parseBool(value, preferences.highContrast);
         } else if (key == "director") {
@@ -207,6 +209,7 @@ bool saveLivePreferences(const LivePreferences& supplied) {
            << "brightness=" << preferences.brightness << '\n'
            << "motion=" << preferences.motion << '\n'
            << "reduced-motion=" << (preferences.reducedMotion ? 1 : 0) << '\n'
+           << "flash-limited=" << (preferences.flashLimited ? 1 : 0) << '\n'
            << "high-contrast=" << (preferences.highContrast ? 1 : 0) << '\n'
            << "director=" << directorProfileName(preferences.directorProfile)
            << '\n';

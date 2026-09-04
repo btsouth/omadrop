@@ -864,10 +864,16 @@ int main(int argc, char** argv) {
     const float highIntensityResponse = mean(renderGesture(
         renderer, policyKick, NativeSceneKind::PaperHorizon, error,
         {.intensity = 1.25f}));
+    const float flashLimitedResponse = mean(renderGesture(
+        renderer, policyKick, NativeSceneKind::PaperHorizon, error,
+        {.intensity = 1.25f, .flashLimited = true}));
     std::cout << "native Paper Horizon intensity_response="
-              << lowIntensityResponse << ',' << highIntensityResponse << "\n";
+              << lowIntensityResponse << ',' << highIntensityResponse
+              << " flash_limited=" << flashLimitedResponse << "\n";
     assert(lowIntensityResponse > 0.0f);
     assert(highIntensityResponse > lowIntensityResponse * 1.08f);
+    assert(flashLimitedResponse < highIntensityResponse * 0.90f);
+    assert(flashLimitedResponse > 0.0f);
 
     std::array<unsigned char, 16 * 16 * 4> checker{};
     for (int y = 0; y < 16; ++y) {

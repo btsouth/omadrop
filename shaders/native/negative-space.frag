@@ -94,7 +94,7 @@ void main() {
         vec2 center = vec2(-0.48 + fi * 0.095,
                            0.195 + 0.045 * sin(fi * 1.78));
         float localHat = sceneHat * (0.58 + 0.42 * sin(fi * 2.27 + 1.1));
-        float radius = 0.003 + 0.026 * max(0.0, localHat)
+        float radius = 0.003 + 0.029 * max(0.0, localHat)
                      + 0.001 * spectrumLevel[index * 2 + 4];
         float distanceToHole = length(p - center) - radius;
         perforations = max(perforations,

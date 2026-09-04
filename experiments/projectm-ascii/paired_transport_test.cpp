@@ -33,6 +33,7 @@ int main() {
         .highContrastMode = 0,
         .directorProfile = 2,
         .manualSceneCue = 1,
+        .flashLimitMode = 1,
     }));
     const auto first = displayFollower.consume(follower.readDisplay(), 8, 10);
     assert(first && first->nativeScene == 4 && first->asciiMode == 0);
@@ -41,6 +42,7 @@ int main() {
     assert(first->motionPercent == 65 && first->reducedMotionMode == 1);
     assert(first->highContrastMode == 0 && first->directorProfile == 2);
     assert(first->manualSceneCue == 1);
+    assert(first->flashLimitMode == 1);
     assert(!displayFollower.consume(follower.readDisplay(), 8, 10));
 
     assert(leader.publishDisplay({
@@ -59,6 +61,7 @@ int main() {
         .reducedMotionMode = 0,
         .highContrastMode = 1,
         .directorProfile = 3,
+        .flashLimitMode = 0,
     }));
     const auto second = displayFollower.consume(follower.readDisplay(), 8, 10);
     assert(second && second->nativeScene == 7);
@@ -66,6 +69,7 @@ int main() {
     assert(second->closeMode == 1);
     assert(second->intensityPercent == 75 && second->brightnessPercent == 115);
     assert(second->motionPercent == 35 && second->highContrastMode == 1);
+    assert(second->flashLimitMode == 0);
 
     const std::string legacyDisplay = "3 2 1000 7 0 4 2 1 1 35 0\n";
     const auto legacy = decodePairedDisplayState(legacyDisplay, 8, 10);
@@ -73,6 +77,9 @@ int main() {
     assert(legacy->intensityPercent == -1 && legacy->motionPercent == -1);
     assert(!decodePairedDisplayState(
         "4 2 1000 7 0 4 2 1 1 35 0 151 100 100 0 0 0\n", 8, 10));
+    assert(!decodePairedDisplayState(
+        "5 2 1000 7 0 4 2 1 1 35 0 100 100 100 0 0 0 0 2\n",
+        8, 10));
 
     MusicFrame frame;
     frame.audioTimeSeconds = 9.25;

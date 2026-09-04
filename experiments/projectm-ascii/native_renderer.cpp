@@ -176,9 +176,13 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
     };
     const float intensity = policy.effectiveIntensity();
     const float motion = policy.effectiveMotion();
-    const float responsiveKick = gestureResponse(music.kick * intensity, 2.35f);
-    const float responsiveSnare = gestureResponse(music.snare * intensity, 2.20f);
-    const float responsiveHat = gestureResponse(music.hat * intensity, 2.55f);
+    const float eventScale = policy.flashLimited ? 0.82f : 1.0f;
+    const float responsiveKick
+        = gestureResponse(music.kick * intensity, 2.35f) * eventScale;
+    const float responsiveSnare
+        = gestureResponse(music.snare * intensity, 2.20f) * eventScale;
+    const float responsiveHat
+        = gestureResponse(music.hat * intensity, 2.55f) * eventScale;
     // Sustained energy provides continuity at a restrained speed. Event
     // envelopes deform and relight geometry directly instead of accelerating
     // this accumulated clock, which would make the largest response arrive
@@ -221,11 +225,14 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
         glUniform1f(glGetUniformLocation(program, "beatAnticipation"),
                 music.beatAnticipation);
         glUniform1f(glGetUniformLocation(program, "beatPulse"),
-                    std::clamp(music.beatPulse * intensity, 0.0f, 1.25f));
+                    std::clamp(music.beatPulse * intensity * eventScale,
+                               0.0f, 1.25f));
         glUniform1f(glGetUniformLocation(program, "onsetPulse"),
-                    std::clamp(music.onsetPulse * intensity, 0.0f, 1.25f));
+                    std::clamp(music.onsetPulse * intensity * eventScale,
+                               0.0f, 1.25f));
         glUniform1f(glGetUniformLocation(program, "downbeat"),
-                    std::clamp(music.downbeat * intensity, 0.0f, 1.25f));
+                    std::clamp(music.downbeat * intensity * eventScale,
+                               0.0f, 1.25f));
         glUniform1f(glGetUniformLocation(program, "barPhase"), music.barPhase);
         glUniform1f(glGetUniformLocation(program, "phrasePhase"), music.phrasePhase);
         glUniform1f(glGetUniformLocation(program, "clockConfidence"),
@@ -248,7 +255,8 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
         glUniform1f(glGetUniformLocation(program, "energySlow"), music.energySlow);
         glUniform1f(glGetUniformLocation(program, "energySlope"), music.energySlope);
         glUniform1f(glGetUniformLocation(program, "section"),
-                    std::clamp(music.section * intensity, 0.0f, 1.25f));
+                    std::clamp(music.section * intensity * eventScale,
+                               0.0f, 1.25f));
         glUniform1f(glGetUniformLocation(program, "development"), scene.development);
         glUniform1f(glGetUniformLocation(program, "drive"),
                     scene.drive * (0.35f + 0.65f * motion));

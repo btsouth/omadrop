@@ -33,6 +33,7 @@ struct LiveCompositorFrame {
     bool asciiEnabled = false;
     float motionScale = 1.0f;
     float contrastScale = 1.0f;
+    bool flashLimited = false;
     float visibility = 1.0f;
 };
 
