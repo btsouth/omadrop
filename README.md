@@ -187,6 +187,10 @@ See the [control reference](docs/controls.md) for persistence and automatic
 direction behavior. For launch, audio, artwork, display, or GPU problems, use
 the [troubleshooting guide](docs/troubleshooting.md).
 
+The [real-song audit](docs/real-song-audit.md) records complete-song motion and
+director results for two exact, rights-cleared tracks. It specifically rejects
+constant whole-scene pulsing as well as weak or stalled response.
+
 Director profiles are Balanced, Kinetic, Restrained, and High Contrast. They
 change scene selection, not beat timing or the per-scene pulse limits. Kinetic
 favors scenes that carry dense percussion cleanly; it does not make every scene
@@ -264,7 +268,9 @@ the sequence.
 
 For a release recording, set `OMADROP_DEMO_AUDIO_FILE` to the approved local
 audio file. The recorder rejects competing output streams during capture and
-verifies that the captured opening matches that file before accepting the MP4.
+verifies its checked-in rights record and captured opening before accepting the
+MP4. It writes the exact required credit to `OUTPUT.mp4.attribution.txt`. See
+the [approved demo music and license records](docs/demo-music.md).
 
 </details>
 

@@ -1,0 +1,55 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+rights=$root/bin/demo-rights-audit
+scorecard=$root/bin/native-scene-scorecard
+director=$root/bin/native-director-audit
+manifest=${OMADROP_DEMO_RIGHTS_MANIFEST:-$root/demo/music-rights.json}
+
+if (($# < 2)); then
+  echo "usage: native-approved-music-audit OUTPUT_DIRECTORY AUDIO_FILE..." >&2
+  exit 2
+fi
+command -v ffmpeg >/dev/null || {
+  echo "native-approved-music-audit: required command not found: ffmpeg" >&2
+  exit 2
+}
+
+output=$(readlink -m "$1")
+shift
+mkdir -p "$output"
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-approved-audit.XXXXXX")
+trap 'rm -rf -- "$scratch"' EXIT
+
+summary=$output/README.md
+{
+  echo '# Approved music audit'
+  echo
+  echo 'Each track passed its exact rights record, all 18 scene motion gates, and automatic director pacing. Source audio is not copied into this evidence directory.'
+  echo
+} >"$summary"
+
+for source in "$@"; do
+  source=$(readlink -f "$source")
+  attribution=$scratch/attribution.txt
+  "$rights" "$source" "$manifest" >"$attribution"
+  id=$(sed -n 's/^Rights record: //p' "$attribution")
+  [[ $id =~ ^[a-z0-9][a-z0-9-]*$ ]] || {
+    echo "native-approved-music-audit: unsafe rights record id: $id" >&2
+    exit 1
+  }
+  track_output=$output/$id
+  mkdir -p "$track_output"
+  cp "$attribution" "$track_output/attribution.txt"
+  raw=$scratch/$id.f32
+  ffmpeg -hide_banner -loglevel error -i "$source" -vn -sn -dn \
+    -ar 44100 -ac 2 -f f32le "$raw"
+  "$scorecard" --enforce "$raw" "$track_output/scenes"
+  "$director" "$raw" "$track_output/director"
+  title=$(sed -n 's/^Music: //p' "$attribution")
+  printf -- '- %s: [scene scorecard](%s/scenes/scorecard.md), [director audit](%s/director/director.md), [attribution](%s/attribution.txt)\n' \
+    "$title" "$id" "$id" "$id" >>"$summary"
+done
+
+echo "approved music evidence: $summary"

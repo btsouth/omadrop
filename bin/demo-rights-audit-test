@@ -1,0 +1,56 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+audit=$root/bin/demo-rights-audit
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-rights-test.XXXXXX")
+trap 'rm -rf -- "$scratch"' EXIT
+
+audio=$scratch/approved.wav
+manifest=$scratch/rights.json
+ffmpeg -hide_banner -loglevel error -f lavfi \
+  -i 'sine=frequency=440:sample_rate=44100:duration=2' \
+  -c:a pcm_s16le "$audio"
+sha=$(sha256sum "$audio" | awk '{ print $1 }')
+duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$audio")
+jq -n --arg sha "$sha" --argjson duration "$duration" '{
+  format: 1,
+  tracks: [{
+    id: "test-tone",
+    title: "Test Tone",
+    creator: "Omadrop tests",
+    source_url: "https://example.invalid/test-tone",
+    license: "CC BY 3.0 Unported",
+    license_url: "https://creativecommons.org/licenses/by/3.0/",
+    sha256: $sha,
+    duration_seconds: $duration,
+    verified_on: "2026-09-04"
+  }]
+}' >"$manifest"
+
+"$audit" "$audio" "$manifest" >"$scratch/accepted"
+grep -Fq 'Music: "Test Tone" by Omadrop tests' "$scratch/accepted"
+grep -Fq 'Changes: excerpted and synchronized' "$scratch/accepted"
+
+printf '\0' >>"$audio"
+if "$audit" "$audio" "$manifest" >"$scratch/tampered" 2>&1; then
+  echo "demo-rights-audit-test: tampered audio was accepted" >&2
+  exit 1
+fi
+grep -Fq 'not an exact approved rights record' "$scratch/tampered"
+
+jq '.tracks[0].license = "unknown"' "$manifest" >"$manifest.invalid"
+if "$audit" "$audio" "$manifest.invalid" >"$scratch/invalid" 2>&1; then
+  echo "demo-rights-audit-test: incomplete license was accepted" >&2
+  exit 1
+fi
+grep -Fq 'invalid or incomplete rights manifest' "$scratch/invalid"
+
+jq '.tracks[0].id = "../unsafe"' "$manifest" >"$manifest.unsafe-id"
+if "$audit" "$audio" "$manifest.unsafe-id" >"$scratch/unsafe-id" 2>&1; then
+  echo "demo-rights-audit-test: unsafe record id was accepted" >&2
+  exit 1
+fi
+grep -Fq 'invalid or incomplete rights manifest' "$scratch/unsafe-id"
+
+echo "demo music rights guard passed"

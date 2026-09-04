@@ -33,6 +33,8 @@ shake are not substitutes for scene-specific response.
 - Audio analysis stays local and deterministic.
 - Automated metrics catch regressions. Human review decides whether a visual is
   beautiful enough to ship.
+- A scene must keep a stable visual baseline. Ordinary audio may animate local
+  roles, but it must not make the whole composition thump, bounce, or jitter.
 
 ## The quality gate
 
@@ -623,3 +625,15 @@ Completed after v0.3:
   runtime check for audio, media-session tools, linked libraries, OpenGL 3.3,
   all native shaders, and a hidden test frame. Added concise installed control
   and troubleshooting references.
+- Verified two local full-song sources against their original ccMixter pages
+  and CC BY 3.0 terms, locked their hashes and durations, and made the release
+  recorder reject unknown or modified music while writing complete attribution
+  beside every accepted MP4.
+- Ran both complete approved songs through every native scene. All 36 full-song
+  scene runs pass transient strength, spatial coverage, recovery, silence, and
+  broad-pulse limits. Ink Current received a localized beat and kick correction
+  after the first pass exposed weak movement.
+- Added an automatic director audit for valid transition sequences, scene
+  variety, six-second minimum change spacing, 48-second maximum holds, and
+  bounded blend duration. Both approved songs pass without stalled or frantic
+  direction.

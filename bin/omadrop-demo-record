@@ -26,6 +26,7 @@ done
 
 controlled_audio_file=${OMADROP_DEMO_AUDIO_FILE:-}
 controlled_sink_input=
+rights_attribution=
 if [[ -n $controlled_audio_file ]]; then
   for command in ffplay pactl; do
     command -v "$command" >/dev/null || {
@@ -37,6 +38,9 @@ if [[ -n $controlled_audio_file ]]; then
     echo "omadrop-demo-record: audio file not found: $controlled_audio_file" >&2
     exit 1
   }
+  rights_attribution=$("$root/bin/demo-rights-audit" \
+    "$controlled_audio_file" \
+    "${OMADROP_DEMO_RIGHTS_MANIFEST:-$root/demo/music-rights.json}")
 fi
 
 check_competing_audio() {
@@ -242,4 +246,11 @@ if [[ -n $controlled_audio_file ]]; then
   "$root/bin/demo-audio-audit" "$finalized_file" "$controlled_audio_file"
 fi
 mv "$finalized_file" "$output"
+if [[ -n $rights_attribution ]]; then
+  attribution_file=$output.attribution.txt
+  attribution_temporary=$attribution_file.tmp.$$
+  printf '%s\n' "$rights_attribution" >"$attribution_temporary"
+  mv "$attribution_temporary" "$attribution_file"
+  printf 'Attribution %s\n' "$attribution_file"
+fi
 printf 'Recorded %s\n' "$output"

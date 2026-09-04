@@ -105,9 +105,12 @@ void main() {
     float beatX = mix(-0.62, 0.62, beatPhase);
     float beatY = strokeCenter(beatX, -0.03, 0.35);
     float beatBead = 1.0 - smoothstep(
-        0.007, 0.016 + 0.007 * beatPulse,
+        0.009, 0.021 + 0.010 * beatPulse,
         length(p - vec2(beatX, beatY)));
     beatBead *= beatPulse * clockConfidence;
+    float beatWake = line(p.y - beatY, 0.0045)
+                   * smoothstep(0.18, 0.0, abs(p.x - beatX + 0.075))
+                   * beatPulse * clockConfidence;
     float anticipationMark = line(p.x - beatX - 0.045, 0.004)
                            * line(p.y - beatY, 0.016)
                            * beatAnticipation * clockConfidence;
@@ -119,15 +122,20 @@ void main() {
                        * downbeat * clockConfidence;
 
     float vortices = 0.0;
+    float vortexCores = 0.0;
     for (int index = 0; index < 3; ++index) {
         float fi = float(index);
         float x = -0.46 + fi * 0.43;
         float y = strokeCenter(x, -0.03, 0.35);
-        float radius = 0.010 + 0.016 * sceneKick
+        float radius = 0.012 + 0.022 * sceneKick
                      + 0.002 * spectrumLevel[index * 4 + 1];
         float vortexDistance = length(p - vec2(x, y)) - radius;
-        float gate = smoothstep(-0.15, 0.65, sin(fi * 2.4 + barPhase * tau));
-        vortices += line(vortexDistance, 0.0045) * sceneKick * gate;
+        float gate = 0.62 + 0.38 * smoothstep(
+            -0.15, 0.65, sin(fi * 2.4 + barPhase * tau));
+        vortices += line(vortexDistance, 0.0065) * sceneKick * gate;
+        vortexCores += (1.0 - smoothstep(
+            radius * 0.38, radius * 0.72,
+            length(p - vec2(x, y)))) * sceneKick * gate;
     }
 
     vec2 snareA = vec2(-0.18, -0.34);
@@ -178,10 +186,12 @@ void main() {
                    + filamentInk * bristles * 0.047
                    + edgeInk * tributary * 0.064
                    + filamentInk * harmonicEddy * 0.070
-                   + accent * beatBead * 0.18
+                   + accent * beatBead * 0.29
+                   + mix(accent, secondary, 0.42) * beatWake * 0.14
                    + secondary * anticipationMark * 0.12
                    + accent * downbeatSeal * 0.15
-                   + edgeInk * vortices * 0.11
+                   + edgeInk * vortices * 0.19
+                   + mix(edgeInk, accent, 0.45) * vortexCores * 0.10
                    + accent * droplets * 0.17
                    + mix(accent, vec3(1.0), 0.32) * snareEdge * 0.14
                    + edgeInk * sectionBranch * 0.10;

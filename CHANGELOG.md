@@ -96,6 +96,14 @@
   doctor now checks runtime commands, audio, linked libraries, GPU, and shaders.
 - Add installed control and troubleshooting references with direct paths for
   audio, artwork, display, GPU, preference, and private-safe crash diagnosis.
+- Lock two locally available demo tracks to verified CC BY 3.0 source records.
+  Release recording now rejects an unknown or changed audio file and writes the
+  complete source, license, change notice, and digest beside the accepted MP4.
+- Add a real-song audit that rejects stalled or frantic automatic direction,
+  invalid transition sequences, and motion that turns distinct musical roles
+  into broad continuous pulsing.
+- Tune Ink Current on both approved tracks so its beat and kick gestures remain
+  clearly visible while changing less than two percent of the frame at once.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

@@ -1,0 +1,27 @@
+{
+  "format": 1,
+  "tracks": [
+    {
+      "id": "smilingcynic-beat-me",
+      "title": "beat me",
+      "creator": "smilingcynic (Christopher Hawes)",
+      "source_url": "https://ccmixter.org/files/smilingcynic/41102",
+      "license": "CC BY 3.0 Unported",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "sha256": "37e50379d9af0b43d586e429a122776b23f09f9412c5052e5e1237c3b127f5fa",
+      "duration_seconds": 201.020188,
+      "verified_on": "2026-09-04"
+    },
+    {
+      "id": "ivan-chew-to-free-me-instrumental",
+      "title": "To Free Me (Instrumental)",
+      "creator": "Ivan Chew",
+      "source_url": "https://ccmixter.org/files/ramblinglibrarian/47788",
+      "license": "CC BY 3.0 Unported",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "sha256": "32260c101e55466e051c65fd9ecd98cfa3b35d83c428b23bf9afab2e25991e78",
+      "duration_seconds": 170.181837,
+      "verified_on": "2026-09-04"
+    }
+  ]
+}
