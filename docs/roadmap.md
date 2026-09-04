@@ -546,7 +546,16 @@ Completed after v0.3:
   provides continuity when the song remains similar. A fit guard rejects the
   stored plan after a meaningful arrangement change, and manual input clears
   it immediately. Tests cover both following and overriding a plan while the
-  locked 128-second performance retains its established sequence and timing.
+  locked 128-second performance guards the resulting sequence and timing.
+- Added conservative arrangement-role classification to the shared music
+  contract. Intro and outro use track position when available, chorus requires
+  motif recurrence, and bridge, breakdown, build, and peak require bar-level
+  structural or sustained-dynamic evidence. Roles synchronize across displays
+  and appear in replay timelines. They influence scene choice only at a
+  boundary, so a transient cannot relabel a passage or pulse the composition.
+  The locked program now moves from a sparse breakdown through depth and
+  radial build scenes, reaches a flow scene at the peak, and settles into a
+  landscape scene for the late passage.
 - Added five native transition grammars selected from scene compatibility:
   flow carry, focal morph, depth travel, controlled fracture, and
   negative-space reveal. All 18 scenes now have at least two deterministic

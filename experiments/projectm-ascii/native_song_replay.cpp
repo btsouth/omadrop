@@ -183,6 +183,11 @@ int main(int argc, char** argv) {
         std::cerr << "could not open: " << argv[2] << "\n";
         return 1;
     }
+    const std::uintmax_t inputBytes = std::filesystem::file_size(argv[2]);
+    const std::uintmax_t bytesPerHop
+        = AudioFeatureBus::hopSize * 2u * sizeof(float);
+    const std::size_t totalHops = static_cast<std::size_t>(
+        inputBytes / bytesPerHop);
     const std::filesystem::path outputDirectory = argv[3];
     std::filesystem::create_directories(outputDirectory);
     const int width = replayDimension(
@@ -214,7 +219,9 @@ int main(int argc, char** argv) {
                 "\tbpm\tclock_confidence\tbar\tsection\tflux_sub\tflux_bass"
                 "\tflux_low_mid\tflux_mid"
                 "\tflux_presence\tflux_high\trhythmic_density\tsyncopation"
-                "\ttonal_motion\tharmonic_change\tmotion\tmotion_coverage"
+                "\ttonal_motion\tharmonic_change\tenergy_fast\tenergy_slow"
+                "\tenergy_slope\tarrangement\tarrangement_confidence"
+                "\tmotion\tmotion_coverage"
                 "\tmotion_coherence\tglobal_pulse\n";
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) return 1;
@@ -294,8 +301,11 @@ int main(int argc, char** argv) {
         const AudioFeatures features = bus.processStereo(
             pcm.data(), AudioFeatureBus::hopSize);
         const MusicalStructureState& structure = structureTracker.update(features);
+        const float trackProgress = totalHops > 1
+            ? static_cast<float>(hops) / static_cast<float>(totalHops - 1)
+            : -1.0f;
         const MusicFrame& music = musicFrameBuilder.update(
-            features, structure, 1.0f / 60.0f);
+            features, structure, 1.0f / 60.0f, 0.0f, trackProgress);
         const NativeSceneState& scene = sceneDirector.update(
             music, 1.0f / 60.0f, !fixedScene);
         if (!renderer.render(music, scene, width, height, color,
@@ -321,9 +331,17 @@ int main(int argc, char** argv) {
                       << (0.58f * music.energyFast + 0.42f * music.energySlow)
                       << " slope=" << music.energySlope
                       << " density=" << music.rhythmicDensity
-                      << " harmonic-change=" << music.harmonicChange << "\n";
+                      << " harmonic-change=" << music.harmonicChange
+                      << " arrangement="
+                      << arrangementRoleName(music.arrangementRole)
+                      << " confidence=" << music.arrangementConfidence << "\n";
         }
         reportedTransitioning = scene.transitioning;
+        if (music.arrangementChanged) {
+            std::cout << "arrangement " << seconds << " sec "
+                      << arrangementRoleName(music.arrangementRole)
+                      << " confidence=" << music.arrangementConfidence << "\n";
+        }
         if (structure.sectionCrossed) ++sections;
 
         if (frameStream.is_open()) {
@@ -416,6 +434,10 @@ int main(int argc, char** argv) {
                  << '\t' << music.bandFlux[4] << '\t' << music.bandFlux[5]
                  << '\t' << music.rhythmicDensity << '\t' << music.syncopation
                  << '\t' << music.tonalMotion << '\t' << music.harmonicChange
+                 << '\t' << music.energyFast << '\t' << music.energySlow
+                 << '\t' << music.energySlope
+                 << '\t' << arrangementRoleName(music.arrangementRole)
+                 << '\t' << music.arrangementConfidence
                  << '\t' << frameMotion << '\t' << frameCoverage
                  << '\t' << frameCoherence << '\t'
                  << (frameCoverage >= 0.0f

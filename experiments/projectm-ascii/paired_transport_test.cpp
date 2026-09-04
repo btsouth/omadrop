@@ -114,6 +114,12 @@ int main() {
     corrupt.frame.spectrumFlux[7] = std::numeric_limits<float>::quiet_NaN();
     assert(!decodePairedMusicState(encodePairedMusicState(corrupt)));
     corrupt.frame.spectrumFlux[7] = 0.0f;
+    corrupt.frame.arrangementConfidence = 1.1f;
+    assert(!decodePairedMusicState(encodePairedMusicState(corrupt)));
+    corrupt.frame.arrangementConfidence = 0.0f;
+    corrupt.frame.arrangementRole = static_cast<ArrangementRole>(255);
+    assert(!decodePairedMusicState(encodePairedMusicState(corrupt)));
+    corrupt.frame.arrangementRole = ArrangementRole::Unknown;
     corrupt.flowTime = std::numeric_limits<float>::infinity();
     assert(!decodePairedMusicState(encodePairedMusicState(corrupt)));
 

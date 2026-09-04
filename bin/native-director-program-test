@@ -49,19 +49,27 @@ OMADROP_REPLAY_CAPTURE_HOPS=100000 \
 
 mapfile -t changes < <(sed -n '/^scene /p' "$log")
 mapfile -t transitions < <(sed -n '/^transition /p' "$log")
+required_arrangements=(intro verse breakdown build peak chorus outro)
+for role in "${required_arrangements[@]}"; do
+  grep -Eq "^arrangement [0-9.]+ sec $role confidence=" "$log" || {
+    echo "native-director-program-test: missing arrangement role: $role" >&2
+    sed -n '/^arrangement /p' "$log" >&2
+    exit 1
+  }
+done
 expected=(
-  "Ink Current"
+  "Negative Space"
   "Shadow Architecture"
   "Pulse Cathedral"
-  "Wire Organism"
+  "Spectral Ribbons"
   "Paper Horizon"
 )
 expected_transitions=(
-  "Depth Tunnel -> Ink Current depth-travel"
-  "Ink Current -> Shadow Architecture depth-travel"
+  "Depth Tunnel -> Negative Space negative-space-reveal"
+  "Negative Space -> Shadow Architecture negative-space-reveal"
   "Shadow Architecture -> Pulse Cathedral depth-travel"
-  "Pulse Cathedral -> Wire Organism negative-space-reveal"
-  "Wire Organism -> Paper Horizon negative-space-reveal"
+  "Pulse Cathedral -> Spectral Ribbons flow-carry"
+  "Spectral Ribbons -> Paper Horizon flow-carry"
 )
 if ((${#changes[@]} != ${#expected[@]})); then
   echo "native-director-program-test: expected ${#expected[@]} changes, got ${#changes[@]}" >&2
@@ -108,5 +116,5 @@ grep -Fq 'native song replay 128 sec, 5 frames, 4 sections' "$log" || {
   exit 1
 }
 
-sed -n '/^\(scene\|transition\) /p' "$log"
+sed -n '/^\(arrangement\|scene\|transition\) /p' "$log"
 echo "native director program passed"

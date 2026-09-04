@@ -12,7 +12,7 @@
 
 struct PairedMusicState {
     std::uint32_t magic = 0x4f4d4d46u;
-    std::uint32_t version = 4;
+    std::uint32_t version = 5;
     std::uint64_t serial = 0;
     float flowTime = 0.0f;
     MusicFrame frame;
@@ -35,7 +35,7 @@ inline std::optional<PairedMusicState> decodePairedMusicState(
             return std::isfinite(value);
         });
     };
-    const std::array<float, 27> scalarValues{
+    const std::array<float, 29> scalarValues{
         state.flowTime,
         state.frame.kick, state.frame.snare, state.frame.hat,
         state.frame.percussive, state.frame.harmonic,
@@ -49,8 +49,11 @@ inline std::optional<PairedMusicState> decodePairedMusicState(
         state.frame.clockConfidence, state.frame.energyFast,
         state.frame.energySlow, state.frame.energySlope,
         state.frame.novelty, state.frame.section,
+        state.frame.trackProgress, state.frame.arrangementConfidence,
     };
-    if (state.magic != 0x4f4d4d46u || state.version != 4 || state.serial == 0
+    const auto arrangement = static_cast<std::uint8_t>(
+        state.frame.arrangementRole);
+    if (state.magic != 0x4f4d4d46u || state.version != 5 || state.serial == 0
         || !finite(state.frame.bandLevel) || !finite(state.frame.bandFlux)
         || !finite(state.frame.spectrumLevel)
         || !finite(state.frame.spectrumFlux) || !finite(state.frame.chroma)
@@ -58,6 +61,11 @@ inline std::optional<PairedMusicState> decodePairedMusicState(
         || !std::isfinite(state.frame.audioTimeSeconds)
         || state.flowTime < 0.0f || state.frame.audioTimeSeconds < 0.0
         || state.frame.presentationDelaySeconds < 0.0f
+        || state.frame.trackProgress < -1.0f
+        || state.frame.trackProgress > 1.0f
+        || state.frame.arrangementConfidence < 0.0f
+        || state.frame.arrangementConfidence > 1.0f
+        || arrangement > static_cast<std::uint8_t>(ArrangementRole::Outro)
         || state.frame.bpm < 0.0f || state.frame.bpm > 400.0f
         || state.frame.beatPhase < 0.0f || state.frame.beatPhase > 1.0f
         || state.frame.barPhase < 0.0f || state.frame.barPhase > 1.0f

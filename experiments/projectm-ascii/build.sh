@@ -67,6 +67,9 @@ g++ -std=c++20 -O2 -Wall -Wextra structure_timeline_test.cpp \
 g++ -std=c++20 -O2 -Wall -Wextra musical_structure_test.cpp \
   -o musical-structure-test
 
+g++ -std=c++20 -O2 -Wall -Wextra arrangement_classifier_test.cpp \
+  -o arrangement-classifier-test
+
 g++ -std=c++20 -O2 -Wall -Wextra music_frame_test.cpp \
   -o music-frame-test $(pkg-config --cflags --libs fftw3f)
 

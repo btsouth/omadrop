@@ -130,6 +130,9 @@ int main(int argc, char** argv) {
     sharedMusic.bpm = 127.0f;
     sharedMusic.kick = 0.82f;
     sharedMusic.spectrumLevel[12] = 1.4f;
+    sharedMusic.trackProgress = 0.42f;
+    sharedMusic.arrangementRole = ArrangementRole::Chorus;
+    sharedMusic.arrangementConfidence = 0.94f;
     PairedMusicFollower musicFollower;
     const std::string encodedMusic = encodePairedMusicState({
         .serial = 9,
@@ -142,6 +145,9 @@ int main(int argc, char** argv) {
     assert(receivedMusic->frame.bpm == 127.0f);
     assert(receivedMusic->frame.kick == 0.82f);
     assert(receivedMusic->frame.spectrumLevel[12] == 1.4f);
+    assert(receivedMusic->frame.trackProgress == 0.42f);
+    assert(receivedMusic->frame.arrangementRole == ArrangementRole::Chorus);
+    assert(receivedMusic->frame.arrangementConfidence == 0.94f);
     assert(!musicFollower.consume(encodedMusic));
     assert(!decodePairedMusicState("invalid"));
 

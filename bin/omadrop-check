@@ -41,6 +41,7 @@ tests=(
   preset-adapters-test
   audio-queue-test
   musical-structure-test
+  arrangement-classifier-test
   music-frame-test
   signal-monitor-test
   live-compositor-test

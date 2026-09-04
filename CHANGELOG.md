@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Classify intro, verse, chorus, bridge, breakdown, build, peak, and outro
+  passages from bar-level structure, motif recurrence, sustained dynamics, and
+  track position. The director uses confident roles only as a scene-choice
+  bias at boundaries, never as a per-frame animation multiplier.
 - Plan one scene beyond each automatic choice to maintain visual contrast.
   The director follows that plan only while it remains close to the best fit
   for the current music, so arrangement changes can override stale intent.

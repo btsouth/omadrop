@@ -36,6 +36,7 @@ int main() {
     assert(!observation.trackChanged);
     assert(!observation.seeked);
     assert(closeTo(clock.positionAt(102.0), 44.0));
+    assert(closeTo(clock.progressAt(102.0), 44.0 / 240.0));
 
     observation = clock.observe(
         state("player:track-a", "Playing", 44.0), 102.0);
@@ -63,6 +64,12 @@ int main() {
     assert(!observation.seeked);
     assert(clock.identity() == "player:track-b");
     assert(closeTo(clock.positionAt(400.0), 90.0));
+    assert(closeTo(clock.progressAt(400.0), 1.0));
+
+    PlaybackClock unknownDuration;
+    unknownDuration.observe(
+        state("stream", "Playing", 12.0, 0.0), 500.0);
+    assert(unknownDuration.progressAt(501.0) < 0.0);
 
     std::cout << "MPRIS state passed\n";
 }

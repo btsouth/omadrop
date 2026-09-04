@@ -1,5 +1,6 @@
 #pragma once
 
+#include "arrangement_classifier.h"
 #include "audio_features.h"
 #include "musical_structure.h"
 
@@ -43,14 +44,19 @@ struct MusicFrame {
     float energySlope = 0.0f;
     float novelty = 0.0f;
     float section = 0.0f;
+    float trackProgress = -1.0f;
+    float arrangementConfidence = 0.0f;
     int motifIdentity = -1;
+    ArrangementRole arrangementRole = ArrangementRole::Unknown;
+    bool arrangementChanged = false;
 };
 
 class MusicFrameBuilder {
 public:
     const MusicFrame& update(const AudioFeatures& features,
                              const MusicalStructureState& structure,
-                             float seconds, float presentationDelaySeconds = 0.0f) {
+                             float seconds, float presentationDelaySeconds = 0.0f,
+                             float trackProgress = -1.0f) {
         const float dt = std::clamp(seconds, 1.0f / 240.0f, 0.1f);
         frame_.bandLevel = features.level;
         frame_.bandFlux = features.flux;
@@ -84,6 +90,8 @@ public:
         frame_.stereoWidth = features.stereoWidth;
         frame_.audioTimeSeconds = features.audioTimeSeconds;
         frame_.presentationDelaySeconds = std::max(0.0f, presentationDelaySeconds);
+        frame_.trackProgress = trackProgress >= 0.0f
+            ? std::clamp(trackProgress, 0.0f, 1.0f) : -1.0f;
 
         const float anticipationPosition = std::clamp(
             (features.beatPhase - 0.55f) / 0.45f, 0.0f, 1.0f);
@@ -207,6 +215,25 @@ public:
         frame_.energySlope = smooth(frame_.energySlope,
                                     (frame_.energyFast - previousFast) / dt,
                                     2.0f, dt);
+        const ArrangementState& arrangement = arrangementClassifier_.update({
+            .barIndex = structure.barIndex,
+            .barAnalyzed = structure.barAnalyzed,
+            .sectionCrossed = structure.sectionCrossed,
+            .motifRecalled = structure.motifRecalled,
+            .musicActive = musicActive,
+            .trackProgress = frame_.trackProgress,
+            .novelty = structure.novelty,
+            .noveltyThreshold = structure.noveltyThreshold,
+            .energyFast = frame_.energyFast,
+            .energySlow = frame_.energySlow,
+            .energySlope = frame_.energySlope,
+            .percussive = frame_.percussive,
+            .rhythmicDensity = frame_.rhythmicDensity,
+            .harmonicChange = frame_.harmonicChange,
+        }, dt);
+        frame_.arrangementRole = arrangement.role;
+        frame_.arrangementConfidence = arrangement.confidence;
+        frame_.arrangementChanged = arrangement.changed;
         return frame_;
     }
 
@@ -235,4 +262,5 @@ private:
     float previousTonalDifference_ = 0.0f;
     float harmonicChangeEnvelope_ = 0.0f;
     int harmonicChangeCooldown_ = 0;
+    ArrangementClassifier arrangementClassifier_;
 };

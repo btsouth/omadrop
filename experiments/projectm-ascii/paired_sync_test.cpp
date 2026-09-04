@@ -36,6 +36,9 @@ MusicFrame musicAt(double seconds) {
     frame.energySlow = 0.38f;
     frame.percussive = 0.36f;
     frame.harmonic = 0.48f;
+    frame.trackProgress = static_cast<float>(seconds / (2.0 * 60.0 * 60.0));
+    frame.arrangementRole = ArrangementRole::Verse;
+    frame.arrangementConfidence = 0.82f;
     return frame;
 }
 
@@ -140,6 +143,9 @@ int main() {
                     lastFollowerAudioTime
                         = synchronized->frame.audioTimeSeconds;
                     lastFollowerFlowTime = synchronized->flowTime;
+                    assert(synchronized->frame.arrangementRole
+                           == ArrangementRole::Verse);
+                    assert(synchronized->frame.arrangementConfidence == 0.82f);
                 }
                 if (const auto synchronized = displayFollower.consume(
                         wireDisplay, 1, 18)) {

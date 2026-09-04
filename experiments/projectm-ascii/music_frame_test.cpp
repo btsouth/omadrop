@@ -31,10 +31,13 @@ int main() {
 
     MusicalStructureState structure;
     structure.sectionCrossed = true;
+    structure.barAnalyzed = true;
+    structure.barIndex = 8;
     structure.novelty = 0.42f;
     structure.motifIdentity = 3;
 
-    const MusicFrame first = builder.update(features, structure, 1.0f / 60.0f, 0.18f);
+    const MusicFrame first = builder.update(
+        features, structure, 1.0f / 60.0f, 0.18f, 0.02f);
     assert(first.kick == 1.1f);
     assert(first.snare == 0.8f);
     assert(first.hat == 0.6f);
@@ -54,6 +57,9 @@ int main() {
     assert(first.presentationDelaySeconds == 0.18f);
     assert(first.energyFast > 0.0f);
     assert(first.motifIdentity == 3);
+    assert(first.trackProgress == 0.02f);
+    assert(first.arrangementRole == ArrangementRole::Intro);
+    assert(first.arrangementConfidence > 0.8f);
 
     features.barCrossed = false;
     features.beatCrossed = false;
@@ -93,5 +99,6 @@ int main() {
     assert(reset.beatPulse == 0.0f);
     assert(reset.onsetPulse == 0.0f);
     assert(reset.section == 0.0f);
+    assert(reset.arrangementRole == ArrangementRole::Unknown);
     std::cout << "music frame passed\n";
 }

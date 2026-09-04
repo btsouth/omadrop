@@ -297,6 +297,69 @@ private:
             if (candidateDefinition.transitionAnchor
                 == currentDefinition.transitionAnchor) score += 0.14f;
         }
+        // Arrangement roles are a restrained, boundary-time direction cue.
+        // They never drive renderer amplitude and therefore cannot turn a
+        // transient into whole-frame motion. Raw musical fit remains dominant.
+        const float roleWeight = std::clamp(
+            (music.arrangementConfidence - 0.60f) / 0.40f, 0.0f, 1.0f);
+        if (roleWeight > 0.0f) {
+            switch (music.arrangementRole) {
+                case ArrangementRole::Intro:
+                case ArrangementRole::Outro:
+                    score += roleWeight
+                           * (0.18f * traits.energy
+                              + 0.12f * traits.percussive);
+                    if (candidateDefinition.motionGrammar
+                        == NativeMotionGrammar::Sparse) {
+                        score -= roleWeight * 0.10f;
+                    }
+                    break;
+                case ArrangementRole::Breakdown:
+                    score += roleWeight
+                           * (0.20f * traits.energy
+                              + 0.15f * traits.percussive);
+                    if (candidateDefinition.motionGrammar
+                        == NativeMotionGrammar::Sparse) {
+                        score -= roleWeight * 0.08f;
+                    }
+                    break;
+                case ArrangementRole::Build:
+                    if (candidateDefinition.motionGrammar
+                        == NativeMotionGrammar::Flow) {
+                        score -= roleWeight * 0.10f;
+                    }
+                    score -= roleWeight
+                           * (0.18f * traits.energy
+                              + 0.06f * traits.percussive);
+                    break;
+                case ArrangementRole::Peak:
+                    score -= roleWeight
+                           * (0.30f * traits.energy
+                              + 0.20f * traits.percussive);
+                    if (candidateDefinition.motionGrammar
+                        == NativeMotionGrammar::Sparse) {
+                        score += roleWeight * 0.30f;
+                    }
+                    break;
+                case ArrangementRole::Bridge:
+                    if (candidateDefinition.motionGrammar
+                        == currentDefinition.motionGrammar) {
+                        score += roleWeight * 0.10f;
+                    }
+                    if (candidateDefinition.transitionAnchor
+                        == currentDefinition.transitionAnchor) {
+                        score += roleWeight * 0.06f;
+                    }
+                    break;
+                case ArrangementRole::Chorus:
+                    // Recurring motifs already restore their remembered scene.
+                    // Keep this neutral so chorus recognition does not fight it.
+                    break;
+                case ArrangementRole::Verse:
+                case ArrangementRole::Unknown:
+                    break;
+            }
+        }
         if (includeHistory) {
             for (std::size_t age = 0; age < recentScenes_.size(); ++age) {
                 const NativeSceneKind recent

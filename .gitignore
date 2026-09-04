@@ -21,6 +21,7 @@ experiments/projectm-ascii/preset-adapters-test
 experiments/projectm-ascii/audio-queue-test
 experiments/projectm-ascii/structure-timeline-test
 experiments/projectm-ascii/musical-structure-test
+experiments/projectm-ascii/arrangement-classifier-test
 experiments/projectm-ascii/music-frame-test
 experiments/projectm-ascii/signal-monitor-test
 experiments/projectm-ascii/status-overlay-test

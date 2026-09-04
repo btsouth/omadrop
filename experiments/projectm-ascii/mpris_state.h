@@ -2,6 +2,7 @@
 
 #include <json-c/json.h>
 
+#include <algorithm>
 #include <cmath>
 #include <optional>
 #include <string>
@@ -85,6 +86,12 @@ public:
         const double position = state_->positionSeconds + advance;
         return state_->durationSeconds > 0.0
             ? std::min(state_->durationSeconds, position) : position;
+    }
+
+    double progressAt(double monotonicSeconds) const {
+        if (!state_ || state_->durationSeconds <= 0.0) return -1.0;
+        return std::clamp(positionAt(monotonicSeconds)
+                          / state_->durationSeconds, 0.0, 1.0);
     }
 
     const std::string& identity() const {

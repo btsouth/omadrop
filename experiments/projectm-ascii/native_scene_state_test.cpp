@@ -426,6 +426,24 @@ int main() {
     wideHarmonic.stereoWidth = 0.95f;
     assert(automaticChoice(wideHarmonic) == NativeSceneKind::OrbitalLoom);
 
+    MusicFrame arrangementDirected;
+    arrangementDirected.energyFast = 0.52f;
+    arrangementDirected.energySlow = 0.52f;
+    arrangementDirected.percussive = 0.46f;
+    arrangementDirected.harmonic = 0.50f;
+    arrangementDirected.spectralCentroid = 0.48f;
+    arrangementDirected.stereoWidth = 0.48f;
+    arrangementDirected.arrangementConfidence = 0.96f;
+    arrangementDirected.arrangementRole = ArrangementRole::Breakdown;
+    const NativeSceneKind breakdownChoice = automaticChoiceFrom(
+        NativeSceneKind::DepthTunnel, arrangementDirected);
+    arrangementDirected.arrangementRole = ArrangementRole::Peak;
+    const NativeSceneKind peakChoice = automaticChoiceFrom(
+        NativeSceneKind::DepthTunnel, arrangementDirected);
+    assert(breakdownChoice != peakChoice);
+    assert(nativeSceneDefinition(breakdownChoice).selection.energy
+           < nativeSceneDefinition(peakChoice).selection.energy);
+
     MusicFrame sparseBright;
     sparseBright.energyFast = 0.22f;
     sparseBright.energySlow = 0.22f;

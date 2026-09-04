@@ -1455,9 +1455,11 @@ int main(int argc, char** argv) {
             }
             audioFeatures = featureBus.processStereo(pcm.data(), analysisHopFrames);
             const MusicalStructureState& structure = structureTracker.update(audioFeatures);
+            const float trackProgress = static_cast<float>(
+                trackSession.playbackClock().progressAt(now / 1000.0));
             musicFrame = musicFrameBuilder.update(
                 audioFeatures, structure, 1.0f / 60.0f,
-                syncDelayMs / 1000.0f);
+                syncDelayMs / 1000.0f, trackProgress);
             structureClockLocked = structure.clockLocked;
             phraseBoundaryThisFrame = phraseBoundaryThisFrame || structure.phraseCrossed;
             sectionBoundaryThisFrame = sectionBoundaryThisFrame || structure.sectionCrossed;
