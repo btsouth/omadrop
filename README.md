@@ -64,6 +64,15 @@ from the v0.3 release demo, not mockups.
 The native renderer is the default. An 11-preset projectM compatibility mode is
 included for direct comparison with classic MilkDrop behavior.
 
+## Verify a build
+
+```bash
+./bin/omadrop-check          # build and run deterministic checks
+./bin/omadrop-check --full   # add all replay profiles and a 10-minute soak
+```
+
+The full check writes its scorecards and soak log under `cache/release-check-*`.
+
 ## Install on Omarchy
 
 ```bash

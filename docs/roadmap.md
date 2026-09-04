@@ -581,3 +581,7 @@ Completed after v0.3:
   final output, and suppresses the optional contrast boost while preserving
   localized rhythm cues. The compositor test verifies lower peak luminance,
   and the structured-track scorecard still enforces the response floor.
+- Added `bin/omadrop-check` so the native build, deterministic tests, renderer,
+  transitions, synchronized launcher, demo-audio isolation, and replay hashes
+  run as one quick gate. Full mode adds all 90 scene/profile scorecards and a
+  ten-minute simulated 1080p soak with persisted evidence.

@@ -1,0 +1,80 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+native=$root/experiments/projectm-ascii
+mode=${1:---quick}
+
+case $mode in
+  --quick|--full) ;;
+  -h|--help)
+    cat <<'EOF'
+Usage: omadrop-check [--quick|--full]
+
+Build and verify the native Omadrop application.
+
+  --quick  Run deterministic unit, renderer, transition, launcher, and audio tests
+  --full   Run quick checks, all 90 replay combinations, and a 10-minute soak
+EOF
+    exit 0
+    ;;
+  *)
+    echo "omadrop-check: unknown option: $mode" >&2
+    exit 2
+    ;;
+esac
+
+"$native/build.sh"
+
+tests=(
+  live-settings-test
+  mpris-state-test
+  mpris-poller-test
+  paired-transport-test
+  audio-features-test
+  preset-selector-test
+  preset-adapters-test
+  audio-queue-test
+  musical-structure-test
+  music-frame-test
+  signal-monitor-test
+  live-compositor-test
+  status-overlay-test
+  cover-presentation-test
+  native-scene-state-test
+)
+
+for test in "${tests[@]}"; do
+  echo "checking $test"
+  "$native/$test"
+done
+
+echo "checking audio output handoff"
+"$native/audio-output-session-test" "$native/fixtures/fake-pw-record"
+echo "checking curated preset profiles"
+"$native/preset-profiles-test" "$root/presets/curated"
+echo "checking structure timeline"
+"$native/structure-timeline-test" "$native/fixtures/manual-song.json"
+
+echo "checking native renderer"
+"$native/native-renderer-test" "$root/shaders/native"
+echo "checking native transitions"
+"$native/native-transition-test" "$root/shaders/native" "$native/live.cpp"
+echo "checking launcher synchronization"
+"$root/bin/omadrop-launcher-test"
+echo "checking demo audio isolation"
+"$root/bin/demo-audio-audit-test"
+echo "checking replay fixture hashes"
+"$root/bin/native-replay-fixtures" --verify
+
+if [[ $mode == --full ]]; then
+  evidence=$root/cache/release-check-$(date +%Y%m%d-%H%M%S)-$$
+  echo "checking all scene and replay-profile combinations"
+  "$root/bin/native-scene-scorecard-suite" --enforce "$evidence/scorecards"
+  echo "checking 10-minute simulated 1080p stability"
+  "$native/native-renderer-soak" "$root/shaders/native" 10 \
+    | tee "$evidence/renderer-soak.log"
+  echo "release evidence: $evidence"
+fi
+
+echo "Omadrop $mode checks passed"
