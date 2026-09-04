@@ -95,13 +95,12 @@ void main() {
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
                   * mix(0.905, 0.958, harmonic)
                   * mix(1.0, 1.014, release)
-                  * (1.0 - 0.045 * beatPulse - 0.055 * onsetPulse - 0.035 * kick
-                         - 0.045 * snare - 0.050 * hat) * edge;
+                  * (1.0 - 0.015 * beatPulse) * edge;
 
     float depth = mix(0.24, 0.34, development) / radius
                 + flowTime * (0.20 + 0.20 * development + 0.28 * drive
                               + 0.18 * bandLevel[0]);
-    depth += beatPulse * 2.8 + onsetPulse * 2.2 + kick * 4.2
+    depth += beatPulse * 0.55 + kick * 4.5
            - beatAnticipation * 0.8;
     depth += artworkStructure * mix(0.58, 0.16, development);
     float localLow = clamp(0.5 * spectrumLevel[3] + 0.5 * spectrumLevel[7],
@@ -122,7 +121,7 @@ void main() {
     float ribs = line(sin(angle * ribCount + wallBend + phrasePhase * 0.7),
                       0.055 + 0.018 * bandLevel[3]);
     ribs *= smoothstep(0.12, 0.46, radius) * smoothstep(1.25, 0.62, radius);
-    ribs *= (0.68 + 0.18 * localMid) * (1.0 + 0.34 * snare);
+    ribs *= (0.68 + 0.18 * localMid) * (1.0 + 0.76 * snare);
 
     float fineRibs = line(sin(angle * 42.0 - flowTime * 0.7
                               + hat * 2.4), 0.028);
@@ -160,7 +159,7 @@ void main() {
         rings * (0.32 + 0.45 * bandLevel[1] + 0.34 * kick),
         ribs * (0.20 + 0.36 * bandLevel[3] + 0.18 * snare));
     focalSubject *= 0.72 + 0.22 * sin(barPhase * tau + radius * 2.0);
-    float accents = fineRibs * (0.76 + 0.72 * hat) + beatRing + sectionWave;
+    float accents = fineRibs * (0.76 + 1.85 * hat) + beatRing + sectionWave;
 
     vec3 primary = palettePrimary(-0.16);
     vec3 secondary = paletteSecondary(-0.16);
@@ -181,15 +180,13 @@ void main() {
                      * (lifecycleLight + 0.07 * max(0.0, energySlope))
                    + accentColor * accents * (0.32 + 0.16 * peak)
                    + mix(accentColor, vec3(1.0), 0.28) * kickShock * 0.50
-                   + mix(accentColor, vec3(1.0), 0.40) * snareShutter * 0.31
-                   + mix(tunnelColor, vec3(1.0), 0.58) * hatGlints * 0.43;
+                   + mix(accentColor, vec3(1.0), 0.40) * snareShutter * 0.72
+                   + mix(tunnelColor, vec3(1.0), 0.58) * hatGlints * 0.88;
     injection *= 1.0 - 0.58 * release;
 
     // Preserve a dark, readable vanishing point and prevent feedback haze.
     float core = smoothstep(0.055, 0.15, radius);
-    vec3 result = (feedback + injection) * core
-                * (1.0 + 0.09 * beatPulse + 0.08 * onsetPulse + 0.060 * kick
-                       + 0.060 * snare + 0.050 * hat);
+    vec3 result = (feedback + injection) * core;
     result = max(result - vec3(0.0045), vec3(0.0));
     color = vec4(result, 1.0);
 }

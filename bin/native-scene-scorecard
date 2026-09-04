@@ -148,7 +148,7 @@ done
   echo
   echo "Audio: $source_label"
   echo
-  echo 'The transient floor is 1.75x quiet motion for kick, snare, and hat. The absolute silence-drift ceiling is 0.003. Broad coverage flags scenes where all three roles move a similar amount of the frame. Recovery compares motion 83 ms after each hit with motion on the hit. Broad or slow-recovery results require anti-thump review. These are regression gates, not a substitute for visual review.'
+  echo 'The transient floor is 1.75x quiet motion for kick, snare, and hat. The absolute silence-drift ceiling is 0.003. Broad coverage flags scenes where all three roles move a similar amount of the frame. Recovery compares motion 167 ms after an isolated hit with motion on the hit; a new transient cancels that sample. Broad or slow-recovery results require anti-thump review. These are regression gates, not a substitute for visual review.'
   echo
   echo '| Scene | Quiet | Beat | Kick | Snare | Hat | K/S/H coverage | K/S/H recovery | Motion | Silence | Status |'
   echo '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :---: | ---: | :---: |'

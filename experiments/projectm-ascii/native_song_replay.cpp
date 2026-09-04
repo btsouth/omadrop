@@ -219,27 +219,36 @@ int main(int argc, char** argv) {
             if (!previousFrame.empty()) {
                 const FrameDelta delta = measureFrameDelta(previousFrame, currentFrame);
                 frameMotion = delta.motion;
-                if (kickRecoveryFrames > 0 && --kickRecoveryFrames == 0) {
-                    kickRecoveryMotion.add(delta);
-                }
-                if (snareRecoveryFrames > 0 && --snareRecoveryFrames == 0) {
-                    snareRecoveryMotion.add(delta);
-                }
-                if (hatRecoveryFrames > 0 && --hatRecoveryFrames == 0) {
-                    hatRecoveryMotion.add(delta);
+                const bool kickRaised = music.kick > previousKick + 0.15f;
+                const bool snareRaised = music.snare > previousSnare + 0.15f;
+                const bool hatRaised = music.hat > previousHat + 0.15f;
+                if (kickRaised || snareRaised || hatRaised) {
+                    kickRecoveryFrames = 0;
+                    snareRecoveryFrames = 0;
+                    hatRecoveryFrames = 0;
+                } else {
+                    if (kickRecoveryFrames > 0 && --kickRecoveryFrames == 0) {
+                        kickRecoveryMotion.add(delta);
+                    }
+                    if (snareRecoveryFrames > 0 && --snareRecoveryFrames == 0) {
+                        snareRecoveryMotion.add(delta);
+                    }
+                    if (hatRecoveryFrames > 0 && --hatRecoveryFrames == 0) {
+                        hatRecoveryMotion.add(delta);
+                    }
                 }
                 if (music.beatPulse > previousBeat + 0.20f) beatMotion.add(delta);
-                if (music.kick > previousKick + 0.15f) {
+                if (kickRaised) {
                     kickMotion.add(delta);
-                    kickRecoveryFrames = 5;
+                    kickRecoveryFrames = 10;
                 }
-                if (music.snare > previousSnare + 0.15f) {
+                if (snareRaised) {
                     snareMotion.add(delta);
-                    snareRecoveryFrames = 5;
+                    snareRecoveryFrames = 10;
                 }
-                if (music.hat > previousHat + 0.15f) {
+                if (hatRaised) {
                     hatMotion.add(delta);
-                    hatRecoveryFrames = 5;
+                    hatRecoveryFrames = 10;
                 }
                 if (music.onsetPulse > previousOnset + 0.15f) {
                     onsetMotion.add(delta);
