@@ -116,6 +116,7 @@ Usage: omadrop [--single|--all|--display-mode|--toggle-secondary|--version]
   --single            Use one display and remember the choice
   --all               Use every connected display and remember the choice
   --display-mode      Print the saved all/single display choice
+  --stop              Close the whole session, forcing an unresponsive renderer
   --toggle-secondary  Hide or restore the secondary Omadrop display
   --version            Print the installed version
   calibrate            Align visuals with the current audio output
@@ -192,10 +193,24 @@ runner=${OMADROP_RUN_CURATED:-$root/experiments/projectm-ascii/run-curated.sh}
 # Match Quickshell's old singleton feel: the Omarchy hotkey is a true toggle.
 # Anchor the full executable path so this never catches an unrelated projectM
 # frontend or the pgrep command itself.
+terminate_renderers() {
+  (($#)) || return 0
+  local pid alive attempt
+  kill -TERM "$@" 2>/dev/null || true
+  for ((attempt = 0; attempt < 8; attempt++)); do
+    alive=0
+    for pid in "$@"; do
+      if kill -0 "$pid" 2>/dev/null; then alive=1; fi
+    done
+    ((alive == 0)) && return 0
+    sleep 0.05
+  done
+  kill -KILL "$@" 2>/dev/null || true
+}
 running=$(pgrep -f "^${live//./\\.}( |$)" || true)
 if [[ -n $running ]]; then
-  kill -TERM $running 2>/dev/null || true
-  if [[ ${OMADROP_REPLACE_RUNNING:-0} != 1 ]]; then
+  terminate_renderers $running
+  if [[ ${1:-} == --stop || ${OMADROP_REPLACE_RUNNING:-0} != 1 ]]; then
     exit 0
   fi
   for ((attempt = 0; attempt < 100; attempt++)); do
@@ -214,6 +229,7 @@ if [[ -n $running ]]; then
     exit 1
   fi
 fi
+[[ ${1:-} == --stop ]] && exit 0
 
 export OMADROP_FULLSCREEN=${OMADROP_FULLSCREEN:-1}
 export OMADROP_RANDOM_SEED=${OMADROP_RANDOM_SEED:-$(((RANDOM << 16) ^ RANDOM))}
@@ -238,7 +254,7 @@ cleanup_runtime() {
     "$start_gate" "$start_gate".*.ready
 }
 stop_renderers() {
-  ((${#pids[@]})) && kill -TERM "${pids[@]}" 2>/dev/null || true
+  terminate_renderers "${pids[@]}"
   for pid in "${pids[@]}"; do
     wait "$pid" 2>/dev/null || true
   done

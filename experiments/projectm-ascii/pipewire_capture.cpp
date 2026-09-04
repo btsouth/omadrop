@@ -1,4 +1,5 @@
 #include "pipewire_capture.h"
+#include "child_process.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -26,6 +27,7 @@ bool PipeWireCapture::start(const std::string& targetSink) {
     }
     const pid_t child = fork();
     if (child == 0) {
+        setpgid(0, 0);
         close(execPipe[0]);
         dup2(audioPipe[1], STDOUT_FILENO);
         const int nullFd = open("/dev/null", O_WRONLY);
@@ -71,6 +73,7 @@ bool PipeWireCapture::start(const std::string& targetSink) {
     }
 
     process_ = child;
+    setpgid(child, child);
     descriptor_ = audioPipe[0];
     fcntl(descriptor_, F_SETFL, fcntl(descriptor_, F_GETFL) | O_NONBLOCK);
     return true;
@@ -93,8 +96,7 @@ bool PipeWireCapture::running() {
 
 void PipeWireCapture::stop() {
     if (process_ > 0) {
-        kill(process_, SIGTERM);
-        waitpid(process_, nullptr, 0);
+        stopChildProcess(process_);
         process_ = -1;
     }
     if (descriptor_ >= 0) {

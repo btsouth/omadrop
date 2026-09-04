@@ -26,6 +26,11 @@ session; the ordinary `omadrop` launcher retains automatic direction.
 | `F11` | Toggle fullscreen | No |
 | `Esc` | Quit | No |
 
+On Omarchy, `Super + W` closes the complete Omadrop session when an Omadrop
+window is focused, including a renderer that stops responding. Other apps keep
+the usual Hyprland close action. `omadrop --stop` provides the same external
+session stop from a terminal.
+
 The first ordinary launch shows a compact control card after the cover has
 finished dissolving. It is shown once, is not included in scripted demos or
 calibration, and its seen state persists with the other preferences.

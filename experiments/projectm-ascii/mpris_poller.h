@@ -3,6 +3,7 @@
 #include "mpris_state.h"
 
 #include <cstdint>
+#include <chrono>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -31,4 +32,5 @@ private:
     int outputFd_ = -1;
     std::string output_;
     std::uint64_t startedAtMs_ = 0;
+    std::chrono::steady_clock::time_point launchedAt_;
 };

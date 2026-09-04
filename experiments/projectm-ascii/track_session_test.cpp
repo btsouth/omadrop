@@ -38,11 +38,12 @@ int main() {
     assert(update.artworkCandidate == "/tmp/b.png");
 
     TrackPresentationState timeout(false, 100);
-    update = timeout.advance(4600);
+    assert(!timeout.advance(449).startupArtworkTimedOut);
+    update = timeout.advance(450);
     assert(update.startupArtworkTimedOut);
     assert(timeout.artworkLookupComplete());
     update = timeout.ingest(
-        result("slow-launch", "/tmp/late.png", 4000), 4700);
+        result("slow-launch", "/tmp/late.png", 100), 4700);
     assert(update.playback && update.playback->first);
     assert(!update.artworkCandidate);
     update = timeout.ingest(

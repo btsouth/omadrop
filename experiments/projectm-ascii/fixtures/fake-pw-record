@@ -1,12 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-printf 'started %s %s\n' "$$" "$*" >>"${OMADROP_TEST_CAPTURE_LOG:?}"
 finish() {
   printf 'terminated %s\n' "$$" >>"$OMADROP_TEST_CAPTURE_LOG"
   exit 0
 }
 trap finish TERM INT
+if [[ ${OMADROP_TEST_CAPTURE_IGNORE_TERM:-0} == 1 ]]; then
+  trap '' TERM INT
+fi
+printf 'started %s %s\n' "$$" "$*" >>"${OMADROP_TEST_CAPTURE_LOG:?}"
 if [[ ${OMADROP_TEST_CAPTURE_EXIT:-0} == 1 ]]; then
   sleep 0.05
   exit 9

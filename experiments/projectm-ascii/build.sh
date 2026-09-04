@@ -19,6 +19,9 @@ g++ -std=c++20 -O2 -Wall -Wextra live.cpp audio_output_session.cpp \
 g++ -std=c++20 -O2 -Wall -Wextra live_settings_test.cpp live_settings.cpp \
   -o live-settings-test
 
+g++ -std=c++20 -O2 -Wall -Wextra audio_sink_query_test.cpp live_settings.cpp \
+  -o audio-sink-query-test
+
 g++ -std=c++20 -O2 -Wall -Wextra first_run_controls_test.cpp \
   -o first-run-controls-test
 

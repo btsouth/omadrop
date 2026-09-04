@@ -799,7 +799,8 @@ int main(int argc, char** argv) {
     TimelineDirector timelineDirector;
     VisualMotifMemory visualMotifs;
     std::optional<std::size_t> pendingTimelinePreset;
-    if (!loadPresetAtVisualTempo(engines[activeEngine], presets[presetIndex], false)) return 1;
+    if (!nativeEnabled
+        && !loadPresetAtVisualTempo(engines[activeEngine], presets[presetIndex], false)) return 1;
     std::cerr << "preset: " << presets[presetIndex] << "\n";
     publishPairedState(presetIndex, 0, 0, true);
     if (pairedLeader || pairedFollower) {
@@ -1296,9 +1297,10 @@ int main(int argc, char** argv) {
         if (displaySession.pollStartGate(now)) {
             coverPresentation.restart(now);
         }
+        const std::string polledSink = defaultSinkName();
         if (now >= nextSinkPollAt) {
             nextSinkPollAt = now + 2000;
-            const std::string currentSink = defaultSinkName();
+            const std::string& currentSink = polledSink;
             const auto resetAudioState = [&](const std::string& newSink) {
                 syncDelayMs = loadSyncDelay(newSink);
                 delayedPcm.clear();
@@ -1374,7 +1376,7 @@ int main(int argc, char** argv) {
                 recentPresets.clear();
                 recentPresets.push_back(presetIndex);
                 presetTransitionActive = false;
-                loadPresetAtVisualTempo(
+                if (!nativeEnabled) loadPresetAtVisualTempo(
                     engines[activeEngine], presets[presetIndex], false);
                 transitionWindowAt = now + 19000;
                 transitionDeadlineAt = now + 23000;
@@ -2247,7 +2249,7 @@ int main(int argc, char** argv) {
                 coverPresentation.hasArtwork()
                     || trackSession.artworkLookupComplete(),
                 !nativeEnabled || !pairedFollower || reportedPairedMusic)) {
-            SDL_ShowWindow(window);
+            if (!std::getenv("OMADROP_TEST_HIDDEN")) SDL_ShowWindow(window);
             SDL_DisableScreenSaver();
             std::cerr << "idle: inhibition requested while Omadrop is visible\n";
             firstRunControls.onWindowShown(
@@ -2266,6 +2268,7 @@ int main(int argc, char** argv) {
         }
     }
 
+    SDL_HideWindow(window);
     trackSession.stop();
     audioCapture.stop();
     nativeRenderer.reset();

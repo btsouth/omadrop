@@ -28,6 +28,7 @@ esac
 
 tests=(
   live-settings-test
+  audio-sink-query-test
   first-run-controls-test
   mpris-state-test
   mpris-poller-test

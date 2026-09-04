@@ -20,7 +20,7 @@ struct TrackSessionUpdate {
 class TrackPresentationState {
 public:
     TrackPresentationState(bool artworkDisabled, std::uint64_t startedAtMs,
-                           std::uint64_t startupArtworkWaitMs = 4500);
+                           std::uint64_t startupArtworkWaitMs = 350);
 
     TrackSessionUpdate advance(std::uint64_t nowMs);
     TrackSessionUpdate ingest(const MprisPollResult& poll,

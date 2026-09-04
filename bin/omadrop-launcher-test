@@ -239,4 +239,41 @@ single_report=$single_crash/state/omadrop/last-crash.txt
 grep -q '^renderer_exit_value=1$' "$single_report"
 grep -q '^display_count=1$' "$single_report"
 
-echo "launcher synchronization and hotplug passed"
+# A renderer that ignores TERM must not trap the desktop close shortcut.
+bash -c 'trap "" TERM; exec -a "$1" sleep 60' _ "$fake_live" &
+existing_renderer=$!
+for ((attempt = 0; attempt < 100; attempt++)); do
+  pgrep -f "^${fake_live//./\\.}( |$)" >/dev/null && break
+  sleep 0.01
+done
+stop_started=$(date +%s%N)
+OMADROP_LIVE_EXECUTABLE=$fake_live "$root/bin/omadrop" --stop
+wait "$existing_renderer" 2>/dev/null || true
+existing_renderer=
+stop_elapsed=$(( $(date +%s%N) - stop_started ))
+((stop_elapsed < 1500000000)) || {
+  echo "launcher test: forced stop exceeded 1.5 seconds" >&2
+  exit 1
+}
+pgrep -f "^${fake_live//./\\.}( |$)" >/dev/null && exit 1
+
+close_hypr=$scratch/close-hypr
+cat >"$close_hypr" <<'EOF'
+#!/bin/bash
+if [[ $1 == activewindow ]]; then
+  printf '{"class":"%s"}\n' "${OMADROP_TEST_CLOSE_CLASS:-other}"
+else
+  printf '%s\n' "$*" >>"$OMADROP_TEST_CLOSE_LOG"
+fi
+EOF
+chmod +x "$close_hypr"
+OMADROP_HYPRCTL=$close_hypr OMADROP_TEST_CLOSE_LOG=$scratch/close.log \
+  "$root/bin/omadrop-close-window"
+grep -q 'hl.dsp.window.close()' "$scratch/close.log"
+rm "$scratch/close.log"
+OMADROP_HYPRCTL=$close_hypr OMADROP_TEST_CLOSE_LOG=$scratch/close.log \
+OMADROP_TEST_CLOSE_CLASS=projectm-ascii-live OMADROP_LIVE_EXECUTABLE=$fake_live \
+  "$root/bin/omadrop-close-window"
+[[ ! -e $scratch/close.log ]]
+
+echo "launcher synchronization, hotplug, forced stop, and close routing passed"

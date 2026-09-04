@@ -100,6 +100,17 @@ int main(int argc, char** argv) {
     assert(capture.start(sink));
     assert(capture.running());
 
+    capture.stop();
+    std::filesystem::remove(log);
+    setenv("OMADROP_TEST_CAPTURE_IGNORE_TERM", "1", 1);
+    assert(capture.start(sink));
+    assert(waitForText(log, "started"));
+    const auto stopStarted = std::chrono::steady_clock::now();
+    capture.stop();
+    assert(std::chrono::steady_clock::now() - stopStarted < std::chrono::milliseconds(500));
+    assert(!capture.running());
+    unsetenv("OMADROP_TEST_CAPTURE_IGNORE_TERM");
+
     unsetenv("OMADROP_PW_RECORD_COMMAND");
     unsetenv("OMADROP_TEST_CAPTURE_LOG");
     std::error_code error;

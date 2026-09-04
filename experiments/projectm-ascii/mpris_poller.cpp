@@ -1,4 +1,5 @@
 #include "mpris_poller.h"
+#include "child_process.h"
 
 #include <array>
 #include <cerrno>
@@ -21,6 +22,7 @@ bool MprisPoller::start(bool skipArt, std::uint64_t nowMs) {
     if (pipe2(pipeFds, O_CLOEXEC | O_NONBLOCK) != 0) return false;
     const pid_t pid = fork();
     if (pid == 0) {
+        setpgid(0, 0);
         dup2(pipeFds[1], STDOUT_FILENO);
         const int nullFd = open("/dev/null", O_WRONLY);
         if (nullFd >= 0) dup2(nullFd, STDERR_FILENO);
@@ -41,19 +43,29 @@ bool MprisPoller::start(bool skipArt, std::uint64_t nowMs) {
         return false;
     }
     childPid_ = pid;
+    setpgid(pid, pid);
     outputFd_ = pipeFds[0];
     output_.clear();
     startedAtMs_ = nowMs;
+    launchedAt_ = std::chrono::steady_clock::now();
     return true;
 }
 
 std::optional<MprisPollResult> MprisPoller::update() {
     if (!running()) return std::nullopt;
+    if (std::chrono::steady_clock::now() - launchedAt_ > std::chrono::seconds(2)) {
+        MprisPollResult result;
+        result.error = "MPRIS helper timed out";
+        result.startedAtMs = startedAtMs_;
+        stop();
+        return result;
+    }
     std::array<char, 2048> buffer{};
     const auto readOutput = [&] {
         ssize_t bytes = 0;
         while ((bytes = read(outputFd_, buffer.data(), buffer.size())) > 0) {
             output_.append(buffer.data(), static_cast<std::size_t>(bytes));
+            if (output_.size() > 65536) return false;
         }
         return bytes == 0 || errno == EAGAIN || errno == EWOULDBLOCK;
     };
@@ -106,8 +118,7 @@ std::optional<MprisPollResult> MprisPoller::update() {
 
 void MprisPoller::stop() {
     if (childPid_ > 0) {
-        kill(childPid_, SIGTERM);
-        while (waitpid(childPid_, nullptr, 0) < 0 && errno == EINTR) {}
+        stopChildProcess(childPid_);
     }
     if (outputFd_ >= 0) close(outputFd_);
     childPid_ = -1;

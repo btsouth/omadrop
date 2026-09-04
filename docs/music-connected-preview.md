@@ -34,7 +34,7 @@ fixed and restrict nearly every response to tiny local details.
 
 `bin/omadrop-preview` uses the ordinary launcher with Ink Current selected,
 automatic scene changes held, and continuous rendering on entry. The cover
-holds for one second and dissolves over two seconds. First-run instructions
+holds for 0.25 seconds and dissolves over 0.65 seconds. First-run instructions
 are hidden for this listening test. A, N/P, and Esc remain available.
 
 The installer adds `omadrop-preview` alongside `omadrop`; it does not change
@@ -99,3 +99,40 @@ confirmed from session state. Treat the observed design as rejected. This is
 feedback on an existing scene reachable with N/P, not acceptance or rejection
 of the rebuilt Ink Current. A future architectural scene needs musical changes
 to transform its space, depth, and light rather than decorate fixed doorways.
+
+## Runtime reliability correction
+
+The next user test reported slow startup and a frozen session that Super + W
+could not close. Both renderer processes were captured in `do_wait`, and the
+audio service had restarted during the session. The exact child being waited
+on was not identified before the stuck session was terminated.
+
+Concrete blocking paths were found and corrected:
+
+- Default-output discovery used synchronous `popen("pactl get-default-sink")`
+  in the render loop. It now polls a nonblocking child with a timeout, keeps
+  the last known output during failure, and retries.
+- Capture and metadata shutdown waited indefinitely for helpers after TERM.
+  Helpers now have their own process groups; shutdown has a bounded grace
+  period followed by KILL. Metadata queries also have a two-second deadline.
+- Initial artwork could hold back presentation for 4.5 seconds. That deadline
+  is now 350 ms; missing artwork does not hold the initial window closed.
+  The preview cover reveal is also shorter. Native startup no longer loads
+  an unused projectM preset.
+- The application hides its window before helper teardown. The external
+  `omadrop --stop` path forces an unresponsive session to stop after a short
+  grace period. Super + W uses that path when Omadrop is focused and delegates
+  to the original Hyprland close action for other applications.
+
+Validation: audio query timeout/recovery, capture ignoring TERM, MPRIS ignoring
+TERM and timing out, artwork deadline, preferences, launcher synchronization,
+hotplug, forced stop, and close-action routing tests pass. A hidden run of the
+installed live application with a hung output query and stubborn capture helper
+reached its first ready frame in 0.635 seconds and exited normally in 2.321
+seconds with a 1.5-second automatic-close request. This measures hidden renderer
+startup, not the complete two-monitor compositor placement time. No visible
+desktop windows were opened for that test.
+
+All 44 installed runtime files match the checkout. Hyprland accepts the preview
+and close bindings without errors. Evidence is in `cache/freeze-20260904/`.
+Full user listening and dual-display presentation remain live validation work.

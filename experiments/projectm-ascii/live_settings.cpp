@@ -1,4 +1,6 @@
 #include "live_settings.h"
+#include "child_process.h"
+#include <fcntl.h>
 
 #include <algorithm>
 #include <array>
@@ -15,20 +17,73 @@
 #include <unistd.h>
 
 namespace {
-std::string commandOutput(const char* command) {
-    FILE* pipe = popen(command, "r");
-    if (!pipe) return {};
-    std::array<char, 512> buffer{};
-    std::string result;
-    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe)) {
-        result += buffer.data();
+// Cached, nonblocking output discovery. The render thread never waits for
+// pactl or for the audio server to return after an interruption.
+class SinkQuery {
+public:
+    ~SinkQuery() { stop(); }
+    std::string poll() {
+        const auto now = std::chrono::steady_clock::now();
+        if (child_ > 0) {
+            char buffer[512];
+            ssize_t count;
+            while ((count = read(fd_, buffer, sizeof(buffer))) > 0) {
+                output_.append(buffer, static_cast<std::size_t>(count));
+                if (output_.size() > 4096) { stop(); return cached_; }
+            }
+            int status = 0;
+            const pid_t result = waitpid(child_, &status, WNOHANG);
+            if (result == child_) {
+                if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+                    // Drain output produced between the first read and exit.
+                    while ((count = read(fd_, buffer, sizeof(buffer))) > 0) {
+                        output_.append(buffer, static_cast<std::size_t>(count));
+                        if (output_.size() > 4096) break;
+                    }
+                    while (!output_.empty() && (output_.back() == '\n'
+                           || output_.back() == '\r')) output_.pop_back();
+                    if (!output_.empty() && output_.size() <= 4096)
+                        cached_ = output_;
+                }
+                close(fd_); fd_ = -1; child_ = -1;
+            } else if (now - started_ >= std::chrono::milliseconds(500)) {
+                stop();
+            }
+        }
+        if (child_ < 0 && now >= next_) {
+            next_ = now + std::chrono::seconds(2);
+            int fds[2];
+            if (pipe2(fds, O_CLOEXEC | O_NONBLOCK) != 0) return cached_;
+            const char* command = std::getenv("OMADROP_PACTL_COMMAND");
+            if (!command || !*command) command = "pactl";
+            child_ = fork();
+            if (child_ == 0) {
+                setpgid(0, 0);
+                dup2(fds[1], STDOUT_FILENO);
+                const int nullFd = open("/dev/null", O_WRONLY);
+                if (nullFd >= 0) dup2(nullFd, STDERR_FILENO);
+                close(fds[0]); close(fds[1]);
+                execlp(command, command, "get-default-sink", static_cast<char*>(nullptr));
+                _exit(127);
+            }
+            close(fds[1]);
+            if (child_ < 0) { close(fds[0]); return cached_; }
+            setpgid(child_, child_);
+            fd_ = fds[0]; output_.clear(); started_ = now;
+        }
+        return cached_;
     }
-    pclose(pipe);
-    while (!result.empty() && (result.back() == '\n' || result.back() == '\r')) {
-        result.pop_back();
+private:
+    void stop() {
+        stopChildProcess(child_);
+        if (fd_ >= 0) close(fd_);
+        fd_ = -1; child_ = -1; output_.clear();
     }
-    return result;
-}
+    pid_t child_ = -1;
+    int fd_ = -1;
+    std::string cached_, output_;
+    std::chrono::steady_clock::time_point started_, next_;
+};
 
 std::filesystem::path configDirectory() {
     if (const char* configHome = std::getenv("XDG_CONFIG_HOME")) {
@@ -306,5 +361,6 @@ std::string defaultSinkName() {
         std::string sink;
         if (std::getline(input, sink)) return sink;
     }
-    return commandOutput("pactl get-default-sink");
+    static SinkQuery query;
+    return query.poll();
 }

@@ -54,6 +54,7 @@ fi
 
 install -Dm755 "$root/bin/omadrop" "$install_root/bin/omadrop"
 install -Dm755 "$root/bin/omadrop-preview" "$install_root/bin/omadrop-preview"
+install -Dm755 "$root/bin/omadrop-close-window" "$install_root/bin/omadrop-close-window"
 install -Dm755 "$root/bin/omadrop-calibrate" "$install_root/bin/omadrop-calibrate"
 install -Dm755 "$root/bin/omadrop-demo" "$install_root/bin/omadrop-demo"
 install -Dm755 "$root/bin/omadrop-demo-record" "$install_root/bin/omadrop-demo-record"
@@ -130,6 +131,7 @@ install -Dm644 "$root/site/public/og.png" \
 mkdir -p "$bin_dir"
 ln -sfn "$install_root/bin/omadrop" "$bin_dir/omadrop"
 ln -sfn "$install_root/bin/omadrop-preview" "$bin_dir/omadrop-preview"
+ln -sfn "$install_root/bin/omadrop-close-window" "$bin_dir/omadrop-close-window"
 ln -sfn "$install_root/bin/omadrop-demo" "$bin_dir/omadrop-demo"
 ln -sfn "$install_root/bin/omadrop-demo-record" "$bin_dir/omadrop-demo-record"
 ln -sfn "$install_root/bin/omadrop-doctor" "$bin_dir/omadrop-doctor"
@@ -167,8 +169,10 @@ install_omarchy_bindings() {
 
 -- omadrop:bindings:start
 hl.unbind("SUPER + SHIFT + V")
+hl.unbind("SUPER + W")
 hl.unbind("SUPER + ALT + V")
 o.bind("SUPER + SHIFT + V", "Omadrop", "$escaped_command/omadrop")
+o.bind("SUPER + W", "Close window", "$escaped_command/omadrop-close-window")
 o.bind("SUPER + ALT + V", "Toggle Omadrop secondary display", "$escaped_command/omadrop --toggle-secondary")
 o.window("projectm-ascii-live", { idle_inhibit = "always" })
 -- omadrop:bindings:end
