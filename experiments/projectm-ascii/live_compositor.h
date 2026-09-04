@@ -2,8 +2,11 @@
 
 #include <GL/glew.h>
 
+#include "gpu_pass_timer.h"
+
 #include <array>
 #include <string>
+#include <optional>
 
 struct LiveCompositorFrame {
     GLuint sourceTexture = 0;
@@ -48,6 +51,10 @@ public:
     bool initialize(const char* vertexSource, const char* fragmentSource,
                     std::string& error);
     bool render(const LiveCompositorFrame& frame, std::string& error);
+    std::optional<double> latestGpuMilliseconds() const {
+        return gpuTimer_.latestMilliseconds();
+    }
+    std::uint64_t gpuTimingSerial() const { return gpuTimer_.sampleSerial(); }
     void shutdown();
 
 private:
@@ -55,4 +62,5 @@ private:
     GLuint fragmentShader_ = 0;
     GLuint program_ = 0;
     GLuint vao_ = 0;
+    GpuPassTimer gpuTimer_;
 };

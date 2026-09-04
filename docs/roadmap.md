@@ -183,8 +183,8 @@ special cases.
   keeping scene-specific color behavior.
 - Define transition inputs that allow scenes to expose a focal point, axis,
   depth field, or motion vector to the incoming scene.
-- Add GPU timing per render pass and automatic quality scaling that preserves
-  the composition.
+- [x] Add GPU timing per render pass and automatic quality scaling that
+  preserves the composition.
 
 ### Exit criteria
 
@@ -661,3 +661,9 @@ Completed after v0.3:
 - Added an 18-scene sustained-frequency renderer gate. Low, middle, and high
   material must each produce visible change in a different part of the scene,
   so every composition continues to carry instrumentation between attacks.
+- Added asynchronous GPU timing around the complete native-scene pass and the
+  final compositor. Sustained overload reduces only ray-march detail, never
+  geometry, camera, timing, or audio response, and recovery requires a full
+  minute of strong headroom. Shadow Architecture retains 0.987 luminance-shape
+  similarity at the lowest level while its measured render cost falls about
+  15 percent on the reference GPU.

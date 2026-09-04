@@ -42,6 +42,8 @@ tests=(
   signal-monitor-test
   live-compositor-test
   status-overlay-test
+  gpu-pass-timer-test
+  adaptive-render-quality-test
   cover-presentation-test
   native-scene-state-test
 )

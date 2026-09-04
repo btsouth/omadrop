@@ -217,6 +217,10 @@ the structure tracker waits for sustained musical changes before directing a
 new scene. Optional ASCII is a final GPU material, not a replacement for the
 underlying image.
 
+Non-blocking GPU timers measure the native scene and final material passes.
+Sustained overload reduces ray-march detail without changing scene geometry,
+musical timing, or full-frame motion, then restores it only after long headroom.
+
 <details>
 <summary><strong>Scene targeting and projectM compatibility</strong></summary>
 

@@ -37,5 +37,6 @@ uniform float peak;
 uniform float release;
 uniform float sceneBeats;
 uniform float motionScale;
+uniform float qualityScale;
 
 #include "common.glsl"

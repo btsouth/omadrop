@@ -128,7 +128,12 @@ between 320x180 and 1920x1080.
 `OMADROP_REPLAY_INTENSITY` and `OMADROP_REPLAY_MOTION` exercise the saved live
 control ranges in deterministic review. Set
 `OMADROP_REPLAY_REDUCED_MOTION=1` to apply the same ambient-motion cap used by
-the live renderer.
+the live renderer. `OMADROP_REPLAY_QUALITY=0.5` exercises the lowest automatic
+ray-march detail level without waiting for a slow GPU.
+
+Set `OMADROP_GPU_DIAGNOSTICS=1` for a live sample every two seconds showing the
+active scene, native GPU time, final-compositor GPU time, and current quality
+level. Timer queries are read asynchronously and never stall the render loop.
 
 Set `OMADROP_REPLAY_SIGNAL_MONITOR=1` to add the developer signal monitor to
 replay frames and encoded review videos. Its eight lanes, from top to bottom,

@@ -26,6 +26,7 @@
 #include "audio_features.h"
 #include "audio_output_session.h"
 #include "audio_queue.h"
+#include "adaptive_render_quality.h"
 #include "cover_presentation.h"
 #include "live_assets.h"
 #include "live_compositor.h"
@@ -621,6 +622,12 @@ int main(int argc, char** argv) {
         return 1;
     }
     std::unique_ptr<NativeRenderer> nativeRenderer;
+    AdaptiveRenderQuality adaptiveRenderQuality;
+    std::uint64_t lastNativeGpuSerial = 0;
+    std::uint64_t lastCompositorGpuSerial = 0;
+    const bool gpuDiagnostics
+        = std::getenv("OMADROP_GPU_DIAGNOSTICS") != nullptr;
+    std::uint64_t nextGpuDiagnosticAt = 0;
     if (nativeEnabled) {
         nativeRenderer = std::make_unique<NativeRenderer>();
         std::string error;
@@ -2076,6 +2083,7 @@ int main(int argc, char** argv) {
                 .motion = preferences.motion,
                 .reducedMotion = preferences.reducedMotion,
                 .flashLimited = preferences.flashLimited,
+                .quality = adaptiveRenderQuality.quality(),
             };
             if (!nativeRenderer->render(musicFrame, nativeSceneState,
                                         sourceWidth, sourceHeight, albumColor,
@@ -2191,6 +2199,43 @@ int main(int argc, char** argv) {
             std::cerr << "display compositor: " << compositorError << "\n";
             running = false;
             continue;
+        }
+        if (nativeEnabled) {
+            const std::uint64_t nativeSerial
+                = nativeRenderer->gpuTimingSerial();
+            const std::uint64_t compositorSerial
+                = compositor.gpuTimingSerial();
+            const auto nativeMilliseconds
+                = nativeRenderer->latestGpuMilliseconds();
+            const auto compositorMilliseconds
+                = compositor.latestGpuMilliseconds();
+            if (nativeMilliseconds && compositorMilliseconds
+                && nativeSerial != lastNativeGpuSerial
+                && compositorSerial != lastCompositorGpuSerial) {
+                lastNativeGpuSerial = nativeSerial;
+                lastCompositorGpuSerial = compositorSerial;
+                const bool qualityChanged = adaptiveRenderQuality.observe(
+                    *nativeMilliseconds, *compositorMilliseconds,
+                    nativeSceneState.transitioning);
+                if (qualityChanged) {
+                    std::cerr << "render quality: "
+                              << std::lround(
+                                  adaptiveRenderQuality.quality() * 100.0f)
+                              << "% after sustained GPU load\n";
+                }
+                if (gpuDiagnostics && now >= nextGpuDiagnosticAt) {
+                    std::cerr << "gpu: scene="
+                              << nativeSceneName(nativeSceneState.currentScene)
+                              << (nativeSceneState.transitioning ? "+transition" : "")
+                              << " native=" << *nativeMilliseconds
+                              << " ms compositor=" << *compositorMilliseconds
+                              << " ms quality="
+                              << std::lround(
+                                  adaptiveRenderQuality.quality() * 100.0f)
+                              << "%\n";
+                    nextGpuDiagnosticAt = now + 2000;
+                }
+            }
         }
         if (calibrationMode
             && (calibrationStatusAt == 0 || now - calibrationStatusAt >= 1100)) {

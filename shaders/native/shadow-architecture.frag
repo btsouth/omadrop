@@ -59,7 +59,9 @@ vec3 sceneNormal(vec3 p) {
 float softShadow(vec3 origin, vec3 direction) {
     float visibility = 1.0;
     float travel = 0.025;
+    int shadowSteps = int(mix(10.0, 22.0, qualityScale) + 0.5);
     for (int index = 0; index < 22; ++index) {
+        if (index >= shadowSteps) break;
         float distanceToScene = architecture(origin + direction * travel).x;
         visibility = min(visibility, 11.0 * distanceToScene / travel);
         travel += clamp(distanceToScene, 0.018, 0.30);
@@ -71,7 +73,9 @@ float softShadow(vec3 origin, vec3 direction) {
 float ambientOcclusion(vec3 position, vec3 normal) {
     float occlusion = 0.0;
     float scale = 1.0;
+    int occlusionSteps = int(mix(2.0, 4.0, qualityScale) + 0.5);
     for (int index = 0; index < 4; ++index) {
+        if (index >= occlusionSteps) break;
         float horizon = 0.055 + 0.085 * float(index);
         float distanceToScene = architecture(position + normal * horizon).x;
         occlusion += (horizon - distanceToScene) * scale;
@@ -111,7 +115,9 @@ void main() {
     float travel = 0.0;
     float material = 0.0;
     bool found = false;
+    int primarySteps = int(mix(32.0, 72.0, qualityScale) + 0.5);
     for (int index = 0; index < 72; ++index) {
+        if (index >= primarySteps) break;
         vec2 samplePoint = architecture(camera + ray * travel);
         if (samplePoint.x < 0.0015) {
             material = samplePoint.y;
@@ -177,7 +183,9 @@ void main() {
             float reflectionTravel = 0.035;
             float reflectionMaterial = 0.0;
             bool reflectionFound = false;
+            int reflectionSteps = int(mix(18.0, 38.0, qualityScale) + 0.5);
             for (int reflectionStep = 0; reflectionStep < 38; ++reflectionStep) {
+                if (reflectionStep >= reflectionSteps) break;
                 vec2 reflectionSample = architecture(
                     position + normal * 0.018
                     + reflectionRay * reflectionTravel);

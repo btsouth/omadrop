@@ -60,6 +60,7 @@ bool LiveCompositor::initialize(const char* vertexSource,
         return false;
     }
     glGenVertexArrays(1, &vao_);
+    gpuTimer_.initialize();
     return glGetError() == GL_NO_ERROR;
 }
 
@@ -137,7 +138,9 @@ bool LiveCompositor::render(const LiveCompositorFrame& frame,
                 frame.colorVisionSafe ? 1 : 0);
     glUniform1f(glGetUniformLocation(program_, "visibility"), frame.visibility);
     glBindVertexArray(vao_);
+    gpuTimer_.begin();
     glDrawArrays(GL_TRIANGLES, 0, 3);
+    gpuTimer_.end();
     const GLenum glError = glGetError();
     if (glError != GL_NO_ERROR) {
         error = "live compositor OpenGL error " + std::to_string(glError);
@@ -147,6 +150,7 @@ bool LiveCompositor::render(const LiveCompositorFrame& frame,
 }
 
 void LiveCompositor::shutdown() {
+    gpuTimer_.shutdown();
     if (vao_) glDeleteVertexArrays(1, &vao_);
     if (program_) glDeleteProgram(program_);
     if (vertexShader_) glDeleteShader(vertexShader_);

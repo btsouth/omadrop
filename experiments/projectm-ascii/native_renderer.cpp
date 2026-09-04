@@ -130,6 +130,7 @@ bool NativeRenderer::initialize(const std::filesystem::path& shaderDirectory,
         }
     }
     initializeTargets();
+    gpuTimer_.initialize();
     return true;
 }
 
@@ -147,6 +148,7 @@ bool NativeRenderer::initializeCustomShader(
         return false;
     }
     initializeTargets();
+    gpuTimer_.initialize();
     return true;
 }
 
@@ -198,6 +200,7 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
     const float intensity = policy.effectiveIntensity();
     const float motion = policy.effectiveMotion();
     const float eventScale = policy.flashLimited ? 0.82f : 1.0f;
+    const float quality = policy.effectiveQuality();
     const float responsiveKick
         = gestureResponse(music.kick * intensity, 2.35f) * eventScale;
     const float responsiveSnare
@@ -217,6 +220,7 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
     if (scene.transitioning) {
         renderScene[static_cast<std::size_t>(scene.incomingScene)] = true;
     }
+    gpuTimer_.begin();
     for (std::size_t sceneIndex = 0; sceneIndex < nativeSceneCount; ++sceneIndex) {
         if (!renderScene[sceneIndex]) continue;
         const GLuint program = programs_[sceneIndex];
@@ -286,6 +290,7 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
         glUniform1f(glGetUniformLocation(program, "release"), scene.release);
         glUniform1f(glGetUniformLocation(program, "sceneBeats"), scene.sceneBeats);
         glUniform1f(glGetUniformLocation(program, "motionScale"), motion);
+        glUniform1f(glGetUniformLocation(program, "qualityScale"), quality);
         glUniform3f(glGetUniformLocation(program, "albumColor"),
                 albumColor[0], albumColor[1], albumColor[2]);
         glUniform1fv(glGetUniformLocation(program, "bandLevel[0]"),
@@ -299,6 +304,7 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
         glDrawArrays(GL_TRIANGLES, 0, 3);
         activeTextures_[sceneIndex] = nextTexture;
     }
+    gpuTimer_.end();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return true;
 }
@@ -326,6 +332,7 @@ void NativeRenderer::reset() {
 }
 
 void NativeRenderer::shutdown() {
+    gpuTimer_.shutdown();
     if (framebuffer_) glDeleteFramebuffers(1, &framebuffer_);
     for (const auto& sceneTextures : textures_) {
         if (sceneTextures[0]) {

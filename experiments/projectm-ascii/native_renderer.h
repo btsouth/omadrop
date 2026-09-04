@@ -2,6 +2,7 @@
 
 #include "music_frame.h"
 #include "native_scene_state.h"
+#include "gpu_pass_timer.h"
 
 #include <GL/glew.h>
 
@@ -9,6 +10,7 @@
 #include <array>
 #include <cmath>
 #include <filesystem>
+#include <optional>
 #include <string>
 
 struct NativeRenderPolicy {
@@ -16,6 +18,7 @@ struct NativeRenderPolicy {
     float motion = 1.0f;
     bool reducedMotion = false;
     bool flashLimited = false;
+    float quality = 1.0f;
 
     constexpr float effectiveIntensity() const {
         const float requested = std::clamp(intensity, 0.50f, 1.50f);
@@ -24,6 +27,9 @@ struct NativeRenderPolicy {
     constexpr float effectiveMotion() const {
         const float requested = std::clamp(motion, 0.0f, 1.0f);
         return reducedMotion ? std::min(requested, 0.35f) : requested;
+    }
+    constexpr float effectiveQuality() const {
+        return std::clamp(quality, 0.50f, 1.0f);
     }
 };
 
@@ -54,6 +60,10 @@ public:
     GLuint texture(NativeSceneKind scene) const;
     GLuint texture() const { return texture(NativeSceneKind::DepthTunnel); }
     float flowTime() const { return flowTime_; }
+    std::optional<double> latestGpuMilliseconds() const {
+        return gpuTimer_.latestMilliseconds();
+    }
+    std::uint64_t gpuTimingSerial() const { return gpuTimer_.sampleSerial(); }
     void synchronizeFlowTime(float flowTime) {
         if (std::isfinite(flowTime) && flowTime >= 0.0f) flowTime_ = flowTime;
     }
@@ -72,4 +82,5 @@ private:
     int width_ = 0;
     int height_ = 0;
     float flowTime_ = 0.0f;
+    GpuPassTimer gpuTimer_;
 };

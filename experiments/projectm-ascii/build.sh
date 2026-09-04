@@ -70,6 +70,12 @@ g++ -std=c++20 -O2 -Wall -Wextra live_compositor_test.cpp live_compositor.cpp \
 g++ -std=c++20 -O2 -Wall -Wextra status_overlay_test.cpp status_overlay.cpp \
   -o status-overlay-test $(pkg-config --cflags --libs sdl2 glew) -lGL
 
+g++ -std=c++20 -O2 -Wall -Wextra gpu_pass_timer_test.cpp \
+  -o gpu-pass-timer-test $(pkg-config --cflags --libs sdl2 glew) -lGL
+
+g++ -std=c++20 -O2 -Wall -Wextra adaptive_render_quality_test.cpp \
+  -o adaptive-render-quality-test
+
 g++ -std=c++20 -O2 -Wall -Wextra cover_presentation_test.cpp \
   cover_presentation.cpp -o cover-presentation-test
 

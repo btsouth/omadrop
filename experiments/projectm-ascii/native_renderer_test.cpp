@@ -882,8 +882,23 @@ std::vector<float> renderArtworkFrame(NativeRenderer& renderer,
     return readTexture(renderer.texture(NativeSceneKind::DepthTunnel));
 }
 
+std::vector<float> renderQualityFrame(NativeRenderer& renderer,
+                                      const NativeRenderPolicy& policy,
+                                      std::string& error) {
+    renderer.reset();
+    MusicFrame music = baseMusic();
+    NativeSceneState scene = baseScene(NativeSceneKind::ShadowArchitecture);
+    for (int frame = 0; frame < 90; ++frame) {
+        if (!renderer.render(music, scene, width, height,
+                             {0.46f, 0.72f, 1.0f}, 0, 1.0f,
+                             1.0f / 60.0f, error, policy)) return {};
+    }
+    return readTexture(renderer.texture(NativeSceneKind::ShadowArchitecture));
+}
+
 float measureFrameMilliseconds(NativeRenderer& renderer, NativeSceneKind kind,
-                               std::string& error) {
+                               std::string& error,
+                               const NativeRenderPolicy& policy = {}) {
     constexpr int performanceWidth = 1280;
     constexpr int performanceHeight = 720;
     constexpr int warmupFrames = 30;
@@ -894,7 +909,7 @@ float measureFrameMilliseconds(NativeRenderer& renderer, NativeSceneKind kind,
     for (int frame = 0; frame < warmupFrames; ++frame) {
         if (!renderer.render(music, scene, performanceWidth, performanceHeight,
                              {0.46f, 0.72f, 1.0f}, 0, 1.0f,
-                             1.0f / 60.0f, error)) return 1000.0f;
+                             1.0f / 60.0f, error, policy)) return 1000.0f;
     }
     glFinish();
     const auto started = std::chrono::steady_clock::now();
@@ -902,7 +917,7 @@ float measureFrameMilliseconds(NativeRenderer& renderer, NativeSceneKind kind,
         music.beatPhase = std::fmod(frame / 30.0f, 1.0f);
         if (!renderer.render(music, scene, performanceWidth, performanceHeight,
                              {0.46f, 0.72f, 1.0f}, 0, 1.0f,
-                             1.0f / 60.0f, error)) return 1000.0f;
+                             1.0f / 60.0f, error, policy)) return 1000.0f;
     }
     glFinish();
     const auto elapsed = std::chrono::duration<float, std::milli>(
@@ -1032,6 +1047,21 @@ int main(int argc, char** argv) {
     const float artworkResponse = withoutArtwork.empty() || withArtwork.empty()
         ? 0.0f : mean(luminanceDifference(withoutArtwork, withArtwork));
     std::cout << "native Depth Tunnel artwork_response=" << artworkResponse << "\n";
+    const auto fullQuality = renderQualityFrame(renderer, {}, error);
+    const NativeRenderPolicy scaledPolicy{.quality = 0.50f};
+    const auto scaledQuality = renderQualityFrame(
+        renderer, scaledPolicy, error);
+    const float qualitySimilarity = fullQuality.empty() || scaledQuality.empty()
+        ? 0.0f : similarity(luminance(fullQuality), luminance(scaledQuality));
+    const float fullQualityMilliseconds = measureFrameMilliseconds(
+        renderer, NativeSceneKind::ShadowArchitecture, error);
+    const float scaledQualityMilliseconds = measureFrameMilliseconds(
+        renderer, NativeSceneKind::ShadowArchitecture, error, scaledPolicy);
+    std::cout << "native Shadow Architecture quality similarity="
+              << qualitySimilarity << " frame_ms=" << fullQualityMilliseconds
+              << ',' << scaledQualityMilliseconds << "\n";
+    assert(qualitySimilarity > 0.82f);
+    assert(scaledQualityMilliseconds < fullQualityMilliseconds * 0.97f);
     bool performancePasses = true;
     for (std::size_t index = 0; index < nativeSceneCount; ++index) {
         const NativeSceneKind kind = static_cast<NativeSceneKind>(index);

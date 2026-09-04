@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Measure native-scene and final-compositor GPU time without blocking the
+  render loop. Sustained overload now lowers ray-march detail while preserving
+  composition and recovers conservatively after long performance headroom.
 - Add `omadrop calibrate`, a fixed-scene reference-beat session that measures
   the real output and capture path and saves `[` earlier / `]` later timing for
   each audio device.
