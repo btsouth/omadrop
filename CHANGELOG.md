@@ -16,6 +16,8 @@
   and selected interiors carry separate musical roles.
 - Add Lumen Fold, a calm installation of fixed translucent sheets with separate
   timing, floor, incision, suspension, and structural responses.
+- Add Paper Horizon, a fixed cut-paper landscape with separate ridge, tear,
+  star, lantern, moon, and section responses.
 - Choose native transitions from scene compatibility, with separate flow,
   focal, depth, fracture, and negative-space paths.
 - Add a hidden production-compositor gallery test for deterministic transition

@@ -351,8 +351,8 @@ Allow more people to create scenes while keeping the official rotation strict.
 4. Add the developer signal monitor and repeatable presentation-delay tool.
 5. Continue splitting track state, display session, cover presentation,
    direction, and rendering out of the live application loop.
-6. Prototype Paper Horizon as the next scene family, using fixed layered
-   cut-paper silhouettes and localized illumination instead of layer bounce.
+6. Tune automatic direction across the complete 18-scene library and enforce
+   visual-family spacing so consecutive scenes remain meaningfully different.
 7. Promote only candidates that pass still-frame, motion, music-response,
    ASCII, transition, and performance review.
 
@@ -500,6 +500,12 @@ Completed after v0.3:
   color, grayscale, high-exposure ASCII, six album palettes, the 85-combination
   replay suite, and a 3,600-frame 1080p soak pass with zero pulse-duty activity
   in every profile and no slow-frame streak.
+- Added Paper Horizon as a representational cut-paper scene. Four fixed
+  landscape layers hold still while a beat lantern, two kick-lit ridges, snare
+  tears, hat stars, and the crescent carry separate cues. Continuous color,
+  grayscale, high-exposure ASCII, six album palettes, the 90-combination replay
+  suite, and a 3,600-frame 1080p soak pass with zero pulse-duty activity in
+  every profile and no slow-frame streak.
 - Added five native transition grammars selected from scene compatibility:
   flow carry, focal morph, depth travel, controlled fracture, and
   negative-space reveal. The four post-v0.3 scenes have explicit authored

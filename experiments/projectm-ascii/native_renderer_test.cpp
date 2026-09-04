@@ -489,6 +489,7 @@ float landmarkContrast(const std::vector<float>& light, NativeSceneKind kind) {
         case NativeSceneKind::ParticleWeave:
         case NativeSceneKind::LivingMosaic:
         case NativeSceneKind::LumenFold:
+        case NativeSceneKind::PaperHorizon:
             break;
     }
     return spatialContrast;

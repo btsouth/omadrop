@@ -23,10 +23,11 @@ enum class NativeSceneKind : std::uint8_t {
     ParticleWeave = 14,
     LivingMosaic = 15,
     LumenFold = 16,
+    PaperHorizon = 17,
 };
 
-inline constexpr std::size_t nativeSceneCount = 17;
-inline constexpr unsigned int nativeSceneRegistryVersion = 11;
+inline constexpr std::size_t nativeSceneCount = 18;
+inline constexpr unsigned int nativeSceneRegistryVersion = 12;
 
 enum class NativeTransitionAnchor : std::uint8_t {
     Center,
@@ -185,6 +186,12 @@ nativeSceneRegistry{{
      {0.40f, 0.38f, 0.94f, 0.60f, 0.68f},
      NativeTransitionAnchor::VerticalAxis,
      NativeMotionGrammar::Selective, 0.18f, 0.22f,
+     transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
+    {NativeSceneKind::PaperHorizon, "paper-horizon", "Paper Horizon",
+     "paper-horizon.frag", {"paper", "horizon", ""}, {1.08f, 2.25f},
+     {0.34f, 0.32f, 0.90f, 0.42f, 0.40f},
+     NativeTransitionAnchor::HorizontalAxis,
+     NativeMotionGrammar::Sparse, 0.12f, 0.20f,
      transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
 }};
 
