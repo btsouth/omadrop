@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <deque>
-#include <fcntl.h>
 #include <fstream>
 #include <filesystem>
 #include <iostream>
@@ -21,7 +20,6 @@
 #include <string>
 #include <thread>
 #include <signal.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
 
@@ -32,6 +30,7 @@
 #include "live_compositor.h"
 #include "live_projectm.h"
 #include "live_settings.h"
+#include "mpris_poller.h"
 #include "mpris_state.h"
 #include "musical_structure.h"
 #include "music_frame.h"
@@ -696,10 +695,7 @@ int main(int argc, char** argv) {
         : 5.0f;
     uint64_t nextMprisPollAt = 0;
     const std::filesystem::path mprisHelper = projectRoot / "bin" / "mpris-state";
-    pid_t mprisHelperPid = -1;
-    int mprisHelperFd = -1;
-    std::string mprisHelperOutput;
-    uint64_t mprisPollStartedAt = 0;
+    MprisPoller mprisPoller(mprisHelper);
     PlaybackClock playbackClock;
     bool timelineMismatchReported = false;
     uint64_t timelineClockStartedAt = SDL_GetTicks64();
@@ -714,35 +710,6 @@ int main(int argc, char** argv) {
             return 2;
         }
     }
-
-    auto startMprisPoll = [&](bool skipArt) {
-        int pipeFds[2];
-        if (pipe2(pipeFds, O_CLOEXEC | O_NONBLOCK) != 0) return;
-        const pid_t pid = fork();
-        if (pid == 0) {
-            dup2(pipeFds[1], STDOUT_FILENO);
-            const int nullFd = open("/dev/null", O_WRONLY);
-            if (nullFd >= 0) dup2(nullFd, STDERR_FILENO);
-            close(pipeFds[0]);
-            close(pipeFds[1]);
-            if (skipArt) {
-                execl(mprisHelper.c_str(), mprisHelper.c_str(), "--no-art",
-                      static_cast<char*>(nullptr));
-            } else {
-                execl(mprisHelper.c_str(), mprisHelper.c_str(), static_cast<char*>(nullptr));
-            }
-            _exit(127);
-        }
-        close(pipeFds[1]);
-        if (pid < 0) {
-            close(pipeFds[0]);
-            return;
-        }
-        mprisHelperPid = pid;
-        mprisHelperFd = pipeFds[0];
-        mprisHelperOutput.clear();
-        mprisPollStartedAt = SDL_GetTicks64();
-    };
 
     bool running = true;
     bool windowShown = false;
@@ -953,103 +920,84 @@ int main(int argc, char** argv) {
             automaticNextAt = 0;
         }
         bool seekedThisFrame = false;
-        if (now >= nextMprisPollAt && mprisHelperPid < 0) startMprisPoll(disableArt);
-        if (mprisHelperPid > 0) {
-            std::array<char, 2048> stateBuffer{};
-            ssize_t stateBytes = 0;
-            while ((stateBytes = read(mprisHelperFd, stateBuffer.data(), stateBuffer.size())) > 0) {
-                mprisHelperOutput.append(stateBuffer.data(), static_cast<std::size_t>(stateBytes));
-            }
-            int helperStatus = 0;
-            if (waitpid(mprisHelperPid, &helperStatus, WNOHANG) == mprisHelperPid) {
-                close(mprisHelperFd);
-                mprisHelperFd = -1;
-                mprisHelperPid = -1;
-                nextMprisPollAt = now + (!artLookupComplete ? 250
-                                             : timeline ? 500 : 1000);
-                while (!mprisHelperOutput.empty()
-                       && (mprisHelperOutput.back() == '\n' || mprisHelperOutput.back() == '\r')) {
-                    mprisHelperOutput.pop_back();
-                }
-                if (!mprisHelperOutput.empty()) {
-                    std::string error;
-                    const auto state = parseMprisState(mprisHelperOutput, error);
-                    if (!state) {
-                        std::cerr << "mpris: " << error << "\n";
-                        if (!artLookupComplete) {
-                            artLookupComplete = true;
-                            suppressLateInitialCover = true;
-                        }
-                    } else {
-                        const PlaybackObservation observation
-                            = playbackClock.observe(*state, now / 1000.0);
-                        // A player that appears after Omadrop has already
-                        // started is a new presentation, not a late result
-                        // from the launch-time artwork lookup. Let that first
-                        // track use its cover normally.
-                        if (observation.first && suppressLateInitialCover
-                            && mprisPollStartedAt >= initialArtDeadlineAt) {
-                            suppressLateInitialCover = false;
-                        }
-                        if (observation.trackChanged) {
-                            suppressLateInitialCover = false;
-                        }
-                        seekedThisFrame = observation.seeked;
-                        if (observation.first || observation.trackChanged) {
-                            timelineDirector.reset();
-                            featureBus.resetClock();
-                            structureTracker.reset();
-                            musicFrameBuilder.reset();
-                            nativeSceneDirector.resetForTrack();
-                            visualMotifs.reset();
-                            structureClockLocked = false;
-                            pendingTimelinePreset.reset();
-                            timelineClockStartedAt = now;
-                            timelineMismatchReported = false;
-                        }
-                        if (observation.trackChanged && !pairedFollower) {
-                            presetIndex = chooseAutomaticPreset(PresetEnergy::Medium);
-                            recentPresets.clear();
-                            recentPresets.push_back(presetIndex);
-                            presetTransitionActive = false;
-                            loadPresetAtVisualTempo(
-                                engines[activeEngine], presets[presetIndex], false);
-                            transitionWindowAt = now + 19000;
-                            transitionDeadlineAt = now + 23000;
-                            if (hasCover) coverStartedAt = now;
-                            publishPairedState(
-                                presetIndex, 0, nativeEnabled ? 6 : 0, true,
-                                nativeEnabled
-                                    ? static_cast<int>(
-                                        nativeSceneDirector.state().currentScene)
-                                    : -1,
-                                nativeEnabled
-                                    ? static_cast<int>(
-                                        nativeSceneDirector.state().currentScene)
-                                    : -1);
-                            std::cerr << "track: " << state->identity << "\n";
-                        }
-                        if (!suppressLateInitialCover
-                            && !state->artPath.empty()
-                            && state->artPath != currentArtPath
-                            && loadPngTexture(state->artPath, coverTexture, coverAspect)) {
-                            currentArtPath = state->artPath;
-                            albumColor = loadPaletteColor(state->artPath);
-                            hasCover = true;
-                            coverStartedAt = now;
-                            std::cerr << "cover: " << state->artPath << "\n";
-                        }
-                        if (!artLookupComplete && hasCover) {
-                            artLookupComplete = true;
-                        }
-                    }
-                } else if (!artLookupComplete) {
-                    // No MPRIS player is active, so there is no artwork to wait
-                    // for. Begin with the native scene and never reverse into a
-                    // cover from this launch attempt.
+        if (now >= nextMprisPollAt && !mprisPoller.running()) {
+            mprisPoller.start(disableArt, now);
+        }
+        if (const auto poll = mprisPoller.update()) {
+            nextMprisPollAt = now + (!artLookupComplete ? 250
+                                         : timeline ? 500 : 1000);
+            if (!poll->error.empty()) {
+                std::cerr << "mpris: " << poll->error << "\n";
+                if (!artLookupComplete) {
                     artLookupComplete = true;
                     suppressLateInitialCover = true;
                 }
+            } else if (poll->state) {
+                const MprisState& state = *poll->state;
+                const PlaybackObservation observation
+                    = playbackClock.observe(state, now / 1000.0);
+                // A player that appears after Omadrop has already started is
+                // a new presentation, not a late result from the launch-time
+                // artwork lookup. Let that first track use its cover normally.
+                if (observation.first && suppressLateInitialCover
+                    && poll->startedAtMs >= initialArtDeadlineAt) {
+                    suppressLateInitialCover = false;
+                }
+                if (observation.trackChanged) suppressLateInitialCover = false;
+                seekedThisFrame = observation.seeked;
+                if (observation.first || observation.trackChanged) {
+                    timelineDirector.reset();
+                    featureBus.resetClock();
+                    structureTracker.reset();
+                    musicFrameBuilder.reset();
+                    nativeSceneDirector.resetForTrack();
+                    visualMotifs.reset();
+                    structureClockLocked = false;
+                    pendingTimelinePreset.reset();
+                    timelineClockStartedAt = now;
+                    timelineMismatchReported = false;
+                }
+                if (observation.trackChanged && !pairedFollower) {
+                    presetIndex = chooseAutomaticPreset(PresetEnergy::Medium);
+                    recentPresets.clear();
+                    recentPresets.push_back(presetIndex);
+                    presetTransitionActive = false;
+                    loadPresetAtVisualTempo(
+                        engines[activeEngine], presets[presetIndex], false);
+                    transitionWindowAt = now + 19000;
+                    transitionDeadlineAt = now + 23000;
+                    if (hasCover) coverStartedAt = now;
+                    publishPairedState(
+                        presetIndex, 0, nativeEnabled ? 6 : 0, true,
+                        nativeEnabled
+                            ? static_cast<int>(
+                                nativeSceneDirector.state().currentScene)
+                            : -1,
+                        nativeEnabled
+                            ? static_cast<int>(
+                                nativeSceneDirector.state().currentScene)
+                            : -1);
+                    std::cerr << "track: " << state.identity << "\n";
+                }
+                if (!suppressLateInitialCover
+                    && !state.artPath.empty()
+                    && state.artPath != currentArtPath
+                    && loadPngTexture(state.artPath, coverTexture, coverAspect)) {
+                    currentArtPath = state.artPath;
+                    albumColor = loadPaletteColor(state.artPath);
+                    hasCover = true;
+                    coverStartedAt = now;
+                    std::cerr << "cover: " << state.artPath << "\n";
+                }
+                if (!artLookupComplete && hasCover) {
+                    artLookupComplete = true;
+                }
+            } else if (!artLookupComplete) {
+                // No MPRIS player is active, so there is no artwork to wait
+                // for. Begin with the native scene and never reverse into a
+                // cover from this launch attempt.
+                artLookupComplete = true;
+                suppressLateInitialCover = true;
             }
         }
         unsigned int capturedFrames = 0;
@@ -1741,11 +1689,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (mprisHelperPid > 0) {
-        kill(mprisHelperPid, SIGTERM);
-        waitpid(mprisHelperPid, nullptr, 0);
-        close(mprisHelperFd);
-    }
+    mprisPoller.stop();
     audioCapture.stop();
     nativeRenderer.reset();
     projectm_destroy(engines[0]);

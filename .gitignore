@@ -6,6 +6,7 @@ experiments/projectm-ascii/projectm-ascii-live
 experiments/projectm-ascii/live-settings-test
 experiments/projectm-ascii/audio-output-session-test
 experiments/projectm-ascii/mpris-state-test
+experiments/projectm-ascii/mpris-poller-test
 experiments/projectm-ascii/paired-transport-test
 experiments/projectm-ascii/audio-features-test
 experiments/projectm-ascii/preset-profiles-test

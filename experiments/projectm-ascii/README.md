@@ -20,6 +20,7 @@ Run the native music-contract and render audits with:
 ./experiments/projectm-ascii/signal-monitor-test
 ./experiments/projectm-ascii/live-compositor-test
 ./experiments/projectm-ascii/mpris-state-test
+./experiments/projectm-ascii/mpris-poller-test
 ./experiments/projectm-ascii/audio-output-session-test \
   ./experiments/projectm-ascii/fixtures/fake-pw-record
 ./experiments/projectm-ascii/paired-transport-test
@@ -51,6 +52,11 @@ context. It verifies texture presentation and the launch and shutdown
 visibility endpoints independently from the audio loop. Cover blending,
 continuous and ASCII materials, backend transitions, and display fades now
 cross one typed frame interface.
+
+The MPRIS poller test exercises the asynchronous helper lifecycle, valid and
+invalid state parsing, the no-player result, duplicate-start protection, and
+cleanup. The render loop consumes completed track observations without owning
+fork, pipe, buffering, or child-process state.
 
 The renderer soak runs at 1920x1080 by default, cycles through every scene and
 the transition to its successor, and synchronizes each frame for real GPU

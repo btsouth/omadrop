@@ -448,3 +448,8 @@ Completed after v0.3:
   blending, continuous and ASCII material, backend transitions, per-preset
   reactions, and launch and shutdown visibility now cross one typed frame
   interface with an independent hidden-context OpenGL test.
+- Extracted asynchronous MPRIS polling from the live loop. Track observations
+  now arrive through a tested lifecycle that covers helper execution, partial
+  output buffering, invalid state, no active player, duplicate starts, and
+  shutdown cleanup, while `PlaybackClock` remains the sole owner of projected
+  song position.

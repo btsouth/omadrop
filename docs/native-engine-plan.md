@@ -41,6 +41,10 @@ MPRIS   -> TrackState -----------------------^            |
 projectM and native backends receive the same clock and track state so their
 output can be compared under identical input.
 
+`MprisPoller` owns asynchronous helper execution and JSON state delivery.
+`PlaybackClock` owns track identity and projected position. Neither process
+management detail is part of the render loop.
+
 The native renderer uses separate passes for scene injection, feedback
 advection, transition composition, and display material. The first vertical
 slice combines injection and feedback while the interface is validated.
