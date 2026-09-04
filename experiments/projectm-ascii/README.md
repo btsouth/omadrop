@@ -31,6 +31,7 @@ Run the native music-contract and render audits with:
 ./experiments/projectm-ascii/native-scene-state-test
 ./experiments/projectm-ascii/native-scene-list
 ./experiments/projectm-ascii/native-renderer-test ./shaders/native
+./experiments/projectm-ascii/gpu-probe ./shaders/native
 ./experiments/projectm-ascii/native-transition-test ./shaders/native \
   ./experiments/projectm-ascii/live.cpp
 ./experiments/projectm-ascii/native-renderer-soak ./shaders/native 10

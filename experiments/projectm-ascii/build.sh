@@ -82,6 +82,9 @@ g++ -std=c++20 -O2 -Wall -Wextra native_scene_list.cpp \
 g++ -std=c++20 -O2 -Wall -Wextra native_renderer_test.cpp native_renderer.cpp \
   -o native-renderer-test $(pkg-config --cflags --libs sdl2 glew fftw3f) -lGL
 
+g++ -std=c++20 -O2 -Wall -Wextra gpu_probe.cpp native_renderer.cpp \
+  -o gpu-probe $(pkg-config --cflags --libs sdl2 glew fftw3f) -lGL
+
 g++ -std=c++20 -O2 -Wall -Wextra scene_pack_audit.cpp native_renderer.cpp \
   -o scene-pack-audit $(pkg-config --cflags --libs sdl2 glew fftw3f) -lGL
 

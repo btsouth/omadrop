@@ -27,27 +27,106 @@ if [[ ${1:-} == --crash-report ]]; then
   echo "Crash reports contain technical state only. No audio, track metadata, or artwork paths."
   exit 0
 fi
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+gpu_probe="$root/experiments/projectm-ascii/gpu-probe"
+if [[ ${1:-} == --gpu ]]; then
+  if [[ ! -x $gpu_probe ]]; then
+    echo "omadrop-doctor: GPU probe is not built" >&2
+    exit 1
+  fi
+  exec "$gpu_probe" "$root/shaders/native"
+fi
+if [[ ${1:-} == -h || ${1:-} == --help ]]; then
+  cat <<'EOF'
+Usage: omadrop-doctor [--gpu|--crash-report]
+
+Check runtime commands, audio output, linked libraries, and the native OpenGL
+renderer. --gpu runs only the hidden OpenGL and shader probe. --crash-report
+prints only the privacy-safe fields from the last renderer failure.
+EOF
+  exit 0
+fi
 if (($#)); then
-  echo "Usage: omadrop-doctor [--crash-report]" >&2
+  echo "Usage: omadrop-doctor [--gpu|--crash-report]" >&2
   exit 2
 fi
-echo "== Omadrop environment =="
-root=$(dirname "$(dirname "$(readlink -f "$0")")")
-echo "version     : $(<"$root/VERSION")"
-for c in magick curl pactl pw-record gdbus busctl jq pkg-config \
-  ffmpeg ffprobe gpu-screen-recorder; do
-  printf '%-12s %s\n' "$c" "$(command -v $c || echo MISSING)"
+
+failures=0
+check_command() {
+  local command=$1 required=$2
+  if command -v "$command" >/dev/null 2>&1; then
+    printf '  %-20s ok\n' "$command"
+  elif ((required)); then
+    printf '  %-20s MISSING\n' "$command"
+    ((failures += 1))
+  else
+    printf '  %-20s optional, not installed\n' "$command"
+  fi
+}
+
+echo "Omadrop $(<"$root/VERSION") diagnostic"
+echo
+echo "Runtime commands"
+for command in pactl pw-record gdbus busctl jq magick curl; do
+  check_command "$command" 1
 done
 echo
-echo "default sink: $(pactl get-default-sink 2>/dev/null)"
-echo "playing now : $(pactl list short sink-inputs 2>/dev/null | wc -l) stream(s)"
-echo "libprojectM : $(pkg-config --modversion projectM-4 2>/dev/null || echo MISSING)"
-echo "SDL2        : $(pkg-config --modversion sdl2 2>/dev/null || echo MISSING)"
-echo "GLEW        : $(pkg-config --modversion glew 2>/dev/null || echo MISSING)"
-echo "libpng      : $(pkg-config --modversion libpng 2>/dev/null || echo MISSING)"
-echo "json-c      : $(pkg-config --modversion json-c 2>/dev/null || echo MISSING)"
-echo "presets     : $(find "$root/presets/curated" -type f -name '*.milk' 2>/dev/null | wc -l) bundled"
+echo "Demo recording commands"
+for command in ffmpeg ffprobe gpu-screen-recorder; do
+  check_command "$command" 0
+done
+
+echo
+echo "Audio and media session"
+default_sink=$(pactl get-default-sink 2>/dev/null || true)
+if [[ -n $default_sink ]]; then
+  echo "  default output       available"
+else
+  echo "  default output       UNAVAILABLE"
+  ((failures += 1))
+fi
+stream_count=$(pactl list short sink-inputs 2>/dev/null | wc -l)
+echo "  active audio streams $stream_count"
+mpris_count=$(busctl --user --list --no-legend 2>/dev/null \
+  | awk '$1 ~ /^org\.mpris\.MediaPlayer2\./ { count++ } END { print count + 0 }')
+echo "  MPRIS players        $mpris_count"
+
 live="$root/experiments/projectm-ascii/projectm-ascii-live"
-echo "renderer    : $( [[ -x $live ]] && echo built || echo 'NOT BUILT')"
-echo "album art   : $("$root/bin/mpris-art" 2>/dev/null || echo unavailable)"
-echo "crash report: $( [[ -f $crash_report && ! -L $crash_report && -r $crash_report ]] && echo available || echo none)"
+echo
+echo "Native renderer"
+if [[ ! -x $live ]]; then
+  echo "  executable           NOT BUILT"
+  ((failures += 1))
+else
+  echo "  executable           ok"
+  missing_libraries=$(ldd "$live" 2>/dev/null | awk '/not found/ { print $1 }')
+  if [[ -n $missing_libraries ]]; then
+    echo "  linked libraries     MISSING: ${missing_libraries//$'\n'/, }"
+    ((failures += 1))
+  else
+    echo "  linked libraries     ok"
+  fi
+fi
+if [[ -x $gpu_probe ]]; then
+  if gpu_output=$("$gpu_probe" "$root/shaders/native" 2>&1); then
+    while IFS= read -r line; do printf '  %s\n' "$line"; done <<<"$gpu_output"
+  else
+    while IFS= read -r line; do printf '  %s\n' "$line"; done <<<"$gpu_output"
+    ((failures += 1))
+  fi
+else
+  echo "  GPU probe            NOT BUILT"
+  ((failures += 1))
+fi
+
+echo
+if [[ -f $crash_report && ! -L $crash_report && -r $crash_report ]]; then
+  echo "Last private-safe crash report: available"
+else
+  echo "Last private-safe crash report: none"
+fi
+if ((failures)); then
+  echo "Result: $failures required check(s) failed"
+  exit 1
+fi
+echo "Result: ready"

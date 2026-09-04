@@ -128,6 +128,9 @@ automatic package or shortcut setup.
 # Check the machine before building
 ./bin/omadrop-doctor
 
+# Check only OpenGL, native shaders, and a hidden rendered frame
+./bin/omadrop-doctor --gpu
+
 # Print the last privacy-safe renderer failure report
 ./bin/omadrop-doctor --crash-report
 
@@ -179,6 +182,10 @@ at least two scenes available. Per-output audio delay is remembered for each
 output device. A compact status label confirms each change. Manual scene skips
 show `AUTO: <scene>` because `N` and `P` never disable automatic direction.
 `OMADROP_ASCII=0` remains available as a temporary override.
+
+See the [control reference](docs/controls.md) for persistence and automatic
+direction behavior. For launch, audio, artwork, display, or GPU problems, use
+the [troubleshooting guide](docs/troubleshooting.md).
 
 Director profiles are Balanced, Kinetic, Restrained, and High Contrast. They
 change scene selection, not beat timing or the per-scene pulse limits. Kinetic

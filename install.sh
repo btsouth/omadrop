@@ -70,6 +70,8 @@ install -Dm755 "$root/experiments/projectm-ascii/scene-pack-audit" \
   "$install_root/experiments/projectm-ascii/scene-pack-audit"
 install -Dm755 "$root/experiments/projectm-ascii/scene-pack-author" \
   "$install_root/experiments/projectm-ascii/scene-pack-author"
+install -Dm755 "$root/experiments/projectm-ascii/gpu-probe" \
+  "$install_root/experiments/projectm-ascii/gpu-probe"
 install -Dm755 "$root/experiments/projectm-ascii/run-curated.sh" \
   "$install_root/experiments/projectm-ascii/run-curated.sh"
 for shader in "$root"/shaders/native/*.{vert,glsl,frag}; do
@@ -99,6 +101,10 @@ install -Dm644 "$root/CHANGELOG.md" "$install_root/CHANGELOG.md"
 install -Dm644 "$root/LICENSE" "$install_root/LICENSE"
 install -Dm644 "$root/THIRD_PARTY_NOTICES.md" "$install_root/THIRD_PARTY_NOTICES.md"
 install -Dm644 "$root/VERSION" "$install_root/VERSION"
+install -Dm644 "$root/docs/controls.md" "$install_root/docs/controls.md"
+install -Dm644 "$root/docs/troubleshooting.md" \
+  "$install_root/docs/troubleshooting.md"
+install -Dm644 "$root/docs/scene-packs.md" "$install_root/docs/scene-packs.md"
 mkdir -p "$bin_dir"
 ln -sfn "$install_root/bin/omadrop" "$bin_dir/omadrop"
 ln -sfn "$install_root/bin/omadrop-demo" "$bin_dir/omadrop-demo"

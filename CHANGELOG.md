@@ -91,6 +91,11 @@
 - Detect Linux suspend by comparing boot and active clocks. Resume clears
   stale analysis and buffered audio, refreshes MPRIS state, restarts capture on
   the current output, retains the visual composition, and limits flow advance.
+- Add a hidden GPU compatibility probe that creates the required OpenGL 3.3
+  context, compiles the complete native scene set, and renders a frame. The
+  doctor now checks runtime commands, audio, linked libraries, GPU, and shaders.
+- Add installed control and troubleshooting references with direct paths for
+  audio, artwork, display, GPU, preference, and private-safe crash diagnosis.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

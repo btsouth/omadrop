@@ -619,3 +619,7 @@ Completed after v0.3:
   frame. Resume discards pre-suspend audio, clears transient and tempo state,
   restarts capture against the current output, refreshes MPRIS state, preserves
   the scene image, and clamps the first flow advance instead of jumping ahead.
+- Added an installed GPU probe and expanded `omadrop-doctor` into an actionable
+  runtime check for audio, media-session tools, linked libraries, OpenGL 3.3,
+  all native shaders, and a hidden test frame. Added concise installed control
+  and troubleshooting references.

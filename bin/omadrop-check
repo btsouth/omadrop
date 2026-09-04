@@ -60,6 +60,8 @@ echo "checking structure timeline"
 
 echo "checking native renderer"
 "$native/native-renderer-test" "$root/shaders/native"
+echo "checking GPU compatibility probe"
+"$native/gpu-probe" "$root/shaders/native"
 echo "checking native transitions"
 "$native/native-transition-test" "$root/shaders/native" "$native/live.cpp"
 echo "checking launcher synchronization"
