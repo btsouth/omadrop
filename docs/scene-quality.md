@@ -1,6 +1,6 @@
 # Native scene quality matrix
 
-This is the working visual review for the current eleven scenes. A scene is not
+This is the working visual review for the current twelve scenes. A scene is not
 release-ready until its still, motion, transient roles, quiet behavior,
 continuous material, ASCII material, palettes, and transitions all pass.
 
@@ -14,6 +14,7 @@ ship decision.
 | Centrifuge | Pass | Pass | Selective | Pass | Pass | Pass | Side rails can dominate quiet passages | Continuous motion, varied genres |
 | Constellation Field | Pass | Pass | Sparse | Pass | Pass | Pass | Central rings can compete with the network | Continuous motion, varied genres |
 | Depth Tunnel | Pass | Pass | Flow | Pass | Pass | Pass | Preserve the stable aperture during dense peaks | Continuous motion, varied genres |
+| Ink Current | Pass | Pass | Selective | Pass | Pass | Pass | Keep event marks subordinate to the stable current | Real music, transition pairs |
 | Orbital Loom | Pass | Pass | Selective | Pass | Pass | Pass | Needs clearer separation from other radial scenes | Continuous motion, varied genres |
 | Prism Garden | Pass | Pass | Sparse | Pass | Pass | Pass | Preserve the varied skyline during dense passages | Continuous motion, varied genres |
 | Pulse Cathedral | Pass | Pass | Selective | Pass | Pass | Pass | Keep outer arches subordinate to the focal rose | Continuous motion, varied genres |
@@ -25,7 +26,7 @@ ship decision.
 
 1. Add reviewed real, rights-cleared music to the locked synthetic suite. The
    five current profiles cover quiet, dense, sustained, acoustic-like,
-   vocal-like, compressed, and syncopated passages across 55 enforced scene
+   vocal-like, compressed, and syncopated passages across 60 enforced scene
    combinations.
 2. Review continuous motion, not only time-sampled frames, and confirm that
    Depth Tunnel and Spectral Ribbons remain controlled as the two deliberately

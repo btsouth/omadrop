@@ -17,10 +17,11 @@ enum class NativeSceneKind : std::uint8_t {
     SpectralRibbons = 8,
     BloomEngine = 9,
     NegativeSpace = 10,
+    InkCurrent = 11,
 };
 
-inline constexpr std::size_t nativeSceneCount = 11;
-inline constexpr unsigned int nativeSceneRegistryVersion = 4;
+inline constexpr std::size_t nativeSceneCount = 12;
+inline constexpr unsigned int nativeSceneRegistryVersion = 5;
 
 enum class NativeTransitionAnchor : std::uint8_t {
     Center,
@@ -134,6 +135,12 @@ nativeSceneRegistry{{
      {0.18f, 0.22f, 0.78f, 0.40f, 0.38f},
      NativeTransitionAnchor::HorizontalAxis,
      NativeMotionGrammar::Sparse, 0.10f, 0.22f,
+     transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
+    {NativeSceneKind::InkCurrent, "ink-current", "Ink Current",
+     "ink-current.frag", {"ink", "current", ""}, {1.12f, 1.18f},
+     {0.38f, 0.34f, 0.82f, 0.30f, 0.72f},
+     NativeTransitionAnchor::HorizontalAxis,
+     NativeMotionGrammar::Selective, 0.18f, 0.24f,
      transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
 }};
 

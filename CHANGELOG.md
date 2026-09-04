@@ -4,6 +4,8 @@
 
 - Add Negative Space, a restrained eleventh native scene whose beat, kick,
   snare, hats, and section changes carve separate parts of one stable field.
+- Add Ink Current, a selective fluid scene with local spectral shaping, beat
+  travel, kick eddies, snare cuts, hat droplets, and structural branching.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 
