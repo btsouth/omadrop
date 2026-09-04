@@ -76,6 +76,21 @@ bool PipeWireCapture::start(const std::string& targetSink) {
     return true;
 }
 
+bool PipeWireCapture::running() {
+    if (process_ <= 0) return false;
+    int status = 0;
+    const pid_t result = waitpid(process_, &status, WNOHANG);
+    if (result == 0) return true;
+    if (result == process_ || (result < 0 && errno == ECHILD)) {
+        process_ = -1;
+        if (descriptor_ >= 0) {
+            close(descriptor_);
+            descriptor_ = -1;
+        }
+    }
+    return false;
+}
+
 void PipeWireCapture::stop() {
     if (process_ > 0) {
         kill(process_, SIGTERM);

@@ -11,9 +11,10 @@ AudioOutputFollowResult followAudioOutput(
     }
 
     stopCapture();
+    if (!startCapture(candidateSink)) {
+        return AudioOutputFollowResult::Failed;
+    }
     activeSink = candidateSink;
     resetForSink(activeSink);
-    return startCapture(activeSink)
-        ? AudioOutputFollowResult::Followed
-        : AudioOutputFollowResult::Failed;
+    return AudioOutputFollowResult::Followed;
 }

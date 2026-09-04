@@ -11,6 +11,7 @@ public:
     PipeWireCapture& operator=(const PipeWireCapture&) = delete;
 
     bool start(const std::string& targetSink);
+    bool running();
     void stop();
     std::size_t read(float* samples, std::size_t capacity);
 

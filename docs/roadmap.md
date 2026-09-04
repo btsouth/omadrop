@@ -600,3 +600,6 @@ Completed after v0.3:
 - Added atomic privacy-safe crash reports for both one-display and paired
   launches. Reports contain only allowlisted technical fields and explicitly
   exclude audio, media metadata, artwork, process IDs, and output names.
+- Made audio-output changes transactional and recoverable. A failed new sink
+  no longer becomes active or closes Omadrop, and a dead PipeWire capture child
+  is detected, retried every two seconds, and reset cleanly after recovery.

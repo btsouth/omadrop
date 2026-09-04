@@ -72,6 +72,9 @@
 - Record abnormal renderer exits atomically in a mode-600 local report with
   version, exit status, display count, and session type only. The report never
   captures audio, track metadata, artwork paths, process IDs, or output names.
+- Keep the visualizer open when a new default audio output is temporarily
+  unavailable. The active sink changes only after capture starts, silence stays
+  still during retries, and a lost PipeWire recorder is detected and restarted.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

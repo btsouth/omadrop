@@ -1169,26 +1169,43 @@ int main(int argc, char** argv) {
         if (now >= nextSinkPollAt) {
             nextSinkPollAt = now + 2000;
             const std::string currentSink = defaultSinkName();
-            const AudioOutputFollowResult followResult = followAudioOutput(
-                currentSink, sink,
-                [&] { audioCapture.stop(); },
-                [&](const std::string& newSink) {
-                    syncDelayMs = loadSyncDelay(newSink);
-                    delayedPcm.clear();
-                    featureBus.resetClock();
-                    musicFrameBuilder.reset();
-                    lastNonSilentAudioAt = now;
-                    reportedAudioMode = false;
-                },
-                [&](const std::string& newSink) {
-                    return audioCapture.start(newSink);
-                });
+            const auto resetAudioState = [&](const std::string& newSink) {
+                syncDelayMs = loadSyncDelay(newSink);
+                delayedPcm.clear();
+                featureBus.resetClock();
+                musicFrameBuilder.reset();
+                lastNonSilentAudioAt = now;
+                reportedAudioMode = false;
+            };
+            AudioOutputFollowResult followResult;
+            bool restartedCapture = false;
+            if ((currentSink.empty() || currentSink == sink)
+                && !audioCapture.running()) {
+                restartedCapture = audioCapture.start(sink);
+                followResult = restartedCapture
+                    ? AudioOutputFollowResult::Followed
+                    : AudioOutputFollowResult::Failed;
+                if (restartedCapture) resetAudioState(sink);
+            } else {
+                followResult = followAudioOutput(
+                    currentSink, sink,
+                    [&] { audioCapture.stop(); }, resetAudioState,
+                    [&](const std::string& newSink) {
+                        return audioCapture.start(newSink);
+                    });
+            }
             if (followResult == AudioOutputFollowResult::Failed) {
-                std::cerr << "audio: could not follow default sink " << sink << "\n";
-                running = false;
+                std::cerr << "audio: capture unavailable for " << currentSink
+                          << "; retrying\n";
+                statusOverlay.show("AUDIO OUTPUT: RETRYING", now);
             } else if (followResult == AudioOutputFollowResult::Followed) {
-                std::cerr << "audio: followed default sink " << sink
+                std::cerr << "audio: "
+                          << (restartedCapture ? "capture resumed on "
+                                               : "followed default sink ")
+                          << sink
                           << ", sync delay " << syncDelayMs << " ms\n";
+                statusOverlay.show(restartedCapture
+                    ? "AUDIO CAPTURE: RESUMED" : "AUDIO OUTPUT: FOLLOWED", now);
             }
         }
         if (automaticQuitAt > 0 && now >= automaticQuitAt) closeRequested = true;

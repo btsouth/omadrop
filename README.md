@@ -60,6 +60,9 @@ from the v0.3 release demo, not mockups.
   and keyboard input stay synchronized across displays.
 - **Local by design.** Audio analysis runs on the machine. There is no account,
   model download, hosted AI service, or song upload.
+- **Output-change recovery.** Switching speakers, reconnecting Bluetooth, or a
+  lost PipeWire recorder falls back to stillness and retries without closing
+  the visualizer.
 
 The native renderer is the default. An 11-preset projectM compatibility mode is
 included for direct comparison with classic MilkDrop behavior.

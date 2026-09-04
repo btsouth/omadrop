@@ -66,8 +66,8 @@ int main(int argc, char** argv) {
            == AudioOutputFollowResult::Followed);
     assert(sink == headphones && syncDelayMs == 180u);
     assert((order == std::vector<std::string>{
-        "stop", "reset:bluez_output.headphones",
-        "start:bluez_output.headphones"}));
+        "stop", "start:bluez_output.headphones",
+        "reset:bluez_output.headphones"}));
     assert(waitForText(log, "--target bluez_output.headphones"));
     assert(waitForText(log, "terminated"));
 
@@ -77,7 +77,28 @@ int main(int argc, char** argv) {
     order.clear();
     assert(followAudioOutput("alsa_output.hdmi", sink, stop, reset, start)
            == AudioOutputFollowResult::Failed);
+    assert(sink == headphones && syncDelayMs == 180u);
+    assert((order == std::vector<std::string>{
+        "stop", "start:alsa_output.hdmi"}));
+
+    setenv("OMADROP_PW_RECORD_COMMAND", argv[1], 1);
+    order.clear();
+    assert(followAudioOutput("alsa_output.hdmi", sink, stop, reset, start)
+           == AudioOutputFollowResult::Followed);
     assert(sink == "alsa_output.hdmi" && syncDelayMs == 35u);
+    assert((order == std::vector<std::string>{
+        "stop", "start:alsa_output.hdmi", "reset:alsa_output.hdmi"}));
+
+    capture.stop();
+    setenv("OMADROP_TEST_CAPTURE_EXIT", "1", 1);
+    assert(capture.start(sink));
+    for (int attempt = 0; attempt < 100 && capture.running(); ++attempt) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    assert(!capture.running());
+    unsetenv("OMADROP_TEST_CAPTURE_EXIT");
+    assert(capture.start(sink));
+    assert(capture.running());
 
     unsetenv("OMADROP_PW_RECORD_COMMAND");
     unsetenv("OMADROP_TEST_CAPTURE_LOG");

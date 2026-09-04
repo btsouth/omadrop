@@ -7,4 +7,8 @@ finish() {
   exit 0
 }
 trap finish TERM INT
+if [[ ${OMADROP_TEST_CAPTURE_EXIT:-0} == 1 ]]; then
+  sleep 0.05
+  exit 9
+fi
 while :; do sleep 0.05; done
