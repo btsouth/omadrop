@@ -615,3 +615,7 @@ Completed after v0.3:
   flow clock every frame. A two-hour deterministic run with uneven frame timing
   and repeated dropped reads holds audio-state lag to 50 ms, resolves scene
   disagreement within 34 ms, and shows no accumulated drift.
+- Added suspend detection that distinguishes sleep from an ordinary slow render
+  frame. Resume discards pre-suspend audio, clears transient and tempo state,
+  restarts capture against the current output, refreshes MPRIS state, preserves
+  the scene image, and clamps the first flow advance instead of jumping ahead.

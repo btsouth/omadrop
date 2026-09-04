@@ -27,6 +27,7 @@ Run the native music-contract and render audits with:
   ./experiments/projectm-ascii/fixtures/fake-pw-record
 ./experiments/projectm-ascii/paired-transport-test
 ./experiments/projectm-ascii/paired-sync-test
+./experiments/projectm-ascii/session-lifecycle-test
 ./experiments/projectm-ascii/native-scene-state-test
 ./experiments/projectm-ascii/native-scene-list
 ./experiments/projectm-ascii/native-renderer-test ./shaders/native
@@ -49,6 +50,12 @@ The paired-sync test simulates two hours at independent, uneven display-frame
 rates with repeated two-read gaps. It verifies monotonic validated music
 packets, bounded beat/bar/phrase and autonomous-flow lag, self-contained scene
 and control snapshots, topology-session restart, and no accumulated drift.
+
+The session-lifecycle test distinguishes Linux suspend time from a slow active
+frame. On resume the live renderer retains its composition, clears buffered and
+transient audio state, refreshes track state, and restarts PipeWire capture.
+The renderer audit also verifies that a long pause cannot advance scene flow by
+more than the normal 100 ms frame clamp.
 
 `native-scene-list` validates registry order, identity, and uniqueness before
 printing the canonical slug and display name for every scene. Gallery and

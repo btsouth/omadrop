@@ -420,6 +420,21 @@ int main() {
         timestampSilence.data(), timestampSilence.size()).audioTimeSeconds;
     const double secondTimestamp = timestampBus.processMono(
         timestampSilence.data(), timestampSilence.size()).audioTimeSeconds;
+    std::vector<float> resetTone(AudioFeatureBus::hopSize, 0.0f);
+    double resetPhase = 0.0;
+    AudioFeatures beforeReset;
+    for (int frame = 0; frame < 20; ++frame) {
+        for (float& sample : resetTone) {
+            sample = 0.75f * static_cast<float>(std::sin(resetPhase));
+            resetPhase += tau * 72.0 / AudioFeatureBus::sampleRate;
+            if (resetPhase >= tau) resetPhase -= tau;
+        }
+        beforeReset = timestampBus.processMono(
+            resetTone.data(), resetTone.size());
+    }
+    timestampBus.resetAnalysis();
+    const AudioFeatures afterReset = timestampBus.processMono(
+        timestampSilence.data(), timestampSilence.size());
     const Counts silence = runFixture(0.0f);
     const Counts kick = runFixture(62.0f);
     const Counts snare = runFixture(2200.0f);
@@ -451,6 +466,16 @@ int main() {
                                     / static_cast<double>(AudioFeatureBus::sampleRate);
     if (std::abs((secondTimestamp - firstTimestamp) - expectedHopSeconds) > 1e-9) {
         std::cerr << "audio timestamps did not advance by one hop\n";
+        ok = false;
+    }
+    if (afterReset.audioTimeSeconds <= beforeReset.audioTimeSeconds
+        || afterReset.kick || afterReset.snare || afterReset.hat
+        || afterReset.beatConfidence != 0.0f
+        || *std::max_element(afterReset.level.begin(), afterReset.level.end())
+            > 0.001f
+        || *std::max_element(afterReset.flux.begin(), afterReset.flux.end())
+            > 0.001f) {
+        std::cerr << "analysis reset retained pre-resume signal state\n";
         ok = false;
     }
     ok &= expect("silence kick", silence.kick, 0, 0);

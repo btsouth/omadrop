@@ -42,6 +42,7 @@
 #include "pipewire_capture.h"
 #include "preset_profiles.h"
 #include "preset_selector.h"
+#include "session_lifecycle.h"
 #include "structure_timeline.h"
 #include "status_overlay.h"
 #include "visual_motifs.h"
@@ -993,8 +994,49 @@ int main(int argc, char** argv) {
     using FrameClock = std::chrono::steady_clock;
     constexpr auto frameInterval = std::chrono::nanoseconds(1000000000 / 60);
     auto nextFrame = FrameClock::now() + frameInterval;
+    SessionResumeDetector resumeDetector;
+    resumeDetector.observe(bootTimeMilliseconds(), SDL_GetTicks64());
     while (running) {
         const uint64_t now = SDL_GetTicks64();
+        if (resumeDetector.observe(bootTimeMilliseconds(), now)) {
+            // Do not replay buffered pre-suspend audio or leave a transient
+            // envelope frozen on screen. Keep the scene and feedback image,
+            // then rebuild capture and analysis from the resumed output.
+            delayedPcm.clear();
+            featureBus.resetAnalysis();
+            audioFeatures = AudioFeatures{};
+            structureTracker.reset();
+            musicFrameBuilder.reset();
+            musicFrame = MusicFrame{};
+            bassImpact = 0.0f;
+            midImpact = 0.0f;
+            trebleImpact = 0.0f;
+            musicalEnergy = 0.0f;
+            structureClockLocked = false;
+            lastNonSilentAudioAt = now;
+            previousFrameAt = now;
+            reportedAudioMode = false;
+            mprisPoller.stop();
+            nextMprisPollAt = now;
+            audioCapture.stop();
+            const std::string resumedDefaultSink = defaultSinkName();
+            const std::string resumedSink = resumedDefaultSink.empty()
+                ? sink : resumedDefaultSink;
+            const bool captureResumed = !resumedSink.empty()
+                                     && audioCapture.start(resumedSink);
+            if (captureResumed) {
+                sink = resumedSink;
+                syncDelayMs = loadSyncDelay(sink);
+                nextSinkPollAt = now + 2000;
+                std::cerr << "session: resumed capture on " << sink << "\n";
+                statusOverlay.show("SESSION RESUMED", now);
+            } else {
+                nextSinkPollAt = now;
+                std::cerr << "session: capture unavailable after resume; retrying\n";
+                statusOverlay.show("AUDIO OUTPUT: RETRYING", now);
+            }
+            nextFrame = FrameClock::now() + frameInterval;
+        }
         if (stopRequested) closeRequested = true;
         bool skipPreset = false;
         bool previousPreset = false;
@@ -1185,7 +1227,7 @@ int main(int argc, char** argv) {
             const auto resetAudioState = [&](const std::string& newSink) {
                 syncDelayMs = loadSyncDelay(newSink);
                 delayedPcm.clear();
-                featureBus.resetClock();
+                featureBus.resetAnalysis();
                 musicFrameBuilder.reset();
                 lastNonSilentAudioAt = now;
                 reportedAudioMode = false;
@@ -1254,7 +1296,7 @@ int main(int argc, char** argv) {
                 seekedThisFrame = observation.seeked;
                 if (observation.first || observation.trackChanged) {
                     timelineDirector.reset();
-                    featureBus.resetClock();
+                    featureBus.resetAnalysis();
                     structureTracker.reset();
                     musicFrameBuilder.reset();
                     nativeSceneDirector.resetForTrack();

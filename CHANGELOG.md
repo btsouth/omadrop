@@ -88,6 +88,9 @@
 - Add a deterministic two-hour paired-display simulation with uneven frame
   timing and repeated dropped reads. Audio-state lag stays at or below 50 ms
   and scene-state disagreement clears within 34 ms without accumulated drift.
+- Detect Linux suspend by comparing boot and active clocks. Resume clears
+  stale analysis and buffered audio, refreshes MPRIS state, restarts capture on
+  the current output, retains the visual composition, and limits flow advance.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

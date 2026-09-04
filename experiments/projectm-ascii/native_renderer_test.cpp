@@ -828,6 +828,26 @@ int main(int argc, char** argv) {
         return 2;
     }
 
+    renderer.reset();
+    const MusicFrame resumeMusic = baseMusic();
+    const NativeSceneState resumeScene = baseScene(NativeSceneKind::DepthTunnel);
+    if (!renderer.render(resumeMusic, resumeScene, width, height,
+                         *referenceColor, 0, 1.0f, 1.0f / 60.0f, error)) {
+        std::cerr << error << "\n";
+        return 1;
+    }
+    const float flowBeforeStall = renderer.flowTime();
+    if (!renderer.render(resumeMusic, resumeScene, width, height,
+                         *referenceColor, 0, 1.0f, 900.0f, error)) {
+        std::cerr << error << "\n";
+        return 1;
+    }
+    const float resumeFlowAdvance = renderer.flowTime() - flowBeforeStall;
+    assert(resumeFlowAdvance > 0.0f && resumeFlowAdvance < 0.020f);
+    renderer.synchronizeFlowTime(12.5f);
+    assert(std::abs(renderer.flowTime() - 12.5f) < 1e-6f);
+    renderer.reset();
+
     std::array<SceneAudit, nativeSceneCount> audits{};
     for (std::size_t index = 0; index < nativeSceneCount; ++index) {
         const NativeSceneKind scene = static_cast<NativeSceneKind>(index);

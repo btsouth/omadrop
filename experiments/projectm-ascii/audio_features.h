@@ -62,6 +62,28 @@ public:
     AudioFeatureBus(const AudioFeatureBus&) = delete;
     AudioFeatureBus& operator=(const AudioFeatureBus&) = delete;
 
+    void resetAnalysis() {
+        const double retainedAudioTime = features_.audioTimeSeconds;
+        std::fill(samples_.begin(), samples_.end(), 0.0f);
+        std::fill(fftInput_.begin(), fftInput_.end(), 0.0f);
+        std::fill(fftOutput_.begin(), fftOutput_.end(),
+                  std::array<float, 2>{});
+        previous_.fill(0.0f);
+        fluxMean_.fill(0.0f);
+        levelMean_.fill(0.0f);
+        previousSpectrum_.fill(0.0f);
+        spectrumFluxMean_.fill(0.0f);
+        spectrumLevelMean_.fill(0.0f);
+        pendingStereoWidth_ = 0.0f;
+        frame_ = 0;
+        kickCooldown_ = 0;
+        snareCooldown_ = 0;
+        hatCooldown_ = 0;
+        features_ = AudioFeatures{};
+        features_.audioTimeSeconds = retainedAudioTime;
+        resetClock();
+    }
+
     void resetClock() {
         onsetHistory_.fill(0.0f);
         tempoVotes_.fill(0.0f);

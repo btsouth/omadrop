@@ -32,6 +32,7 @@ tests=(
   mpris-poller-test
   paired-transport-test
   paired-sync-test
+  session-lifecycle-test
   audio-features-test
   preset-selector-test
   preset-adapters-test
