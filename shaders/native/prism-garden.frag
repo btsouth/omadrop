@@ -23,7 +23,7 @@ void main() {
     float sceneHat = hat * overloadScale;
 
     vec2 previousP = p;
-    previousP.y -= 0.00003 + 0.00010 * energySlow;
+    previousP.y -= (0.00003 + 0.00010 * energySlow) * motionScale;
     previousP.x *= 1.0 - 0.012 * sceneKick
                          + 0.0012 * beatAnticipation;
     previousP.x -= sceneSnare * 0.009 * previousP.y;

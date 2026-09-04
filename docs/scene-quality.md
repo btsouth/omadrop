@@ -68,3 +68,7 @@ scenes may spend at most 60 percent there. A scene also fails when kick, snare,
 and hat all change a similarly broad part of the image, or when their gestures
 recover so slowly that repeated hits become constant motion. On the current
 full-song review, every sparse and selective scene stays at or below 4 percent.
+The complete 90-combination default suite also passes after adding live motion
+controls. Separate 18-scene structured-track runs pass at both 125 percent
+response intensity and with reduced motion enabled, including the same pulse,
+recovery, role-separation, and silence gates.

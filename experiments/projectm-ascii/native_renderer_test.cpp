@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cassert>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
@@ -281,18 +282,19 @@ NativeSceneState baseScene(NativeSceneKind kind) {
 }
 
 std::vector<float> renderGesture(NativeRenderer& renderer, MusicFrame gesture,
-                                 NativeSceneKind kind, std::string& error) {
+                                 NativeSceneKind kind, std::string& error,
+                                 const NativeRenderPolicy& policy = {}) {
     renderer.reset();
     MusicFrame music = baseMusic();
     for (int frame = 0; frame < 75; ++frame) {
         if (!renderer.render(music, baseScene(kind), width, height,
                              {0.46f, 0.72f, 1.0f}, 0, 1.0f,
-                             1.0f / 60.0f, error)) return {};
+                             1.0f / 60.0f, error, policy)) return {};
     }
     const std::vector<float> before = readTexture(renderer.texture(kind));
     if (!renderer.render(gesture, baseScene(kind), width, height,
                          {0.46f, 0.72f, 1.0f}, 0, 1.0f,
-                         1.0f / 60.0f, error)) return {};
+                         1.0f / 60.0f, error, policy)) return {};
     return luminanceDifference(before, readTexture(renderer.texture(kind)));
 }
 
@@ -370,6 +372,37 @@ float measurePhraseMotion(NativeRenderer& renderer, NativeSceneKind kind,
         previous = current;
     }
     return total / 120.0f;
+}
+
+float measureAmbientMotion(NativeRenderer& renderer, NativeSceneKind kind,
+                           const NativeRenderPolicy& policy,
+                           std::string& error) {
+    renderer.reset();
+    MusicFrame music = baseMusic();
+    music.kick = 0.0f;
+    music.snare = 0.0f;
+    music.hat = 0.0f;
+    music.beatPulse = 0.0f;
+    music.onsetPulse = 0.0f;
+    music.downbeat = 0.0f;
+    music.section = 0.0f;
+    music.clockConfidence = 0.0f;
+    for (int frame = 0; frame < 90; ++frame) {
+        if (!renderer.render(music, baseScene(kind), width, height,
+                             {0.46f, 0.72f, 1.0f}, 0, 1.0f,
+                             1.0f / 60.0f, error, policy)) return 0.0f;
+    }
+    std::vector<float> previous = readTexture(renderer.texture(kind));
+    float total = 0.0f;
+    for (int frame = 0; frame < 90; ++frame) {
+        if (!renderer.render(music, baseScene(kind), width, height,
+                             {0.46f, 0.72f, 1.0f}, 0, 1.0f,
+                             1.0f / 60.0f, error, policy)) return 0.0f;
+        const std::vector<float> current = readTexture(renderer.texture(kind));
+        total += mean(luminanceDifference(previous, current));
+        previous = current;
+    }
+    return total / 90.0f;
 }
 
 LatencyResult measureLatency(NativeRenderer& renderer,
@@ -804,6 +837,37 @@ int main(int argc, char** argv) {
     for (std::size_t index = 0; index < nativeSceneCount; ++index) {
         printAudit(static_cast<NativeSceneKind>(index), audits[index]);
     }
+
+    const NativeRenderPolicy normalPolicy;
+    const NativeRenderPolicy reducedPolicy{
+        .motion = 1.0f,
+        .reducedMotion = true,
+    };
+    for (const NativeSceneKind scene : {
+             NativeSceneKind::DepthTunnel,
+             NativeSceneKind::SpectralRibbons}) {
+        const float normalAmbient = measureAmbientMotion(
+            renderer, scene, normalPolicy, error);
+        const float reducedAmbient = measureAmbientMotion(
+            renderer, scene, reducedPolicy, error);
+        std::cout << "native " << nativeSceneName(scene)
+                  << " ambient_motion=" << normalAmbient
+                  << " reduced=" << reducedAmbient << "\n";
+        assert(normalAmbient > 0.0f);
+        assert(reducedAmbient < normalAmbient * 0.72f);
+    }
+    MusicFrame policyKick = baseMusic();
+    policyKick.kick = 0.72f;
+    const float lowIntensityResponse = mean(renderGesture(
+        renderer, policyKick, NativeSceneKind::PaperHorizon, error,
+        {.intensity = 0.75f}));
+    const float highIntensityResponse = mean(renderGesture(
+        renderer, policyKick, NativeSceneKind::PaperHorizon, error,
+        {.intensity = 1.25f}));
+    std::cout << "native Paper Horizon intensity_response="
+              << lowIntensityResponse << ',' << highIntensityResponse << "\n";
+    assert(lowIntensityResponse > 0.0f);
+    assert(highIntensityResponse > lowIntensityResponse * 1.08f);
 
     std::array<unsigned char, 16 * 16 * 4> checker{};
     for (int y = 0; y < 16; ++y) {

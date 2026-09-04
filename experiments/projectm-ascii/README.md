@@ -110,6 +110,10 @@ It writes a two-second visual contact sequence plus a per-frame music timeline.
 default, and `OMADROP_REPLAY_MAX_SECONDS` limits a motion-review excerpt.
 `OMADROP_REPLAY_WIDTH` and `OMADROP_REPLAY_HEIGHT` select a review resolution
 between 320x180 and 1920x1080.
+`OMADROP_REPLAY_INTENSITY` and `OMADROP_REPLAY_MOTION` exercise the saved live
+control ranges in deterministic review. Set
+`OMADROP_REPLAY_REDUCED_MOTION=1` to apply the same ambient-motion cap used by
+the live renderer.
 
 Set `OMADROP_REPLAY_SIGNAL_MONITOR=1` to add the developer signal monitor to
 replay frames and encoded review videos. Its eight lanes, from top to bottom,
@@ -249,7 +253,11 @@ family has no fresh variant, selection widens to its related visual group before
 reusing a recent scene.
 
 Press `a` to switch between Omadrop ASCII and the original MilkDrop rendering.
-Press F11 to toggle fullscreen. ASCII mode is stored in the versioned
+Press `i` to cycle local response intensity, `b` for brightness, `m` for
+ambient motion, `r` for reduced motion, and `h` for high contrast. Reduced
+motion caps feedback drift and transition travel while leaving the local
+percussion, beat, and section cues readable. Press F11 to toggle fullscreen.
+These choices are stored in the versioned
 `$XDG_CONFIG_HOME/omadrop/preferences.conf` file. Legacy `ascii-enabled`
 settings migrate automatically, and settings writes replace the complete file
 atomically so paired displays never observe a partial update.

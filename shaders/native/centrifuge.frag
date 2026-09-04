@@ -33,6 +33,7 @@ uniform float drive;
 uniform float peak;
 uniform float release;
 uniform float sceneBeats;
+uniform float motionScale;
 
 #include "common.glsl"
 
@@ -48,12 +49,12 @@ void main() {
     // The outer frame and inner aperture counter-rotate. Snare transfers
     // angular momentum between them while kick changes aperture depth.
     float region = smoothstep(0.25, 0.68, radius);
-    float idleSpin = 0.00012 + 0.00025 * drive;
+    float idleSpin = (0.00012 + 0.00025 * drive) * motionScale;
     float snareSpin = 0.016 * snare;
     float feedbackRotation = mix(-idleSpin - snareSpin,
                                   idleSpin + snareSpin * 0.46, region);
     float apertureZone = 1.0 - smoothstep(0.28, 0.64, radius);
-    float aperturePull = 0.00012 + 0.00018 * energySlow
+    float aperturePull = (0.00012 + 0.00018 * energySlow) * motionScale
                        + apertureZone * (0.0030 * beatPulse
                                          + 0.0020 * onsetPulse
                                          + 0.0040 * kick)

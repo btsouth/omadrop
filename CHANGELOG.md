@@ -35,6 +35,9 @@
 - Add an atomic versioned preferences file with safe legacy ASCII migration and
   validated storage for display, motion, director, favorite, and hidden-scene
   settings.
+- Add synchronized keyboard controls for intensity, brightness, ambient motion,
+  reduced motion, and high contrast. Reduced motion limits feedback drift and
+  transition travel without removing the music's localized timing cues.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

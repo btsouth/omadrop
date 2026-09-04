@@ -164,7 +164,8 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
                             int width, int height,
                             const std::array<float, 3>& albumColor,
                             GLuint artworkTexture, float artworkAspect,
-                            float frameSeconds, std::string& error) {
+                            float frameSeconds, std::string& error,
+                            const NativeRenderPolicy& policy) {
     if (!programs_[0]) {
         error = "native renderer is not initialized";
         return false;
@@ -173,14 +174,16 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
     const auto gestureResponse = [](float value, float gain) {
         return 1.25f * (1.0f - std::exp(-gain * std::max(0.0f, value)));
     };
-    const float responsiveKick = gestureResponse(music.kick, 2.35f);
-    const float responsiveSnare = gestureResponse(music.snare, 2.20f);
-    const float responsiveHat = gestureResponse(music.hat, 2.55f);
+    const float intensity = policy.effectiveIntensity();
+    const float motion = policy.effectiveMotion();
+    const float responsiveKick = gestureResponse(music.kick * intensity, 2.35f);
+    const float responsiveSnare = gestureResponse(music.snare * intensity, 2.20f);
+    const float responsiveHat = gestureResponse(music.hat * intensity, 2.55f);
     // Sustained energy provides continuity at a restrained speed. Event
     // envelopes deform and relight geometry directly instead of accelerating
     // this accumulated clock, which would make the largest response arrive
     // several frames after the sound.
-    flowTime_ += std::clamp(frameSeconds, 0.0f, 0.1f)
+    flowTime_ += motion * std::clamp(frameSeconds, 0.0f, 0.1f)
                * (0.006f + 0.18f * std::sqrt(std::max(0.0f, music.energySlow))
                   + 0.06f * scene.drive);
 
@@ -217,9 +220,12 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
         glUniform1f(glGetUniformLocation(program, "beatPhase"), music.beatPhase);
         glUniform1f(glGetUniformLocation(program, "beatAnticipation"),
                 music.beatAnticipation);
-        glUniform1f(glGetUniformLocation(program, "beatPulse"), music.beatPulse);
-        glUniform1f(glGetUniformLocation(program, "onsetPulse"), music.onsetPulse);
-        glUniform1f(glGetUniformLocation(program, "downbeat"), music.downbeat);
+        glUniform1f(glGetUniformLocation(program, "beatPulse"),
+                    std::clamp(music.beatPulse * intensity, 0.0f, 1.25f));
+        glUniform1f(glGetUniformLocation(program, "onsetPulse"),
+                    std::clamp(music.onsetPulse * intensity, 0.0f, 1.25f));
+        glUniform1f(glGetUniformLocation(program, "downbeat"),
+                    std::clamp(music.downbeat * intensity, 0.0f, 1.25f));
         glUniform1f(glGetUniformLocation(program, "barPhase"), music.barPhase);
         glUniform1f(glGetUniformLocation(program, "phrasePhase"), music.phrasePhase);
         glUniform1f(glGetUniformLocation(program, "clockConfidence"),
@@ -241,12 +247,16 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
         glUniform1f(glGetUniformLocation(program, "energyFast"), music.energyFast);
         glUniform1f(glGetUniformLocation(program, "energySlow"), music.energySlow);
         glUniform1f(glGetUniformLocation(program, "energySlope"), music.energySlope);
-        glUniform1f(glGetUniformLocation(program, "section"), music.section);
+        glUniform1f(glGetUniformLocation(program, "section"),
+                    std::clamp(music.section * intensity, 0.0f, 1.25f));
         glUniform1f(glGetUniformLocation(program, "development"), scene.development);
-        glUniform1f(glGetUniformLocation(program, "drive"), scene.drive);
-        glUniform1f(glGetUniformLocation(program, "peak"), scene.peak);
+        glUniform1f(glGetUniformLocation(program, "drive"),
+                    scene.drive * (0.35f + 0.65f * motion));
+        glUniform1f(glGetUniformLocation(program, "peak"),
+                    scene.peak * (0.50f + 0.50f * motion));
         glUniform1f(glGetUniformLocation(program, "release"), scene.release);
         glUniform1f(glGetUniformLocation(program, "sceneBeats"), scene.sceneBeats);
+        glUniform1f(glGetUniformLocation(program, "motionScale"), motion);
         glUniform3f(glGetUniformLocation(program, "albumColor"),
                 albumColor[0], albumColor[1], albumColor[2]);
         glUniform1fv(glGetUniformLocation(program, "bandLevel[0]"),

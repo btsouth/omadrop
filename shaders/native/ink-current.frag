@@ -30,8 +30,8 @@ void main() {
     float sceneHat = hat * gestureBudget;
 
     vec2 previousP = p;
-    previousP.x -= 0.000020 * energySlow;
-    previousP.y += 0.000016 * harmonic;
+    previousP.x -= 0.000020 * energySlow * motionScale;
+    previousP.y += 0.000016 * harmonic * motionScale;
     vec2 previousUv = previousP / aspect + 0.5;
     float edge = smoothstep(0.0, 0.075, uv.x)
                * smoothstep(0.0, 0.075, uv.y)

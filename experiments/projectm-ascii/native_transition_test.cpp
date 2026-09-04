@@ -217,6 +217,38 @@ int main(int argc, char** argv) {
         }
     }
 
+    auto renderPolicyFrame = [&](float motion, float contrast) {
+        LiveCompositorFrame frame;
+        frame.sourceTexture = renderer.texture(NativeSceneKind::Centrifuge);
+        frame.nextTexture = renderer.texture(NativeSceneKind::BloomEngine);
+        frame.coverTexture = black;
+        frame.width = width;
+        frame.height = height;
+        frame.sceneMix = 0.5f;
+        frame.transitionMode = static_cast<int>(
+            NativeTransitionStyle::FocalMorph);
+        frame.fieldExposure = 0.96f;
+        frame.asciiExposure = 1.02f;
+        frame.nativeRenderer = true;
+        frame.motionScale = motion;
+        frame.contrastScale = contrast;
+        frame.visibility = 1.0f;
+        assert(compositor.render(frame, error));
+        glFinish();
+        return readFrame();
+    };
+    const std::vector<unsigned char> standardPolicy
+        = renderPolicyFrame(1.0f, 1.0f);
+    const float reducedMotionDifference = meanDifference(
+        standardPolicy, renderPolicyFrame(0.35f, 1.0f));
+    const float highContrastDifference = meanDifference(
+        standardPolicy, renderPolicyFrame(1.0f, 1.16f));
+    assert(reducedMotionDifference > 0.0005f);
+    assert(highContrastDifference > 0.0005f);
+    std::cout << "transition policy reduced_motion_difference="
+              << reducedMotionDifference << " high_contrast_difference="
+              << highContrastDifference << '\n';
+
     constexpr std::array<float, 6> progress{0.0f, 0.2f, 0.4f,
                                             0.6f, 0.8f, 1.0f};
     for (const TransitionReview& review : reviews) {

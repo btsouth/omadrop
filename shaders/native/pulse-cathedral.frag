@@ -11,7 +11,7 @@ void main() {
     p.x -= stereoWidth * 0.035 * sin(p.y * 3.0 + flowTime * 0.15);
 
     vec2 previousP = p;
-    previousP.y += 0.00012 + 0.00025 * energySlow;
+    previousP.y += (0.00012 + 0.00025 * energySlow) * motionScale;
     float floorRegion = smoothstep(-0.04, -0.50, p.y);
     previousP.x *= 1.0 - 0.013 * kick * floorRegion
                          + 0.0012 * beatAnticipation;

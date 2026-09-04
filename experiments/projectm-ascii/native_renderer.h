@@ -5,9 +5,29 @@
 
 #include <GL/glew.h>
 
+#include <algorithm>
 #include <array>
 #include <filesystem>
 #include <string>
+
+struct NativeRenderPolicy {
+    float intensity = 1.0f;
+    float motion = 1.0f;
+    bool reducedMotion = false;
+
+    constexpr float effectiveIntensity() const {
+        return std::clamp(intensity, 0.50f, 1.50f);
+    }
+    constexpr float effectiveMotion() const {
+        const float requested = std::clamp(motion, 0.0f, 1.0f);
+        return reducedMotion ? std::min(requested, 0.35f) : requested;
+    }
+};
+
+static_assert(NativeRenderPolicy{.intensity = 9.0f}.effectiveIntensity()
+              == 1.50f);
+static_assert(NativeRenderPolicy{.motion = 0.8f, .reducedMotion = true}
+                  .effectiveMotion() == 0.35f);
 
 class NativeRenderer {
 public:
@@ -21,7 +41,8 @@ public:
                 int width, int height,
                 const std::array<float, 3>& albumColor,
                 GLuint artworkTexture, float artworkAspect, float frameSeconds,
-                std::string& error);
+                std::string& error,
+                const NativeRenderPolicy& policy = NativeRenderPolicy{});
     GLuint texture(NativeSceneKind scene) const;
     GLuint texture() const { return texture(NativeSceneKind::DepthTunnel); }
     void reset();

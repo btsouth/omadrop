@@ -35,6 +35,7 @@ uniform float drive;
 uniform float peak;
 uniform float release;
 uniform float sceneBeats;
+uniform float motionScale;
 
 #include "common.glsl"
 
@@ -55,7 +56,7 @@ void main() {
     // Feedback follows the organism longitudinally. Each percussion role uses
     // a different deformation instead of sharing a global camera impulse.
     vec2 previousP = p;
-    previousP.y += 0.00008 + 0.00022 * energySlow;
+    previousP.y += (0.00008 + 0.00022 * energySlow) * motionScale;
     previousP.x -= snare * 0.0085 * sin(previousP.y * 5.4 + flowTime * 0.43);
     previousP.x += hat * 0.0018 * sin(previousP.y * 34.0 - flowTime * 2.8);
     float previousSpine = backboneX(previousP.y);

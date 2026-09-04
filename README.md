@@ -9,7 +9,7 @@
 <p align="center"><strong>Music, rendered live.</strong></p>
 
 Omadrop is a native music visualizer for Omarchy. It turns the audio playing
-through PipeWire into ten original GPU feedback scenes. Kicks, snares, hats,
+through PipeWire into eighteen original GPU feedback scenes. Kicks, snares, hats,
 bass, musical phrases, and section changes each control different parts of the
 image.
 
@@ -48,9 +48,9 @@ from the v0.3 release demo, not mockups.
 - **Musical scene direction.** Omadrop changes scenes on detected bar and
   section boundaries, avoids immediate repeats, and recalls a visual family
   when a familiar part of the song returns.
-- **Ten authored scenes.** Depth Tunnel, Centrifuge, Wire Organism, Prism
-  Garden, Orbital Loom, Tidal Grid, Pulse Cathedral, Constellation Field,
-  Spectral Ribbons, and Bloom Engine ship with the native renderer.
+- **Eighteen authored scenes.** Radial engines, deep architecture, restrained
+  landscapes, fluid calligraphy, glass, light, particles, and cellular forms
+  each use a distinct composition and response grammar.
 - **High-resolution album art.** MPRIS artwork opens the show, supplies the
   scene palette, and dissolves into the first visual. ASCII mode keeps the
   full-resolution cover underneath its dot field.
@@ -105,12 +105,19 @@ omadrop --single    # focused display only
 | `Super + Alt + V` | Hide or restore the secondary display |
 | `A` | Toggle ASCII and continuous rendering |
 | `N` / `P` | Next or previous scene |
+| `I` | Cycle local music-response intensity |
+| `B` | Cycle brightness |
+| `M` | Cycle ambient motion |
+| `R` | Toggle reduced motion |
+| `H` | Toggle high contrast |
 | `[` / `]` | Adjust audio sync by 10 ms |
 | `F11` | Toggle fullscreen |
 | `Esc` | Quit |
 
 Controls apply to every Omadrop window, regardless of which display has focus.
-ASCII mode and per-output audio delay are remembered between launches.
+ASCII, intensity, brightness, motion, reduced-motion, and high-contrast choices
+are remembered between launches. Per-output audio delay is remembered for each
+output device.
 `OMADROP_ASCII=0` remains available as a temporary override.
 
 ## How it works
@@ -137,7 +144,9 @@ OMADROP_NATIVE_SCENE=spectral-ribbons omadrop --single
 
 Accepted names are `depth-tunnel`, `centrifuge`, `wire-organism`,
 `prism-garden`, `orbital-loom`, `tidal-grid`, `pulse-cathedral`,
-`constellation-field`, `spectral-ribbons`, and `bloom-engine`.
+`constellation-field`, `spectral-ribbons`, `bloom-engine`, `negative-space`,
+`ink-current`, `glass-choir`, `shadow-architecture`, `particle-weave`,
+`living-mosaic`, `lumen-fold`, and `paper-horizon`.
 
 Run the preserved projectM renderer:
 

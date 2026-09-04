@@ -92,6 +92,8 @@ uniform vec3 nextReactionGain;
 uniform float asciiExposure;
 uniform float fieldExposure;
 uniform int nativeRenderer;
+uniform float motionScale;
+uniform float contrastScale;
 uniform float visibility;
 
 float luminance(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
@@ -157,25 +159,27 @@ vec3 sceneSample(vec2 sampleUv) {
         incomingUv = sampleUv;
         vec2 anchor = vec2(0.51, 0.50);
         if (transitionMode == 6) {
-            float carry = bridge * 0.026;
+            float carry = bridge * 0.026 * motionScale;
             outgoingUv.x += carry;
             incomingUv.x -= carry;
         } else if (transitionMode == 7) {
-            outgoingUv = anchor + (sampleUv - anchor) * (1.0 + 0.08 * bridge);
+            outgoingUv = anchor + (sampleUv - anchor)
+                       * (1.0 + 0.08 * bridge * motionScale);
             incomingUv = anchor + (sampleUv - anchor)
-                       * (1.12 - 0.12 * easedPresetMix);
+                       * (1.0 + 0.12 * (1.0 - easedPresetMix) * motionScale);
         } else if (transitionMode == 8) {
             anchor = vec2(0.53, 0.51);
-            outgoingUv = anchor + (sampleUv - anchor) * (1.0 - 0.13 * bridge);
+            outgoingUv = anchor + (sampleUv - anchor)
+                       * (1.0 - 0.13 * bridge * motionScale);
             incomingUv = anchor + (sampleUv - anchor)
-                       * (1.18 - 0.18 * easedPresetMix);
+                       * (1.0 + 0.18 * (1.0 - easedPresetMix) * motionScale);
         } else if (transitionMode == 9) {
             vec2 q = sampleUv - 0.5;
             vec2 direction = normalize(vec2(
                 sin((q.x + q.y * 0.72) * 17.0),
                 cos((q.x * 0.61 - q.y) * 21.0)) + vec2(0.001));
-            outgoingUv += direction * bridge * 0.012;
-            incomingUv -= direction * bridge * 0.009;
+            outgoingUv += direction * bridge * 0.012 * motionScale;
+            incomingUv -= direction * bridge * 0.009 * motionScale;
         }
     }
     outgoingUv = reactedUv(outgoingUv, sourceReactionMode, sourceReactionGain);
@@ -269,7 +273,8 @@ vec3 sceneSample(vec2 sampleUv) {
     if (nativeRenderer != 0) {
         visual = visual / (vec3(1.0) + visual * 0.85);
         float nativeLight = luminance(visual);
-        visual = clamp(mix(vec3(nativeLight), visual, 1.34), 0.0, 1.0);
+        visual = clamp(mix(vec3(nativeLight), visual,
+                           1.34 * contrastScale), 0.0, 1.0);
     }
     if (coverMix <= 0.0) return visual;
     vec2 p = coverSampleUv - 0.5;
@@ -636,6 +641,15 @@ int main(int argc, char** argv) {
             .fullscreenMode = fullscreenEnabled ? 1 : 0,
             .syncDelayMs = static_cast<int>(syncDelayMs),
             .closeMode = closeRequested ? 1 : 0,
+            .intensityPercent = static_cast<int>(
+                std::lround(preferences.intensity * 100.0f)),
+            .brightnessPercent = static_cast<int>(
+                std::lround(preferences.brightness * 100.0f)),
+            .motionPercent = static_cast<int>(
+                std::lround(preferences.motion * 100.0f)),
+            .reducedMotionMode = preferences.reducedMotion ? 1 : 0,
+            .highContrastMode = preferences.highContrast ? 1 : 0,
+            .directorProfile = static_cast<int>(preferences.directorProfile),
         });
     };
     auto publishPairedMusic = [&](const MusicFrame& frame) {
@@ -820,6 +834,44 @@ int main(int argc, char** argv) {
     uint64_t automaticNextAt = std::getenv("OMADROP_AUTO_NEXT_MS")
         ? SDL_GetTicks64() + static_cast<uint64_t>(std::max(0, std::atoi(std::getenv("OMADROP_AUTO_NEXT_MS"))))
         : 0;
+    auto cycleLevel = [](float current, const std::array<float, 3>& levels) {
+        for (const float level : levels) {
+            if (level > current + 0.01f) return level;
+        }
+        return levels.front();
+    };
+    auto applyVisualPreference = [&](const std::string& request) {
+        if (request == "intensity") {
+            preferences.intensity = cycleLevel(
+                preferences.intensity, {0.75f, 1.0f, 1.25f});
+            std::cerr << "visual intensity: "
+                      << std::lround(preferences.intensity * 100.0f) << "%\n";
+        } else if (request == "brightness") {
+            preferences.brightness = cycleLevel(
+                preferences.brightness, {0.70f, 1.0f, 1.15f});
+            std::cerr << "visual brightness: "
+                      << std::lround(preferences.brightness * 100.0f) << "%\n";
+        } else if (request == "motion") {
+            preferences.motion = cycleLevel(
+                preferences.motion, {0.35f, 0.65f, 1.0f});
+            std::cerr << "ambient motion: "
+                      << std::lround(preferences.motion * 100.0f) << "%\n";
+        } else if (request == "reduced-motion") {
+            preferences.reducedMotion = !preferences.reducedMotion;
+            std::cerr << "reduced motion: "
+                      << (preferences.reducedMotion ? "on" : "off") << "\n";
+        } else if (request == "high-contrast") {
+            preferences.highContrast = !preferences.highContrast;
+            std::cerr << "high contrast: "
+                      << (preferences.highContrast ? "on" : "off") << "\n";
+        } else {
+            return false;
+        }
+        if (!saveLivePreferences(preferences)) {
+            std::cerr << "preferences: could not save\n";
+        }
+        return true;
+    };
     uint64_t nextSinkPollAt = SDL_GetTicks64() + 2000;
     using FrameClock = std::chrono::steady_clock;
     constexpr auto frameInterval = std::chrono::nanoseconds(1000000000 / 60);
@@ -860,6 +912,29 @@ int main(int argc, char** argv) {
                     std::cerr << "display: "
                               << (asciiEnabled ? "Omadrop ASCII" : "continuous")
                               << "\n";
+                }
+            }
+            const char* visualPreferenceRequest = nullptr;
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_i) {
+                visualPreferenceRequest = "intensity";
+            } else if (event.type == SDL_KEYDOWN
+                       && event.key.keysym.sym == SDLK_b) {
+                visualPreferenceRequest = "brightness";
+            } else if (event.type == SDL_KEYDOWN
+                       && event.key.keysym.sym == SDLK_m) {
+                visualPreferenceRequest = "motion";
+            } else if (event.type == SDL_KEYDOWN
+                       && event.key.keysym.sym == SDLK_r) {
+                visualPreferenceRequest = "reduced-motion";
+            } else if (event.type == SDL_KEYDOWN
+                       && event.key.keysym.sym == SDLK_h) {
+                visualPreferenceRequest = "high-contrast";
+            }
+            if (visualPreferenceRequest) {
+                if (pairedFollower) pairedControlRequest = visualPreferenceRequest;
+                else {
+                    applyVisualPreference(visualPreferenceRequest);
+                    pairedControlsChanged = true;
                 }
             }
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_F11) {
@@ -928,6 +1003,8 @@ int main(int argc, char** argv) {
                     std::cerr << "audio sync delay: " << syncDelayMs << " ms\n";
                 } else if (request == "quit") {
                     closeRequested = true;
+                    pairedControlsChanged = true;
+                } else if (applyVisualPreference(request)) {
                     pairedControlsChanged = true;
                 }
             }
@@ -1340,6 +1417,19 @@ int main(int argc, char** argv) {
                     std::cerr << "audio sync delay: " << syncDelayMs
                               << " ms (paired)\n";
                 }
+                if (pairedState->intensityPercent >= 0) {
+                    preferences.intensity
+                        = pairedState->intensityPercent / 100.0f;
+                    preferences.brightness
+                        = pairedState->brightnessPercent / 100.0f;
+                    preferences.motion = pairedState->motionPercent / 100.0f;
+                    preferences.reducedMotion
+                        = pairedState->reducedMotionMode == 1;
+                    preferences.highContrast
+                        = pairedState->highContrastMode == 1;
+                    preferences.directorProfile = static_cast<DirectorProfile>(
+                        pairedState->directorProfile);
+                }
                 if (pairedState->closeMode == 1) closeRequested = true;
             }
             if (nativeEnabled && pairedState && pairedState->nativeScene >= 0) {
@@ -1630,12 +1720,17 @@ int main(int argc, char** argv) {
             = frameTextures[presetTransitionActive ? 1 - activeEngine : activeEngine];
         if (nativeEnabled) {
             std::string error;
+            const NativeRenderPolicy renderPolicy{
+                .intensity = preferences.intensity,
+                .motion = preferences.motion,
+                .reducedMotion = preferences.reducedMotion,
+            };
             if (!nativeRenderer->render(musicFrame, nativeSceneState,
                                         sourceWidth, sourceHeight, albumColor,
                                         coverPresentation.hasArtwork()
                                             ? coverTexture : 0,
                                         coverAspect,
-                                        frameSeconds, error)) {
+                                        frameSeconds, error, renderPolicy)) {
                 std::cerr << "native renderer: " << error << "\n";
                 running = false;
                 continue;
@@ -1712,8 +1807,8 @@ int main(int argc, char** argv) {
                     nextProfile.kickGain * reactionScale,
                     nextProfile.snareGain * reactionScale,
                     nextProfile.hatGain * reactionScale},
-            .asciiExposure = displayAsciiExposure,
-            .fieldExposure = displayFieldExposure,
+            .asciiExposure = displayAsciiExposure * preferences.brightness,
+            .fieldExposure = displayFieldExposure * preferences.brightness,
             .nativeRenderer = nativeEnabled,
             .coverAspect = coverAspect,
             .coverMix = coverBlend,
@@ -1726,6 +1821,9 @@ int main(int argc, char** argv) {
             .midImpact = midImpact,
             .trebleImpact = trebleImpact,
             .asciiEnabled = asciiEnabled,
+            .motionScale = preferences.reducedMotion
+                ? std::min(preferences.motion, 0.35f) : preferences.motion,
+            .contrastScale = preferences.highContrast ? 1.16f : 1.0f,
             .visibility = entrance * exit,
         };
         if (!compositor.render(displayFrame, compositorError)) {

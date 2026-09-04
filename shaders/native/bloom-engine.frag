@@ -14,7 +14,8 @@ void main() {
     float petals = 7.0 + floor(development * 5.0);
     float petalGesture = 0.30 + 0.70 * smoothstep(
         -0.15, 0.85, sin(angle * petals + phrasePhase * tau));
-    float twist = 0.00020 + 0.017 * snare * smoothstep(0.10, 0.66, radius);
+    float twist = 0.00020 * motionScale
+                + 0.017 * snare * smoothstep(0.10, 0.66, radius);
     vec2 previousP = rotate2d(twist) * p;
     previousP *= 1.0 - (0.010 * beatPulse + 0.007 * onsetPulse
                               + 0.009 * kick) * petalGesture

@@ -539,3 +539,13 @@ Completed after v0.3:
   on first load, malformed values fall back or clamp safely, duplicate and
   invalid scene names are rejected, and a newer unknown format is never
   overwritten by an older build.
+- Added synchronized live controls for local response intensity, brightness,
+  ambient motion, reduced motion, and high contrast. Reduced motion caps slow
+  feedback drift and transition travel without suppressing the separate kick,
+  snare, hat, beat, and section cues. The two broad flow scenes show about 68
+  percent less measured ambient movement under the reduced policy, while a
+  separate renderer check proves intensity still changes a local gesture. All
+  90 default scene/profile combinations still pass, as do separate 18-scene
+  structured-track audits at 125 percent intensity and in reduced-motion mode.
+  A 3,600-frame 1080p soak reports 0.40 ms at the 99th percentile, no slow
+  streak, and 0.88 MiB resident-memory growth.

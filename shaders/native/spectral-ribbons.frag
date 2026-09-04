@@ -21,7 +21,7 @@ void main() {
                       + sceneHat * highZone;
 
     vec2 previousP = p;
-    previousP.x += 0.00003 + 0.00005 * energySlow;
+    previousP.x += (0.00003 + 0.00005 * energySlow) * motionScale;
     previousP.y *= 1.0 - 0.003 * beatPulse - 0.026 * sceneKick * lowZone
                          + 0.0012 * beatAnticipation;
     previousP.y += sceneHat * highZone * 0.0026 * sin(previousP.x * 52.0);

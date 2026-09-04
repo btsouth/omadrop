@@ -36,6 +36,7 @@ uniform float drive;
 uniform float peak;
 uniform float release;
 uniform float sceneBeats;
+uniform float motionScale;
 
 #include "common.glsl"
 
@@ -86,10 +87,12 @@ void main() {
     // vanishing point remains stable while detail travels through depth.
     float wallRegion = smoothstep(0.12, 0.36, radius)
                      * smoothstep(1.18, 0.72, radius);
-    float pull = 0.00005 + 0.00008 * energySlow + 0.00005 * drive
+    float pull = (0.00005 + 0.00008 * energySlow + 0.00005 * drive)
+                   * motionScale
                + wallRegion * (0.0020 * beatPulse + 0.0060 * sceneKick)
                - 0.0012 * beatAnticipation * clockConfidence;
-    float twist = 0.0005 * sin(radius * 8.0 + flowTime * 0.31)
+    float twist = 0.0005 * motionScale
+                    * sin(radius * 8.0 + flowTime * 0.31)
                 + 0.0210 * sceneSnare * smoothstep(0.08, 0.75, radius);
     vec2 previousP = rotate2d(twist) * p * (1.0 - pull);
     previousP += normalize(p) * sin(angle * 10.0 + flowTime * 3.0)

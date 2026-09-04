@@ -31,6 +31,8 @@ struct LiveCompositorFrame {
     float midImpact = 0.0f;
     float trebleImpact = 0.0f;
     bool asciiEnabled = false;
+    float motionScale = 1.0f;
+    float contrastScale = 1.0f;
     float visibility = 1.0f;
 };
 

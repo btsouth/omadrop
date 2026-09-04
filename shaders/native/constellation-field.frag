@@ -21,7 +21,7 @@ void main() {
     vec2 p = (uv - 0.5) * aspect;
 
     vec2 previousP = p;
-    previousP = rotate2d(0.000020) * previousP;
+    previousP = rotate2d(0.000020 * motionScale) * previousP;
     vec2 previousUv = previousP / aspect + 0.5;
     float edge = smoothstep(0.0, 0.06, uv.x) * smoothstep(0.0, 0.06, uv.y)
                * smoothstep(0.0, 0.06, 1.0 - uv.x)

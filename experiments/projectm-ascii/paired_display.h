@@ -18,6 +18,12 @@ struct PairedDisplayState {
     int fullscreenMode = -1;
     int syncDelayMs = -1;
     int closeMode = -1;
+    int intensityPercent = -1;
+    int brightnessPercent = -1;
+    int motionPercent = -1;
+    int reducedMotionMode = -1;
+    int highContrastMode = -1;
+    int directorProfile = -1;
 };
 
 inline std::string encodePairedDisplayState(const PairedDisplayState& state) {
@@ -26,7 +32,11 @@ inline std::string encodePairedDisplayState(const PairedDisplayState& state) {
            << ' ' << state.transitionMode << ' ' << state.hardSync
            << ' ' << state.nativeScene << ' ' << state.nativeSourceScene
            << ' ' << state.asciiMode << ' ' << state.fullscreenMode
-           << ' ' << state.syncDelayMs << ' ' << state.closeMode << '\n';
+           << ' ' << state.syncDelayMs << ' ' << state.closeMode
+           << ' ' << state.intensityPercent << ' ' << state.brightnessPercent
+           << ' ' << state.motionPercent << ' ' << state.reducedMotionMode
+           << ' ' << state.highContrastMode << ' ' << state.directorProfile
+           << '\n';
     return output.str();
 }
 
@@ -79,6 +89,30 @@ inline std::optional<PairedDisplayState> decodePairedDisplayState(
                 state.fullscreenMode = fullscreenMode;
                 state.syncDelayMs = syncDelayMs;
                 state.closeMode = closeMode;
+                int intensityPercent = -1;
+                int brightnessPercent = -1;
+                int motionPercent = -1;
+                int reducedMotionMode = -1;
+                int highContrastMode = -1;
+                int directorProfile = -1;
+                if (stream >> intensityPercent >> brightnessPercent
+                           >> motionPercent >> reducedMotionMode
+                           >> highContrastMode >> directorProfile) {
+                    if (intensityPercent < 50 || intensityPercent > 150
+                        || brightnessPercent < 50 || brightnessPercent > 125
+                        || motionPercent < 0 || motionPercent > 100
+                        || reducedMotionMode < 0 || reducedMotionMode > 1
+                        || highContrastMode < 0 || highContrastMode > 1
+                        || directorProfile < 0 || directorProfile > 3) {
+                        return std::nullopt;
+                    }
+                    state.intensityPercent = intensityPercent;
+                    state.brightnessPercent = brightnessPercent;
+                    state.motionPercent = motionPercent;
+                    state.reducedMotionMode = reducedMotionMode;
+                    state.highContrastMode = highContrastMode;
+                    state.directorProfile = directorProfile;
+                }
             }
         }
     }

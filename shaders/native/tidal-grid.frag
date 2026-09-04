@@ -15,7 +15,7 @@ void main() {
           * exp(-5.0 * abs(p.x));
 
     vec2 previousP = p;
-    previousP.y += 0.00014 + 0.00030 * energySlow;
+    previousP.y += (0.00014 + 0.00030 * energySlow) * motionScale;
     previousP.y -= (0.012 * beatPulse + 0.009 * onsetPulse + 0.015 * kick)
                  * exp(-3.0 * abs(previousP.x));
     previousP.x -= snare * 0.016 * (previousP.y - horizon);

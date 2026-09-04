@@ -11,7 +11,8 @@ void main() {
     float radius = max(0.002, length(p));
     float angle = atan(p.y, p.x);
 
-    float rotation = 0.00020 + 0.00055 * drive + 0.010 * snare;
+    float rotation = (0.00020 + 0.00055 * drive) * motionScale
+                   + 0.010 * snare;
     vec2 previousP = rotate2d(rotation * smoothstep(0.08, 0.72, radius)) * p;
     previousP *= 1.0 + 0.0012 * beatAnticipation;
     previousP += normalize(p) * sin(angle * 24.0 - flowTime * 3.2) * 0.0016 * hat;

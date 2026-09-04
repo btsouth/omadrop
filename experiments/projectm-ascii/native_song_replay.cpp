@@ -38,6 +38,19 @@ int replayDimension(const char* name, int fallback, int minimum, int maximum) {
         static_cast<long>(minimum), static_cast<long>(maximum)));
 }
 
+float replayLevel(const char* name, float fallback, float minimum,
+                  float maximum) {
+    const char* value = std::getenv(name);
+    if (!value || !*value) return fallback;
+    char* end = nullptr;
+    const float parsed = std::strtof(value, &end);
+    if (!end || *end != '\0' || !std::isfinite(parsed)) {
+        std::cerr << "invalid " << name << ": " << value << "\n";
+        return fallback;
+    }
+    return std::clamp(parsed, minimum, maximum);
+}
+
 std::vector<float> readTexture(GLuint texture, int width, int height) {
     std::vector<float> pixels(width * height * 4);
     glBindTexture(GL_TEXTURE_2D, texture);
@@ -176,6 +189,14 @@ int main(int argc, char** argv) {
         "OMADROP_REPLAY_WIDTH", defaultWidth, 320, 1920);
     const int height = replayDimension(
         "OMADROP_REPLAY_HEIGHT", defaultHeight, 180, 1080);
+    const NativeRenderPolicy renderPolicy{
+        .intensity = replayLevel(
+            "OMADROP_REPLAY_INTENSITY", 1.0f, 0.50f, 1.50f),
+        .motion = replayLevel(
+            "OMADROP_REPLAY_MOTION", 1.0f, 0.0f, 1.0f),
+        .reducedMotion
+            = std::getenv("OMADROP_REPLAY_REDUCED_MOTION") != nullptr,
+    };
     std::ofstream frameStream;
     if (const char* streamPath = std::getenv("OMADROP_REPLAY_FRAME_STREAM")) {
         frameStream.open(streamPath, std::ios::binary);
@@ -274,7 +295,8 @@ int main(int argc, char** argv) {
         const NativeSceneState& scene = sceneDirector.update(
             music, 1.0f / 60.0f, !fixedScene);
         if (!renderer.render(music, scene, width, height, color,
-                             0, 1.0f, 1.0f / 60.0f, error)) {
+                             0, 1.0f, 1.0f / 60.0f, error,
+                             renderPolicy)) {
             std::cerr << error << "\n";
             return 1;
         }
