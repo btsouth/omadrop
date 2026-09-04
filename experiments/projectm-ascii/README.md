@@ -28,6 +28,8 @@ Run the native music-contract and render audits with:
 ./experiments/projectm-ascii/native-scene-state-test
 ./experiments/projectm-ascii/native-scene-list
 ./experiments/projectm-ascii/native-renderer-test ./shaders/native
+./experiments/projectm-ascii/native-transition-test ./shaders/native \
+  ./experiments/projectm-ascii/live.cpp
 ./experiments/projectm-ascii/native-renderer-soak ./shaders/native 10
 ./bin/omadrop-launcher-test
 ./bin/demo-audio-audit-test
@@ -255,6 +257,11 @@ owns the scene's identity, shader, materials, declared musical roles, selection
 traits, transition anchor, and performance limit. The renderer and director
 both consume this registry, so a scene does not require a separate hardcoded
 shader or selection entry.
+
+The native transition test extracts the production compositor shader, renders
+all five authored transition grammars in a hidden OpenGL context, and verifies
+that both halves of every path develop visibly. Pass an output directory to
+write six review frames per transition.
 Set `OMADROP_ENGINE=projectm` to run the preserved preset renderer for
 compatibility or A/B review. `OMADROP_NATIVE_SCENE` accepts `depth-tunnel`,
 `centrifuge`, `wire-organism`, `prism-garden`, `orbital-loom`, `tidal-grid`,

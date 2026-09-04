@@ -151,11 +151,32 @@ vec3 sceneSample(vec2 sampleUv) {
     float bridge = sin(3.14159265 * easedPresetMix);
     vec2 outgoingUv = (sampleUv - 0.5) * (1.0 - 0.025 * bridge) + 0.5;
     vec2 incomingUv = (sampleUv - 0.5) * (1.025 - 0.025 * easedPresetMix) + 0.5;
-    if (transitionMode == 6) {
-        // Native scenes share a stable center landmark. Keep it registered
-        // while the outer fields exchange in broad connected bands.
+    bool nativeTransition = transitionMode >= 6 && transitionMode <= 10;
+    if (nativeTransition) {
         outgoingUv = sampleUv;
         incomingUv = sampleUv;
+        vec2 anchor = vec2(0.51, 0.50);
+        if (transitionMode == 6) {
+            float carry = bridge * 0.026;
+            outgoingUv.x += carry;
+            incomingUv.x -= carry;
+        } else if (transitionMode == 7) {
+            outgoingUv = anchor + (sampleUv - anchor) * (1.0 + 0.08 * bridge);
+            incomingUv = anchor + (sampleUv - anchor)
+                       * (1.12 - 0.12 * easedPresetMix);
+        } else if (transitionMode == 8) {
+            anchor = vec2(0.53, 0.51);
+            outgoingUv = anchor + (sampleUv - anchor) * (1.0 - 0.13 * bridge);
+            incomingUv = anchor + (sampleUv - anchor)
+                       * (1.18 - 0.18 * easedPresetMix);
+        } else if (transitionMode == 9) {
+            vec2 q = sampleUv - 0.5;
+            vec2 direction = normalize(vec2(
+                sin((q.x + q.y * 0.72) * 17.0),
+                cos((q.x * 0.61 - q.y) * 21.0)) + vec2(0.001));
+            outgoingUv += direction * bridge * 0.012;
+            incomingUv -= direction * bridge * 0.009;
+        }
     }
     outgoingUv = reactedUv(outgoingUv, sourceReactionMode, sourceReactionGain);
     incomingUv = reactedUv(incomingUv, nextReactionMode, nextReactionGain);
@@ -166,29 +187,58 @@ vec3 sceneSample(vec2 sampleUv) {
     // connected flow bands let its geometry form inside the outgoing feedback
     // while a temporary luminance match prevents a sudden palette block.
     float flow;
+    float localMix;
     if (transitionMode == 6) {
-        float radius = length(sampleUv - 0.5);
-        flow = 0.50 + 0.15 * sin(sampleUv.y * 9.0
-                               + sin(sampleUv.x * 6.0) * 1.4)
-                    + 0.08 * smoothstep(0.08, 0.72, radius);
+        flow = 0.50 + 0.18 * sin(sampleUv.y * 8.0
+                               + sin(sampleUv.x * 5.0) * 1.3)
+                    + 0.10 * (sampleUv.x - 0.5);
+        localMix = smoothstep(flow - 0.30, flow + 0.30, easedPresetMix);
+    } else if (transitionMode == 7) {
+        float radius = length(sampleUv - vec2(0.51, 0.50));
+        flow = clamp(radius * 1.18, 0.06, 0.88);
+        localMix = smoothstep(flow - 0.20, flow + 0.20, easedPresetMix);
+    } else if (transitionMode == 8) {
+        float radius = length(sampleUv - vec2(0.53, 0.51));
+        flow = 0.28 + radius * 0.72
+             + 0.055 * sin(radius * 31.0);
+        localMix = smoothstep(flow - 0.23, flow + 0.23, easedPresetMix);
+    } else if (transitionMode == 9) {
+        vec2 q = sampleUv - 0.5;
+        flow = 0.50
+             + 0.14 * sin((q.x + q.y * 0.68) * 18.0)
+             + 0.13 * sin((q.x * 0.57 - q.y) * 23.0)
+             + 0.065 * sin(q.x * 37.0 + q.y * 5.0);
+        localMix = smoothstep(flow - 0.16, flow + 0.16, easedPresetMix);
+    } else if (transitionMode == 10) {
+        vec2 q = sampleUv - vec2(0.51, 0.50);
+        flow = 0.50 + 0.17 * sin(q.y * 9.0 + sin(q.x * 7.0) * 1.5)
+                    + 0.10 * sin(q.x * 15.0 - q.y * 3.0)
+                    + 0.08 * length(q);
+        localMix = smoothstep(flow - 0.19, flow + 0.19, easedPresetMix);
     } else if (transitionMode == 0) {
         float radius = length(sampleUv - 0.5);
         flow = 0.38 + radius * 0.42 + 0.09 * sin(radius * 35.0);
+        localMix = smoothstep(flow - 0.46, flow + 0.46, easedPresetMix);
     } else if (transitionMode == 1) {
         flow = 0.5 + 0.17 * sin((sampleUv.x + sampleUv.y) * 12.0)
                          + 0.07 * sin(sampleUv.y * 31.0);
+        localMix = smoothstep(flow - 0.46, flow + 0.46, easedPresetMix);
     } else if (transitionMode == 2) {
         flow = 0.5 + 0.19 * sin(sampleUv.y * 10.0 + sin(sampleUv.x * 7.0) * 1.6)
                          + 0.07 * sin(sampleUv.y * 27.0 - sampleUv.x * 5.0);
+        localMix = smoothstep(flow - 0.46, flow + 0.46, easedPresetMix);
     } else {
         flow = 0.5 + 0.12 * sin(sampleUv.y * 13.0 + sampleUv.x * 4.0)
                          + 0.07 * sin(sampleUv.y * 29.0 - sampleUv.x * 7.0);
+        localMix = smoothstep(flow - 0.46, flow + 0.46, easedPresetMix);
     }
-    float localMix = smoothstep(flow - 0.46, flow + 0.46, easedPresetMix);
+    localMix *= smoothstep(0.0, 0.10, easedPresetMix);
+    localMix = mix(localMix, 1.0,
+                   smoothstep(0.90, 1.0, easedPresetMix));
     float nativeAnchor = 0.0;
-    if (transitionMode == 6) {
-        float radius = length(sampleUv - 0.5);
-        nativeAnchor = 1.0 - smoothstep(0.07, 0.30, radius);
+    if (transitionMode == 6 || transitionMode == 7 || transitionMode == 8) {
+        float radius = length(sampleUv - vec2(0.51, 0.50));
+        nativeAnchor = 1.0 - smoothstep(0.055, 0.23, radius);
         localMix = mix(localMix, easedPresetMix, nativeAnchor);
     }
     float outgoingLight = luminance(outgoing);
@@ -197,8 +247,17 @@ vec3 sceneSample(vec2 sampleUv) {
                                              0.55, 1.35);
     incoming = mix(incoming, matchedIncoming, (1.0 - easedPresetMix) * 0.42);
     vec3 visual = mix(outgoing, incoming, localMix);
-    if (transitionMode == 6) {
-        visual += max(outgoing, incoming) * nativeAnchor * bridge * 0.12;
+    if (transitionMode == 7 || transitionMode == 8) {
+        visual = mix(visual, max(outgoing, incoming),
+                     nativeAnchor * bridge * 0.08);
+    } else if (transitionMode == 9) {
+        float fractureSeam = 1.0 - smoothstep(
+            0.025, 0.095, abs(easedPresetMix - flow));
+        visual += mix(outgoing, incoming, 0.5) * fractureSeam * bridge * 0.06;
+    } else if (transitionMode == 10) {
+        float carvedSeam = 1.0 - smoothstep(
+            0.018, 0.090, abs(easedPresetMix - flow));
+        visual *= 1.0 - carvedSeam * bridge * 0.32;
     }
     float visualLight = luminance(visual);
     vec3 albumGrade = visual * mix(vec3(1.0), albumColor * 1.65, 0.58)
@@ -1496,13 +1555,16 @@ int main(int argc, char** argv) {
                 musicFrame, frameSeconds,
                 !pairedFollower && scriptedScenes.empty());
             if (nativeSceneState.transitioning && !nativeTransitionWasActive) {
+                const int authoredTransitionMode = nativeTransitionMode(
+                    nativeSceneState.currentScene,
+                    nativeSceneState.incomingScene);
                 std::cerr << "native scene: "
                           << nativeSceneName(nativeSceneState.currentScene) << " -> "
                           << nativeSceneName(nativeSceneState.incomingScene)
                           << (nativeSceneState.motifRecalled ? " (motif recall)" : "")
                           << "\n";
                 publishPairedState(
-                    presetIndex, 0, 6, false,
+                    presetIndex, 0, authoredTransitionMode, false,
                     static_cast<int>(nativeSceneState.incomingScene),
                     static_cast<int>(nativeSceneState.currentScene));
             } else if (!nativeSceneState.transitioning && nativeTransitionWasActive) {
@@ -1609,6 +1671,12 @@ int main(int argc, char** argv) {
         const float exit = closing
             ? 1.0f - ease((now - closeStartedAt)
                 / static_cast<float>(closeDurationMs)) : 1.0f;
+        const int displayTransitionMode = nativeEnabled
+            ? nativeSceneState.transitioning
+                ? nativeTransitionMode(nativeSceneState.currentScene,
+                                       nativeSceneState.incomingScene)
+                : static_cast<int>(NativeTransitionStyle::FlowCarry)
+            : transitionMode;
         const LiveCompositorFrame displayFrame{
             .sourceTexture = renderedSourceTexture,
             .nextTexture = renderedNextTexture,
@@ -1616,7 +1684,7 @@ int main(int argc, char** argv) {
             .width = outputW,
             .height = outputH,
             .sceneMix = presetBlend,
-            .transitionMode = nativeEnabled ? 6 : transitionMode,
+            .transitionMode = displayTransitionMode,
             .sourceReactionMode = reactionMode(sourceProfile),
             .nextReactionMode = reactionMode(nextProfile),
             .sourceReactionGain = nativeEnabled

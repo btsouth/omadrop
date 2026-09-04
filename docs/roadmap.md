@@ -351,8 +351,8 @@ Allow more people to create scenes while keeping the official rotation strict.
 4. Add the developer signal monitor and repeatable presentation-delay tool.
 5. Continue splitting track state, display session, cover presentation,
    direction, and rendering out of the live application loop.
-6. Build authored transition paths among Negative Space, Ink Current, Glass
-   Choir, and Shadow Architecture before adding another scene family.
+6. Prototype Particle Weave as the next scene family, using independent role
+   threads without turning the field into another set of spectrum lines.
 7. Promote only candidates that pass still-frame, motion, music-response,
    ASCII, transition, and performance review.
 
@@ -482,3 +482,9 @@ Completed after v0.3:
   separate surfaces. Continuous color, grayscale, ASCII, six album palettes,
   the 70-combination replay suite, and a 1080p renderer soak pass without
   global pulse activity or a slow-frame streak.
+- Added five native transition grammars selected from scene compatibility:
+  flow carry, focal morph, depth travel, controlled fracture, and
+  negative-space reveal. The four post-v0.3 scenes have explicit authored
+  paths, multi-display state accepts every native mode, and a hidden
+  production-compositor harness renders six deterministic review frames for
+  each grammar without desktop contamination.

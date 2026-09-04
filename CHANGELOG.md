@@ -10,6 +10,10 @@
   moving internal caustics, localized percussion, and structural reassembly.
 - Add Shadow Architecture, a stable 3D procession of lit concrete portals with
   separate floor, incision, lintel, beat, and section responses.
+- Choose native transitions from scene compatibility, with separate flow,
+  focal, depth, fracture, and negative-space paths.
+- Add a hidden production-compositor gallery test for deterministic transition
+  review without capturing the desktop.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

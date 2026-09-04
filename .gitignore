@@ -23,6 +23,7 @@ experiments/projectm-ascii/native-scene-state-test
 experiments/projectm-ascii/native-scene-list
 experiments/projectm-ascii/native-renderer-test
 experiments/projectm-ascii/native-renderer-soak
+experiments/projectm-ascii/native-transition-test
 experiments/projectm-ascii/native-song-replay
 experiments/projectm-ascii/scorecard-fixture
 experiments/projectm-ascii/audio-feature-replay

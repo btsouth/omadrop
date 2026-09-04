@@ -14,12 +14,12 @@ ship decision.
 | Centrifuge | Pass | Pass | Selective | Pass | Pass | Pass | Side rails can dominate quiet passages | Continuous motion, varied genres |
 | Constellation Field | Pass | Pass | Sparse | Pass | Pass | Pass | Central rings can compete with the network | Continuous motion, varied genres |
 | Depth Tunnel | Pass | Pass | Flow | Pass | Pass | Pass | Preserve the stable aperture during dense peaks | Continuous motion, varied genres |
-| Glass Choir | Pass | Pass | Selective | Pass | Pass | Pass | Keep harmonic movement internal to the fixed shards | Real music, transition pairs |
-| Ink Current | Pass | Pass | Selective | Pass | Pass | Pass | Keep event marks subordinate to the stable current | Real music, transition pairs |
+| Glass Choir | Pass | Pass | Selective | Pass | Pass | Pass | Keep harmonic movement internal to the fixed shards | Real music, varied genres |
+| Ink Current | Pass | Pass | Selective | Pass | Pass | Pass | Keep event marks subordinate to the stable current | Real music, varied genres |
 | Orbital Loom | Pass | Pass | Selective | Pass | Pass | Pass | Needs clearer separation from other radial scenes | Continuous motion, varied genres |
 | Prism Garden | Pass | Pass | Sparse | Pass | Pass | Pass | Preserve the varied skyline during dense passages | Continuous motion, varied genres |
 | Pulse Cathedral | Pass | Pass | Selective | Pass | Pass | Pass | Keep outer arches subordinate to the focal rose | Continuous motion, varied genres |
-| Shadow Architecture | Pass | Pass | Sparse | Pass | Pass | Pass | Keep percussion confined to separate architectural surfaces | Real music, transition pairs |
+| Shadow Architecture | Pass | Pass | Sparse | Pass | Pass | Pass | Keep percussion confined to separate architectural surfaces | Real music, varied genres |
 | Spectral Ribbons | Pass | Pass | Flow | Pass | Pass | Pass | Keep high-frequency folds from becoming visual noise | Continuous motion, varied genres |
 | Tidal Grid | Pass | Pass | Selective | Pass | Pass | Pass | Keep foreground grid lines below the horizon subject | Continuous motion, varied genres |
 | Wire Organism | Pass | Pass | Sparse | Pass | Pass | Pass | Keep its harmonic membrane subtle | Continuous motion, varied genres |

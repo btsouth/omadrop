@@ -27,7 +27,7 @@ NativeSceneKind automaticChoice(MusicFrame music) {
 }
 
 int main() {
-    assert(nativeSceneRegistryVersion == 7);
+    assert(nativeSceneRegistryVersion == 8);
     std::set<std::string> sceneSlugs;
     std::set<std::string> sceneShaders;
     for (std::size_t index = 0; index < nativeSceneRegistry.size(); ++index) {
@@ -62,6 +62,21 @@ int main() {
     assert(parsedScene == NativeSceneKind::GlassChoir);
     assert(nativeSceneFromName("architecture", parsedScene));
     assert(parsedScene == NativeSceneKind::ShadowArchitecture);
+    assert(nativeTransitionStyle(NativeSceneKind::NegativeSpace,
+        NativeSceneKind::GlassChoir)
+        == NativeTransitionStyle::NegativeSpaceReveal);
+    assert(nativeTransitionStyle(NativeSceneKind::InkCurrent,
+        NativeSceneKind::GlassChoir)
+        == NativeTransitionStyle::ControlledFracture);
+    assert(nativeTransitionStyle(NativeSceneKind::GlassChoir,
+        NativeSceneKind::ShadowArchitecture)
+        == NativeTransitionStyle::DepthTravel);
+    assert(nativeTransitionStyle(NativeSceneKind::InkCurrent,
+        NativeSceneKind::Centrifuge)
+        == NativeTransitionStyle::FlowCarry);
+    assert(nativeTransitionStyle(NativeSceneKind::Centrifuge,
+        NativeSceneKind::BloomEngine)
+        == NativeTransitionStyle::FocalMorph);
     assert(!nativeSceneFromName("unknown", parsedScene));
     assert(nativeSceneMaterial(NativeSceneKind::DepthTunnel).fieldExposure
            != nativeSceneMaterial(NativeSceneKind::DepthTunnel).asciiExposure);

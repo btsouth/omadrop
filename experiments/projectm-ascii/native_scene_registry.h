@@ -23,7 +23,7 @@ enum class NativeSceneKind : std::uint8_t {
 };
 
 inline constexpr std::size_t nativeSceneCount = 14;
-inline constexpr unsigned int nativeSceneRegistryVersion = 7;
+inline constexpr unsigned int nativeSceneRegistryVersion = 8;
 
 enum class NativeTransitionAnchor : std::uint8_t {
     Center,
@@ -36,6 +36,14 @@ enum class NativeMotionGrammar : std::uint8_t {
     Sparse,
     Selective,
     Flow,
+};
+
+enum class NativeTransitionStyle : std::uint8_t {
+    FlowCarry = 6,
+    FocalMorph = 7,
+    DepthTravel = 8,
+    ControlledFracture = 9,
+    NegativeSpaceReveal = 10,
 };
 
 enum NativeMusicalRole : std::uint8_t {
@@ -176,6 +184,44 @@ inline constexpr std::size_t nativeSceneMotionGrammarCount(
         if (definition.motionGrammar == grammar) ++count;
     }
     return count;
+}
+
+inline constexpr NativeTransitionStyle nativeTransitionStyle(
+    NativeSceneKind source, NativeSceneKind incoming) {
+    if (source == NativeSceneKind::NegativeSpace
+        || incoming == NativeSceneKind::NegativeSpace) {
+        return NativeTransitionStyle::NegativeSpaceReveal;
+    }
+    if (source == NativeSceneKind::ShadowArchitecture
+        || incoming == NativeSceneKind::ShadowArchitecture) {
+        return NativeTransitionStyle::DepthTravel;
+    }
+    if (source == NativeSceneKind::GlassChoir
+        || incoming == NativeSceneKind::GlassChoir) {
+        return NativeTransitionStyle::ControlledFracture;
+    }
+    if (source == NativeSceneKind::InkCurrent
+        || incoming == NativeSceneKind::InkCurrent) {
+        return NativeTransitionStyle::FlowCarry;
+    }
+    const NativeSceneDefinition& sourceDefinition
+        = nativeSceneRegistry[static_cast<std::size_t>(source)];
+    const NativeSceneDefinition& incomingDefinition
+        = nativeSceneRegistry[static_cast<std::size_t>(incoming)];
+    if (sourceDefinition.motionGrammar == NativeMotionGrammar::Flow
+        || incomingDefinition.motionGrammar == NativeMotionGrammar::Flow) {
+        return NativeTransitionStyle::FlowCarry;
+    }
+    if (sourceDefinition.transitionAnchor == NativeTransitionAnchor::DepthPoint
+        || incomingDefinition.transitionAnchor == NativeTransitionAnchor::DepthPoint) {
+        return NativeTransitionStyle::DepthTravel;
+    }
+    return NativeTransitionStyle::FocalMorph;
+}
+
+inline constexpr int nativeTransitionMode(NativeSceneKind source,
+                                          NativeSceneKind incoming) {
+    return static_cast<int>(nativeTransitionStyle(source, incoming));
 }
 
 static_assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Flow)

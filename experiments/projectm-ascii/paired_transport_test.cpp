@@ -18,7 +18,7 @@ int main() {
     assert(leader.publishDisplay({
         .serial = 1,
         .presetIndex = 3,
-        .transitionMode = 6,
+        .transitionMode = 10,
         .hardSync = true,
         .nativeScene = 4,
         .nativeSourceScene = 4,
@@ -35,7 +35,7 @@ int main() {
     assert(leader.publishDisplay({
         .serial = 2,
         .presetIndex = 3,
-        .transitionMode = 6,
+        .transitionMode = 10,
         .nativeScene = 7,
         .nativeSourceScene = 4,
         .asciiMode = 1,

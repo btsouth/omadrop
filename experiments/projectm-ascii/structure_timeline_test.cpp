@@ -109,15 +109,20 @@ int main(int argc, char** argv) {
     assert(nativeTransition && nativeTransition->nativeScene == 2);
     assert(nativeTransition->nativeSourceScene == 1);
     assert(nativeTransition->transitionMode == 6);
+    const auto authoredNativeTransition = pairedFollower.consume(
+        "4 4 0 10 0 2 1\n", 16, 3);
+    assert(authoredNativeTransition
+        && authoredNativeTransition->transitionMode == 10);
     const auto pairedControls = pairedFollower.consume(
-        "4 4 0 6 1 2 2 0 1 230 0\n", 16, 3);
+        "5 4 0 6 1 2 2 0 1 230 0\n", 16, 3);
     assert(pairedControls && pairedControls->asciiMode == 0);
     assert(pairedControls->fullscreenMode == 1);
     assert(pairedControls->syncDelayMs == 230);
     assert(pairedControls->closeMode == 0);
     assert(!decodePairedDisplayState(
-        "5 4 0 6 1 2 2 2 1 230\n", 16, 3));
-    assert(!decodePairedDisplayState("4 4 0 6 0 3\n", 16, 3));
+        "6 4 0 6 1 2 2 2 1 230\n", 16, 3));
+    assert(!decodePairedDisplayState("6 4 0 6 0 3\n", 16, 3));
+    assert(!decodePairedDisplayState("6 4 0 11 0 2 1\n", 16, 3));
     assert(!decodePairedDisplayState("3 16 0 0 1\n", 16));
 
     MusicFrame sharedMusic;
