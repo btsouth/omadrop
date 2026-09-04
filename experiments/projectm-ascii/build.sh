@@ -7,9 +7,13 @@ g++ -std=c++20 -O2 -Wall -Wextra main.cpp -o projectm-ascii \
   $(pkg-config --cflags projectM-4 sdl2) \
   $(pkg-config --libs sdl2) -lprojectM-4 -lGL
 
-g++ -std=c++20 -O2 -Wall -Wextra live.cpp native_renderer.cpp -o projectm-ascii-live \
+g++ -std=c++20 -O2 -Wall -Wextra live.cpp live_assets.cpp live_projectm.cpp \
+  live_settings.cpp native_renderer.cpp -o projectm-ascii-live \
   $(pkg-config --cflags projectM-4 sdl2 glew libpng fftw3f json-c) \
   $(pkg-config --libs sdl2 glew libpng fftw3f json-c) -lprojectM-4 -lGL
+
+g++ -std=c++20 -O2 -Wall -Wextra live_settings_test.cpp live_settings.cpp \
+  -o live-settings-test
 
 g++ -std=c++20 -O2 -Wall -Wextra audio_features_test.cpp \
   -o audio-features-test $(pkg-config --cflags --libs fftw3f)

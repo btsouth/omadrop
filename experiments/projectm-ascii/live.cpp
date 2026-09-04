@@ -1,14 +1,12 @@
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
 #include <projectM-4/projectM.h>
-#include <png.h>
 
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <cctype>
 #include <cmath>
-#include <cstdio>
 #include <cstdint>
 #include <cstdlib>
 #include <deque>
@@ -18,7 +16,6 @@
 #include <iostream>
 #include <memory>
 #include <optional>
-#include <regex>
 #include <random>
 #include <sstream>
 #include <string>
@@ -30,13 +27,15 @@
 
 #include "audio_features.h"
 #include "audio_queue.h"
+#include "live_assets.h"
+#include "live_projectm.h"
+#include "live_settings.h"
 #include "mpris_state.h"
 #include "musical_structure.h"
 #include "music_frame.h"
 #include "native_renderer.h"
 #include "paired_display.h"
 #include "paired_music_state.h"
-#include "preset_adapters.h"
 #include "preset_profiles.h"
 #include "preset_selector.h"
 #include "structure_timeline.h"
@@ -45,7 +44,6 @@
 namespace {
 constexpr int width = 1280;
 constexpr int height = 720;
-constexpr float visualTempo = 0.82f;
 volatile sig_atomic_t stopRequested = 0;
 
 void requestStop(int) {
@@ -366,178 +364,6 @@ GLuint compileShader(GLenum type, const char* source) {
     return shader;
 }
 
-std::string commandOutput(const char* command) {
-    FILE* pipe = popen(command, "r");
-    if (!pipe) return {};
-    std::array<char, 512> buffer{};
-    std::string result;
-    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe)) result += buffer.data();
-    pclose(pipe);
-    while (!result.empty() && (result.back() == '\n' || result.back() == '\r')) result.pop_back();
-    return result;
-}
-
-bool loadPresetAtVisualTempo(projectm_handle projectm, const std::string& filename,
-                             bool smoothTransition) {
-    std::ifstream input(filename, std::ios::binary);
-    if (!input) return false;
-    std::ostringstream contents;
-    contents << input.rdbuf();
-    std::string preset = contents.str();
-
-    // projectM intentionally has no global time-scale control. Transforming
-    // the preset program slows time-based EEL and shader motion while its
-    // bass/mid/treble inputs continue to receive live audio at full speed.
-    applyOmadropAdapter(filename, preset);
-    const std::string scale = std::to_string(visualTempo);
-    preset = std::regex_replace(preset, std::regex(R"(\btime\b)"), "(time*" + scale + ")");
-    preset = std::regex_replace(preset, std::regex(R"(\bframe\b)"), "(frame*" + scale + ")");
-    float sensitivity = 1.30f;
-    if (filename.find("Halls Of Centrifuge") != std::string::npos) sensitivity = 1.36f;
-    else if (filename.find("Songflower") != std::string::npos) sensitivity = 1.34f;
-    projectm_set_beat_sensitivity(projectm, sensitivity);
-    projectm_load_preset_data(projectm, preset.c_str(), smoothTransition);
-    return true;
-}
-
-bool loadPngTexture(const std::string& filename, GLuint texture, float& aspect) {
-    png_image image{};
-    image.version = PNG_IMAGE_VERSION;
-    if (!png_image_begin_read_from_file(&image, filename.c_str())) return false;
-    image.format = PNG_FORMAT_RGBA;
-    std::vector<unsigned char> pixels(PNG_IMAGE_SIZE(image));
-    if (!png_image_finish_read(&image, nullptr, pixels.data(), 0, nullptr)) {
-        png_image_free(&image);
-        return false;
-    }
-    aspect = static_cast<float>(image.width) / static_cast<float>(image.height);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, static_cast<GLsizei>(image.width),
-                 static_cast<GLsizei>(image.height), 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    png_image_free(&image);
-    return true;
-}
-
-std::array<float, 3> loadPaletteColor(const std::string& filename) {
-    std::ifstream input(filename + ".pal");
-    std::string hex;
-    std::array<float, 3> best{0.72f, 0.82f, 1.0f};
-    float bestScore = -1.0f;
-    while (input >> hex) {
-        if (hex.size() != 7 || hex[0] != '#') continue;
-        try {
-            const int value = std::stoi(hex.substr(1), nullptr, 16);
-            std::array<float, 3> color{
-                ((value >> 16) & 255) / 255.0f,
-                ((value >> 8) & 255) / 255.0f,
-                (value & 255) / 255.0f};
-            const auto [minimum, maximum] = std::minmax_element(color.begin(), color.end());
-            const float light = (color[0] + color[1] + color[2]) / 3.0f;
-            const float score = (*maximum - *minimum) * 1.7f + light * 0.35f;
-            if (score > bestScore && light > 0.12f) {
-                best = color;
-                bestScore = score;
-            }
-        } catch (...) {}
-    }
-    return best;
-}
-
-std::filesystem::path configDirectory() {
-    if (const char* configHome = std::getenv("XDG_CONFIG_HOME")) {
-        return std::filesystem::path(configHome) / "omadrop";
-    }
-    if (const char* home = std::getenv("HOME")) {
-        return std::filesystem::path(home) / ".config" / "omadrop";
-    }
-    return {};
-}
-
-std::filesystem::path syncSettingsPath(const std::string& sink) {
-    std::string filename;
-    for (const unsigned char character : sink) {
-        filename += std::isalnum(character) || character == '-' || character == '_'
-            || character == '.' ? static_cast<char>(character) : '_';
-    }
-    if (filename.empty()) filename = "default";
-    if (filename.size() > 180) filename.resize(180);
-    const auto directory = configDirectory();
-    return directory.empty() ? directory : directory / "sync-by-sink" / (filename + ".ms");
-}
-
-std::filesystem::path legacySyncSettingsPath() {
-    const auto directory = configDirectory();
-    return directory.empty() ? directory : directory / "sync-ms";
-}
-
-std::filesystem::path asciiSettingsPath() {
-    const auto directory = configDirectory();
-    return directory.empty() ? directory : directory / "ascii-enabled";
-}
-
-bool loadAsciiEnabled() {
-    std::ifstream input(asciiSettingsPath());
-    int enabled = 1;
-    if (input >> enabled) return enabled != 0;
-    return true;
-}
-
-void saveAsciiEnabled(bool enabled) {
-    const auto path = asciiSettingsPath();
-    if (path.empty()) return;
-    std::error_code error;
-    std::filesystem::create_directories(path.parent_path(), error);
-    if (error) return;
-    std::ofstream output(path, std::ios::trunc);
-    if (output) output << (enabled ? 1 : 0) << "\n";
-}
-
-void saveSyncDelay(unsigned int milliseconds, const std::string& sink) {
-    const auto path = syncSettingsPath(sink);
-    if (path.empty()) return;
-    std::error_code error;
-    std::filesystem::create_directories(path.parent_path(), error);
-    if (error) return;
-    std::ofstream output(path);
-    if (output) output << milliseconds << "\n";
-}
-
-unsigned int loadSyncDelay(const std::string& sink) {
-    if (const char* configuredDelay = std::getenv("OMADROP_SYNC_MS")) {
-        return static_cast<unsigned int>(
-            std::clamp(std::atoi(configuredDelay), 0, 500));
-    }
-    unsigned int milliseconds = sink.rfind("bluez_", 0) == 0 ? 180u : 35u;
-    const auto sinkSettings = syncSettingsPath(sink);
-    std::ifstream savedDelay(sinkSettings);
-    bool migrateLegacyDelay = false;
-    if (!savedDelay && !std::filesystem::exists(sinkSettings.parent_path())) {
-        savedDelay.clear();
-        savedDelay.open(legacySyncSettingsPath());
-        migrateLegacyDelay = static_cast<bool>(savedDelay);
-    }
-    int savedMilliseconds = 0;
-    if (savedDelay >> savedMilliseconds) {
-        milliseconds = static_cast<unsigned int>(
-            std::clamp(savedMilliseconds, 0, 500));
-        if (migrateLegacyDelay) saveSyncDelay(milliseconds, sink);
-    }
-    return milliseconds;
-}
-
-std::string defaultSinkName() {
-    if (const char* testPath = std::getenv("OMADROP_TEST_SINK_PATH")) {
-        std::ifstream input(testPath);
-        std::string sink;
-        if (std::getline(input, sink)) return sink;
-    }
-    return commandOutput("pactl get-default-sink");
-}
 } // namespace
 
 int main(int argc, char** argv) {
