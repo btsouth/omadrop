@@ -70,6 +70,8 @@ echo "checking scene pack validation"
 "$root/bin/omadrop-pack-test"
 echo "checking package command"
 "$root/bin/omadrop-package" --help >/dev/null
+echo "checking website scene gallery"
+"$root/bin/omadrop-site-test"
 
 if [[ $mode == --full ]]; then
   evidence=$root/cache/release-check-$(date +%Y%m%d-%H%M%S)-$$

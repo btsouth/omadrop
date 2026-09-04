@@ -3,6 +3,26 @@ import "../styles/global.css";
 
 const title = "Omadrop | See the music";
 const description = "Original music-driven feedback worlds for Omarchy. See rhythm and song structure in motion.";
+const scenes = [
+  ["bloom-engine", "Bloom Engine", "radial / selective"],
+  ["centrifuge", "Centrifuge", "radial / selective"],
+  ["constellation-field", "Constellation Field", "network / sparse"],
+  ["depth-tunnel", "Depth Tunnel", "depth / flow"],
+  ["glass-choir", "Glass Choir", "faceted / selective"],
+  ["ink-current", "Ink Current", "fluid / selective"],
+  ["living-mosaic", "Living Mosaic", "cellular / selective"],
+  ["lumen-fold", "Lumen Fold", "vertical / selective"],
+  ["negative-space", "Negative Space", "minimal / sparse"],
+  ["orbital-loom", "Orbital Loom", "radial / selective"],
+  ["paper-horizon", "Paper Horizon", "landscape / sparse"],
+  ["particle-weave", "Particle Weave", "filament / selective"],
+  ["prism-garden", "Prism Garden", "vertical / sparse"],
+  ["pulse-cathedral", "Pulse Cathedral", "radial / selective"],
+  ["shadow-architecture", "Shadow Architecture", "depth / sparse"],
+  ["spectral-ribbons", "Spectral Ribbons", "filament / flow"],
+  ["tidal-grid", "Tidal Grid", "landscape / selective"],
+  ["wire-organism", "Wire Organism", "filament / sparse"],
+];
 ---
 
 <!doctype html>
@@ -98,18 +118,48 @@ const description = "Original music-driven feedback worlds for Omarchy. See rhyt
         </video>
       </dialog>
 
+      <section class="worlds" id="worlds" aria-labelledby="worlds-title">
+        <div class="worlds__intro">
+          <p class="section-id">03 / THE NATIVE LIBRARY</p>
+          <h2 id="worlds-title">18 original scenes.<br />No generic pulse.</h2>
+          <p>
+            Each scene has a fixed subject and its own motion grammar. Kicks,
+            snares, hats, harmony, and section changes act on specific forms.
+            Ordinary audio does not shake the whole frame.
+          </p>
+        </div>
+        <div class="worlds__grid">
+          {scenes.map(([slug, name, family], index) => (
+            <figure class="scene-card">
+              <img
+                src={`/media/scenes/${slug}.avif`}
+                alt={`${name}, an original Omadrop music visualization`}
+                width="960"
+                height="540"
+                loading="lazy"
+                decoding="async"
+              />
+              <figcaption>
+                <span>{String(index + 1).padStart(2, "0")} / {name}</span>
+                <small>{family}</small>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
+
       <section class="engine" aria-labelledby="engine-title">
         <div class="engine__field" aria-hidden="true">
           <span>⠁⠂⠄⡀⢀⠠⠐⠈</span><span>⣿⣷⣤⣀⣀⣤⣾⣿</span><span>⠈⠐⠠⢀⡀⠄⠂⠁</span>
         </div>
         <div class="engine__content">
-          <p class="section-id">03 / THE SIGNAL PATH</p>
-          <h2 id="engine-title">One feedback engine.<br />Six musical roles.</h2>
+          <p class="section-id">04 / THE SIGNAL PATH</p>
+          <h2 id="engine-title">Separate signals.<br />One director.</h2>
           <ol class="signal" aria-label="Omadrop signal path">
-            <li><span>01</span>album art</li>
-            <li><span>02</span>PipeWire audio</li>
-            <li><span>10</span>native feedback scenes</li>
-            <li><span>04</span>Omadrop material</li>
+            <li><span>01</span>PipeWire output</li>
+            <li><span>02</span>music analysis</li>
+            <li><span>03</span>18 native scenes</li>
+            <li><span>04</span>continuous / ASCII</li>
           </ol>
         </div>
       </section>

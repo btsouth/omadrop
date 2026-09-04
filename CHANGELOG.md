@@ -79,6 +79,9 @@
   member checks, the unified quick gate, an isolated install/pack/uninstall
   smoke test, exact VERSION-tag matching, and a SHA-256 checksum. Packaging
   never publishes the result.
+- Replace the stale ten-scene website copy with a registry-aligned gallery of
+  all 18 current scenes rendered from the native engine. The normal check now
+  rejects missing, extra, renamed, or incorrectly sized gallery assets.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

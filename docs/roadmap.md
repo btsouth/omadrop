@@ -607,3 +607,6 @@ Completed after v0.3:
   SHA-256 checksums, and an isolated extracted-archive smoke test covering
   install, installed pack validation, version reporting, and uninstall. Normal
   packaging also requires the matching `vVERSION` tag to point at exact HEAD.
+- Added a complete 18-scene website gallery generated from current native
+  renderer frames, direct anti-thumping copy, corrected signal-path copy, and a
+  registry-alignment test that also builds the site when dependencies exist.
