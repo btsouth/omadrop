@@ -1,0 +1,73 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+output_dir=${1:-$root/dist}
+[[ $output_dir == /* ]] || output_dir=$PWD/$output_dir
+version=$(<"$root/VERSION")
+name=omadrop-$version
+archive=$output_dir/$name.tar.gz
+checksum=$archive.sha256
+
+if (($# > 1)) || [[ ${1:-} == -h || ${1:-} == --help ]]; then
+  echo "Usage: bin/omadrop-package [OUTPUT_DIRECTORY]"
+  exit $(( $# > 1 ? 2 : 0 ))
+fi
+[[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]] || {
+  echo "package: VERSION is not release-safe: $version" >&2
+  exit 1
+}
+if [[ ${OMADROP_PACKAGE_ALLOW_DIRTY:-0} != 1 ]] \
+    && [[ -n $(git -C "$root" status --porcelain --untracked-files=normal) ]]; then
+  echo "package: worktree must be clean so the archive matches a commit" >&2
+  exit 1
+fi
+if [[ ${OMADROP_PACKAGE_SKIP_CHECK:-0} != 1 ]]; then
+  "$root/bin/omadrop-check" --quick
+fi
+
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-package.XXXXXX")
+trap 'rm -rf -- "$scratch"' EXIT
+mkdir -p "$output_dir"
+git -C "$root" archive --format=tar --prefix="$name/" HEAD \
+  >"$scratch/$name.tar"
+gzip -n -9 "$scratch/$name.tar"
+
+while IFS= read -r member; do
+  [[ $member == "$name/"* && $member != /* && $member != *'/../'* ]] || {
+    echo "package: unsafe archive member: $member" >&2
+    exit 1
+  }
+done < <(tar -tzf "$scratch/$name.tar.gz")
+
+if [[ ${OMADROP_PACKAGE_SKIP_SMOKE:-0} != 1 ]]; then
+  tar -xzf "$scratch/$name.tar.gz" -C "$scratch"
+  smoke=$scratch/smoke
+  mkdir -p "$smoke/bin" "$smoke/config" "$smoke/state" "$smoke/cache"
+  OMADROP_INSTALL_ROOT=$smoke/install \
+  OMADROP_BIN_DIR=$smoke/bin \
+  XDG_CONFIG_HOME=$smoke/config \
+  XDG_STATE_HOME=$smoke/state \
+  XDG_CACHE_HOME=$smoke/cache \
+  OMADROP_SKIP_HYPR_RELOAD=1 \
+    "$scratch/$name/install.sh" --no-deps --no-bindings \
+      >"$scratch/install-smoke.log"
+  [[ $($smoke/bin/omadrop --version) == "Omadrop $version" ]]
+  "$smoke/bin/omadrop" pack validate \
+    "$scratch/$name/examples/scene-pack" >"$scratch/pack-smoke.log"
+  grep -q '^scene pack valid:' "$scratch/pack-smoke.log"
+  OMADROP_INSTALL_ROOT=$smoke/install \
+  OMADROP_BIN_DIR=$smoke/bin \
+  XDG_CONFIG_HOME=$smoke/config \
+  OMADROP_SKIP_HYPR_RELOAD=1 \
+    "$smoke/install/uninstall.sh" >"$scratch/uninstall-smoke.log"
+  [[ ! -e $smoke/install && ! -e $smoke/bin/omadrop ]]
+fi
+
+mv "$scratch/$name.tar.gz" "$archive"
+(
+  cd "$output_dir"
+  sha256sum "$(basename "$archive")" >"$(basename "$checksum")"
+)
+echo "package: $archive"
+echo "checksum: $checksum"

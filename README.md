@@ -76,6 +76,17 @@ included for direct comparison with classic MilkDrop behavior.
 
 The full check writes its scorecards and soak log under `cache/release-check-*`.
 
+Create a deterministic source release bundle only from a clean committed tree:
+
+```bash
+bin/omadrop-package
+```
+
+Packaging runs the quick gate, installs the extracted archive into isolated
+directories, validates a scene pack through the installed commands, uninstalls
+it, and writes the archive plus SHA-256 checksum under `dist/`. It does not
+publish anything.
+
 ## Create a native scene pack
 
 Use the checked-in [scene-pack example](examples/scene-pack) and validate it

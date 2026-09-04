@@ -1,4 +1,5 @@
 cache/
+dist/
 *.qsb
 __pycache__/
 experiments/projectm-ascii/projectm-ascii

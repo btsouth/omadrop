@@ -603,3 +603,6 @@ Completed after v0.3:
 - Made audio-output changes transactional and recoverable. A failed new sink
   no longer becomes active or closes Omadrop, and a dead PipeWire capture child
   is detected, retried every two seconds, and reset cleanly after recovery.
+- Added deterministic clean-commit source bundles with safe-member inspection,
+  SHA-256 checksums, and an isolated extracted-archive smoke test covering
+  install, installed pack validation, version reporting, and uninstall.
