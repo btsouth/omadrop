@@ -36,6 +36,9 @@ shake are not substitutes for scene-specific response.
 
 ## The quality gate
 
+Current scene-by-scene findings are tracked in the
+[native scene quality matrix](scene-quality.md).
+
 Every scene, transition, and release must pass the same review.
 
 ### Music response
