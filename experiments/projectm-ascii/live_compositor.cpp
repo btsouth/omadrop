@@ -97,6 +97,18 @@ bool LiveCompositor::render(const LiveCompositorFrame& frame,
     glUniform1f(glGetUniformLocation(program_, "presetMix"), frame.sceneMix);
     glUniform1i(glGetUniformLocation(program_, "transitionMode"),
                 frame.transitionMode);
+    glUniform2fv(glGetUniformLocation(program_, "sourceTransitionAnchor"), 1,
+                 frame.sourceTransitionAnchor.data());
+    glUniform2fv(glGetUniformLocation(program_, "incomingTransitionAnchor"), 1,
+                 frame.incomingTransitionAnchor.data());
+    glUniform2fv(glGetUniformLocation(program_, "sourceTransitionMotion"), 1,
+                 frame.sourceTransitionMotion.data());
+    glUniform2fv(glGetUniformLocation(program_, "incomingTransitionMotion"), 1,
+                 frame.incomingTransitionMotion.data());
+    glUniform1f(glGetUniformLocation(program_, "sourceTransitionDepth"),
+                frame.sourceTransitionDepth);
+    glUniform1f(glGetUniformLocation(program_, "incomingTransitionDepth"),
+                frame.incomingTransitionDepth);
     glUniform1i(glGetUniformLocation(program_, "sourceReactionMode"),
                 frame.sourceReactionMode);
     glUniform1i(glGetUniformLocation(program_, "nextReactionMode"),

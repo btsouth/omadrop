@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add per-scene transition focal points, motion vectors, and depth strength.
+  Native transitions now preserve authored spatial direction instead of using
+  one hardcoded center and horizontal path for every scene.
 - Isolate scripted native-scene sequencing with tested minimum dwell,
   bar-aligned changes, maximum holds, looping, and one-shot completion.
 - Isolate hidden-window startup, synchronized reveal gates, readiness markers,

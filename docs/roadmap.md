@@ -549,6 +549,11 @@ Completed after v0.3:
   path while optionally rendering review frames without desktop contamination.
   Narrow spatial reveal boundaries preserve the identity of both scenes
   instead of holding a soft double exposure through the midpoint.
+- Added authored transition geometry to the scene registry. Every native scene
+  now exposes a focal point, normalized motion vector, and depth strength to
+  the production compositor. Separate render probes prove that focal, flow,
+  and depth inputs each change their matching transition path, while all 36
+  incoming and outgoing coverage paths remain valid.
 - Made transition selection structure-aware after compatibility is satisfied.
   Calm releases use a negative-space reveal, clear harmonic turns use a
   controlled fracture, rising or dense passages carry motion, and balanced

@@ -16,6 +16,12 @@ struct LiveCompositorFrame {
     int height = 0;
     float sceneMix = 0.0f;
     int transitionMode = 0;
+    std::array<float, 2> sourceTransitionAnchor{0.51f, 0.50f};
+    std::array<float, 2> incomingTransitionAnchor{0.51f, 0.50f};
+    std::array<float, 2> sourceTransitionMotion{1.0f, 0.0f};
+    std::array<float, 2> incomingTransitionMotion{1.0f, 0.0f};
+    float sourceTransitionDepth = 0.0f;
+    float incomingTransitionDepth = 0.0f;
     int sourceReactionMode = 0;
     int nextReactionMode = 0;
     std::array<float, 3> sourceReactionGain{};

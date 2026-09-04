@@ -73,7 +73,7 @@ NativeSceneKind automaticChoiceWithPreferences(
 }
 
 int main() {
-    assert(nativeSceneRegistryVersion == 13);
+    assert(nativeSceneRegistryVersion == 14);
     std::set<std::string> sceneSlugs;
     std::set<std::string> sceneShaders;
     for (std::size_t index = 0; index < nativeSceneRegistry.size(); ++index) {
@@ -87,6 +87,29 @@ int main() {
         assert(definition.maximumGlobalPulse > 0.0f);
         assert(definition.maximumGlobalPulse <= 0.70f);
         assert(definition.maximumFrameMilliseconds > 0.0f);
+        const NativeTransitionGeometry& geometry
+            = definition.transitionGeometry;
+        assert(geometry.focalPoint[0] >= 0.0f
+            && geometry.focalPoint[0] <= 1.0f);
+        assert(geometry.focalPoint[1] >= 0.0f
+            && geometry.focalPoint[1] <= 1.0f);
+        const float motionLength = std::hypot(
+            geometry.motionVector[0], geometry.motionVector[1]);
+        assert(motionLength > 0.90f && motionLength < 1.10f);
+        assert(geometry.depthStrength >= 0.0f
+            && geometry.depthStrength <= 1.0f);
+        if (definition.transitionAnchor
+            == NativeTransitionAnchor::HorizontalAxis) {
+            assert(std::abs(geometry.motionVector[0])
+                > std::abs(geometry.motionVector[1]));
+        } else if (definition.transitionAnchor
+                   == NativeTransitionAnchor::VerticalAxis) {
+            assert(std::abs(geometry.motionVector[1])
+                > std::abs(geometry.motionVector[0]));
+        } else if (definition.transitionAnchor
+                   == NativeTransitionAnchor::DepthPoint) {
+            assert(geometry.depthStrength >= 0.80f);
+        }
     }
     assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Flow) == 2);
     assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Sparse) == 6);

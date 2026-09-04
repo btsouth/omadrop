@@ -88,6 +88,12 @@ uniform float midImpact;
 uniform float trebleImpact;
 uniform int asciiEnabled;
 uniform int transitionMode;
+uniform vec2 sourceTransitionAnchor;
+uniform vec2 incomingTransitionAnchor;
+uniform vec2 sourceTransitionMotion;
+uniform vec2 incomingTransitionMotion;
+uniform float sourceTransitionDepth;
+uniform float incomingTransitionDepth;
 uniform int sourceReactionMode;
 uniform int nextReactionMode;
 uniform vec3 sourceReactionGain;
@@ -190,27 +196,39 @@ vec3 sceneSample(vec2 sampleUv) {
     if (nativeTransition) {
         outgoingUv = sampleUv;
         incomingUv = sampleUv;
-        vec2 anchor = vec2(0.51, 0.50);
+        vec2 anchor = mix(sourceTransitionAnchor,
+                          incomingTransitionAnchor, easedPresetMix);
+        vec2 transitionMotion = mix(sourceTransitionMotion,
+                                    incomingTransitionMotion, easedPresetMix);
+        transitionMotion /= max(0.001, length(transitionMotion));
+        float transitionDepth = mix(sourceTransitionDepth,
+                                    incomingTransitionDepth, easedPresetMix);
         if (transitionMode == 6) {
             float carry = bridge * 0.026 * motionScale;
-            outgoingUv.x += carry;
-            incomingUv.x -= carry;
+            outgoingUv += transitionMotion * carry;
+            incomingUv -= transitionMotion * carry;
         } else if (transitionMode == 7) {
-            outgoingUv = anchor + (sampleUv - anchor)
+            outgoingUv = sourceTransitionAnchor
+                       + (sampleUv - sourceTransitionAnchor)
                        * (1.0 + 0.08 * bridge * motionScale);
-            incomingUv = anchor + (sampleUv - anchor)
+            incomingUv = incomingTransitionAnchor
+                       + (sampleUv - incomingTransitionAnchor)
                        * (1.0 + 0.12 * (1.0 - easedPresetMix) * motionScale);
         } else if (transitionMode == 8) {
-            anchor = vec2(0.53, 0.51);
-            outgoingUv = anchor + (sampleUv - anchor)
-                       * (1.0 - 0.13 * bridge * motionScale);
-            incomingUv = anchor + (sampleUv - anchor)
-                       * (1.0 + 0.18 * (1.0 - easedPresetMix) * motionScale);
+            float depthScale = 0.72 + 0.28 * transitionDepth;
+            outgoingUv = sourceTransitionAnchor
+                       + (sampleUv - sourceTransitionAnchor)
+                       * (1.0 - 0.13 * bridge * motionScale * depthScale);
+            incomingUv = incomingTransitionAnchor
+                       + (sampleUv - incomingTransitionAnchor)
+                       * (1.0 + 0.18 * (1.0 - easedPresetMix)
+                          * motionScale * depthScale);
         } else if (transitionMode == 9) {
-            vec2 q = sampleUv - 0.5;
+            vec2 q = sampleUv - anchor;
             vec2 direction = normalize(vec2(
                 sin((q.x + q.y * 0.72) * 17.0),
                 cos((q.x * 0.61 - q.y) * 21.0)) + vec2(0.001));
+            direction = normalize(mix(direction, transitionMotion, 0.32));
             outgoingUv += direction * bridge * 0.012 * motionScale;
             incomingUv -= direction * bridge * 0.009 * motionScale;
         }
@@ -225,32 +243,44 @@ vec3 sceneSample(vec2 sampleUv) {
     // while a temporary luminance match prevents a sudden palette block.
     float flow;
     float localMix;
+    vec2 transitionAnchor = mix(sourceTransitionAnchor,
+                                incomingTransitionAnchor, easedPresetMix);
+    vec2 transitionMotion = mix(sourceTransitionMotion,
+                                incomingTransitionMotion, easedPresetMix);
+    transitionMotion /= max(0.001, length(transitionMotion));
+    vec2 transitionNormal = vec2(-transitionMotion.y, transitionMotion.x);
+    vec2 transitionQ = sampleUv - transitionAnchor;
+    vec2 transitionCoordinates = vec2(dot(transitionQ, transitionMotion),
+                                      dot(transitionQ, transitionNormal));
     if (transitionMode == 6) {
-        flow = 0.50 + 0.18 * sin(sampleUv.y * 8.0
-                               + sin(sampleUv.x * 5.0) * 1.3)
-                    + 0.10 * (sampleUv.x - 0.5);
+        flow = 0.50 + 0.18 * sin((transitionCoordinates.y + 0.5) * 8.0
+                               + sin((transitionCoordinates.x + 0.5) * 5.0)
+                                 * 1.3)
+                    + 0.10 * transitionCoordinates.x;
         // Keep the carry edge broad enough to feel fluid, but narrow enough
         // that two detailed scenes do not spend the middle of the transition
         // as one low-contrast double exposure.
         localMix = smoothstep(flow - 0.16, flow + 0.16, easedPresetMix);
     } else if (transitionMode == 7) {
-        float radius = length(sampleUv - vec2(0.51, 0.50));
+        float radius = length(transitionQ);
         flow = clamp(radius * 1.18, 0.06, 0.88);
         localMix = smoothstep(flow - 0.11, flow + 0.11, easedPresetMix);
     } else if (transitionMode == 8) {
-        float radius = length(sampleUv - vec2(0.53, 0.51));
-        flow = 0.28 + radius * 0.72
+        float radius = length(transitionQ);
+        float depthShape = mix(sourceTransitionDepth,
+                               incomingTransitionDepth, easedPresetMix);
+        flow = 0.28 + radius * mix(0.62, 0.78, depthShape)
              + 0.055 * sin(radius * 31.0);
         localMix = smoothstep(flow - 0.13, flow + 0.13, easedPresetMix);
     } else if (transitionMode == 9) {
-        vec2 q = sampleUv - 0.5;
+        vec2 q = transitionCoordinates;
         flow = 0.50
              + 0.14 * sin((q.x + q.y * 0.68) * 18.0)
              + 0.13 * sin((q.x * 0.57 - q.y) * 23.0)
              + 0.065 * sin(q.x * 37.0 + q.y * 5.0);
         localMix = smoothstep(flow - 0.09, flow + 0.09, easedPresetMix);
     } else if (transitionMode == 10) {
-        vec2 q = sampleUv - vec2(0.51, 0.50);
+        vec2 q = transitionCoordinates;
         flow = 0.50 + 0.17 * sin(q.y * 9.0 + sin(q.x * 7.0) * 1.5)
                     + 0.10 * sin(q.x * 15.0 - q.y * 3.0)
                     + 0.08 * length(q);
@@ -277,7 +307,7 @@ vec3 sceneSample(vec2 sampleUv) {
                    smoothstep(0.90, 1.0, easedPresetMix));
     float nativeAnchor = 0.0;
     if (transitionMode == 6 || transitionMode == 7 || transitionMode == 8) {
-        float radius = length(sampleUv - vec2(0.51, 0.50));
+        float radius = length(sampleUv - transitionAnchor);
         nativeAnchor = 1.0 - smoothstep(0.055, 0.23, radius);
         localMix = mix(localMix, easedPresetMix, nativeAnchor);
     }
@@ -2046,18 +2076,25 @@ int main(int argc, char** argv) {
                                    * (1.0f - presetBlend)
                                    + nextProfile.asciiExposure * presetBlend;
         float displayFieldExposure = 1.0f;
+        NativeTransitionGeometry sourceTransitionGeometry;
+        NativeTransitionGeometry incomingTransitionGeometry;
         if (nativeEnabled) {
-            const NativeSceneMaterial sourceMaterial
-                = nativeSceneMaterial(nativeSceneState.currentScene);
-            const NativeSceneMaterial nextMaterial = nativeSceneMaterial(
-                nativeSceneState.transitioning ? nativeSceneState.incomingScene
-                                               : nativeSceneState.currentScene);
+            const NativeSceneDefinition& sourceDefinition
+                = nativeSceneDefinition(nativeSceneState.currentScene);
+            const NativeSceneDefinition& incomingDefinition
+                = nativeSceneDefinition(nativeSceneState.transitioning
+                    ? nativeSceneState.incomingScene
+                    : nativeSceneState.currentScene);
+            const NativeSceneMaterial sourceMaterial = sourceDefinition.material;
+            const NativeSceneMaterial nextMaterial = incomingDefinition.material;
             displayAsciiExposure = sourceMaterial.asciiExposure
                                  * (1.0f - presetBlend)
                                  + nextMaterial.asciiExposure * presetBlend;
             displayFieldExposure = sourceMaterial.fieldExposure
                                  * (1.0f - presetBlend)
                                  + nextMaterial.fieldExposure * presetBlend;
+            sourceTransitionGeometry = sourceDefinition.transitionGeometry;
+            incomingTransitionGeometry = incomingDefinition.transitionGeometry;
         }
         const int displayTransitionMode = nativeEnabled
             ? nativeSceneState.transitioning
@@ -2072,6 +2109,12 @@ int main(int argc, char** argv) {
             .height = outputH,
             .sceneMix = presetBlend,
             .transitionMode = displayTransitionMode,
+            .sourceTransitionAnchor = sourceTransitionGeometry.focalPoint,
+            .incomingTransitionAnchor = incomingTransitionGeometry.focalPoint,
+            .sourceTransitionMotion = sourceTransitionGeometry.motionVector,
+            .incomingTransitionMotion = incomingTransitionGeometry.motionVector,
+            .sourceTransitionDepth = sourceTransitionGeometry.depthStrength,
+            .incomingTransitionDepth = incomingTransitionGeometry.depthStrength,
             .sourceReactionMode = reactionMode(sourceProfile),
             .nextReactionMode = reactionMode(nextProfile),
             .sourceReactionGain = nativeEnabled

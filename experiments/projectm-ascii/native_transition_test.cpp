@@ -167,6 +167,21 @@ struct TransitionReview {
     NativeTransitionContext context{};
     bool contextual = false;
 };
+
+void applyTransitionGeometry(LiveCompositorFrame& frame,
+                             NativeSceneKind source,
+                             NativeSceneKind incoming) {
+    const NativeTransitionGeometry& sourceGeometry
+        = nativeSceneDefinition(source).transitionGeometry;
+    const NativeTransitionGeometry& incomingGeometry
+        = nativeSceneDefinition(incoming).transitionGeometry;
+    frame.sourceTransitionAnchor = sourceGeometry.focalPoint;
+    frame.incomingTransitionAnchor = incomingGeometry.focalPoint;
+    frame.sourceTransitionMotion = sourceGeometry.motionVector;
+    frame.incomingTransitionMotion = incomingGeometry.motionVector;
+    frame.sourceTransitionDepth = sourceGeometry.depthStrength;
+    frame.incomingTransitionDepth = incomingGeometry.depthStrength;
+}
 }
 
 int main(int argc, char** argv) {
@@ -287,7 +302,8 @@ int main(int argc, char** argv) {
 
     auto renderPolicyFrame = [&](float motion, float contrast,
                                  bool flashLimited = false,
-                                 bool colorVisionSafe = false) {
+                                 bool colorVisionSafe = false,
+                                 bool authoredGeometry = true) {
         LiveCompositorFrame frame;
         frame.sourceTexture = renderer.texture(NativeSceneKind::Centrifuge);
         frame.nextTexture = renderer.texture(NativeSceneKind::BloomEngine);
@@ -297,6 +313,10 @@ int main(int argc, char** argv) {
         frame.sceneMix = 0.5f;
         frame.transitionMode = static_cast<int>(
             NativeTransitionStyle::FocalMorph);
+        if (authoredGeometry) {
+            applyTransitionGeometry(frame, NativeSceneKind::Centrifuge,
+                                    NativeSceneKind::BloomEngine);
+        }
         frame.fieldExposure = 0.96f;
         frame.asciiExposure = 1.02f;
         frame.nativeRenderer = true;
@@ -311,6 +331,50 @@ int main(int argc, char** argv) {
     };
     const std::vector<unsigned char> standardPolicy
         = renderPolicyFrame(1.0f, 1.0f);
+    const float authoredGeometryDifference = meanDifference(
+        standardPolicy, renderPolicyFrame(1.0f, 1.0f, false, false, false));
+    auto renderGeometryProbe = [&](NativeSceneKind source,
+                                   NativeSceneKind incoming,
+                                   NativeTransitionStyle style,
+                                   bool authoredGeometry) {
+        LiveCompositorFrame frame;
+        frame.sourceTexture = renderer.texture(source);
+        frame.nextTexture = renderer.texture(incoming);
+        frame.coverTexture = black;
+        frame.width = width;
+        frame.height = height;
+        frame.sceneMix = 0.5f;
+        frame.transitionMode = static_cast<int>(style);
+        if (authoredGeometry) {
+            applyTransitionGeometry(frame, source, incoming);
+        }
+        const NativeSceneMaterial sourceMaterial = nativeSceneMaterial(source);
+        const NativeSceneMaterial incomingMaterial
+            = nativeSceneMaterial(incoming);
+        frame.fieldExposure = 0.5f * (sourceMaterial.fieldExposure
+                                    + incomingMaterial.fieldExposure);
+        frame.asciiExposure = 0.5f * (sourceMaterial.asciiExposure
+                                    + incomingMaterial.asciiExposure);
+        frame.nativeRenderer = true;
+        frame.visibility = 1.0f;
+        assert(compositor.render(frame, error));
+        glFinish();
+        return readFrame();
+    };
+    const float motionGeometryDifference = meanDifference(
+        renderGeometryProbe(NativeSceneKind::InkCurrent,
+            NativeSceneKind::Centrifuge,
+            NativeTransitionStyle::FlowCarry, true),
+        renderGeometryProbe(NativeSceneKind::InkCurrent,
+            NativeSceneKind::Centrifuge,
+            NativeTransitionStyle::FlowCarry, false));
+    const float depthGeometryDifference = meanDifference(
+        renderGeometryProbe(NativeSceneKind::GlassChoir,
+            NativeSceneKind::ShadowArchitecture,
+            NativeTransitionStyle::DepthTravel, true),
+        renderGeometryProbe(NativeSceneKind::GlassChoir,
+            NativeSceneKind::ShadowArchitecture,
+            NativeTransitionStyle::DepthTravel, false));
     const float reducedMotionDifference = meanDifference(
         standardPolicy, renderPolicyFrame(0.35f, 1.0f));
     const float highContrastDifference = meanDifference(
@@ -333,7 +397,10 @@ int main(int argc, char** argv) {
               << highContrastDifference << " flash_limit_difference="
               << flashLimitDifference << " color_safe_difference="
               << colorSafeDifference << " color_safe_luminance_difference="
-              << colorSafeLuminanceDifference << '\n';
+              << colorSafeLuminanceDifference << " authored_geometry_difference="
+              << authoredGeometryDifference << " motion_geometry_difference="
+              << motionGeometryDifference << " depth_geometry_difference="
+              << depthGeometryDifference << '\n';
     assert(reducedMotionDifference > 0.0005f);
     assert(highContrastDifference > 0.0005f);
     assert(flashLimitDifference > 0.001f);
@@ -341,6 +408,9 @@ int main(int argc, char** argv) {
            < maximumLuminance(standardPolicy));
     assert(colorSafeDifference > 0.01f);
     assert(colorSafeLuminanceDifference < 0.025f);
+    assert(authoredGeometryDifference > 0.0002f);
+    assert(motionGeometryDifference > 0.0002f);
+    assert(depthGeometryDifference > 0.0002f);
 
     constexpr std::array<float, 6> progress{0.0f, 0.2f, 0.4f,
                                             0.6f, 0.8f, 1.0f};
@@ -367,6 +437,7 @@ int main(int argc, char** argv) {
             frame.height = height;
             frame.sceneMix = mix;
             frame.transitionMode = static_cast<int>(selectedStyle);
+            applyTransitionGeometry(frame, review.source, review.incoming);
             frame.fieldExposure = sourceMaterial.fieldExposure * (1.0f - mix)
                                 + incomingMaterial.fieldExposure * mix;
             frame.asciiExposure = sourceMaterial.asciiExposure * (1.0f - mix)
@@ -439,6 +510,7 @@ int main(int argc, char** argv) {
                 frame.height = height;
                 frame.sceneMix = mix;
                 frame.transitionMode = static_cast<int>(style);
+                applyTransitionGeometry(frame, source, target);
                 frame.fieldExposure = sourceMaterial.fieldExposure * (1.0f - mix)
                                     + targetMaterial.fieldExposure * mix;
                 frame.asciiExposure = sourceMaterial.asciiExposure * (1.0f - mix)
