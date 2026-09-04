@@ -556,3 +556,10 @@ Completed after v0.3:
   after the scene compositor, so it cannot contaminate feedback or recordings
   without a user action. Hidden-context tests cover its raster, final pass,
   placement, expiry, and paired manual-scene cue.
+- Activated the four persisted director profiles without changing scene timing.
+  Balanced keeps the established score, Kinetic favors percussive and flow
+  compositions, Restrained favors sparse lower-energy compositions, and High
+  Contrast favors a different motion grammar and transition anchor from the
+  current scene. Deterministic selection tests lock a distinct result for each
+  policy where appropriate, track resets preserve the choice, full resets
+  return to Balanced, and the selected profile synchronizes across displays.

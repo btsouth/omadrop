@@ -258,6 +258,9 @@ Press `i` to cycle local response intensity, `b` for brightness, `m` for
 ambient motion, `r` for reduced motion, and `h` for high contrast. Reduced
 motion caps feedback drift and transition travel while leaving the local
 percussion, beat, and section cues readable. Press F11 to toggle fullscreen.
+Press `d` to cycle Balanced, Kinetic, Restrained, and High Contrast direction.
+Profiles change candidate scoring while preserving the same musical boundaries
+and per-scene response limits.
 These choices are stored in the versioned
 `$XDG_CONFIG_HOME/omadrop/preferences.conf` file. Legacy `ascii-enabled`
 settings migrate automatically, and settings writes replace the complete file

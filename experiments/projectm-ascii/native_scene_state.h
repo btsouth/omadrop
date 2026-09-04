@@ -157,6 +157,8 @@ public:
         transitionSecondsOverride_ = seconds > 0.0f
             ? std::clamp(seconds, 0.6f, 8.0f) : -1.0f;
     }
+    void setProfile(NativeDirectorProfile profile) { profile_ = profile; }
+    NativeDirectorProfile profile() const { return profile_; }
     const NativeSceneState& state() const { return state_; }
     void selectScene(NativeSceneKind scene) {
         state_ = NativeSceneState{};
@@ -179,8 +181,10 @@ public:
             = state_.transitioning
                 ? state_.incomingScene : state_.currentScene;
         const float retainedTransitionOverride = transitionSecondsOverride_;
+        const NativeDirectorProfile retainedProfile = profile_;
         *this = NativeSceneDirector{};
         transitionSecondsOverride_ = retainedTransitionOverride;
+        profile_ = retainedProfile;
         selectScene(retainedScene);
     }
     void reset() { *this = NativeSceneDirector{}; }
@@ -211,6 +215,29 @@ private:
                         + 0.72f * square(centroid - traits.centroid)
                         + 0.55f * square(stereo - traits.stereo)
                         + 0.055f * sceneUseCount_[index];
+            const NativeSceneDefinition& currentDefinition
+                = nativeSceneDefinition(state_.currentScene);
+            const NativeSceneDefinition& candidateDefinition
+                = nativeSceneDefinition(candidate);
+            if (profile_ == NativeDirectorProfile::Kinetic) {
+                score -= 0.16f * traits.percussive + 0.10f * traits.energy;
+                if (candidateDefinition.motionGrammar
+                    == NativeMotionGrammar::Flow) score -= 0.10f;
+                if (candidateDefinition.motionGrammar
+                    == NativeMotionGrammar::Sparse) score += 0.16f;
+            } else if (profile_ == NativeDirectorProfile::Restrained) {
+                score += 0.22f * traits.energy + 0.12f * traits.percussive;
+                if (candidateDefinition.motionGrammar
+                    == NativeMotionGrammar::Flow) score += 0.48f;
+                if (candidateDefinition.motionGrammar
+                    == NativeMotionGrammar::Sparse) score -= 0.12f;
+            } else if (profile_ == NativeDirectorProfile::HighContrast) {
+                if (candidateDefinition.motionGrammar
+                    == currentDefinition.motionGrammar) score += 0.32f;
+                else score -= 0.08f;
+                if (candidateDefinition.transitionAnchor
+                    == currentDefinition.transitionAnchor) score += 0.14f;
+            }
             for (std::size_t age = 0; age < recentScenes_.size(); ++age) {
                 const NativeSceneKind recent
                     = recentScenes_[recentScenes_.size() - 1 - age];
@@ -258,6 +285,7 @@ private:
     float transitionElapsed_ = 0.0f;
     float transitionDuration_ = 4.0f;
     float transitionSecondsOverride_ = -1.0f;
+    NativeDirectorProfile profile_ = NativeDirectorProfile::Balanced;
     std::unordered_map<int, NativeSceneKind> motifScenes_;
     std::deque<NativeSceneKind> recentScenes_;
     std::array<unsigned int, nativeSceneCount> sceneUseCount_{};

@@ -37,6 +37,22 @@ NativeSceneKind automaticChoiceFrom(NativeSceneKind current, MusicFrame music) {
     assert(chosen.transitioning);
     return chosen.incomingScene;
 }
+
+NativeSceneKind automaticChoiceWithProfile(NativeSceneKind current,
+                                           MusicFrame music,
+                                           NativeDirectorProfile profile) {
+    NativeSceneDirector director;
+    director.selectScene(current);
+    director.setProfile(profile);
+    music.bpm = 120.0f;
+    for (int frame = 0; frame < 520; ++frame) {
+        director.update(music, 1.0f / 60.0f);
+    }
+    music.section = 1.0f;
+    const NativeSceneState chosen = director.update(music, 1.0f / 60.0f);
+    assert(chosen.transitioning);
+    return chosen.incomingScene;
+}
 }
 
 int main() {
@@ -379,6 +395,26 @@ int main() {
         NativeSceneKind::TidalGrid, landscapeMatch);
     assert(nativeSceneDefinition(afterLandscape).visualFamily
            != NativeVisualFamily::Landscape);
+
+    assert(automaticChoiceWithProfile(NativeSceneKind::Centrifuge,
+        wideHarmonic, NativeDirectorProfile::Balanced)
+        == NativeSceneKind::ParticleWeave);
+    assert(automaticChoiceWithProfile(NativeSceneKind::Centrifuge,
+        wideHarmonic, NativeDirectorProfile::Kinetic)
+        == NativeSceneKind::SpectralRibbons);
+    assert(automaticChoiceWithProfile(NativeSceneKind::Centrifuge,
+        wideHarmonic, NativeDirectorProfile::Restrained)
+        == NativeSceneKind::WireOrganism);
+    assert(automaticChoiceWithProfile(NativeSceneKind::Centrifuge,
+        wideHarmonic, NativeDirectorProfile::HighContrast)
+        == NativeSceneKind::SpectralRibbons);
+
+    NativeSceneDirector profileResetDirector;
+    profileResetDirector.setProfile(NativeDirectorProfile::Restrained);
+    profileResetDirector.resetForTrack();
+    assert(profileResetDirector.profile() == NativeDirectorProfile::Restrained);
+    profileResetDirector.reset();
+    assert(profileResetDirector.profile() == NativeDirectorProfile::Balanced);
 
     NativeSceneDirector recallDwellDirector;
     MusicFrame recallDwellMusic;

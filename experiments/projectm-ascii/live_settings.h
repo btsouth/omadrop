@@ -1,15 +1,11 @@
 #pragma once
 
-#include <cstdint>
+#include "native_scene_registry.h"
+
 #include <string>
 #include <vector>
 
-enum class DirectorProfile : std::uint8_t {
-    Balanced,
-    Kinetic,
-    Restrained,
-    HighContrast,
-};
+using DirectorProfile = NativeDirectorProfile;
 
 inline constexpr unsigned int livePreferencesVersion = 1;
 

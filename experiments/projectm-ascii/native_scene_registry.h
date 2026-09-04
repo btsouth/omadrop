@@ -63,6 +63,13 @@ enum class NativeTransitionStyle : std::uint8_t {
     NegativeSpaceReveal = 10,
 };
 
+enum class NativeDirectorProfile : std::uint8_t {
+    Balanced,
+    Kinetic,
+    Restrained,
+    HighContrast,
+};
+
 inline constexpr std::string_view nativeTransitionStyleName(
     NativeTransitionStyle style) {
     switch (style) {

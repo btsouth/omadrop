@@ -40,6 +40,8 @@
   transition travel without removing the music's localized timing cues.
 - Show a brief synchronized status label after interactive changes. Manual
   scene skips say `AUTO: <scene>` so `N` and `P` cannot imply a hidden lock.
+- Add Balanced, Kinetic, Restrained, and High Contrast director profiles that
+  change scene choice without changing musical timing or response limits.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

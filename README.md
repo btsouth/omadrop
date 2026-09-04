@@ -110,6 +110,7 @@ omadrop --single    # focused display only
 | `M` | Cycle ambient motion |
 | `R` | Toggle reduced motion |
 | `H` | Toggle high contrast |
+| `D` | Cycle director profile |
 | `[` / `]` | Adjust audio sync by 10 ms |
 | `F11` | Toggle fullscreen |
 | `Esc` | Quit |
@@ -120,6 +121,11 @@ are remembered between launches. Per-output audio delay is remembered for each
 output device. A compact status label confirms each change. Manual scene skips
 show `AUTO: <scene>` because `N` and `P` never disable automatic direction.
 `OMADROP_ASCII=0` remains available as a temporary override.
+
+Director profiles are Balanced, Kinetic, Restrained, and High Contrast. They
+change scene selection, not beat timing or the per-scene pulse limits. Kinetic
+favors scenes that carry dense percussion cleanly; it does not make every scene
+bounce harder.
 
 ## How it works
 

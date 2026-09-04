@@ -728,6 +728,7 @@ int main(int argc, char** argv) {
     MusicFrameBuilder musicFrameBuilder;
     MusicFrame musicFrame;
     NativeSceneDirector nativeSceneDirector;
+    nativeSceneDirector.setProfile(preferences.directorProfile);
     NativeSceneState nativeSceneState;
     bool nativeTransitionWasActive = false;
     NativeSceneKind initialNativeScene = NativeSceneKind::DepthTunnel;
@@ -887,6 +888,15 @@ int main(int argc, char** argv) {
                       << (preferences.highContrast ? "on" : "off") << "\n";
             status = std::string("HIGH CONTRAST: ")
                    + (preferences.highContrast ? "ON" : "OFF");
+        } else if (request == "director") {
+            const int next = (static_cast<int>(preferences.directorProfile) + 1)
+                           % 4;
+            preferences.directorProfile = static_cast<DirectorProfile>(next);
+            nativeSceneDirector.setProfile(preferences.directorProfile);
+            std::cerr << "director profile: "
+                      << directorProfileName(preferences.directorProfile) << "\n";
+            status = std::string("DIRECTOR: ")
+                   + directorProfileName(preferences.directorProfile);
         } else {
             return false;
         }
@@ -955,6 +965,9 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_KEYDOWN
                        && event.key.keysym.sym == SDLK_h) {
                 visualPreferenceRequest = "high-contrast";
+            } else if (event.type == SDL_KEYDOWN
+                       && event.key.keysym.sym == SDLK_d) {
+                visualPreferenceRequest = "director";
             }
             if (visualPreferenceRequest) {
                 if (pairedFollower) pairedControlRequest = visualPreferenceRequest;
@@ -1491,6 +1504,12 @@ int main(int argc, char** argv) {
                                != (pairedState->highContrastMode == 1)) {
                         synchronizedStatus = pairedState->highContrastMode == 1
                             ? "HIGH CONTRAST: ON" : "HIGH CONTRAST: OFF";
+                    } else if (preferences.directorProfile
+                               != static_cast<DirectorProfile>(
+                                   pairedState->directorProfile)) {
+                        synchronizedStatus = std::string("DIRECTOR: ")
+                            + directorProfileName(static_cast<DirectorProfile>(
+                                pairedState->directorProfile));
                     }
                     preferences.intensity
                         = synchronizedIntensity;
@@ -1503,6 +1522,7 @@ int main(int argc, char** argv) {
                         = pairedState->highContrastMode == 1;
                     preferences.directorProfile = static_cast<DirectorProfile>(
                         pairedState->directorProfile);
+                    nativeSceneDirector.setProfile(preferences.directorProfile);
                     if (!synchronizedStatus.empty()) {
                         statusOverlay.show(synchronizedStatus, now);
                     }
