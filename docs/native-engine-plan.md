@@ -62,6 +62,8 @@ slice combines injection and feedback while the interface is validated.
 - [x] Add a 32-band log-spaced spectrum and per-band flux.
 - [x] Add native harmonic and percussive estimates.
 - [x] Add stereo width, spectral centroid, and energy direction.
+- [x] Add normalized chroma, tonal motion, and harmonic-change signals.
+- [x] Add rolling rhythmic density and syncopation signals.
 - [x] Attach monotonic timestamps and configured presentation delay to audio features.
 - [x] Replay full-song raw fixtures through `MusicFrame`.
 

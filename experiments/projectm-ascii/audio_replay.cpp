@@ -127,6 +127,10 @@ int main(int argc, char** argv) {
               << " harmonic=" << musicFrame.harmonic
               << " centroid=" << musicFrame.spectralCentroid
               << " stereo_width=" << musicFrame.stereoWidth
+              << " density=" << musicFrame.rhythmicDensity
+              << " syncopation=" << musicFrame.syncopation
+              << " tonal_motion=" << musicFrame.tonalMotion
+              << " harmonic_change=" << musicFrame.harmonicChange
               << " overlaps=" << kickSnareOverlaps << "/"
               << kickHatOverlaps << "/" << snareHatOverlaps
               << " phrases=" << phrases

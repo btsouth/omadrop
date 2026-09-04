@@ -9,6 +9,7 @@ int main() {
     features.level = {2.1f, 1.8f, 1.2f, 1.4f, 1.1f, 0.9f};
     features.flux = {5.0f, 4.4f, 2.0f, 2.6f, 2.0f, 1.5f};
     features.spectrumLevel[17] = 1.7f;
+    features.chroma[0] = 1.0f;
     features.percussiveEnergy = 0.72f;
     features.harmonicEnergy = 0.54f;
     features.spectralCentroid = 0.63f;
@@ -47,6 +48,8 @@ int main() {
     assert(first.harmonic > 0.0f);
     assert(first.spectralCentroid == 0.63f);
     assert(first.stereoWidth == 0.28f);
+    assert(first.chroma[0] == 1.0f);
+    assert(first.rhythmicDensity > 0.0f);
     assert(first.audioTimeSeconds == 14.5);
     assert(first.presentationDelaySeconds == 0.18f);
     assert(first.energyFast > 0.0f);
@@ -72,6 +75,16 @@ int main() {
     assert(later.kick < first.kick);
     assert(later.snare < first.snare);
     assert(later.hat < first.hat);
+
+    AudioFeatures changedHarmony = features;
+    changedHarmony.level = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    changedHarmony.harmonicEnergy = 0.8f;
+    changedHarmony.chroma.fill(0.0f);
+    changedHarmony.chroma[7] = 1.0f;
+    const MusicFrame harmonicShift = builder.update(
+        changedHarmony, structure, 1.0f / 60.0f);
+    assert(harmonicShift.tonalMotion > 0.0f);
+    assert(harmonicShift.harmonicChange > 0.0f);
 
     builder.reset();
     const MusicFrame reset = builder.update(AudioFeatures{}, MusicalStructureState{},

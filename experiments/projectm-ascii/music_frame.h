@@ -15,6 +15,7 @@ struct MusicFrame {
     std::array<float, AudioFeatures::roleCount> bandFlux{};
     std::array<float, AudioFeatures::spectrumCount> spectrumLevel{};
     std::array<float, AudioFeatures::spectrumCount> spectrumFlux{};
+    std::array<float, AudioFeatures::chromaCount> chroma{};
     float kick = 0.0f;
     float snare = 0.0f;
     float hat = 0.0f;
@@ -22,6 +23,10 @@ struct MusicFrame {
     float harmonic = 0.0f;
     float spectralCentroid = 0.0f;
     float stereoWidth = 0.0f;
+    float rhythmicDensity = 0.0f;
+    float syncopation = 0.0f;
+    float tonalMotion = 0.0f;
+    float harmonicChange = 0.0f;
     double audioTimeSeconds = 0.0;
     float presentationDelaySeconds = 0.0f;
     float bpm = 120.0f;
@@ -51,6 +56,7 @@ public:
         frame_.bandFlux = features.flux;
         frame_.spectrumLevel = features.spectrumLevel;
         frame_.spectrumFlux = features.spectrumFlux;
+        frame_.chroma = features.chroma;
         // Analyzer impacts intentionally linger for classification and tempo
         // work. Visual gestures need a separate, much shorter envelope or a
         // busy recording reads as one continuous kick/snare state. Trigger on
@@ -87,6 +93,68 @@ public:
 
         const bool musicActive = *std::max_element(
             features.level.begin(), features.level.end()) > 0.08f;
+        densityAccumulator_ *= std::exp(-1.4f * dt);
+        if (features.kick) densityAccumulator_ += 0.12f;
+        if (features.snare) densityAccumulator_ += 0.10f;
+        if (features.hat) densityAccumulator_ += 0.05f;
+        frame_.rhythmicDensity = smooth(
+            frame_.rhythmicDensity,
+            musicActive ? std::clamp(densityAccumulator_, 0.0f, 1.0f) : 0.0f,
+            3.0f, dt);
+
+        syncopationSum_ *= std::exp(-0.7f * dt);
+        syncopationWeight_ *= std::exp(-0.7f * dt);
+        const float eventWeight = (features.kick ? 1.0f : 0.0f)
+                                + (features.snare ? 0.8f : 0.0f)
+                                + (features.hat ? 0.35f : 0.0f);
+        if (eventWeight > 0.0f && features.beatConfidence > 0.25f) {
+            const float distance = std::min(
+                features.beatPhase, 1.0f - features.beatPhase);
+            syncopationSum_ += eventWeight * std::clamp(distance * 2.0f, 0.0f, 1.0f);
+            syncopationWeight_ += eventWeight;
+        }
+        const float syncopationTarget = musicActive && syncopationWeight_ > 1e-4f
+            ? syncopationSum_ / syncopationWeight_ : 0.0f;
+        frame_.syncopation = smooth(
+            frame_.syncopation, syncopationTarget, 2.0f, dt);
+
+        float tonalDifference = 0.0f;
+        if (chromaInitialized_) {
+            float dot = 0.0f;
+            float currentPower = 0.0f;
+            float baselinePower = 0.0f;
+            for (std::size_t index = 0; index < features.chroma.size(); ++index) {
+                dot += features.chroma[index] * chromaBaseline_[index];
+                currentPower += features.chroma[index] * features.chroma[index];
+                baselinePower += chromaBaseline_[index] * chromaBaseline_[index];
+            }
+            const float similarity = dot / std::sqrt(
+                std::max(1e-8f, currentPower * baselinePower));
+            tonalDifference = std::clamp((1.0f - similarity) * 2.4f, 0.0f, 1.0f)
+                            * std::clamp(features.harmonicEnergy * 1.5f, 0.0f, 1.0f);
+        } else {
+            chromaBaseline_ = features.chroma;
+            chromaInitialized_ = true;
+        }
+        const float chromaBlend = 1.0f - std::exp(-1.4f * dt);
+        for (std::size_t index = 0; index < features.chroma.size(); ++index) {
+            chromaBaseline_[index] += (features.chroma[index] - chromaBaseline_[index])
+                                    * chromaBlend;
+        }
+        frame_.tonalMotion = smooth(
+            frame_.tonalMotion, tonalDifference,
+            tonalDifference > frame_.tonalMotion ? 7.0f : 2.0f, dt);
+        if (harmonicChangeCooldown_ == 0 && tonalDifference > 0.18f
+            && tonalDifference > previousTonalDifference_ + 0.055f) {
+            harmonicChangeEnvelope_ = std::max(
+                harmonicChangeEnvelope_, tonalDifference);
+            harmonicChangeCooldown_ = 12;
+        }
+        if (harmonicChangeCooldown_ > 0) --harmonicChangeCooldown_;
+        frame_.harmonicChange = harmonicChangeEnvelope_;
+        harmonicChangeEnvelope_ *= std::exp(-6.0f * dt);
+        previousTonalDifference_ = tonalDifference;
+
         float strongestOnset = 0.0f;
         float broadOnset = 0.0f;
         for (float flux : features.flux) {
@@ -159,4 +227,12 @@ private:
     int onsetCooldown_ = 0;
     float downbeatEnvelope_ = 0.0f;
     float sectionEnvelope_ = 0.0f;
+    float densityAccumulator_ = 0.0f;
+    float syncopationSum_ = 0.0f;
+    float syncopationWeight_ = 0.0f;
+    std::array<float, AudioFeatures::chromaCount> chromaBaseline_{};
+    bool chromaInitialized_ = false;
+    float previousTonalDifference_ = 0.0f;
+    float harmonicChangeEnvelope_ = 0.0f;
+    int harmonicChangeCooldown_ = 0;
 };

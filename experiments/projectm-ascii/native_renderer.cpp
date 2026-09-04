@@ -242,6 +242,12 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
         glUniform1f(glGetUniformLocation(program, "spectralCentroid"),
                 music.spectralCentroid);
         glUniform1f(glGetUniformLocation(program, "stereoWidth"), music.stereoWidth);
+        glUniform1f(glGetUniformLocation(program, "rhythmicDensity"),
+                music.rhythmicDensity);
+        glUniform1f(glGetUniformLocation(program, "syncopation"), music.syncopation);
+        glUniform1f(glGetUniformLocation(program, "tonalMotion"), music.tonalMotion);
+        glUniform1f(glGetUniformLocation(program, "harmonicChange"),
+                music.harmonicChange);
         glUniform1f(glGetUniformLocation(program, "energyFast"), music.energyFast);
         glUniform1f(glGetUniformLocation(program, "energySlow"), music.energySlow);
         glUniform1f(glGetUniformLocation(program, "energySlope"), music.energySlope);
@@ -258,6 +264,8 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
         glUniform1fv(glGetUniformLocation(program, "spectrumLevel[0]"),
                  static_cast<GLsizei>(music.spectrumLevel.size()),
                  music.spectrumLevel.data());
+        glUniform1fv(glGetUniformLocation(program, "chroma[0]"),
+                 static_cast<GLsizei>(music.chroma.size()), music.chroma.data());
         glBindVertexArray(vao_);
         glDrawArrays(GL_TRIANGLES, 0, 3);
         activeTextures_[sceneIndex] = nextTexture;

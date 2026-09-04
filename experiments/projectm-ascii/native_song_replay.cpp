@@ -129,7 +129,8 @@ int main(int argc, char** argv) {
     std::ofstream timeline(outputDirectory / "timeline.tsv");
     timeline << "seconds\tscene\tkick\tsnare\that\tonset_pulse\tbeat_pulse\tbeat_phase"
                 "\tbar\tsection\tflux_sub\tflux_bass\tflux_low_mid\tflux_mid"
-                "\tflux_presence\tflux_high\tmotion\n";
+                "\tflux_presence\tflux_high\trhythmic_density\tsyncopation"
+                "\ttonal_motion\tharmonic_change\tmotion\n";
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) return 1;
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -276,6 +277,8 @@ int main(int argc, char** argv) {
                  << '\t' << music.bandFlux[0] << '\t' << music.bandFlux[1]
                  << '\t' << music.bandFlux[2] << '\t' << music.bandFlux[3]
                  << '\t' << music.bandFlux[4] << '\t' << music.bandFlux[5]
+                 << '\t' << music.rhythmicDensity << '\t' << music.syncopation
+                 << '\t' << music.tonalMotion << '\t' << music.harmonicChange
                  << '\t' << frameMotion << '\n';
 
         const bool periodicCapture = hops % captureInterval == 0;

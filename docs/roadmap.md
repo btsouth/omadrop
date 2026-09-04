@@ -354,3 +354,15 @@ Allow more people to create scenes while keeping the official rotation strict.
 This order improves the existing product before increasing its surface area.
 Each release should be obviously better in use, not only larger in a feature
 list.
+
+## Current progress
+
+Completed after v0.3:
+
+- Added a deterministic 32-second structured fixture and a ten-scene scorecard
+  for transient response, motion coverage, recovery, and silence drift.
+- Removed generic full-frame transient transforms from Spectral Ribbons and
+  Constellation Field, then restored strong role-specific response inside each
+  scene's own geometry.
+- Added normalized chroma, rhythmic density, syncopation, tonal motion, and
+  harmonic-change signals to the shared `MusicFrame` contract.

@@ -12,10 +12,12 @@
 struct AudioFeatures {
     static constexpr std::size_t roleCount = 6;
     static constexpr std::size_t spectrumCount = 32;
+    static constexpr std::size_t chromaCount = 12;
     std::array<float, roleCount> level{};
     std::array<float, roleCount> flux{};
     std::array<float, spectrumCount> spectrumLevel{};
     std::array<float, spectrumCount> spectrumFlux{};
+    std::array<float, chromaCount> chroma{};
     bool kick = false;
     bool snare = false;
     bool hat = false;
@@ -155,6 +157,27 @@ private:
                 sum += std::log1p(std::sqrt(re * re + im * im));
             }
             spectrumMagnitude[band] = sum / std::max(1, last - first + 1);
+        }
+
+        features_.chroma.fill(0.0f);
+        float chromaTotal = 0.0f;
+        const int firstChromaBin = std::max(
+            1, static_cast<int>(55.0f * windowSize / sampleRate));
+        const int lastChromaBin = std::min(
+            windowSize / 2, static_cast<int>(8000.0f * windowSize / sampleRate));
+        for (int bin = firstChromaBin; bin <= lastChromaBin; ++bin) {
+            const float frequency = bin * sampleRate / static_cast<float>(windowSize);
+            const float midi = 69.0f + 12.0f * std::log2(frequency / 440.0f);
+            int pitchClass = static_cast<int>(std::lround(midi)) % 12;
+            if (pitchClass < 0) pitchClass += 12;
+            const float re = fftOutput_[bin][0];
+            const float im = fftOutput_[bin][1];
+            const float value = std::log1p(std::sqrt(re * re + im * im));
+            features_.chroma[static_cast<std::size_t>(pitchClass)] += value;
+            chromaTotal += value;
+        }
+        if (chromaTotal > 1e-6f) {
+            for (float& value : features_.chroma) value /= chromaTotal;
         }
 
         spectrumHistory_[spectrumHistoryCursor_] = spectrumMagnitude;

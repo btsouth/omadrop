@@ -1,5 +1,6 @@
 #include "audio_features.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <string>
@@ -27,6 +28,7 @@ struct TextureResult {
     float percussive = 0.0f;
     float centroid = 0.0f;
     float stereoWidth = 0.0f;
+    int dominantChroma = -1;
 };
 
 TextureResult runTexture(float frequency, float sideAmount) {
@@ -47,8 +49,11 @@ TextureResult runTexture(float frequency, float sideAmount) {
             if (sidePhase >= tau) sidePhase -= tau;
         }
         const auto& features = bus.processStereo(stereo.data(), AudioFeatureBus::hopSize);
+        const auto dominant = std::max_element(
+            features.chroma.begin(), features.chroma.end());
         result = {features.harmonicEnergy, features.percussiveEnergy,
-                  features.spectralCentroid, features.stereoWidth};
+                  features.spectralCentroid, features.stereoWidth,
+                  static_cast<int>(dominant - features.chroma.begin())};
     }
     return result;
 }
@@ -210,6 +215,8 @@ int main() {
     const TextureResult lowTexture = runTexture(110.0f, 0.0f);
     const TextureResult highTexture = runTexture(4800.0f, 0.0f);
     const TextureResult wideTexture = runTexture(440.0f, 0.24f);
+    const TextureResult aChroma = runTexture(440.0f, 0.0f);
+    const TextureResult cChroma = runTexture(261.626f, 0.0f);
 
     bool ok = true;
     const double expectedHopSeconds = AudioFeatureBus::hopSize
@@ -285,6 +292,12 @@ int main() {
     if (lowTexture.stereoWidth > 0.01f || wideTexture.stereoWidth < 0.25f) {
         std::cerr << "stereo width did not separate mono and wide fixtures: "
                   << lowTexture.stereoWidth << "," << wideTexture.stereoWidth << "\n";
+        ok = false;
+    }
+    if (aChroma.dominantChroma != 9 || cChroma.dominantChroma != 0) {
+        std::cerr << "chroma did not identify A and C: "
+                  << aChroma.dominantChroma << "," << cChroma.dominantChroma
+                  << "\n";
         ok = false;
     }
 
