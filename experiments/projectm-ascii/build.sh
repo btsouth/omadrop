@@ -82,6 +82,9 @@ g++ -std=c++20 -O2 -Wall -Wextra arrangement_classifier_test.cpp \
 g++ -std=c++20 -O2 -Wall -Wextra music_frame_test.cpp \
   -o music-frame-test $(pkg-config --cflags --libs fftw3f)
 
+g++ -std=c++20 -O2 -Wall -Wextra musical_motion_test.cpp \
+  -o musical-motion-test $(pkg-config --cflags --libs fftw3f)
+
 g++ -std=c++20 -O2 -Wall -Wextra signal_monitor_test.cpp \
   -o signal-monitor-test $(pkg-config --cflags --libs fftw3f)
 

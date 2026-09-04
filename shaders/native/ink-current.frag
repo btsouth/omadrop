@@ -2,6 +2,12 @@
 in vec2 uv;
 out vec4 color;
 #include "scene-uniforms.glsl"
+uniform vec3 impactMotion;
+uniform float bandMotion[6];
+uniform float spectrumMotion[32];
+uniform float grooveMotion;
+uniform float musicalExpansion;
+uniform float renderSeconds;
 
 // Twisting silk sheets: large folds carry bass, the body carries harmony,
 // traveling creases carry snare, and fine ridges carry treble.
@@ -10,7 +16,7 @@ float spectral(float x) {
     int lo = int(floor(bin));
     int hi = min(lo + 1, 31);
     // A continuous tangent between bins prevents polygonal kinks in the cloth.
-    return 1.0 - exp(-0.65 * mix(spectrumLevel[lo], spectrumLevel[hi],
+    return 1.0 - exp(-0.65 * mix(spectrumMotion[lo], spectrumMotion[hi],
                                  smoothstep(0.0, 1.0, fract(bin))));
 }
 
@@ -19,13 +25,13 @@ void main() {
     vec2 p = (uv - 0.5) * aspect;
     float t = flowTime * 2.5;
     float movement = clamp(motionScale, 0.0, 1.0);
-    float low = 1.0 - exp(-0.70 * (bandLevel[0] + bandLevel[1]));
-    float mid = 1.0 - exp(-0.55 * (bandLevel[2] + bandLevel[3]));
-    float high = 1.0 - exp(-0.55 * (bandLevel[4] + bandLevel[5]));
+    float low = 1.0 - exp(-0.70 * (bandMotion[0] + bandMotion[1]));
+    float mid = 1.0 - exp(-0.55 * (bandMotion[2] + bandMotion[3]));
+    float high = 1.0 - exp(-0.55 * (bandMotion[4] + bandMotion[5]));
     float bassHit = min(kick, 1.25);
     float snareHit = min(snare, 1.25);
     float hatHit = min(hat, 1.25);
-    float breath = 0.12 * drive + 0.065 * peak;
+    float breath = 0.17 * musicalExpansion;
     vec3 cool = mix(vec3(0.008, 0.38, 0.90), palettePrimary(0.2), 0.22);
     vec3 warm = mix(vec3(1.0, 0.16, 0.018), paletteAccent(0.2), 0.12);
     vec3 violet = mix(vec3(0.26, 0.018, 0.65), paletteSecondary(0.2), 0.16);
@@ -42,21 +48,23 @@ void main() {
         float lowZone = exp(-2.6 * (x + 0.30) * (x + 0.30));
         float highZone = exp(-3.8 * (x - 0.38) * (x - 0.38));
         float localBand = spectral(x * 0.48 + 0.5 + 0.018 * f);
+        float bassWeight = 1.0 - 0.65 * depth;
+        float middleWeight = 0.25 + 0.75 * exp(-18.0 * (depth - 0.5) * (depth - 0.5));
+        float trebleWeight = 0.15 + 0.85 * depth;
         // Opposing displacements open a fold instead of scaling the whole image.
         float center = 0.105 * x + (0.14 + breath) * sin(sweep)
                      + 0.09 * sin(x * 1.7 + t * 0.28 - phase)
                      + (depth - 0.5) * 0.25;
-        center += movement * lowZone * bassHit * 0.115 * sin(sweep + 0.9);
-        center += movement * mid * 0.043 * sin(x * 6.0 - t + phase);
+        center += movement * lowZone * impactMotion.x * bassWeight * 0.24 * sin(sweep + 0.9);
+        center += movement * mid * middleWeight * 0.06 * sin(x * 6.0 - t + phase);
         center += movement * localBand * 0.038 * sin(x * 9.0 + phase);
-        center += movement * snareHit * 0.065
+        center += movement * impactMotion.y * middleWeight * 0.12
                 * sin(x * 17.0 - t * 2.1 + phase) * exp(-1.8 * x * x);
-        center += movement * highZone * hatHit * 0.014
+        center += movement * highZone * impactMotion.z * trebleWeight * 0.024
                 * sin(x * 67.0 + phase * 3.0);
         // Groove opens a diagonal fold; phrase and harmonic changes alter its
         // breadth. Confidence gates the inferred beat, never the actual attacks.
-        center += movement * clockConfidence * 0.027
-                * (beatPulse + 0.65 * downbeat - 0.45 * beatAnticipation)
+        center += movement * 0.027 * grooveMotion
                 * sin(sweep - 0.6) * exp(-3.0 * x * x);
         center += movement * 0.033 * (section + harmonicChange)
                 * cos(x * 2.0 + phase);
@@ -108,5 +116,6 @@ void main() {
     result = (vec3(1.0) - exp(-result * 1.55)) * vignette;
     // Short persistence softens edges without obscuring the attack frame.
     vec3 previous = texture(previousFrame, uv).rgb;
-    color = vec4(mix(result, previous, 0.12), 1.0);
+    float persistence = pow(0.12, max(renderSeconds, 1.0 / 240.0) * 60.0);
+    color = vec4(mix(result, previous, persistence), 1.0);
 }

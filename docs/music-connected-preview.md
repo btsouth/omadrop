@@ -136,3 +136,12 @@ desktop windows were opened for that test.
 All 44 installed runtime files match the checkout. Hyprland accepts the preview
 and close bindings without errors. Evidence is in `cache/freeze-20260904/`.
 Full user listening and dual-display presentation remain live validation work.
+
+## Musical dynamics foundation
+
+The user can follow the music but still finds the motion choppy and the
+musical response insufficiently differentiated. Follow
+[engine-dynamics.md](engine-dynamics.md) for the architecture, implementation,
+measured cadence, and remaining acceptance work. Ink Current now uses a shared
+continuous motion layer and display-rate presentation. Other scenes retain
+60 Hz until their feedback and musical behavior are migrated.

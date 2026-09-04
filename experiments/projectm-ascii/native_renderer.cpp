@@ -198,6 +198,7 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
         return 1.25f * (1.0f - std::exp(-gain * std::max(0.0f, value)));
     };
     const float intensity = policy.effectiveIntensity();
+    const auto& musicalMotion = musicalMotion_.update(music, frameSeconds, intensity);
     const float motion = policy.effectiveMotion();
     // Flash limiting belongs to the final luminance compositor. Scaling these
     // values here changes role geometry in shaders that position details from
@@ -293,6 +294,16 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
         glUniform1f(glGetUniformLocation(program, "release"), scene.release);
         glUniform1f(glGetUniformLocation(program, "sceneBeats"), scene.sceneBeats);
         glUniform1f(glGetUniformLocation(program, "motionScale"), motion);
+        glUniform3f(glGetUniformLocation(program, "impactMotion"),
+                    musicalMotion.impact[0], musicalMotion.impact[1], musicalMotion.impact[2]);
+        glUniform1fv(glGetUniformLocation(program, "bandMotion[0]"), 6,
+                     musicalMotion.bands.data());
+        glUniform1fv(glGetUniformLocation(program, "spectrumMotion[0]"), 32,
+                     musicalMotion.spectrum.data());
+        glUniform1f(glGetUniformLocation(program, "grooveMotion"), musicalMotion.groove);
+        glUniform1f(glGetUniformLocation(program, "musicalExpansion"), musicalMotion.expansion);
+        glUniform1f(glGetUniformLocation(program, "renderSeconds"),
+                     std::clamp(frameSeconds, 0.0f, 0.1f));
         glUniform1f(glGetUniformLocation(program, "qualityScale"), quality);
         glUniform3f(glGetUniformLocation(program, "albumColor"),
                 albumColor[0], albumColor[1], albumColor[2]);
@@ -332,6 +343,7 @@ void NativeRenderer::reset() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     activeTextures_.fill(0);
     flowTime_ = 0.0f;
+    musicalMotion_.reset();
 }
 
 void NativeRenderer::shutdown() {
@@ -354,4 +366,5 @@ void NativeRenderer::shutdown() {
     width_ = 0;
     height_ = 0;
     flowTime_ = 0.0f;
+    musicalMotion_.reset();
 }

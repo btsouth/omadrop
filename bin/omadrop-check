@@ -46,6 +46,7 @@ tests=(
   musical-structure-test
   arrangement-classifier-test
   music-frame-test
+  musical-motion-test
   signal-monitor-test
   live-compositor-test
   status-overlay-test

@@ -6,6 +6,10 @@ boring, stale, and insufficiently reactive after this handoff. Follow
 direction and listening prototype. The engineering evidence below remains
 historical evidence, not visual acceptance of the new direction.
 
+The subsequent request for fluid, differentiated musical behavior is tracked
+in [engine-dynamics.md](engine-dynamics.md). That is the current engine plan;
+the listening prototype remains subject to user acceptance.
+
 Updated: 2026-09-04
 
 Implementation checkpoint: `55269930cba1c014a06b914bb7c7995285016bc8`

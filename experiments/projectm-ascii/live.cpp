@@ -637,7 +637,9 @@ int main(int argc, char** argv) {
         std::cerr << "OpenGL context failed: " << SDL_GetError() << "\n";
         return 1;
     }
-    SDL_GL_SetSwapInterval(1);
+    // Wayland still composites without tearing. One pacing authority avoids
+    // combining an incommensurate 60 Hz sleep with 144/165 Hz swap waits.
+    SDL_GL_SetSwapInterval(nativeEnabled && holdNativeScene ? 0 : 1);
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) return 1;
 
@@ -830,7 +832,8 @@ int main(int argc, char** argv) {
     bool reportedPairedMusic = false;
     uint64_t discardedAudioFrames = 0;
     uint64_t lastNonSilentAudioAt = SDL_GetTicks64();
-    uint64_t previousFrameAt = SDL_GetTicks64();
+    auto previousFrameTime = std::chrono::steady_clock::now();
+    double fallbackBudget = 0.0;
     AudioFeatureBus featureBus;
     AudioFeatures audioFeatures;
     MusicalStructureTracker structureTracker;
@@ -1065,12 +1068,46 @@ int main(int argc, char** argv) {
     };
     uint64_t nextSinkPollAt = SDL_GetTicks64() + 2000;
     using FrameClock = std::chrono::steady_clock;
-    constexpr auto frameInterval = std::chrono::nanoseconds(1000000000 / 60);
+    auto frameInterval = std::chrono::nanoseconds(1000000000 / 60);
+    double renderRate = 60.0;
+    uint64_t nextRatePollAt = 0;
+    std::vector<float> pacingSamples;
     auto nextFrame = FrameClock::now() + frameInterval;
     SessionResumeDetector resumeDetector;
     resumeDetector.observe(bootTimeMilliseconds(), SDL_GetTicks64());
     while (running) {
+        const auto frameStarted = FrameClock::now();
+        const float frameSeconds = std::clamp(
+            std::chrono::duration<float>(frameStarted - previousFrameTime).count(),
+            0.0f, 0.1f);
+        previousFrameTime = frameStarted;
         const uint64_t now = SDL_GetTicks64();
+        if (now >= nextRatePollAt) {
+            nextRatePollAt = now + 250;
+            double desiredRate = 60.0;
+            // Only rate-independent scenes opt in. Legacy feedback scenes
+            // retain their authored 60 Hz evolution while they are migrated.
+            const auto& state = nativeSceneDirector.state();
+            if (nativeEnabled && holdNativeScene && !state.transitioning
+                && state.currentScene == NativeSceneKind::InkCurrent) {
+                SDL_DisplayMode mode{};
+                const int currentDisplay = SDL_GetWindowDisplayIndex(window);
+                if (currentDisplay >= 0 && SDL_GetCurrentDisplayMode(currentDisplay, &mode) == 0)
+                    desiredRate = std::clamp(mode.refresh_rate, 60, 240);
+                if (const char* overrideRate = std::getenv("OMADROP_FRAME_RATE")) {
+                    const double value = std::strtod(overrideRate, nullptr);
+                    if (std::isfinite(value)) desiredRate = std::clamp(value, 30.0, 240.0);
+                }
+            }
+            if (desiredRate != renderRate) {
+                renderRate = desiredRate;
+                frameInterval = std::chrono::nanoseconds(
+                    static_cast<long long>(1000000000.0 / renderRate));
+                nextFrame = frameStarted + frameInterval;
+                std::cerr << "presentation: target=" << renderRate << " Hz\n";
+            }
+        }
+        if (gpuDiagnostics) pacingSamples.push_back(frameSeconds * 1000.0f);
         if (resumeDetector.observe(bootTimeMilliseconds(), now)) {
             // Do not replay buffered pre-suspend audio or leave a transient
             // envelope frozen on screen. Keep the scene and feedback image,
@@ -1087,7 +1124,8 @@ int main(int argc, char** argv) {
             musicalEnergy = 0.0f;
             structureClockLocked = false;
             lastNonSilentAudioAt = now;
-            previousFrameAt = now;
+            previousFrameTime = FrameClock::now();
+            fallbackBudget = 0.0;
             reportedAudioMode = false;
             trackSession.resume(now);
             audioCapture.stop();
@@ -1429,10 +1467,26 @@ int main(int argc, char** argv) {
         constexpr std::size_t maximumAnalysisHops = 8;
         unsigned int audioHops = 0;
         if (fallback) {
-            audioHops = 1;
+            fallbackBudget = std::min(0.1, fallbackBudget + frameSeconds);
+            audioHops = static_cast<unsigned int>(fallbackBudget * 60.0 + 1e-6);
+            fallbackBudget -= audioHops / 60.0;
             std::fill_n(pcm.begin(), analysisHopSamples, 0.0f);
+            delayedPcm.clear();
+        } else {
+            fallbackBudget = 0.0;
+            const std::size_t syncDelaySamples
+                = static_cast<std::size_t>(44100 * syncDelayMs / 1000) * 2;
+            // Analyze every complete 60 Hz hop that arrived since the last
+            // video frame. Only discard audio after an exceptional stall, so
+            // normal PipeWire packet bursts do not starve the beat clock.
+            const auto prepared = prepareAudioHops(
+                delayedPcm, syncDelaySamples, analysisHopSamples, maximumAnalysisHops);
+            discardedAudioFrames += prepared.discardedSamples / 2;
+            audioHops = static_cast<unsigned int>(prepared.readableSamples / analysisHopSamples);
+        }
+        for (unsigned int audioHop = 0; audioHop < audioHops; ++audioHop) {
             if (syntheticAudio) {
-                const double seconds = SDL_GetTicks64() / 1000.0;
+                const double seconds = fallbackPhase;
                 constexpr double tau = 6.28318530717958647692;
                 const double kickPulse = std::pow(std::max(0.0, std::cos(seconds * tau * 2.0)), 18.0);
                 const double snarePulse = std::pow(std::max(0.0, std::cos((seconds - 0.25) * tau * 2.0)), 18.0);
@@ -1447,19 +1501,7 @@ int main(int argc, char** argv) {
                 }
                 fallbackPhase += analysisHopFrames / 44100.0;
             }
-            delayedPcm.clear();
-        } else {
-            const std::size_t syncDelaySamples
-                = static_cast<std::size_t>(44100 * syncDelayMs / 1000) * 2;
-            // Analyze every complete 60 Hz hop that arrived since the last
-            // video frame. Only discard audio after an exceptional stall, so
-            // normal PipeWire packet bursts do not starve the beat clock.
-            const auto prepared = prepareAudioHops(
-                delayedPcm, syncDelaySamples, analysisHopSamples, maximumAnalysisHops);
-            discardedAudioFrames += prepared.discardedSamples / 2;
-            audioHops = static_cast<unsigned int>(prepared.readableSamples / analysisHopSamples);
-        }
-        for (unsigned int audioHop = 0; audioHop < audioHops; ++audioHop) {
+
             if (!fallback) {
                 for (std::size_t i = 0; i < analysisHopSamples; ++i) {
                     pcm[i] = delayedPcm.front();
@@ -1952,8 +1994,6 @@ int main(int argc, char** argv) {
             }
         }
 
-        const float frameSeconds = std::min(0.1f, (now - previousFrameAt) / 1000.0f);
-        previousFrameAt = now;
         if (nativeEnabled) {
             const bool manualSceneRequest
                 = !calibrationMode && (skipPreset || previousPreset);
@@ -2211,6 +2251,17 @@ int main(int argc, char** argv) {
                               << std::lround(
                                   adaptiveRenderQuality.quality() * 100.0f)
                               << "%\n";
+                    if (!pacingSamples.empty()) {
+                        double total = 0.0;
+                        for (float value : pacingSamples) total += value;
+                        std::sort(pacingSamples.begin(), pacingSamples.end());
+                        std::cerr << "pacing: target=" << renderRate
+                                  << " Hz mean=" << total / pacingSamples.size()
+                                  << " ms p95=" << pacingSamples[(pacingSamples.size() - 1) * 95 / 100]
+                                  << " ms max=" << pacingSamples.back()
+                                  << " ms audio_time=" << musicFrame.audioTimeSeconds << " s\n";
+                        pacingSamples.clear();
+                    }
                     nextGpuDiagnosticAt = now + 2000;
                 }
             }
@@ -2256,10 +2307,9 @@ int main(int argc, char** argv) {
                 now, coverPresentation.hasArtwork(),
                 coverHoldSeconds, coverDissolveSeconds);
         }
-        // SDL's swap interval is not reliably honored by every Wayland path.
-        // MilkDrop presets contain equations that advance once per rendered
-        // frame, so an uncapped 250-300 FPS loop looks roughly five times too
-        // fast. Keep the engine on a real 60 Hz clock regardless of compositor.
+        // Native preview presentation follows the display clock; classic
+        // feedback keeps its 60 Hz rate. Audio analysis remains on its own
+        // 60 Hz sample clock in both cases.
         const auto afterSwap = FrameClock::now();
         if (nextFrame > afterSwap) std::this_thread::sleep_until(nextFrame);
         nextFrame += frameInterval;

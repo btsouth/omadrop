@@ -1,6 +1,7 @@
 #pragma once
 
 #include "music_frame.h"
+#include "musical_motion.h"
 #include "native_scene_state.h"
 #include "gpu_pass_timer.h"
 
@@ -81,5 +82,6 @@ private:
     int width_ = 0;
     int height_ = 0;
     float flowTime_ = 0.0f;
+    MusicalMotion musicalMotion_;
     GpuPassTimer gpuTimer_;
 };
