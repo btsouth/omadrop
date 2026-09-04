@@ -26,6 +26,9 @@
   focal, depth, fracture, and negative-space paths.
 - Add a hidden production-compositor gallery test for deterministic transition
   review without capturing the desktop.
+- Cover every native scene with at least two incoming and two outgoing
+  production-compositor transition paths, and tighten the reveal boundaries so
+  detailed scenes do not become a muddy double exposure.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

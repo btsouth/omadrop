@@ -192,29 +192,32 @@ vec3 sceneSample(vec2 sampleUv) {
         flow = 0.50 + 0.18 * sin(sampleUv.y * 8.0
                                + sin(sampleUv.x * 5.0) * 1.3)
                     + 0.10 * (sampleUv.x - 0.5);
-        localMix = smoothstep(flow - 0.30, flow + 0.30, easedPresetMix);
+        // Keep the carry edge broad enough to feel fluid, but narrow enough
+        // that two detailed scenes do not spend the middle of the transition
+        // as one low-contrast double exposure.
+        localMix = smoothstep(flow - 0.16, flow + 0.16, easedPresetMix);
     } else if (transitionMode == 7) {
         float radius = length(sampleUv - vec2(0.51, 0.50));
         flow = clamp(radius * 1.18, 0.06, 0.88);
-        localMix = smoothstep(flow - 0.20, flow + 0.20, easedPresetMix);
+        localMix = smoothstep(flow - 0.11, flow + 0.11, easedPresetMix);
     } else if (transitionMode == 8) {
         float radius = length(sampleUv - vec2(0.53, 0.51));
         flow = 0.28 + radius * 0.72
              + 0.055 * sin(radius * 31.0);
-        localMix = smoothstep(flow - 0.23, flow + 0.23, easedPresetMix);
+        localMix = smoothstep(flow - 0.13, flow + 0.13, easedPresetMix);
     } else if (transitionMode == 9) {
         vec2 q = sampleUv - 0.5;
         flow = 0.50
              + 0.14 * sin((q.x + q.y * 0.68) * 18.0)
              + 0.13 * sin((q.x * 0.57 - q.y) * 23.0)
              + 0.065 * sin(q.x * 37.0 + q.y * 5.0);
-        localMix = smoothstep(flow - 0.16, flow + 0.16, easedPresetMix);
+        localMix = smoothstep(flow - 0.09, flow + 0.09, easedPresetMix);
     } else if (transitionMode == 10) {
         vec2 q = sampleUv - vec2(0.51, 0.50);
         flow = 0.50 + 0.17 * sin(q.y * 9.0 + sin(q.x * 7.0) * 1.5)
                     + 0.10 * sin(q.x * 15.0 - q.y * 3.0)
                     + 0.08 * length(q);
-        localMix = smoothstep(flow - 0.19, flow + 0.19, easedPresetMix);
+        localMix = smoothstep(flow - 0.10, flow + 0.10, easedPresetMix);
     } else if (transitionMode == 0) {
         float radius = length(sampleUv - 0.5);
         flow = 0.38 + radius * 0.42 + 0.09 * sin(radius * 35.0);

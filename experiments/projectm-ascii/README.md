@@ -63,6 +63,14 @@ visibility endpoints independently from the audio loop. Cover blending,
 continuous and ASCII materials, backend transitions, and display fades now
 cross one typed frame interface.
 
+The native transition test extracts the production compositor shader and
+renders the five authored grammars without opening a visible window. Its
+coverage graph gives every registered scene at least two incoming and two
+outgoing paths, checks both halves of every transition, and can write review
+frames when an output directory is supplied. Native reveal boundaries stay
+narrow enough to preserve both compositions instead of producing a long
+double exposure.
+
 The MPRIS poller test exercises the asynchronous helper lifecycle, valid and
 invalid state parsing, the no-player result, duplicate-start protection, and
 cleanup. The render loop consumes completed track observations without owning

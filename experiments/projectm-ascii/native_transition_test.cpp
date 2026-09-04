@@ -185,13 +185,11 @@ int main(int argc, char** argv) {
         {NativeSceneKind::NegativeSpace, NativeSceneKind::ShadowArchitecture,
          NativeTransitionStyle::NegativeSpaceReveal},
     }};
-    std::set<NativeSceneKind> scenes;
-    for (const TransitionReview& review : reviews) {
-        scenes.insert(review.source);
-        scenes.insert(review.incoming);
-    }
     for (int frame = 0; frame < 180; ++frame) {
-        for (const NativeSceneKind kind : scenes) {
+        for (std::size_t sceneIndex = 0;
+             sceneIndex < nativeSceneCount; ++sceneIndex) {
+            const NativeSceneKind kind
+                = static_cast<NativeSceneKind>(sceneIndex);
             NativeSceneState state;
             state.currentScene = kind;
             state.incomingScene = kind;
@@ -256,6 +254,86 @@ int main(int argc, char** argv) {
                   << static_cast<int>(review.expectedStyle)
                   << " halves=" << firstHalf << ',' << secondHalf << '\n';
     }
+
+    // Every scene gets two deterministic outgoing paths. Because both offsets
+    // are permutations of the registry, every scene also gets two incoming
+    // paths. This exercises the exact production compositor and style chooser,
+    // not a simplified transition shader.
+    std::array<unsigned int, nativeSceneCount> outgoing{};
+    std::array<unsigned int, nativeSceneCount> incoming{};
+    constexpr std::array<int, 2> coverageOffsets{1, 7};
+    constexpr std::array<float, 3> coverageProgress{0.0f, 0.5f, 1.0f};
+    std::size_t coveragePaths = 0;
+    for (std::size_t sourceIndex = 0;
+         sourceIndex < nativeSceneCount; ++sourceIndex) {
+        const NativeSceneKind source
+            = static_cast<NativeSceneKind>(sourceIndex);
+        for (const int offset : coverageOffsets) {
+            const NativeSceneKind target = nativeSceneOffset(source, offset);
+            assert(source != target);
+            const NativeTransitionStyle style
+                = nativeTransitionStyle(source, target);
+            std::vector<unsigned char> first;
+            std::vector<unsigned char> middle;
+            std::vector<unsigned char> last;
+            for (std::size_t progressIndex = 0;
+                 progressIndex < coverageProgress.size(); ++progressIndex) {
+                const float mix = coverageProgress[progressIndex];
+                const NativeSceneMaterial sourceMaterial
+                    = nativeSceneMaterial(source);
+                const NativeSceneMaterial targetMaterial
+                    = nativeSceneMaterial(target);
+                LiveCompositorFrame frame;
+                frame.sourceTexture = renderer.texture(source);
+                frame.nextTexture = renderer.texture(target);
+                frame.coverTexture = black;
+                frame.width = width;
+                frame.height = height;
+                frame.sceneMix = mix;
+                frame.transitionMode = static_cast<int>(style);
+                frame.fieldExposure = sourceMaterial.fieldExposure * (1.0f - mix)
+                                    + targetMaterial.fieldExposure * mix;
+                frame.asciiExposure = sourceMaterial.asciiExposure * (1.0f - mix)
+                                    + targetMaterial.asciiExposure * mix;
+                frame.nativeRenderer = true;
+                frame.visibility = 1.0f;
+                assert(compositor.render(frame, error));
+                glFinish();
+                std::vector<unsigned char> pixels = readFrame();
+                if (progressIndex == 0) first = pixels;
+                if (progressIndex == 1) middle = pixels;
+                if (progressIndex == 2) last = pixels;
+                if (!output.empty()) {
+                    const std::string name = "coverage-"
+                        + std::string(nativeSceneDefinition(source).slug)
+                        + "-to-"
+                        + std::string(nativeSceneDefinition(target).slug)
+                        + '-' + std::to_string(progressIndex) + ".ppm";
+                    assert(writePpm(output / name, pixels));
+                }
+            }
+            const float firstHalf = meanDifference(first, middle);
+            const float secondHalf = meanDifference(middle, last);
+            if (firstHalf <= 0.002f || secondHalf <= 0.002f) {
+                std::cerr << "weak transition coverage "
+                          << nativeSceneName(source) << " -> "
+                          << nativeSceneName(target) << " mode="
+                          << static_cast<int>(style) << " halves="
+                          << firstHalf << ',' << secondHalf << '\n';
+                return 1;
+            }
+            ++outgoing[sourceIndex];
+            ++incoming[static_cast<std::size_t>(target)];
+            ++coveragePaths;
+        }
+    }
+    for (std::size_t index = 0; index < nativeSceneCount; ++index) {
+        assert(outgoing[index] >= 2);
+        assert(incoming[index] >= 2);
+    }
+    std::cout << "transition coverage scenes=" << nativeSceneCount
+              << " paths=" << coveragePaths
+              << " incoming_per_scene=2 outgoing_per_scene=2\n";
 
     compositor.shutdown();
     renderer.shutdown();

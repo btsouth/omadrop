@@ -519,7 +519,9 @@ Completed after v0.3:
   premature motif recall after only 3.4 seconds.
 - Added five native transition grammars selected from scene compatibility:
   flow carry, focal morph, depth travel, controlled fracture, and
-  negative-space reveal. The four post-v0.3 scenes have explicit authored
-  paths, multi-display state accepts every native mode, and a hidden
-  production-compositor harness renders six deterministic review frames for
-  each grammar without desktop contamination.
+  negative-space reveal. All 18 scenes now have at least two deterministic
+  incoming and outgoing production-compositor paths. Multi-display state
+  accepts every native mode, and a hidden harness checks both halves of every
+  path while optionally rendering review frames without desktop contamination.
+  Narrow spatial reveal boundaries preserve the identity of both scenes
+  instead of holding a soft double exposure through the midpoint.
