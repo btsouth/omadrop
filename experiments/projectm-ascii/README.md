@@ -17,6 +17,8 @@ Run the native music-contract and render audits with:
 
 ```sh
 ./experiments/projectm-ascii/music-frame-test
+./experiments/projectm-ascii/signal-monitor-test
+./experiments/projectm-ascii/live-compositor-test
 ./experiments/projectm-ascii/mpris-state-test
 ./experiments/projectm-ascii/audio-output-session-test \
   ./experiments/projectm-ascii/fixtures/fake-pw-record
@@ -43,6 +45,12 @@ start.
 The demo-audio audit test accepts a capture with the approved opening at a
 known delay and rejects a different source. This protects the release recorder
 from silently accepting desktop audio that does not belong in the demo.
+
+The live-compositor test owns the final display pass in a hidden OpenGL
+context. It verifies texture presentation and the launch and shutdown
+visibility endpoints independently from the audio loop. Cover blending,
+continuous and ASCII materials, backend transitions, and display fades now
+cross one typed frame interface.
 
 The renderer soak runs at 1920x1080 by default, cycles through every scene and
 the transition to its successor, and synchronizes each frame for real GPU

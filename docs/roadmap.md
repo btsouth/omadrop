@@ -444,3 +444,7 @@ Completed after v0.3:
   and bar phase, clock confidence, separate percussion roles, rhythmic density,
   and section novelty over the rendered scene, while the timeline records BPM
   and confidence numerically. Normal playback cannot enable the monitor.
+- Extracted the final display compositor from the live application loop. Cover
+  blending, continuous and ASCII material, backend transitions, per-preset
+  reactions, and launch and shutdown visibility now cross one typed frame
+  interface with an independent hidden-context OpenGL test.

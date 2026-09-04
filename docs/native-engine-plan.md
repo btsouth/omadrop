@@ -31,6 +31,9 @@ MPRIS   -> TrackState -----------------------^            |
                                       feedback and scene render
                                                          |
                                                          v
+                                            LiveCompositor
+                                                         |
+                                                         v
                                              ASCII/native material
 ```
 
@@ -41,6 +44,9 @@ output can be compared under identical input.
 The native renderer uses separate passes for scene injection, feedback
 advection, transition composition, and display material. The first vertical
 slice combines injection and feedback while the interface is validated.
+The final display pass is isolated from the live loop behind
+`LiveCompositorFrame`, so cover blending, material choice, backend transitions,
+and visibility fades can be tested without audio capture or window control.
 
 ## Delivery stages
 

@@ -8,8 +8,8 @@ g++ -std=c++20 -O2 -Wall -Wextra main.cpp -o projectm-ascii \
   $(pkg-config --libs sdl2) -lprojectM-4 -lGL
 
 g++ -std=c++20 -O2 -Wall -Wextra live.cpp audio_output_session.cpp live_assets.cpp \
-  live_projectm.cpp live_settings.cpp native_renderer.cpp paired_transport.cpp \
-  pipewire_capture.cpp \
+  live_compositor.cpp live_projectm.cpp live_settings.cpp native_renderer.cpp \
+  paired_transport.cpp pipewire_capture.cpp \
   -o projectm-ascii-live \
   $(pkg-config --cflags projectM-4 sdl2 glew libpng fftw3f json-c) \
   $(pkg-config --libs sdl2 glew libpng fftw3f json-c) -lprojectM-4 -lGL
@@ -52,6 +52,9 @@ g++ -std=c++20 -O2 -Wall -Wextra music_frame_test.cpp \
 
 g++ -std=c++20 -O2 -Wall -Wextra signal_monitor_test.cpp \
   -o signal-monitor-test $(pkg-config --cflags --libs fftw3f)
+
+g++ -std=c++20 -O2 -Wall -Wextra live_compositor_test.cpp live_compositor.cpp \
+  -o live-compositor-test $(pkg-config --cflags --libs sdl2 glew) -lGL
 
 g++ -std=c++20 -O2 -Wall -Wextra native_scene_state_test.cpp \
   -o native-scene-state-test $(pkg-config --cflags --libs fftw3f)

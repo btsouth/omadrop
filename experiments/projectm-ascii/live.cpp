@@ -29,6 +29,7 @@
 #include "audio_output_session.h"
 #include "audio_queue.h"
 #include "live_assets.h"
+#include "live_compositor.h"
 #include "live_projectm.h"
 #include "live_settings.h"
 #include "mpris_state.h"
@@ -352,21 +353,6 @@ void main() {
 }
 )GLSL";
 
-GLuint compileShader(GLenum type, const char* source) {
-    GLuint shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, nullptr);
-    glCompileShader(shader);
-    GLint ok = GL_FALSE;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
-    if (!ok) {
-        std::array<char, 4096> log{};
-        glGetShaderInfoLog(shader, static_cast<GLsizei>(log.size()), nullptr, log.data());
-        std::cerr << log.data() << "\n";
-        std::exit(1);
-    }
-    return shader;
-}
-
 } // namespace
 
 int main(int argc, char** argv) {
@@ -518,14 +504,12 @@ int main(int argc, char** argv) {
     glBindTexture(GL_TEXTURE_2D, coverTexture);
     const std::array<unsigned char, 4> blackPixel{0, 0, 0, 255};
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, blackPixel.data());
-    GLuint vertex = compileShader(GL_VERTEX_SHADER, vertexSource);
-    GLuint fragment = compileShader(GL_FRAGMENT_SHADER, fragmentSource);
-    GLuint program = glCreateProgram();
-    glAttachShader(program, vertex);
-    glAttachShader(program, fragment);
-    glLinkProgram(program);
-    GLuint vao = 0;
-    glGenVertexArrays(1, &vao);
+    LiveCompositor compositor;
+    std::string compositorError;
+    if (!compositor.initialize(vertexSource, fragmentSource, compositorError)) {
+        std::cerr << "display compositor: " << compositorError << "\n";
+        return 1;
+    }
     std::unique_ptr<NativeRenderer> nativeRenderer;
     if (nativeEnabled) {
         nativeRenderer = std::make_unique<NativeRenderer>();
@@ -1657,29 +1641,6 @@ int main(int argc, char** argv) {
                              / static_cast<float>(presetTransitionDuration), 0.0f, 1.0f)
                 : 0.0f;
 
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glViewport(0, 0, outputW, outputH);
-        // projectM presets leave arbitrary fixed-function state behind for
-        // their own composite pass. The Omadrop pass starts from a known state.
-        glDisable(GL_BLEND);
-        glDisable(GL_DEPTH_TEST);
-        glDisable(GL_SCISSOR_TEST);
-        glDisable(GL_CULL_FACE);
-        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glUseProgram(program);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, renderedSourceTexture);
-        glUniform1i(glGetUniformLocation(program, "sourceFrame"), 0);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, coverTexture);
-        glUniform1i(glGetUniformLocation(program, "coverFrame"), 1);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, renderedNextTexture);
-        glUniform1i(glGetUniformLocation(program, "nextFrame"), 2);
-        glUniform1f(glGetUniformLocation(program, "presetMix"), presetBlend);
-        glUniform1i(glGetUniformLocation(program, "transitionMode"),
-                    nativeEnabled ? 6 : transitionMode);
         const PresetProfile& sourceProfile = profileForPreset(presets[
             presetTransitionActive ? transitionOutgoingPresetIndex : presetIndex]);
         const PresetProfile& nextProfile = profileForPreset(presets[presetIndex]);
@@ -1700,38 +1661,6 @@ int main(int argc, char** argv) {
                                  * (1.0f - presetBlend)
                                  + nextMaterial.fieldExposure * presetBlend;
         }
-        glUniform1i(glGetUniformLocation(program, "sourceReactionMode"),
-                    reactionMode(sourceProfile));
-        glUniform1i(glGetUniformLocation(program, "nextReactionMode"),
-                    reactionMode(nextProfile));
-        glUniform3f(glGetUniformLocation(program, "sourceReactionGain"),
-                    nativeEnabled ? 0.0f : sourceProfile.kickGain * reactionScale,
-                    nativeEnabled ? 0.0f : sourceProfile.snareGain * reactionScale,
-                    nativeEnabled ? 0.0f : sourceProfile.hatGain * reactionScale);
-        glUniform3f(glGetUniformLocation(program, "nextReactionGain"),
-                    nativeEnabled ? 0.0f : nextProfile.kickGain * reactionScale,
-                    nativeEnabled ? 0.0f : nextProfile.snareGain * reactionScale,
-                    nativeEnabled ? 0.0f : nextProfile.hatGain * reactionScale);
-        glUniform1f(glGetUniformLocation(program, "asciiExposure"),
-                    displayAsciiExposure);
-        glUniform1f(glGetUniformLocation(program, "fieldExposure"),
-                    displayFieldExposure);
-        glUniform1i(glGetUniformLocation(program, "nativeRenderer"),
-                    nativeEnabled ? 1 : 0);
-        glUniform2f(glGetUniformLocation(program, "resolution"), static_cast<float>(outputW), static_cast<float>(outputH));
-        glUniform1f(glGetUniformLocation(program, "coverAspect"), coverAspect);
-        glUniform1f(glGetUniformLocation(program, "coverMix"), coverBlend);
-        glUniform3f(glGetUniformLocation(program, "albumColor"),
-                    albumColor[0], albumColor[1], albumColor[2]);
-        glUniform1f(glGetUniformLocation(program, "paletteInfluence"),
-                    nativeEnabled ? 0.0f : paletteInfluence);
-        glUniform1f(glGetUniformLocation(program, "bassLevel"), normalizedBass);
-        glUniform1f(glGetUniformLocation(program, "bassImpact"), bassImpact);
-        glUniform1f(glGetUniformLocation(program, "midLevel"), normalizedMid);
-        glUniform1f(glGetUniformLocation(program, "trebleLevel"), normalizedTreble);
-        glUniform1f(glGetUniformLocation(program, "midImpact"), midImpact);
-        glUniform1f(glGetUniformLocation(program, "trebleImpact"), trebleImpact);
-        glUniform1i(glGetUniformLocation(program, "asciiEnabled"), asciiEnabled ? 1 : 0);
         const auto ease = [](float value) {
             const float position = std::clamp(value, 0.0f, 1.0f);
             return position * position * (3.0f - 2.0f * position);
@@ -1741,9 +1670,49 @@ int main(int argc, char** argv) {
         const float exit = closing
             ? 1.0f - ease((now - closeStartedAt)
                 / static_cast<float>(closeDurationMs)) : 1.0f;
-        glUniform1f(glGetUniformLocation(program, "visibility"), entrance * exit);
-        glBindVertexArray(vao);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        const LiveCompositorFrame displayFrame{
+            .sourceTexture = renderedSourceTexture,
+            .nextTexture = renderedNextTexture,
+            .coverTexture = coverTexture,
+            .width = outputW,
+            .height = outputH,
+            .sceneMix = presetBlend,
+            .transitionMode = nativeEnabled ? 6 : transitionMode,
+            .sourceReactionMode = reactionMode(sourceProfile),
+            .nextReactionMode = reactionMode(nextProfile),
+            .sourceReactionGain = nativeEnabled
+                ? std::array<float, 3>{}
+                : std::array<float, 3>{
+                    sourceProfile.kickGain * reactionScale,
+                    sourceProfile.snareGain * reactionScale,
+                    sourceProfile.hatGain * reactionScale},
+            .nextReactionGain = nativeEnabled
+                ? std::array<float, 3>{}
+                : std::array<float, 3>{
+                    nextProfile.kickGain * reactionScale,
+                    nextProfile.snareGain * reactionScale,
+                    nextProfile.hatGain * reactionScale},
+            .asciiExposure = displayAsciiExposure,
+            .fieldExposure = displayFieldExposure,
+            .nativeRenderer = nativeEnabled,
+            .coverAspect = coverAspect,
+            .coverMix = coverBlend,
+            .albumColor = albumColor,
+            .paletteInfluence = nativeEnabled ? 0.0f : paletteInfluence,
+            .bassLevel = normalizedBass,
+            .bassImpact = bassImpact,
+            .midLevel = normalizedMid,
+            .trebleLevel = normalizedTreble,
+            .midImpact = midImpact,
+            .trebleImpact = trebleImpact,
+            .asciiEnabled = asciiEnabled,
+            .visibility = entrance * exit,
+        };
+        if (!compositor.render(displayFrame, compositorError)) {
+            std::cerr << "display compositor: " << compositorError << "\n";
+            running = false;
+            continue;
+        }
         if (!startGateOpened) {
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
@@ -1781,9 +1750,7 @@ int main(int argc, char** argv) {
     nativeRenderer.reset();
     projectm_destroy(engines[0]);
     projectm_destroy(engines[1]);
-    glDeleteProgram(program);
-    glDeleteShader(vertex);
-    glDeleteShader(fragment);
+    compositor.shutdown();
     glDeleteTextures(2, frameTextures.data());
     glDeleteTextures(1, &coverTexture);
     SDL_GL_DeleteContext(context);
