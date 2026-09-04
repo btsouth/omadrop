@@ -73,7 +73,7 @@ NativeSceneKind automaticChoiceWithPreferences(
 }
 
 int main() {
-    assert(nativeSceneRegistryVersion == 14);
+    assert(nativeSceneRegistryVersion == 15);
     std::set<std::string> sceneSlugs;
     std::set<std::string> sceneShaders;
     for (std::size_t index = 0; index < nativeSceneRegistry.size(); ++index) {
@@ -82,6 +82,7 @@ int main() {
         assert(sceneSlugs.insert(std::string(definition.slug)).second);
         assert(sceneShaders.insert(std::string(definition.shader)).second);
         assert((definition.musicalRoles & transientRoles) == transientRoles);
+        assert((definition.musicalRoles & GrooveRole) == GrooveRole);
         assert(definition.maximumQuietMotionCoverage > 0.0f);
         assert(definition.maximumQuietMotionCoverage <= 0.50f);
         assert(definition.maximumGlobalPulse > 0.0f);

@@ -55,9 +55,10 @@ ship decision.
   frame. No more than one third of the library may use this grammar.
 
 A scene fails the automated quality floor when it exceeds its coverage budget.
-It also fails when an isolated kick, snare, or hat changes less than 0.025
-percent mean frame luminance. This absolute floor prevents a nearly motionless
-baseline from turning an invisible gesture into an impressive response ratio.
+Beat, kick, snare, and hat motion must each reach at least 1.75 times quiet
+motion. An isolated kick, snare, or hat must also change at least 0.025 percent
+mean frame luminance. This absolute floor prevents a nearly motionless baseline
+from turning an invisible gesture into an impressive response ratio.
 It also fails when sustained low, middle, or high-frequency material disappears
 between attacks, or when those groups change the same pixels. This keeps the
 song readable without requiring the scene to bounce on every transient.

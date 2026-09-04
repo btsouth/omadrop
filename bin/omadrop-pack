@@ -158,7 +158,8 @@ def expand_shader(path: Path, pack_root: Path, api_root: Path,
 
 def validate_shader(path: Path, pack_root: Path, api_root: Path,
                     context: str, quiet_limit: float, pulse_limit: float,
-                    frame_limit: float, run_dynamic: bool = True) -> str:
+                    frame_limit: float, groove_required: bool,
+                    run_dynamic: bool = True) -> str:
     source = path.read_text(encoding="utf-8")
     if not re.search(r"^#version\s+330\s+core\s*$", source, re.MULTILINE):
         raise ValidationError(f"{context} must declare #version 330 core")
@@ -213,7 +214,8 @@ def validate_shader(path: Path, pack_root: Path, api_root: Path,
                 "scene-pack-audit is required; run experiments/projectm-ascii/build.sh")
         audit_result = subprocess.run(
             [str(audit), str(vertex), shader.name, str(quiet_limit),
-             str(pulse_limit), str(frame_limit)],
+             str(pulse_limit), str(frame_limit),
+             "1" if groove_required else "0"],
             capture_output=True, text=True, timeout=30, check=False)
     if audit_result.returncode != 0:
         details = (audit_result.stderr or audit_result.stdout).strip().splitlines()
@@ -292,7 +294,8 @@ def validate_scene(scene: Any, index: int, root: Path,
     string_field(attribution, "license", f"{context}.attribution")
     audit = validate_shader(
         contained_file(root, shader_name, f"{context}.shader"),
-        root, api_root, f"{context}.shader", quiet, pulse, frame, run_dynamic)
+        root, api_root, f"{context}.shader", quiet, pulse, frame,
+        "groove" in role_set, run_dynamic)
     return slug, audit
 
 

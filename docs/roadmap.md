@@ -62,9 +62,9 @@ Every scene, transition, and release must pass the same review.
 - Preserve readable beat motion across sparse acoustic, dense electronic, and
   heavily compressed mixes.
 
-The initial quantitative floor is 1.75 times quiet-frame motion for each
-declared transient response. Existing baselines will determine stricter
-per-scene thresholds. A high score does not compensate for ugly motion.
+The initial quantitative floor is 1.75 times quiet-frame motion for beat, kick,
+snare, and hat response. Existing baselines will determine stricter per-scene
+thresholds. A high score does not compensate for ugly motion.
 
 ### Visual composition
 
@@ -724,3 +724,8 @@ Completed after v0.3:
   minute of strong headroom. Shadow Architecture retains 0.987 luminance-shape
   similarity at the lowest level while its measured render cost falls about
   15 percent on the reference GPU.
+- Made groove response part of the enforced scene floor instead of a reported
+  metric. Every official scene now declares a beat role and must move at least
+  1.75 times its quiet baseline on detected beats. Pulse Cathedral carries the
+  added margin through its local architectural arch, without moving or
+  brightening the whole composition.

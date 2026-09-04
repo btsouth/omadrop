@@ -163,6 +163,7 @@ RoleAudit auditRole(NativeRenderer& renderer, int role, float quietMotion,
     if (role == 0) gesture.kick = 0.92f;
     if (role == 1) gesture.snare = 0.92f;
     if (role == 2) gesture.hat = 0.92f;
+    if (role == 3) gesture.beatPulse = 0.92f;
     if (!render(renderer, gesture, auditWidth, auditHeight, error)) return {};
     std::vector<float> previous = readLuminance(renderer.texture(),
                                                 auditWidth, auditHeight);
@@ -192,14 +193,21 @@ void fail(std::vector<std::string>& failures, bool condition,
 } // namespace
 
 int main(int argc, char** argv) {
-    if (argc != 6) {
+    if (argc != 7) {
         std::cerr << "usage: scene-pack-audit VERTEX_SHADER FRAGMENT_SHADER "
-                     "QUIET_COVERAGE_LIMIT GLOBAL_PULSE_LIMIT FRAME_MS_LIMIT\n";
+                     "QUIET_COVERAGE_LIMIT GLOBAL_PULSE_LIMIT FRAME_MS_LIMIT "
+                     "REQUIRE_GROOVE\n";
         return 2;
     }
     const float quietCoverageLimit = std::strtof(argv[3], nullptr);
     const float globalPulseLimit = std::strtof(argv[4], nullptr);
     const float frameMillisecondsLimit = std::strtof(argv[5], nullptr);
+    const std::string requireGrooveArgument = argv[6];
+    if (requireGrooveArgument != "0" && requireGrooveArgument != "1") {
+        std::cerr << "scene pack audit: REQUIRE_GROOVE must be 0 or 1\n";
+        return 2;
+    }
+    const bool requireGroove = requireGrooveArgument == "1";
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         std::cerr << "scene pack audit: SDL initialization failed\n";
@@ -268,6 +276,8 @@ int main(int argc, char** argv) {
     const RoleAudit kick = auditRole(renderer, 0, quietMotion, error);
     const RoleAudit snare = auditRole(renderer, 1, quietMotion, error);
     const RoleAudit hat = auditRole(renderer, 2, quietMotion, error);
+    const RoleAudit groove = requireGroove
+        ? auditRole(renderer, 3, quietMotion, error) : RoleAudit{};
 
     renderer.reset();
     for (int frame = 0; frame < 20; ++frame) {
@@ -303,6 +313,16 @@ int main(int argc, char** argv) {
         fail(failures, roles[index].recovery > 0.75f,
              std::string(names[index]) + " gesture does not recover within 167 ms");
     }
+    if (requireGroove) {
+        fail(failures, groove.motion.mean < responseFloor,
+             "groove response is not visible");
+        fail(failures, groove.ratio < 1.75f,
+             "groove response is below 1.75x quiet motion");
+        fail(failures, groove.motion.globalPulse > globalPulseLimit,
+             "groove global pulse exceeds declaration");
+        fail(failures, groove.recovery > 0.75f,
+             "groove gesture does not recover within 167 ms");
+    }
     const float minimumCoverage = std::min({kick.motion.coverage,
                                             snare.motion.coverage,
                                             hat.motion.coverage});
@@ -325,6 +345,11 @@ int main(int argc, char** argv) {
               << "scene_pack_audit silence=" << silenceDrift
               << " quiet_motion=" << quietMotion
               << " quiet_coverage=" << quietCoverage
+              << " groove_required=" << (requireGroove ? 1 : 0)
+              << " groove_ratio=" << groove.ratio
+              << " groove_motion=" << groove.motion.mean
+              << " groove_pulse=" << groove.motion.globalPulse
+              << " groove_recovery=" << groove.recovery
               << " kick_ratio=" << kick.ratio
               << " kick_motion=" << kick.motion.mean
               << " kick_coverage=" << kick.motion.coverage

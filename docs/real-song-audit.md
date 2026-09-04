@@ -17,8 +17,8 @@ rejects any different file.
 ## 2026-09-04 result
 
 Both complete tracks pass all 18 native scene gates. Each scene has separate
-kick, snare, and hat movement, near-still silence, bounded quiet motion, fast
-gesture recovery, and no broad continuous pulse.
+beat, kick, snare, and hat movement, near-still silence, bounded quiet motion,
+fast gesture recovery, and no broad continuous pulse.
 
 | Result | beat me | To Free Me |
 | --- | ---: | ---: |
@@ -26,7 +26,8 @@ gesture recovery, and no broad continuous pulse.
 | Highest mean global pulse | 9.85% | 8.40% |
 | Highest moderate-pulse duty | 45.09% | 32.84% |
 | Highest severe-pulse duty | 7.86% | 5.92% |
-| Weakest kick response | 2.09x | 2.75x |
+| Weakest beat response | 2.07x | 2.52x |
+| Weakest kick response | 2.20x | 2.87x |
 | Weakest snare response | 1.81x | 1.94x |
 | Weakest hat response | 2.06x | 2.12x |
 | Highest silence drift | 0.00117 | 0.00117 |

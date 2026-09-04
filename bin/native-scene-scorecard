@@ -151,7 +151,8 @@ for row in "${scenes[@]}"; do
         || motion_review=broad+slow-recovery
     } || true
   status=PASS
-  awk -v kick="$kick" -v snare="$snare" -v hat="$hat" -v drift="$drift" \
+  awk -v beat="$beat" -v kick="$kick" -v snare="$snare" -v hat="$hat" \
+    -v drift="$drift" \
     -v quiet_coverage="$quiet_coverage" -v limit="$quiet_coverage_limit" \
     -v pulse_limit="$global_pulse_limit" -v kick_pulse="$kick_global_pulse" \
     -v snare_pulse="$snare_global_pulse" -v hat_pulse="$hat_global_pulse" \
@@ -159,7 +160,7 @@ for row in "${scenes[@]}"; do
     -v duty_10_limit="$pulse_duty_10_limit" \
     -v pulse_duty_20="$pulse_duty_20" \
     -v duty_20_limit="$pulse_duty_20_limit" \
-    'BEGIN { exit !(kick >= 1.75 && snare >= 1.75 && hat >= 1.75 && drift <= 0.003 && quiet_coverage <= limit && kick_pulse <= pulse_limit && snare_pulse <= pulse_limit && hat_pulse <= pulse_limit && pulse_duty_10 <= duty_10_limit && pulse_duty_20 <= duty_20_limit) }' || {
+    'BEGIN { exit !(beat >= 1.75 && kick >= 1.75 && snare >= 1.75 && hat >= 1.75 && drift <= 0.003 && quiet_coverage <= limit && kick_pulse <= pulse_limit && snare_pulse <= pulse_limit && hat_pulse <= pulse_limit && pulse_duty_10 <= duty_10_limit && pulse_duty_20 <= duty_20_limit) }' || {
       status=TUNE
       failed=1
     }
@@ -185,7 +186,7 @@ done
   echo
   echo "Audio: $source_label"
   echo
-  echo 'The transient floor is 1.75x quiet motion for kick, snare, and hat. The absolute silence-drift ceiling is 0.003. Each scene also has a non-transient motion coverage budget based on its sparse, selective, or flow grammar. Global pulse combines changed area with same-direction luminance motion, so a full-frame flash approaches 1.0 while localized or counter-moving detail stays lower. Two duty limits prevent moderate broad motion from becoming constant before it reaches the existing severe-pulse threshold. A scene also fails when kick, snare, and hat all move a similarly broad area, or when their responses recover so slowly that they accumulate into constant motion. Recovery compares motion 167 ms after an isolated hit with motion on the hit; a new transient cancels that sample. These are regression gates, not a substitute for visual review.'
+  echo 'The beat, kick, snare, and hat floor is 1.75x quiet motion. The absolute silence-drift ceiling is 0.003. Each scene also has a non-transient motion coverage budget based on its sparse, selective, or flow grammar. Global pulse combines changed area with same-direction luminance motion, so a full-frame flash approaches 1.0 while localized or counter-moving detail stays lower. Two duty limits prevent moderate broad motion from becoming constant before it reaches the existing severe-pulse threshold. A scene also fails when kick, snare, and hat all move a similarly broad area, or when their responses recover so slowly that they accumulate into constant motion. Recovery compares motion 167 ms after an isolated hit with motion on the hit; a new transient cancels that sample. These are regression gates, not a substitute for visual review.'
   echo
   echo '| Scene | Grammar | Quiet coverage | Pulse duty 10/20 | Beat | Kick | Snare | Hat | K/S/H coverage | K/S/H global pulse | K/S/H recovery | Motion | Silence | Status |'
   echo '| --- | :---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :---: | ---: | :---: |'

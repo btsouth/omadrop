@@ -47,6 +47,19 @@ assert api_root == pathlib.Path(root) / "scene-api" / "1"
 assert (api_root / "scene-uniforms.glsl").is_file()
 PY
 
+make_case optional-groove
+python3 - "$scratch/optional-groove/pack.json" <<'PY'
+import json
+import sys
+path = sys.argv[1]
+data = json.load(open(path, encoding="utf-8"))
+data["scenes"][0]["roles"].remove("groove")
+json.dump(data, open(path, "w", encoding="utf-8"))
+PY
+"$validator" validate "$scratch/optional-groove" \
+  >"$scratch/optional-groove.log"
+grep -q '^scene pack valid:' "$scratch/optional-groove.log"
+
 make_case missing-role
 python3 - "$scratch/missing-role/pack.json" <<'PY'
 import json
@@ -144,6 +157,14 @@ void main() {
 }
 ''')
 PY
+python3 - "$scratch/duplicate-role-shape/pack.json" <<'PY'
+import json
+import sys
+path = sys.argv[1]
+data = json.load(open(path, encoding="utf-8"))
+data["scenes"][0]["roles"].remove("groove")
+json.dump(data, open(path, "w", encoding="utf-8"))
+PY
 expect_invalid duplicate-role-shape 'do not have distinct visual roles'
 
 make_case invisible-role
@@ -167,6 +188,16 @@ void main() {
 ''')
 PY
 expect_invalid invisible-role 'kick response is not visible'
+
+make_case missing-groove-response
+python3 - "$scratch/missing-groove-response/scenes/local-orbit.frag" <<'PY'
+import sys
+path = sys.argv[1]
+text = open(path, encoding="utf-8").read()
+text = text.replace("* beatPulse;", "* 0.0;")
+open(path, "w", encoding="utf-8").write(text)
+PY
+expect_invalid missing-groove-response 'groove response is not visible'
 
 if "$validator" author "$example" missing-scene \
     >"$scratch/missing-scene.log" 2>&1; then

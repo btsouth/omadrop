@@ -81,7 +81,8 @@ void main() {
                    + secondary * (aisle + floorBars) * (0.09 + 0.06 * energySlow)
                    + accent * windows * (0.34 + 0.28 * hat)
                    + mix(primary, accent, 0.38) * roseWindow * 0.15
-                   + accent * (beatArch + downbeatArch + sectionRose) * 0.24
+                   + accent * (downbeatArch + sectionRose) * 0.24
+                   + accent * beatArch * 0.40
                    + mix(primary, secondary, 0.5) * ambience * 0.08;
     injection *= 1.0 - 0.56 * release;
     float compositionMask = mix(1.0, 0.72,

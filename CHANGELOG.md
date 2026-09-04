@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Enforce visible beat response in every official scene alongside kick, snare,
+  and hat response. Pulse Cathedral strengthens only its local architectural
+  beat arch, without adding global scale, flash, or camera motion.
+- Verify visible, bounded beat response when a community scene pack declares a
+  groove role, while keeping packs without that optional role compatible.
 - Preserve kick, snare, and hat geometry in flash-limit mode and constrain
   luminance only in the final compositor. A new 216-case production-render
   gate covers all 18 scenes, three percussion roles, and reduced-motion,

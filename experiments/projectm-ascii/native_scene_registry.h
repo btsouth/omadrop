@@ -27,7 +27,7 @@ enum class NativeSceneKind : std::uint8_t {
 };
 
 inline constexpr std::size_t nativeSceneCount = 18;
-inline constexpr unsigned int nativeSceneRegistryVersion = 14;
+inline constexpr unsigned int nativeSceneRegistryVersion = 15;
 
 enum class NativeTransitionAnchor : std::uint8_t {
     Center,
@@ -166,13 +166,13 @@ nativeSceneRegistry{{
      "wire-organism.frag", {"wire", "", ""}, {1.26f, 1.16f},
      {0.46f, 0.34f, 0.82f, 0.44f, 0.62f}, NativeTransitionAnchor::Center,
      NativeMotionGrammar::Sparse, NativeVisualFamily::Filament, 0.12f, 0.28f,
-     transientRoles | HarmonyRole | StructureRole, 6.0f,
+     transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f,
      makeNativeTransitionGeometry(0.50f, 0.53f, 0.55f, 0.84f, 0.20f)},
     {NativeSceneKind::PrismGarden, "prism-garden", "Prism Garden",
      "prism-garden.frag", {"prism", "garden", ""}, {1.10f, 1.08f},
      {0.54f, 0.28f, 0.88f, 0.78f, 0.48f}, NativeTransitionAnchor::VerticalAxis,
      NativeMotionGrammar::Sparse, NativeVisualFamily::Vertical, 0.12f, 0.25f,
-     transientRoles | HarmonyRole | StructureRole, 6.0f,
+     transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f,
      makeNativeTransitionGeometry(0.50f, 0.60f, 0.0f, 1.0f, 0.20f)},
     {NativeSceneKind::OrbitalLoom, "orbital-loom", "Orbital Loom",
      "orbital-loom.frag", {"orbit", "loom", ""}, {1.02f, 1.06f},
@@ -184,20 +184,20 @@ nativeSceneRegistry{{
      "tidal-grid.frag", {"tide", "grid", ""}, {1.12f, 1.10f},
      {0.34f, 0.24f, 0.84f, 0.20f, 0.66f}, NativeTransitionAnchor::HorizontalAxis,
      NativeMotionGrammar::Selective, NativeVisualFamily::Landscape, 0.26f, 0.25f,
-     transientRoles | HarmonyRole | StructureRole, 6.0f,
+     transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f,
      makeNativeTransitionGeometry(0.50f, 0.64f, 1.0f, 0.0f, 0.35f)},
     {NativeSceneKind::PulseCathedral, "pulse-cathedral", "Pulse Cathedral",
      "pulse-cathedral.frag", {"cathedral", "", ""}, {1.08f, 1.05f},
      {0.48f, 0.26f, 0.96f, 0.36f, 0.34f}, NativeTransitionAnchor::VerticalAxis,
      NativeMotionGrammar::Selective, NativeVisualFamily::Radial, 0.30f, 0.38f,
-     transientRoles | HarmonyRole | StructureRole, 6.0f,
+     transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f,
      makeNativeTransitionGeometry(0.50f, 0.48f, 0.0f, 1.0f, 0.30f)},
     {NativeSceneKind::ConstellationField, "constellation-field",
      "Constellation Field", "constellation-field.frag",
      {"stars", "constellation", ""}, {1.22f, 1.16f},
      {0.24f, 0.18f, 0.74f, 0.72f, 0.76f}, NativeTransitionAnchor::Center,
      NativeMotionGrammar::Sparse, NativeVisualFamily::Network, 0.12f, 0.45f,
-     transientRoles | HarmonyRole | StructureRole, 6.0f,
+     transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f,
      makeNativeTransitionGeometry(0.52f, 0.48f, 0.80f, 0.60f, 0.15f)},
     {NativeSceneKind::SpectralRibbons, "spectral-ribbons", "Spectral Ribbons",
      "spectral-ribbons.frag", {"ribbons", "", ""}, {1.04f, 1.06f},
@@ -230,7 +230,7 @@ nativeSceneRegistry{{
      {0.32f, 0.18f, 0.96f, 0.60f, 0.54f},
      NativeTransitionAnchor::VerticalAxis,
      NativeMotionGrammar::Selective, NativeVisualFamily::Faceted, 0.18f, 0.24f,
-     transientRoles | HarmonyRole | StructureRole, 6.0f,
+     transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f,
      makeNativeTransitionGeometry(0.50f, 0.46f, 0.0f, 1.0f, 0.30f)},
     {NativeSceneKind::ShadowArchitecture, "shadow-architecture",
      "Shadow Architecture", "shadow-architecture.frag",

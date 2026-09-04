@@ -24,6 +24,8 @@ void main() {
     float crossCut = line(p.y - 0.04, 0.004) * snare * snareWindow;
     float glintAngle = beatPhase * tau - 3.14159265;
     vec2 glintPoint = vec2(cos(glintAngle), sin(glintAngle)) * orbitRadius;
+    float beatMarker = (1.0 - smoothstep(0.015, 0.042,
+                          length(p - glintPoint))) * beatPulse;
     float glint = (1.0 - smoothstep(0.008, 0.025, length(p - glintPoint)))
                 * hat;
     float sectionRing = line(radius - mix(0.05, 0.62, section), 0.006)
@@ -35,6 +37,7 @@ void main() {
     vec3 result = feedback
                 + primary * orbit * (0.16 + 0.10 * harmonic)
                 + secondary * crossCut * 0.65
-                + accent * (glint * 1.2 + sectionRing * 0.35);
+                + accent * (beatMarker * 0.80 + glint * 1.2
+                          + sectionRing * 0.35);
     color = vec4(max(result - vec3(0.004), vec3(0.0)), 1.0);
 }
