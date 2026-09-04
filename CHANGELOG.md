@@ -10,6 +10,7 @@
 - Require an absolute visible kick, snare, and hat response in addition to the
   relative quiet-motion ratio. Particle Weave and Living Mosaic now give their
   existing hat details enough local presence to clear that floor.
+- Apply the same absolute gesture floor to community scene-pack validation.
 
 - Add Negative Space, a restrained eleventh native scene whose beat, kick,
   snare, hats, and section changes carve separate parts of one stable field.

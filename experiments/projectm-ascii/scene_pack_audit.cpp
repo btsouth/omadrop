@@ -19,7 +19,7 @@ namespace {
 constexpr int auditWidth = 320;
 constexpr int auditHeight = 180;
 constexpr float deltaThreshold = 0.0125f;
-constexpr float responseFloor = 0.00008f;
+constexpr float responseFloor = 0.00025f;
 
 struct Motion {
     float mean = 0.0f;
@@ -326,12 +326,15 @@ int main(int argc, char** argv) {
               << " quiet_motion=" << quietMotion
               << " quiet_coverage=" << quietCoverage
               << " kick_ratio=" << kick.ratio
+              << " kick_motion=" << kick.motion.mean
               << " kick_coverage=" << kick.motion.coverage
               << " kick_pulse=" << kick.motion.globalPulse
               << " snare_ratio=" << snare.ratio
+              << " snare_motion=" << snare.motion.mean
               << " snare_coverage=" << snare.motion.coverage
               << " snare_pulse=" << snare.motion.globalPulse
               << " hat_ratio=" << hat.ratio
+              << " hat_motion=" << hat.motion.mean
               << " hat_coverage=" << hat.motion.coverage
               << " hat_pulse=" << hat.motion.globalPulse
               << " max_recovery=" << std::max({kick.recovery, snare.recovery,

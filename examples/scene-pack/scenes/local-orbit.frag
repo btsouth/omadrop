@@ -17,10 +17,10 @@ void main() {
     vec3 feedback = texture(previousFrame,
                             clamp(previousUv, 0.001, 0.999)).rgb * 0.91;
 
-    float kickWindow = exp(-42.0 * (angle + 1.8) * (angle + 1.8));
+    float kickWindow = exp(-26.0 * (angle + 1.8) * (angle + 1.8));
     float snareWindow = exp(-38.0 * (angle - 0.1) * (angle - 0.1));
-    float orbitRadius = 0.28 + 0.035 * kick * kickWindow;
-    float orbit = line(radius - orbitRadius, 0.008 + 0.003 * kickWindow * kick);
+    float orbitRadius = 0.28 + 0.050 * kick * kickWindow;
+    float orbit = line(radius - orbitRadius, 0.008 + 0.004 * kickWindow * kick);
     float crossCut = line(p.y - 0.04, 0.004) * snare * snareWindow;
     float glintAngle = beatPhase * tau - 3.14159265;
     vec2 glintPoint = vec2(cos(glintAngle), sin(glintAngle)) * orbitRadius;

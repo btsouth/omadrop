@@ -398,6 +398,8 @@ Completed after v0.3:
   scene cannot pass through a large response ratio alone. Particle Weave's hat
   beads and Living Mosaic's upper nuclei gained local presence without moving
   either composition or adding a full-frame reaction.
+- Applied the official absolute gesture floor to scene-pack validation so
+  community shaders cannot pass with a high ratio but invisible role cues.
 - Added a FIFO-backed 60 FPS replay encoder with source-matched audio for
   continuous motion review without desktop capture or temporary raw frames.
 - Added five hash-locked, repository-synthesized replay profiles covering

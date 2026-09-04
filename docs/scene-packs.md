@@ -46,7 +46,8 @@ real native path and measures:
 
 - near-still silence;
 - sustained quiet-motion coverage against the declared grammar limit;
-- visible, distinct kick, snare, and hat responses;
+- visible, distinct kick, snare, and hat responses, each above the same 0.025
+  percent mean-frame luminance floor used by official scenes;
 - global-pulse coverage against the scene's declaration;
 - recovery within 167 ms so a hit does not become constant pumping;
 - 720p p99 frame time against the scene's declaration.
