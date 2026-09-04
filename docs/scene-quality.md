@@ -30,20 +30,24 @@ ship decision.
 
 ## Current priorities
 
-1. Review continuous motion at native display size, not only measured frames,
-   and confirm that Depth Tunnel and Spectral Ribbons remain controlled as the two deliberately
-   broad flow scenes.
-2. Expand the exact rights-cleared real-song set as suitable acoustic, vocal,
-   and heavily compressed sources become available. The current two songs and
-   five generated profiles pass all 18 scene gates.
-3. Exercise launch, track changes, output changes, display sync, and shutdown
-   with the same regression discipline as the renderer.
-4. Add new scenes only when their composition and motion grammar are clearly
-   different from this matrix.
-5. Treat radial, filament, depth, vertical, landscape, network, minimal, fluid,
-   faceted, and cellular compositions as distinct visual families. Automatic
-   direction should not repeat a recent family merely because its audio traits
-   are a slightly closer match.
+1. Generate a new anonymous full-library review after the Orbital Loom,
+   Constellation Field, Wire Organism, Prism Garden, Glass Choir, and Centrifuge
+   rebuilds. Record decisions before revealing scene names.
+2. Review continuous motion at native display size and confirm that Depth
+   Tunnel and Spectral Ribbons remain controlled as the two deliberately broad
+   flow scenes. Any still, motion, or music score below 4 out of 5 requires
+   revision.
+3. Run the complete profile and real-song gates after every review-driven scene
+   change, then run one exact `bin/omadrop-check --full` release gate with a
+   fresh 10-minute soak.
+4. Use direct deaf and hard-of-hearing study results to judge whether the
+   musical mappings are understandable. Do not present renderer measurements
+   as accessibility proof.
+5. Expand the rights-cleared real-song set only when a source adds meaningful
+   acoustic, vocal, or heavily compressed coverage. The current two songs and
+   five generated profiles already pass all 18 scene gates.
+6. Do not add scenes for this release. Reconsider expansion only when a new
+   composition and motion grammar are clearly different from this matrix.
 
 ## Motion grammar
 

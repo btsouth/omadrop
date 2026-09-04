@@ -344,25 +344,31 @@ Allow more people to create scenes while keeping the official rotation strict.
 - Omadrop can run for hours without frame degradation, memory growth, or sync
   drift.
 
-## Immediate work order
+## Release-candidate work order
 
-1. Add reviewed real, rights-cleared songs to the locked synthetic replay set
-   and complete continuous-motion review for the established scene set.
-2. Finish output-change, display-hotplug, shutdown, and long-run operational
-   regressions needed to close Phase 0.
-3. Normalize transient response and stabilize tempo, downbeat, and phrase
-   detection across the replay set.
-4. [x] Add the developer signal monitor and repeatable presentation-delay tool.
-5. Continue splitting track state, display session, cover presentation,
-   direction, and rendering out of the live application loop.
-6. Tune automatic direction across the complete 18-scene library and enforce
-   visual-family spacing so consecutive scenes remain meaningfully different.
-7. Promote only candidates that pass still-frame, motion, music-response,
-   ASCII, transition, and performance review.
+The platform work described below is implemented. The current priority is to
+finish release-candidate review and validation, not expand the feature or scene
+count. The exact checkpoint, commands, evidence, and limits are recorded in the
+[next session handoff](next-session.md).
 
-This order improves the existing product before increasing its surface area.
-Each release should be obviously better in use, not only larger in a feature
-list.
+1. Generate and score a new anonymous, native-size review of all 18 scenes
+   after the latest visual rebuilds.
+2. Fix any scene below the visual quality floor or marked for constant pulse,
+   jitter, or excessive similarity. Re-run all profiles and both approved songs
+   for every changed scene.
+3. Run `bin/omadrop-check --full` once on the exact final candidate, including
+   the 10-minute soak.
+4. Perform one focused live smoke test covering mid-song launch, cover reveal,
+   synchronized displays, controls, persisted preferences, output recovery,
+   pause, resume, and shutdown.
+5. Complete direct deaf and hard-of-hearing research before making public
+   accessibility claims.
+6. Record a new rights-cleared release film only after the visuals are locked.
+7. Build and inspect the final package. Pushing, tagging, and publishing remain
+   separate, user-owned actions.
+
+Additional real-song fixtures are useful only when their rights and musical
+coverage are clear. New scenes are not a release priority.
 
 ## Current progress
 
