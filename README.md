@@ -200,10 +200,15 @@ director results for two exact, rights-cleared tracks. It specifically rejects
 constant whole-scene pulsing as well as weak or stalled response.
 
 The [silent visual-legibility workflow](docs/accessibility-testing.md) creates
-an offline, blinded study for deaf and hard-of-hearing testers. It compares
-default, reduced-motion, and flash-limited rendering without collecting names,
-hearing status, audio, or network data. Engineering checks are not presented as
-proof of accessibility.
+an offline, identity-masked study for deaf and hard-of-hearing testers. It
+compares default, reduced-motion, and flash-limited rendering without
+collecting names, hearing status, audio, or network data. Engineering checks
+are not presented as proof of accessibility.
+
+`bin/native-motion-review --anonymous` renders every native scene with stable
+letter IDs, a still contact sheet, and silent motion boards. Scene names stay
+in a separate facilitator map until composition, distinction, music
+legibility, and excessive whole-scene motion have been reviewed.
 
 Director profiles are Balanced, Kinetic, Restrained, and High Contrast. They
 change scene selection, not beat timing or the per-scene pulse limits. Kinetic

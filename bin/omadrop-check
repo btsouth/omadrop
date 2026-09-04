@@ -88,6 +88,8 @@ echo "checking demo music rights"
 "$root/bin/demo-rights-audit-test"
 echo "checking silent accessibility study workflow"
 "$root/bin/omadrop-accessibility-study-test"
+echo "checking anonymous native motion review"
+"$root/bin/native-motion-review-test"
 echo "checking replay fixture hashes"
 "$root/bin/native-replay-fixtures" --verify
 echo "checking scene pack validation"

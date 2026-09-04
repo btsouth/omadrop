@@ -2,8 +2,12 @@
 
 ## Unreleased
 
+- Add an anonymous full-library visual review with stable letter IDs, a hidden
+  facilitator map, still contact sheet, silent motion boards, and individual
+  clips. Nonzero excerpts now retain analyzer and visual history from the start
+  of the track instead of treating the excerpt as a new song.
 - Add an offline silent visual-legibility study for deaf and hard-of-hearing
-  product research. It blinds scene and policy identity, records perceived beat
+  product research. It masks scene and policy identity, records perceived beat
   and section marks plus five ratings, exports anonymous local JSON, and scores
   results against the production analyzer timeline without network access.
 - Enforce visible beat response in every official scene alongside kick, snare,

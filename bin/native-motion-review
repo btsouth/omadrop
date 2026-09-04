@@ -5,8 +5,23 @@ root=$(dirname "$(dirname "$(readlink -f "$0")")")
 scene_list="$root/experiments/projectm-ascii/native-scene-list"
 video="$root/bin/native-song-video"
 
+usage() {
+  cat <<'EOF'
+Usage: native-motion-review [--anonymous] RAW_F32_STEREO OUTPUT_DIRECTORY [START_SECONDS] [DURATION_SECONDS]
+
+Render silent individual clips, motion boards, and a still contact sheet for
+every registered native scene. Anonymous mode replaces scene names with stable
+letter IDs and writes the facilitator mapping under truth/.
+EOF
+}
+
+anonymous=0
+case ${1:-} in
+  --anonymous) anonymous=1; shift ;;
+  -h|--help) usage; exit 0 ;;
+esac
 if (($# < 2 || $# > 4)); then
-  echo "usage: native-motion-review RAW_F32_STEREO OUTPUT_DIRECTORY [START_SECONDS] [DURATION_SECONDS]" >&2
+  usage >&2
   exit 2
 fi
 
@@ -14,21 +29,32 @@ fi
   echo "native-motion-review: run experiments/projectm-ascii/build.sh first" >&2
   exit 2
 }
-command -v ffmpeg >/dev/null || {
-  echo "native-motion-review: ffmpeg is required" >&2
-  exit 2
-}
+for command in ffmpeg ffprobe jq magick sha256sum; do
+  command -v "$command" >/dev/null || {
+    echo "native-motion-review: required command not found: $command" >&2
+    exit 2
+  }
+done
 
 music=$(readlink -f "$1")
 [[ -f $music ]] || {
   echo "native-motion-review: input not found: $1" >&2
   exit 2
 }
-output=$2
+output=$(readlink -m "$2")
 start=${3:-0}
 duration=${4:-12}
 if [[ ! $start =~ ^[0-9]+$ || ! $duration =~ ^[1-9][0-9]*$ ]]; then
   echo "native-motion-review: times must be whole seconds and duration must be positive" >&2
+  exit 2
+fi
+end=$((start + duration))
+width=${OMADROP_MOTION_REVIEW_WIDTH:-960}
+height=${OMADROP_MOTION_REVIEW_HEIGHT:-540}
+if [[ ! $width =~ ^[0-9]+$ || ! $height =~ ^[0-9]+$ \
+      || $width -lt 320 || $width -gt 1920 \
+      || $height -lt 180 || $height -gt 1080 ]]; then
+  echo "native-motion-review: resolution must be within 320x180 and 1920x1080" >&2
   exit 2
 fi
 
@@ -38,35 +64,73 @@ if find "$output" -mindepth 1 -print -quit | grep -q .; then
   exit 2
 fi
 
-scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-motion-review.XXXXXX")
-trap 'rm -rf -- "$scratch"' EXIT
-segment="$scratch/segment.f32"
 bytes_per_second=$((44100 * 2 * 4))
-dd if="$music" of="$segment" bs="$bytes_per_second" skip="$start" \
-  count="$duration" status=none
-expected_bytes=$((bytes_per_second * duration))
-actual_bytes=$(stat -c %s "$segment")
+actual_bytes=$(stat -c %s "$music")
+expected_bytes=$((bytes_per_second * end))
 if ((actual_bytes < expected_bytes)); then
   echo "native-motion-review: excerpt extends beyond the input" >&2
   exit 2
 fi
 
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-motion-review.XXXXXX")
+trap 'rm -rf -- "$scratch"' EXIT
 mapfile -t scenes < <("$scene_list")
-if ((${#scenes[@]} < 2)); then
-  echo "native-motion-review: expected at least two registered scenes" >&2
+if ((${#scenes[@]} < 2 || ${#scenes[@]} > 26)); then
+  echo "native-motion-review: expected between 2 and 26 registered scenes" >&2
   exit 1
 fi
 
+if ((anonymous)); then
+  seed=$(sha256sum "$music" | awk -v start="$start" -v duration="$duration" \
+    '{print $1 ":" start ":" duration}')
+  shuffled="$scratch/scenes.tsv"
+  for entry in "${scenes[@]}"; do
+    slug=${entry%%$'\t'*}
+    key=$(printf '%s' "$seed:$slug" | sha256sum | awk '{print $1}')
+    printf '%s\t%s\n' "$key" "$entry"
+  done | LC_ALL=C sort >"$shuffled"
+  mapfile -t scenes < <(cut -f2- "$shuffled")
+  mkdir -p "$output/truth"
+  printf 'id\tscene\tname\n' >"$output/truth/scene-map.tsv"
+fi
+
 clips=()
-slugs=()
-for entry in "${scenes[@]}"; do
-  IFS=$'\t' read -r scene name <<< "$entry"
-  clip="$output/$scene.mp4"
-  echo "rendering $name"
-  OMADROP_VIDEO_WIDTH=480 OMADROP_VIDEO_HEIGHT=270 \
-    "$video" --silent "$segment" "$clip" "$scene" "$duration"
+labels=()
+stills=()
+mkdir -p "$scratch/stills"
+anonymous_ids=({A..Z})
+for index in "${!scenes[@]}"; do
+  IFS=$'\t' read -r scene name <<< "${scenes[$index]}"
+  label=$scene
+  if ((anonymous)); then
+    label=${anonymous_ids[$index]}
+    printf '%s\t%s\t%s\n' "$label" "$scene" "$name" \
+      >>"$output/truth/scene-map.tsv"
+  fi
+  clip="$output/$label.mp4"
+  echo "rendering $label"
+  OMADROP_VIDEO_WIDTH="$width" \
+  OMADROP_VIDEO_HEIGHT="$height" \
+  OMADROP_VIDEO_START_SECONDS="$start" \
+    "$video" --silent "$music" "$clip" "$scene" "$end"
+  still="$scratch/stills/$label.png"
+  ffmpeg -hide_banner -loglevel error -ss "$((duration / 2))" \
+    -i "$clip" -frames:v 1 "$still"
   clips+=("$clip")
-  slugs+=("$scene")
+  labels+=("$label")
+  stills+=("$still")
+done
+
+columns=6
+if ((${#stills[@]} < columns)); then columns=${#stills[@]}; fi
+magick montage "${stills[@]}" -thumbnail 320x180 -set label '%t' \
+  -tile "${columns}x" -geometry +6+22 -background '#05070a' -fill white \
+  -font Adwaita-Mono -pointsize 14 "$output/contact-sheet.png"
+
+printf 'id\tstill_1_5\tmotion_1_5\tmusic_1_5\tconstant_pulse_or_jitter\tsimilar_to\tship\tnotes\n' \
+  >"$output/review.tsv"
+for label in "${labels[@]}"; do
+  printf '%s\t\t\t\t\t\t\t\n' "$label" >>"$output/review.tsv"
 done
 
 page_count=$(((${#clips[@]} + 8) / 9))
@@ -75,18 +139,19 @@ for ((page = 0; page < page_count; ++page)); do
   count=$((remaining < 9 ? remaining : 9))
   command=(ffmpeg -hide_banner -loglevel error -y)
   filters=()
-  labels=()
+  inputs=()
   layout=()
   for ((position = 0; position < count; ++position)); do
     index=$((page * 9 + position))
     command+=(-i "${clips[$index]}")
-    filters+=("[$position:v]drawtext=font=monospace:text='${slugs[$index]}':x=10:y=h-th-9:fontsize=15:fontcolor=white:box=1:boxcolor=black@0.58:boxborderw=5[v$position]")
-    labels+=("[v$position]")
-    layout+=("$(((position % 3) * 480))_$(((position / 3) * 270))")
+    filters+=("[$position:v]drawtext=font=monospace:text='${labels[$index]}':x=10:y=h-th-9:fontsize=15:fontcolor=white:box=1:boxcolor=black@0.58:boxborderw=5[v$position]")
+    inputs+=("[v$position]")
+    layout+=("$(((position % 3) * width))_$(((position / 3) * height))")
   done
   filter=$(IFS=';'; echo "${filters[*]}")
+  joined_inputs=$(printf '%s' "${inputs[@]}")
   joined_layout=$(IFS='|'; echo "${layout[*]}")
-  filter+=";${labels[*]}xstack=inputs=$count:layout=$joined_layout:fill=black[review]"
+  filter+=";$joined_inputs""xstack=inputs=$count:layout=$joined_layout:fill=black[review]"
   "${command[@]}" -filter_complex "$filter" -map '[review]' -an \
     -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p \
     "$output/motion-board-$((page + 1)).mp4"
@@ -96,12 +161,25 @@ cat >"$output/README.md" <<EOF
 # Omadrop silent motion review
 
 Source: $music
-Excerpt: ${start}s to $((start + duration))s
+Excerpt: ${start}s to ${end}s
+Resolution: ${width}x${height} per scene
 
-The two motion boards and all individual scene clips are intentionally silent.
-Review whether rhythm, sustained instrumentation, and changes in intensity
-remain legible without using the source audio as a cue.
+The contact sheet, two motion boards, and all individual clips are silent.
+Review whether each composition is beautiful and distinct, whether rhythm and
+sustained instrumentation remain legible, and whether ordinary audio causes
+constant whole-scene pulsing or jitter. Record decisions in \`review.tsv\`
+before consulting any scene mapping.
 EOF
 
+if ((anonymous)); then
+  cat >>"$output/README.md" <<'EOF'
+
+Scene names are replaced with anonymous letter IDs. Keep
+`truth/scene-map.tsv` from the reviewer until their still and motion decisions
+are recorded.
+EOF
+fi
+
 echo "silent motion boards: $output/motion-board-*.mp4"
-echo "individual scene clips: $output/{scene}.mp4"
+echo "still contact sheet: $output/contact-sheet.png"
+echo "individual scene clips: $output/*.mp4"

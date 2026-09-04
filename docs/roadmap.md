@@ -235,7 +235,8 @@ scene.
   surface or fluid scenes, two particle or line scenes, and two high-energy
   scenes.
 - Every addition passes the full quality gate and has a clear reason to exist.
-- A blind contact sheet and motion review can distinguish every shipped scene.
+- An anonymous contact sheet and motion review can distinguish every shipped
+  scene.
 - The full rotation stays within the frame-time budget.
 
 ## Phase 4: v0.7 director and transitions
@@ -729,9 +730,13 @@ Completed after v0.3:
   1.75 times its quiet baseline on detected beats. Pulse Cathedral carries the
   added margin through its local architectural arch, without moving or
   brightening the whole composition.
-- Added a local, blinded silent visual-legibility study for direct deaf and
-  hard-of-hearing product research. It renders three contrasting scenes under
+- Added a local, identity-masked silent visual-legibility study for direct deaf
+  and hard-of-hearing product research. It renders three contrasting scenes under
   default, reduced-motion, and flash-limited policies, records anonymous beat
   and section marks plus clarity, comfort, and beauty ratings, and scores them
   against the exact production timeline without collecting identity or using
   the network. This enables human validation; it does not replace it.
+- Added an anonymous full-library review path with stable letter IDs, a hidden
+  scene map, still contact sheet, silent motion boards, and individual clips.
+  Review excerpts preserve analyzer and visual history from the start of the
+  track, so a later window is evaluated in the same state as normal playback.

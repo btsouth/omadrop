@@ -85,3 +85,15 @@ recovery, role-separation, and silence gates.
 Spectral Ribbons now reports zero frames above the 20 percent broad-pulse level
 on all five locked profiles after assigning percussion to separate local
 windows and removing raw spectrum changes from its full-width geometry.
+
+Run the anonymous final review without exposing scene names:
+
+```bash
+OMADROP_MOTION_REVIEW_WIDTH=1920 \
+OMADROP_MOTION_REVIEW_HEIGHT=1080 \
+  bin/native-motion-review --anonymous song.f32 /tmp/omadrop-scene-review 26 18
+```
+
+The command preserves analysis from the beginning of the song, encodes only
+the requested window, and places the scene mapping under `truth/` for the
+facilitator to reveal after still and motion decisions are recorded.

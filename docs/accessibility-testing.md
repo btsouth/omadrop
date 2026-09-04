@@ -62,7 +62,7 @@ public accessibility claims:
 5. Hold a short follow-up conversation about which visual changes actually
    meant kick, backbeat, high percussion, and section movement to the viewer.
 6. Change mappings that participants cannot explain consistently, then repeat
-   the same blinded study with a new packet.
+   the same identity-masked study with a new packet.
 
 These thresholds are product-quality signals, not medical or accessibility
 certification. Keep public wording factual until the target audience has
