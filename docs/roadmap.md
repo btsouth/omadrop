@@ -370,3 +370,5 @@ Completed after v0.3:
   the live application loop.
 - Added a versioned scene registry for identity, shader, materials, musical
   roles, selection traits, transition anchors, and performance limits.
+- Added an opening-audio correlation audit. Controlled demo recordings now
+  fail before export when captured audio does not match the approved source.

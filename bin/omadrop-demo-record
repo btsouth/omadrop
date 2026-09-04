@@ -238,5 +238,8 @@ video_duration=$(ffprobe -v error -select_streams v:0 \
 ffmpeg -v error -i "$capture_file" \
   -map 0:v:0 -map '0:a:0?' -t "$video_duration" \
   -c copy -movflags +faststart "$finalized_file"
+if [[ -n $controlled_audio_file ]]; then
+  "$root/bin/demo-audio-audit" "$finalized_file" "$controlled_audio_file"
+fi
 mv "$finalized_file" "$output"
 printf 'Recorded %s\n' "$output"

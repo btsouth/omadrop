@@ -51,5 +51,8 @@ g++ -std=c++20 -O2 -Wall -Wextra native_song_replay.cpp native_renderer.cpp \
 g++ -std=c++20 -O2 -Wall -Wextra scorecard_fixture.cpp \
   -o scorecard-fixture
 
+g++ -std=c++20 -O2 -Wall -Wextra audio_match.cpp \
+  -o audio-match
+
 g++ -std=c++20 -O2 -Wall -Wextra audio_replay.cpp \
   -o audio-feature-replay $(pkg-config --cflags --libs fftw3f)

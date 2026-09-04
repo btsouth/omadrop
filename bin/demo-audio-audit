@@ -1,0 +1,35 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+matcher="$root/experiments/projectm-ascii/audio-match"
+
+if (($# != 2)); then
+  echo "usage: demo-audio-audit CAPTURE APPROVED_AUDIO" >&2
+  exit 2
+fi
+capture=$(readlink -f "$1")
+approved=$(readlink -f "$2")
+[[ -f $capture && -f $approved ]] || {
+  echo "demo-audio-audit: capture and approved audio must exist" >&2
+  exit 2
+}
+[[ -x $matcher ]] || {
+  echo "demo-audio-audit: run experiments/projectm-ascii/build.sh first" >&2
+  exit 2
+}
+command -v ffmpeg >/dev/null || {
+  echo "demo-audio-audit: ffmpeg is required" >&2
+  exit 2
+}
+
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-audio-audit.XXXXXX")
+trap 'rm -rf -- "$scratch"' EXIT
+captured_raw="$scratch/captured.f32"
+approved_raw="$scratch/approved.f32"
+
+ffmpeg -hide_banner -loglevel error -i "$capture" -map 0:a:0 \
+  -ac 1 -ar 4000 -t 4 -f f32le "$captured_raw"
+ffmpeg -hide_banner -loglevel error -i "$approved" -map 0:a:0 \
+  -ac 1 -ar 4000 -t 2 -f f32le "$approved_raw"
+"$matcher" "$captured_raw" "$approved_raw" 0.70

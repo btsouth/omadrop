@@ -17,6 +17,7 @@ experiments/projectm-ascii/native-renderer-test
 experiments/projectm-ascii/native-song-replay
 experiments/projectm-ascii/scorecard-fixture
 experiments/projectm-ascii/audio-feature-replay
+experiments/projectm-ascii/audio-match
 site/.astro/
 site/dist/
 site/node_modules/

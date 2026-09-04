@@ -55,6 +55,7 @@ fi
 install -Dm755 "$root/bin/omadrop" "$install_root/bin/omadrop"
 install -Dm755 "$root/bin/omadrop-demo" "$install_root/bin/omadrop-demo"
 install -Dm755 "$root/bin/omadrop-demo-record" "$install_root/bin/omadrop-demo-record"
+install -Dm755 "$root/bin/demo-audio-audit" "$install_root/bin/demo-audio-audit"
 install -Dm755 "$root/bin/omadrop-doctor" "$install_root/bin/omadrop-doctor"
 install -Dm755 "$root/bin/mpris-art" "$install_root/bin/mpris-art"
 install -Dm755 "$root/bin/mpris-state" "$install_root/bin/mpris-state"
@@ -62,6 +63,8 @@ install -Dm755 "$root/bin/art-fetch" "$install_root/bin/art-fetch"
 install -Dm755 "$root/bin/art-prep" "$install_root/bin/art-prep"
 install -Dm755 "$root/experiments/projectm-ascii/projectm-ascii-live" \
   "$install_root/experiments/projectm-ascii/projectm-ascii-live"
+install -Dm755 "$root/experiments/projectm-ascii/audio-match" \
+  "$install_root/experiments/projectm-ascii/audio-match"
 install -Dm755 "$root/experiments/projectm-ascii/run-curated.sh" \
   "$install_root/experiments/projectm-ascii/run-curated.sh"
 for shader in "$root"/shaders/native/*.{vert,glsl,frag}; do

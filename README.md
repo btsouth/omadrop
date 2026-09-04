@@ -177,6 +177,10 @@ capture, and ends inside the final fade. Pass an output path to
 Use `omadrop-demo --single` for one display or `omadrop-demo --loop` to repeat
 the sequence.
 
+For a release recording, set `OMADROP_DEMO_AUDIO_FILE` to the approved local
+audio file. The recorder rejects competing output streams during capture and
+verifies that the captured opening matches that file before accepting the MP4.
+
 </details>
 
 ## Build and test
