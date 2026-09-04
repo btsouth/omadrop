@@ -157,7 +157,18 @@ review with:
 
 The encoder streams frames through a FIFO, so it does not leave a directory of
 raw frames behind. Set `OMADROP_VIDEO_WIDTH` and `OMADROP_VIDEO_HEIGHT` to
-change the default 960x540 review resolution.
+change the default 960x540 review resolution. Add `--silent` before the input
+to omit audio deliberately.
+
+Render one song excerpt through all 18 scenes and assemble two labeled, silent
+3x3 motion boards with:
+
+```sh
+./bin/native-motion-review song.f32 /tmp/omadrop-motion 45 12
+```
+
+The final arguments select the excerpt start and duration in whole seconds.
+The output also retains each scene as an individual silent clip.
 
 Generate the deterministic structured fixture and measure every native scene
 with the same input:

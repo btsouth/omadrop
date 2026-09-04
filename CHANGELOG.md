@@ -5,6 +5,8 @@
 - Add a persisted, paired-display color-safe palette on `C`. It preserves
   scene luminance structure, uses a restrained blue and gold range, and leaves
   album-cover color intact.
+- Add a silent 18-scene motion-board generator for judging musical legibility
+  without audio cues.
 
 - Add Negative Space, a restrained eleventh native scene whose beat, kick,
   snare, hats, and section changes carve separate parts of one stable field.

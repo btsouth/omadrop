@@ -5,8 +5,14 @@ root=$(dirname "$(dirname "$(readlink -f "$0")")")
 replay="$root/experiments/projectm-ascii/native-song-replay"
 shaders="$root/shaders/native"
 
+include_audio=1
+if (($# > 0)) && [[ $1 == --silent ]]; then
+  include_audio=0
+  shift
+fi
+
 if (($# < 3 || $# > 4)); then
-  echo "usage: native-song-video RAW_F32_STEREO OUTPUT_MP4 SCENE [MAX_SECONDS]" >&2
+  echo "usage: native-song-video [--silent] RAW_F32_STEREO OUTPUT_MP4 SCENE [MAX_SECONDS]" >&2
   exit 2
 fi
 
@@ -60,13 +66,27 @@ cleanup() {
 }
 trap cleanup EXIT
 
-ffmpeg -hide_banner -loglevel error -y \
-  -f rawvideo -pixel_format rgb24 -video_size "${width}x${height}" \
-  -framerate 60 -i "$frame_stream" \
-  -f f32le -ar 44100 -ac 2 -i "$music" \
-  -map 0:v:0 -map 1:a:0 -c:v libx264 -preset fast -crf 18 \
-  -pix_fmt yuv420p -c:a aac -b:a 192k -shortest "$output" \
-  >"$scratch/ffmpeg.log" 2>&1 &
+encoder_command=(
+  ffmpeg -hide_banner -loglevel error -y
+  -f rawvideo -pixel_format rgb24 -video_size "${width}x${height}"
+  -framerate 60 -i "$frame_stream"
+)
+if ((include_audio)); then
+  encoder_command+=(
+    -f f32le -ar 44100 -ac 2 -i "$music"
+    -map 0:v:0 -map 1:a:0
+  )
+else
+  encoder_command+=(-map 0:v:0 -an)
+fi
+encoder_command+=(
+  -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -shortest
+)
+if ((include_audio)); then
+  encoder_command+=(-c:a aac -b:a 192k)
+fi
+encoder_command+=("$output")
+"${encoder_command[@]}" >"$scratch/ffmpeg.log" 2>&1 &
 encoder=$!
 
 replay_environment=(

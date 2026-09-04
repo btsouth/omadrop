@@ -1,0 +1,107 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+scene_list="$root/experiments/projectm-ascii/native-scene-list"
+video="$root/bin/native-song-video"
+
+if (($# < 2 || $# > 4)); then
+  echo "usage: native-motion-review RAW_F32_STEREO OUTPUT_DIRECTORY [START_SECONDS] [DURATION_SECONDS]" >&2
+  exit 2
+fi
+
+[[ -x $scene_list && -x $video ]] || {
+  echo "native-motion-review: run experiments/projectm-ascii/build.sh first" >&2
+  exit 2
+}
+command -v ffmpeg >/dev/null || {
+  echo "native-motion-review: ffmpeg is required" >&2
+  exit 2
+}
+
+music=$(readlink -f "$1")
+[[ -f $music ]] || {
+  echo "native-motion-review: input not found: $1" >&2
+  exit 2
+}
+output=$2
+start=${3:-0}
+duration=${4:-12}
+if [[ ! $start =~ ^[0-9]+$ || ! $duration =~ ^[1-9][0-9]*$ ]]; then
+  echo "native-motion-review: times must be whole seconds and duration must be positive" >&2
+  exit 2
+fi
+
+mkdir -p "$output"
+if find "$output" -mindepth 1 -print -quit | grep -q .; then
+  echo "native-motion-review: output directory must be empty: $output" >&2
+  exit 2
+fi
+
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-motion-review.XXXXXX")
+trap 'rm -rf -- "$scratch"' EXIT
+segment="$scratch/segment.f32"
+bytes_per_second=$((44100 * 2 * 4))
+dd if="$music" of="$segment" bs="$bytes_per_second" skip="$start" \
+  count="$duration" status=none
+expected_bytes=$((bytes_per_second * duration))
+actual_bytes=$(stat -c %s "$segment")
+if ((actual_bytes < expected_bytes)); then
+  echo "native-motion-review: excerpt extends beyond the input" >&2
+  exit 2
+fi
+
+mapfile -t scenes < <("$scene_list")
+if ((${#scenes[@]} < 2)); then
+  echo "native-motion-review: expected at least two registered scenes" >&2
+  exit 1
+fi
+
+clips=()
+slugs=()
+for entry in "${scenes[@]}"; do
+  IFS=$'\t' read -r scene name <<< "$entry"
+  clip="$output/$scene.mp4"
+  echo "rendering $name"
+  OMADROP_VIDEO_WIDTH=480 OMADROP_VIDEO_HEIGHT=270 \
+    "$video" --silent "$segment" "$clip" "$scene" "$duration"
+  clips+=("$clip")
+  slugs+=("$scene")
+done
+
+page_count=$(((${#clips[@]} + 8) / 9))
+for ((page = 0; page < page_count; ++page)); do
+  remaining=$((${#clips[@]} - page * 9))
+  count=$((remaining < 9 ? remaining : 9))
+  command=(ffmpeg -hide_banner -loglevel error -y)
+  filters=()
+  labels=()
+  layout=()
+  for ((position = 0; position < count; ++position)); do
+    index=$((page * 9 + position))
+    command+=(-i "${clips[$index]}")
+    filters+=("[$position:v]drawtext=font=monospace:text='${slugs[$index]}':x=10:y=h-th-9:fontsize=15:fontcolor=white:box=1:boxcolor=black@0.58:boxborderw=5[v$position]")
+    labels+=("[v$position]")
+    layout+=("$(((position % 3) * 480))_$(((position / 3) * 270))")
+  done
+  filter=$(IFS=';'; echo "${filters[*]}")
+  joined_layout=$(IFS='|'; echo "${layout[*]}")
+  filter+=";${labels[*]}xstack=inputs=$count:layout=$joined_layout:fill=black[review]"
+  "${command[@]}" -filter_complex "$filter" -map '[review]' -an \
+    -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p \
+    "$output/motion-board-$((page + 1)).mp4"
+done
+
+cat >"$output/README.md" <<EOF
+# Omadrop silent motion review
+
+Source: $music
+Excerpt: ${start}s to $((start + duration))s
+
+The two motion boards and all individual scene clips are intentionally silent.
+Review whether rhythm, sustained instrumentation, and changes in intensity
+remain legible without using the source audio as a cue.
+EOF
+
+echo "silent motion boards: $output/motion-board-*.mp4"
+echo "individual scene clips: $output/{scene}.mp4"

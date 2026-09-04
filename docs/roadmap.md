@@ -390,6 +390,10 @@ Completed after v0.3:
 - Added configurable full-resolution song replay and an all-scene full-song
   gallery. The deterministic fixture and the current 30-second real-song
   review both pass all ten scene gates.
+- Added labeled silent motion boards that render the same chosen song excerpt
+  through all 18 scenes. The two 3x3 films make overreaction, static passages,
+  duplicated motion, and music that is unreadable without audio visible in one
+  review pass.
 - Added a FIFO-backed 60 FPS replay encoder with source-matched audio for
   continuous motion review without desktop capture or temporary raw frames.
 - Added five hash-locked, repository-synthesized replay profiles covering
