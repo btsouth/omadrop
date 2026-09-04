@@ -4,6 +4,7 @@ set -euo pipefail
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 fixture="$root/experiments/projectm-ascii/scorecard-fixture"
 scorecard="$root/bin/native-scene-scorecard"
+scene_list="$root/experiments/projectm-ascii/native-scene-list"
 manifest="$root/experiments/projectm-ascii/fixtures/replay-suite.sha256"
 enforce=0
 
@@ -15,7 +16,7 @@ if (($# > 1)); then
   echo "usage: native-scene-scorecard-suite [--enforce] [OUTPUT_DIRECTORY]" >&2
   exit 2
 fi
-[[ -x $fixture ]] || {
+[[ -x $fixture && -x $scene_list ]] || {
   echo "native-scene-scorecard-suite: run experiments/projectm-ascii/build.sh first" >&2
   exit 2
 }
@@ -41,6 +42,7 @@ done
 )
 
 summary="$output/suite.tsv"
+scene_count=$("$scene_list" | wc -l)
 printf 'profile\tpassed\ttune\tstatus\n' >"$summary"
 failed=0
 for profile in "${profiles[@]}"; do
@@ -49,7 +51,7 @@ for profile in "${profiles[@]}"; do
   "$scorecard" "$scratch/$profile.f32" "$profile_output"
   passed=$(awk -F '\t' 'NR > 1 && $NF == "PASS" { count++ } END { print count + 0 }' \
     "$profile_output/scorecard.tsv")
-  tune=$((10 - passed))
+  tune=$((scene_count - passed))
   status=PASS
   if ((tune > 0)); then
     status=TUNE
@@ -67,7 +69,8 @@ done
   echo '| Profile | Passed scenes | Needs tuning | Status |'
   echo '| --- | ---: | ---: | :---: |'
   tail -n +2 "$summary" | while IFS=$'\t' read -r profile passed tune status; do
-    printf '| %s | %s/10 | %s | %s |\n' "$profile" "$passed" "$tune" "$status"
+    printf '| %s | %s/%s | %s | %s |\n' \
+      "$profile" "$passed" "$scene_count" "$tune" "$status"
   done
 } >"$output/suite.md"
 

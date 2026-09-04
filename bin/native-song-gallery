@@ -3,6 +3,7 @@ set -euo pipefail
 
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 replay="$root/experiments/projectm-ascii/native-song-replay"
+scene_list="$root/experiments/projectm-ascii/native-scene-list"
 shaders="$root/shaders/native"
 
 if (($# < 2 || $# > 3)); then
@@ -10,7 +11,7 @@ if (($# < 2 || $# > 3)); then
   exit 2
 fi
 
-[[ -x $replay ]] || {
+[[ -x $replay && -x $scene_list ]] || {
   echo "native-song-gallery: run experiments/projectm-ascii/build.sh first" >&2
   exit 2
 }
@@ -40,20 +41,15 @@ fi
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-song-gallery.XXXXXX")
 trap 'rm -rf -- "$scratch"' EXIT
 
-scenes=(
-  depth-tunnel centrifuge wire-organism prism-garden orbital-loom
-  tidal-grid pulse-cathedral constellation-field spectral-ribbons bloom-engine
-)
-names=(
-  'Depth Tunnel' 'Centrifuge' 'Wire Organism' 'Prism Garden' 'Orbital Loom'
-  'Tidal Grid' 'Pulse Cathedral' 'Constellation Field' 'Spectral Ribbons'
-  'Bloom Engine'
-)
+mapfile -t scenes < <("$scene_list")
+((${#scenes[@]} > 0)) || {
+  echo "native-song-gallery: native scene registry is empty" >&2
+  exit 1
+}
 
 matrix_frames=()
 for index in "${!scenes[@]}"; do
-  scene=${scenes[$index]}
-  name=${names[$index]}
+  IFS=$'\t' read -r scene name <<< "${scenes[$index]}"
   directory="$output/$scene"
   mkdir -p "$directory"
   echo "rendering $name"
@@ -90,7 +86,7 @@ for index in "${!scenes[@]}"; do
 done
 
 magick montage "${matrix_frames[@]}" -thumbnail 320x180 -set label '%t' \
-  -tile 5x10 -geometry +6+22 -background '#05070a' -fill white \
+  -tile 5x -geometry +6+22 -background '#05070a' -fill white \
   -font Adwaita-Mono -pointsize 14 "$output/scene-matrix.png"
 
 duration=$(awk -v bytes="$(stat -c %s "$music")" \

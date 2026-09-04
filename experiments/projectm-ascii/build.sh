@@ -66,6 +66,9 @@ g++ -std=c++20 -O2 -Wall -Wextra cover_presentation_test.cpp \
 g++ -std=c++20 -O2 -Wall -Wextra native_scene_state_test.cpp \
   -o native-scene-state-test $(pkg-config --cflags --libs fftw3f)
 
+g++ -std=c++20 -O2 -Wall -Wextra native_scene_list.cpp \
+  -o native-scene-list
+
 g++ -std=c++20 -O2 -Wall -Wextra native_renderer_test.cpp native_renderer.cpp \
   -o native-renderer-test $(pkg-config --cflags --libs sdl2 glew fftw3f) -lGL
 

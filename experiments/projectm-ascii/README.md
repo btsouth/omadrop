@@ -26,6 +26,7 @@ Run the native music-contract and render audits with:
   ./experiments/projectm-ascii/fixtures/fake-pw-record
 ./experiments/projectm-ascii/paired-transport-test
 ./experiments/projectm-ascii/native-scene-state-test
+./experiments/projectm-ascii/native-scene-list
 ./experiments/projectm-ascii/native-renderer-test ./shaders/native
 ./experiments/projectm-ascii/native-renderer-soak ./shaders/native 10
 ./bin/omadrop-launcher-test
@@ -38,6 +39,11 @@ routed to the intended monitor and made fullscreen, the first exit terminates
 its sibling, and all runtime synchronization files are removed. It also removes
 one display at runtime and verifies that the old pair closes before a correctly
 routed one-display session is revealed.
+
+`native-scene-list` validates registry order, identity, and uniqueness before
+printing the canonical slug and display name for every scene. Gallery and
+scorecard tooling consume this output, so adding a registry entry automatically
+adds the scene to every visual and music-response review.
 
 The audio-output session test uses a fake capture process. It verifies the
 exact sink passed to `pw-record`, orderly capture replacement, state reset, a

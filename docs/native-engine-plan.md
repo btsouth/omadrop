@@ -54,6 +54,8 @@ slice combines injection and feedback while the interface is validated.
 The final display pass is isolated from the live loop behind
 `LiveCompositorFrame`, so cover blending, material choice, backend transitions,
 and visibility fades can be tested without audio capture or window control.
+The native registry is also the only source of scene enumeration for replay,
+gallery, and scorecard tooling.
 
 ## Delivery stages
 

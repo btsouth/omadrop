@@ -458,3 +458,6 @@ Completed after v0.3:
   replacement tests. Track changes now remove the previous artwork before a
   new cover is loaded, preventing a missing cover from displaying the prior
   song's image.
+- Removed hardcoded scene arrays from the gallery and scorecard tools. A
+  validated registry-list executable now supplies canonical scene identity to
+  every review path, and suite totals adapt automatically as the library grows.
