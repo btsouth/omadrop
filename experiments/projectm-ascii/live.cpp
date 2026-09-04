@@ -729,6 +729,8 @@ int main(int argc, char** argv) {
     MusicFrame musicFrame;
     NativeSceneDirector nativeSceneDirector;
     nativeSceneDirector.setProfile(preferences.directorProfile);
+    nativeSceneDirector.setScenePreferences(
+        preferences.favoriteScenes, preferences.hiddenScenes);
     NativeSceneState nativeSceneState;
     bool nativeTransitionWasActive = false;
     NativeSceneKind initialNativeScene = NativeSceneKind::DepthTunnel;
@@ -736,10 +738,17 @@ int main(int argc, char** argv) {
         if (selectedNativeScene) {
             initialNativeScene = *selectedNativeScene;
         } else {
-            std::uniform_int_distribution<int> openingNativeScene(
-                0, static_cast<int>(nativeSceneCount) - 1);
-            initialNativeScene = static_cast<NativeSceneKind>(
-                openingNativeScene(randomEngine));
+            std::vector<NativeSceneKind> openingCandidates;
+            for (std::size_t index = 0; index < nativeSceneCount; ++index) {
+                const NativeSceneKind scene
+                    = static_cast<NativeSceneKind>(index);
+                if (!nativeSceneDirector.sceneHidden(scene)) {
+                    openingCandidates.push_back(scene);
+                }
+            }
+            std::uniform_int_distribution<std::size_t> openingNativeScene(
+                0, openingCandidates.size() - 1);
+            initialNativeScene = openingCandidates[openingNativeScene(randomEngine)];
         }
         nativeSceneDirector.selectScene(initialNativeScene);
         if (!scriptedScenes.empty()) {
@@ -897,6 +906,49 @@ int main(int argc, char** argv) {
                       << directorProfileName(preferences.directorProfile) << "\n";
             status = std::string("DIRECTOR: ")
                    + directorProfileName(preferences.directorProfile);
+        } else if (request == "favorite" && nativeEnabled) {
+            const NativeSceneKind scene = nativeSceneDirector.state().transitioning
+                ? nativeSceneDirector.state().incomingScene
+                : nativeSceneDirector.state().currentScene;
+            const std::string slug(nativeSceneDefinition(scene).slug);
+            auto found = std::find(preferences.favoriteScenes.begin(),
+                                   preferences.favoriteScenes.end(), slug);
+            if (found == preferences.favoriteScenes.end()) {
+                preferences.favoriteScenes.push_back(slug);
+                status = std::string("FAVORITE: ") + nativeSceneName(scene);
+            } else {
+                preferences.favoriteScenes.erase(found);
+                status = std::string("FAVORITE OFF: ") + nativeSceneName(scene);
+            }
+            nativeSceneDirector.setScenePreferences(
+                preferences.favoriteScenes, preferences.hiddenScenes);
+        } else if (request == "hide" && nativeEnabled) {
+            const NativeSceneKind scene = nativeSceneDirector.state().transitioning
+                ? nativeSceneDirector.state().incomingScene
+                : nativeSceneDirector.state().currentScene;
+            if (nativeSceneDirector.visibleSceneCount() <= 2) {
+                status = "KEEP AT LEAST TWO SCENES";
+            } else {
+                const std::string slug(nativeSceneDefinition(scene).slug);
+                if (std::find(preferences.hiddenScenes.begin(),
+                              preferences.hiddenScenes.end(), slug)
+                    == preferences.hiddenScenes.end()) {
+                    preferences.hiddenScenes.push_back(slug);
+                }
+                preferences.favoriteScenes.erase(std::remove(
+                    preferences.favoriteScenes.begin(),
+                    preferences.favoriteScenes.end(), slug),
+                    preferences.favoriteScenes.end());
+                nativeSceneDirector.setScenePreferences(
+                    preferences.favoriteScenes, preferences.hiddenScenes);
+                nativeSceneDirector.requestNext();
+                status = std::string("HIDDEN: ") + nativeSceneName(scene);
+            }
+        } else if (request == "clear-hidden" && nativeEnabled) {
+            preferences.hiddenScenes.clear();
+            nativeSceneDirector.setScenePreferences(
+                preferences.favoriteScenes, preferences.hiddenScenes);
+            status = "HIDDEN SCENES: CLEARED";
         } else {
             return false;
         }
@@ -968,6 +1020,14 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_KEYDOWN
                        && event.key.keysym.sym == SDLK_d) {
                 visualPreferenceRequest = "director";
+            } else if (event.type == SDL_KEYDOWN
+                       && event.key.keysym.sym == SDLK_f) {
+                visualPreferenceRequest = "favorite";
+            } else if (event.type == SDL_KEYDOWN
+                       && event.key.keysym.sym == SDLK_x) {
+                visualPreferenceRequest
+                    = (event.key.keysym.mod & KMOD_SHIFT)
+                    ? "clear-hidden" : "hide";
             }
             if (visualPreferenceRequest) {
                 if (pairedFollower) pairedControlRequest = visualPreferenceRequest;
@@ -1527,6 +1587,20 @@ int main(int argc, char** argv) {
                         statusOverlay.show(synchronizedStatus, now);
                     }
                 }
+                const LivePreferences storedPreferences = loadLivePreferences();
+                if (preferences.favoriteScenes
+                    != storedPreferences.favoriteScenes) {
+                    statusOverlay.show("FAVORITES UPDATED", now);
+                } else if (preferences.hiddenScenes
+                           != storedPreferences.hiddenScenes) {
+                    statusOverlay.show(storedPreferences.hiddenScenes.empty()
+                        ? "HIDDEN SCENES: CLEARED"
+                        : "HIDDEN SCENES UPDATED", now);
+                }
+                preferences.favoriteScenes = storedPreferences.favoriteScenes;
+                preferences.hiddenScenes = storedPreferences.hiddenScenes;
+                nativeSceneDirector.setScenePreferences(
+                    preferences.favoriteScenes, preferences.hiddenScenes);
                 if (pairedState->closeMode == 1) closeRequested = true;
             }
             if (nativeEnabled && pairedState && pairedState->nativeScene >= 0) {

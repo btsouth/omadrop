@@ -42,6 +42,9 @@
   scene skips say `AUTO: <scene>` so `N` and `P` cannot imply a hidden lock.
 - Add Balanced, Kinetic, Restrained, and High Contrast director profiles that
   change scene choice without changing musical timing or response limits.
+- Add synchronized scene favorites and hiding. Favorites modestly bias close
+  automatic choices; hidden scenes leave automatic direction, motif recall,
+  opening selection, and N/P navigation while preserving a two-scene minimum.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

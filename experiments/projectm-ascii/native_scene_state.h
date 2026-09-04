@@ -10,7 +10,9 @@
 #include <deque>
 #include <limits>
 #include <optional>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 struct NativeSceneState {
     float development = 0.0f;
@@ -55,7 +57,8 @@ public:
         NativeSceneKind recalledScene = state_.currentScene;
         if (sectionStarted && music.motifIdentity >= 0) {
             const auto remembered = motifScenes_.find(music.motifIdentity);
-            if (remembered != motifScenes_.end()) {
+            if (remembered != motifScenes_.end()
+                && !sceneHidden(remembered->second)) {
                 state_.motifRecalled = true;
                 hasRecalledScene = true;
                 recalledScene = remembered->second;
@@ -63,6 +66,7 @@ public:
         }
         const bool recallTransition = allowAutomaticTransitions && hasRecalledScene
                                    && recalledScene != state_.currentScene
+                                   && !sceneHidden(recalledScene)
                                    && dwellBeats_ >= 8.0f;
         if (pendingScene_ && *pendingScene_ == state_.currentScene
             && !state_.transitioning) {
@@ -76,7 +80,7 @@ public:
                 || recallTransition || automaticTransition)) {
             state_.incomingScene = pendingScene_ ? *pendingScene_
                 : pendingDirection_ != 0
-                ? nativeSceneOffset(state_.currentScene, pendingDirection_)
+                ? nextVisibleScene(state_.currentScene, pendingDirection_)
                 : recallTransition ? recalledScene
                 : *automaticScene;
             const float transitionEnergy = std::clamp(
@@ -159,6 +163,34 @@ public:
     }
     void setProfile(NativeDirectorProfile profile) { profile_ = profile; }
     NativeDirectorProfile profile() const { return profile_; }
+    void setScenePreferences(const std::vector<std::string>& favorites,
+                             const std::vector<std::string>& hidden) {
+        favoriteScenes_.fill(false);
+        hiddenScenes_.fill(false);
+        for (const std::string& slug : favorites) {
+            NativeSceneKind scene;
+            if (nativeSceneFromName(slug, scene)) {
+                favoriteScenes_[static_cast<std::size_t>(scene)] = true;
+            }
+        }
+        for (const std::string& slug : hidden) {
+            NativeSceneKind scene;
+            if (nativeSceneFromName(slug, scene)) {
+                hiddenScenes_[static_cast<std::size_t>(scene)] = true;
+            }
+        }
+        if (visibleSceneCount() < 2) hiddenScenes_.fill(false);
+    }
+    bool sceneFavorite(NativeSceneKind scene) const {
+        return favoriteScenes_[static_cast<std::size_t>(scene)];
+    }
+    bool sceneHidden(NativeSceneKind scene) const {
+        return hiddenScenes_[static_cast<std::size_t>(scene)];
+    }
+    std::size_t visibleSceneCount() const {
+        return static_cast<std::size_t>(std::count(
+            hiddenScenes_.begin(), hiddenScenes_.end(), false));
+    }
     const NativeSceneState& state() const { return state_; }
     void selectScene(NativeSceneKind scene) {
         state_ = NativeSceneState{};
@@ -182,9 +214,13 @@ public:
                 ? state_.incomingScene : state_.currentScene;
         const float retainedTransitionOverride = transitionSecondsOverride_;
         const NativeDirectorProfile retainedProfile = profile_;
+        const auto retainedFavorites = favoriteScenes_;
+        const auto retainedHidden = hiddenScenes_;
         *this = NativeSceneDirector{};
         transitionSecondsOverride_ = retainedTransitionOverride;
         profile_ = retainedProfile;
+        favoriteScenes_ = retainedFavorites;
+        hiddenScenes_ = retainedHidden;
         selectScene(retainedScene);
     }
     void reset() { *this = NativeSceneDirector{}; }
@@ -197,11 +233,13 @@ private:
         const float harmonic = std::clamp(music.harmonic, 0.0f, 1.0f);
         const float centroid = std::clamp(music.spectralCentroid, 0.0f, 1.0f);
         const float stereo = std::clamp(music.stereoWidth, 0.0f, 1.0f);
-        NativeSceneKind best = nativeSceneOffset(state_.currentScene, 1);
+        NativeSceneKind best = nextVisibleScene(state_.currentScene, 1);
         float bestScore = std::numeric_limits<float>::max();
+        bool found = false;
         for (std::size_t index = 0; index < nativeSceneCount; ++index) {
             const NativeSceneKind candidate = static_cast<NativeSceneKind>(index);
             if (candidate == state_.currentScene) continue;
+            if (sceneHidden(candidate)) continue;
             if (nativeSceneDefinition(candidate).visualFamily
                 == nativeSceneDefinition(state_.currentScene).visualFamily) {
                 continue;
@@ -215,6 +253,7 @@ private:
                         + 0.72f * square(centroid - traits.centroid)
                         + 0.55f * square(stereo - traits.stereo)
                         + 0.055f * sceneUseCount_[index];
+            if (sceneFavorite(candidate)) score -= 0.20f;
             const NativeSceneDefinition& currentDefinition
                 = nativeSceneDefinition(state_.currentScene);
             const NativeSceneDefinition& candidateDefinition
@@ -254,9 +293,20 @@ private:
             if (score < bestScore) {
                 bestScore = score;
                 best = candidate;
+                found = true;
             }
         }
-        return best;
+        return found ? best : nextVisibleScene(state_.currentScene, 1);
+    }
+
+    NativeSceneKind nextVisibleScene(NativeSceneKind current,
+                                     int direction) const {
+        NativeSceneKind candidate = current;
+        for (std::size_t step = 0; step < nativeSceneCount; ++step) {
+            candidate = nativeSceneOffset(candidate, direction);
+            if (!sceneHidden(candidate)) return candidate;
+        }
+        return current;
     }
 
     void rememberSceneUse(NativeSceneKind scene) {
@@ -286,6 +336,8 @@ private:
     float transitionDuration_ = 4.0f;
     float transitionSecondsOverride_ = -1.0f;
     NativeDirectorProfile profile_ = NativeDirectorProfile::Balanced;
+    std::array<bool, nativeSceneCount> favoriteScenes_{};
+    std::array<bool, nativeSceneCount> hiddenScenes_{};
     std::unordered_map<int, NativeSceneKind> motifScenes_;
     std::deque<NativeSceneKind> recentScenes_;
     std::array<unsigned int, nativeSceneCount> sceneUseCount_{};

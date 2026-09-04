@@ -261,6 +261,12 @@ percussion, beat, and section cues readable. Press F11 to toggle fullscreen.
 Press `d` to cycle Balanced, Kinetic, Restrained, and High Contrast direction.
 Profiles change candidate scoring while preserving the same musical boundaries
 and per-scene response limits.
+Press `f` to favorite or unfavorite the current scene. Favorites receive a
+small preference when multiple candidates fit the music, but they do not force
+a poor musical match. Press `x` to hide the current scene and continue to the
+next visible scene. Hidden scenes are omitted from automatic selection, motif
+recall, and `n`/`p` navigation. Press `Shift+x` to restore them. The director
+refuses a hidden set that would leave fewer than two scenes available.
 These choices are stored in the versioned
 `$XDG_CONFIG_HOME/omadrop/preferences.conf` file. Legacy `ascii-enabled`
 settings migrate automatically, and settings writes replace the complete file

@@ -563,3 +563,9 @@ Completed after v0.3:
   current scene. Deterministic selection tests lock a distinct result for each
   policy where appropriate, track resets preserve the choice, full resets
   return to Balanced, and the selected profile synchronizes across displays.
+- Added persistent scene favorites and hiding. Favorites provide a modest
+  automatic-selection preference without overriding musical fit. Hidden scenes
+  are removed from automatic direction, motif recall, opening selection, and
+  manual `N`/`P` navigation. `F`, `X`, and `Shift+X` apply across paired
+  displays, and the director rejects a hidden set that would leave fewer than
+  two usable scenes.

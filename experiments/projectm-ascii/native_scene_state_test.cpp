@@ -53,6 +53,23 @@ NativeSceneKind automaticChoiceWithProfile(NativeSceneKind current,
     assert(chosen.transitioning);
     return chosen.incomingScene;
 }
+
+NativeSceneKind automaticChoiceWithPreferences(
+    NativeSceneKind current, MusicFrame music,
+    const std::vector<std::string>& favorites,
+    const std::vector<std::string>& hidden) {
+    NativeSceneDirector director;
+    director.selectScene(current);
+    director.setScenePreferences(favorites, hidden);
+    music.bpm = 120.0f;
+    for (int frame = 0; frame < 520; ++frame) {
+        director.update(music, 1.0f / 60.0f);
+    }
+    music.section = 1.0f;
+    const NativeSceneState chosen = director.update(music, 1.0f / 60.0f);
+    assert(chosen.transitioning);
+    return chosen.incomingScene;
+}
 }
 
 int main() {
@@ -313,6 +330,30 @@ int main() {
     assert(settledRecurrence.transitioning);
     assert(settledRecurrence.incomingScene == NativeSceneKind::DepthTunnel);
 
+    NativeSceneDirector hiddenRecallDirector;
+    MusicFrame hiddenRecallMusic;
+    hiddenRecallMusic.bpm = 120.0f;
+    hiddenRecallMusic.energyFast = 0.48f;
+    hiddenRecallMusic.energySlow = 0.46f;
+    hiddenRecallMusic.motifIdentity = 19;
+    hiddenRecallMusic.section = 1.0f;
+    hiddenRecallDirector.update(hiddenRecallMusic, 1.0f / 60.0f);
+    hiddenRecallMusic.section = 0.0f;
+    hiddenRecallDirector.update(hiddenRecallMusic, 1.0f / 60.0f);
+    hiddenRecallDirector.requestNext();
+    hiddenRecallDirector.update(hiddenRecallMusic, 1.0f / 60.0f);
+    finishTransition(hiddenRecallDirector, hiddenRecallMusic);
+    hiddenRecallDirector.setScenePreferences({}, {"depth-tunnel"});
+    for (int frame = 0; frame < 260; ++frame) {
+        hiddenRecallDirector.update(hiddenRecallMusic, 1.0f / 60.0f);
+    }
+    hiddenRecallMusic.section = 1.0f;
+    const NativeSceneState hiddenRecall = hiddenRecallDirector.update(
+        hiddenRecallMusic, 1.0f / 60.0f);
+    assert(!hiddenRecall.motifRecalled);
+    assert(!hiddenRecall.transitioning
+           || hiddenRecall.incomingScene != NativeSceneKind::DepthTunnel);
+
     NativeSceneDirector trackResetDirector;
     trackResetDirector.selectScene(NativeSceneKind::WireOrganism);
     trackResetDirector.resetForTrack();
@@ -408,6 +449,46 @@ int main() {
     assert(automaticChoiceWithProfile(NativeSceneKind::Centrifuge,
         wideHarmonic, NativeDirectorProfile::HighContrast)
         == NativeSceneKind::SpectralRibbons);
+
+    NativeSceneDirector preferenceDirector;
+    preferenceDirector.setScenePreferences(
+        {"paper-horizon"}, {"centrifuge", "wire-organism"});
+    assert(preferenceDirector.sceneFavorite(NativeSceneKind::PaperHorizon));
+    assert(preferenceDirector.sceneHidden(NativeSceneKind::Centrifuge));
+    assert(preferenceDirector.visibleSceneCount() == nativeSceneCount - 2);
+    preferenceDirector.requestNext();
+    preferenceDirector.update(music, 1.0f / 60.0f);
+    finishTransition(preferenceDirector, music);
+    assert(preferenceDirector.state().currentScene
+           == NativeSceneKind::PrismGarden);
+    preferenceDirector.requestPrevious();
+    preferenceDirector.update(music, 1.0f / 60.0f);
+    finishTransition(preferenceDirector, music);
+    assert(preferenceDirector.state().currentScene
+           == NativeSceneKind::DepthTunnel);
+
+    const NativeSceneKind hiddenAutomatic = automaticChoiceWithPreferences(
+        NativeSceneKind::Centrifuge, wideHarmonic, {}, {"particle-weave"});
+    assert(hiddenAutomatic != NativeSceneKind::ParticleWeave);
+
+    const NativeSceneKind favoredAutomatic = automaticChoiceWithPreferences(
+        NativeSceneKind::Centrifuge, wideHarmonic, {"wire-organism"}, {});
+    assert(favoredAutomatic == NativeSceneKind::WireOrganism);
+
+    std::vector<std::string> nearlyAllHidden;
+    for (std::size_t index = 0; index < nativeSceneCount - 1; ++index) {
+        nearlyAllHidden.emplace_back(nativeSceneRegistry[index].slug);
+    }
+    preferenceDirector.setScenePreferences({}, nearlyAllHidden);
+    assert(preferenceDirector.visibleSceneCount() == nativeSceneCount);
+    preferenceDirector.setScenePreferences(
+        {"paper-horizon"}, {"centrifuge", "wire-organism"});
+    preferenceDirector.resetForTrack();
+    assert(preferenceDirector.sceneFavorite(NativeSceneKind::PaperHorizon));
+    assert(preferenceDirector.sceneHidden(NativeSceneKind::Centrifuge));
+    preferenceDirector.reset();
+    assert(!preferenceDirector.sceneFavorite(NativeSceneKind::PaperHorizon));
+    assert(!preferenceDirector.sceneHidden(NativeSceneKind::Centrifuge));
 
     NativeSceneDirector profileResetDirector;
     profileResetDirector.setProfile(NativeDirectorProfile::Restrained);

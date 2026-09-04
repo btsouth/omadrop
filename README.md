@@ -111,13 +111,19 @@ omadrop --single    # focused display only
 | `R` | Toggle reduced motion |
 | `H` | Toggle high contrast |
 | `D` | Cycle director profile |
+| `F` | Favorite or unfavorite the current scene |
+| `X` | Hide the current scene and continue automatically |
+| `Shift + X` | Restore all hidden scenes |
 | `[` / `]` | Adjust audio sync by 10 ms |
 | `F11` | Toggle fullscreen |
 | `Esc` | Quit |
 
 Controls apply to every Omadrop window, regardless of which display has focus.
-ASCII, intensity, brightness, motion, reduced-motion, and high-contrast choices
-are remembered between launches. Per-output audio delay is remembered for each
+ASCII, intensity, brightness, motion, reduced-motion, high-contrast, director,
+favorite, and hidden-scene choices are remembered between launches. Favorites
+slightly influence automatic selection when several scenes fit the music.
+Hidden scenes leave automatic rotation and N/P navigation. Omadrop always keeps
+at least two scenes available. Per-output audio delay is remembered for each
 output device. A compact status label confirms each change. Manual scene skips
 show `AUTO: <scene>` because `N` and `P` never disable automatic direction.
 `OMADROP_ASCII=0` remains available as a temporary override.
