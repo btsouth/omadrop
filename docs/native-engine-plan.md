@@ -45,6 +45,9 @@ output can be compared under identical input.
 `PlaybackClock` owns track identity and projected position. Neither process
 management detail is part of the render loop.
 
+`CoverPresentation` owns artwork hold, dissolve, completion, restart, and
+replacement timing. The live loop supplies artwork identity and texture only.
+
 The native renderer uses separate passes for scene injection, feedback
 advection, transition composition, and display material. The first vertical
 slice combines injection and feedback while the interface is validated.

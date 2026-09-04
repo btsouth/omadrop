@@ -26,6 +26,7 @@
 #include "audio_features.h"
 #include "audio_output_session.h"
 #include "audio_queue.h"
+#include "cover_presentation.h"
 #include "live_assets.h"
 #include "live_compositor.h"
 #include "live_projectm.h"
@@ -682,9 +683,7 @@ int main(int argc, char** argv) {
     uint64_t lastClockLogAt = 0;
     float coverAspect = 1.0f;
     std::array<float, 3> albumColor{0.72f, 0.82f, 1.0f};
-    bool hasCover = false;
     std::string currentArtPath;
-    uint64_t coverStartedAt = 0;
     const float coverHoldSeconds = std::getenv("OMADROP_COVER_HOLD_SECONDS")
         ? std::clamp(std::strtof(
             std::getenv("OMADROP_COVER_HOLD_SECONDS"), nullptr), 0.0f, 20.0f)
@@ -693,6 +692,8 @@ int main(int argc, char** argv) {
         ? std::clamp(std::strtof(
             std::getenv("OMADROP_COVER_DISSOLVE_SECONDS"), nullptr), 0.5f, 20.0f)
         : 5.0f;
+    CoverPresentation coverPresentation(
+        coverHoldSeconds, coverDissolveSeconds);
     uint64_t nextMprisPollAt = 0;
     const std::filesystem::path mprisHelper = projectRoot / "bin" / "mpris-state";
     MprisPoller mprisPoller(mprisHelper);
@@ -744,10 +745,10 @@ int main(int argc, char** argv) {
         && loadPngTexture(forcedCoverPath, coverTexture, coverAspect)) {
         currentArtPath = forcedCoverPath;
         albumColor = loadPaletteColor(forcedCoverPath);
-        hasCover = true;
-        coverStartedAt = SDL_GetTicks64();
-        transitionWindowAt = coverStartedAt + 19000;
-        transitionDeadlineAt = coverStartedAt + 23000;
+        const uint64_t coverLoadedAt = SDL_GetTicks64();
+        coverPresentation.show(coverLoadedAt);
+        transitionWindowAt = coverLoadedAt + 19000;
+        transitionDeadlineAt = coverLoadedAt + 23000;
         std::cerr << "cover: " << forcedCoverPath << " (forced)\n";
     }
     const uint64_t automaticQuitAt = std::getenv("OMADROP_AUTO_QUIT_MS")
@@ -881,7 +882,7 @@ int main(int argc, char** argv) {
         if (!startGateOpened && std::filesystem::exists(startGatePath)) {
             startGateOpened = true;
             revealStartedAt = now;
-            if (hasCover) coverStartedAt = now;
+            coverPresentation.restart(now);
         }
         if (!artLookupComplete && now >= initialArtDeadlineAt) {
             artLookupComplete = true;
@@ -957,6 +958,10 @@ int main(int argc, char** argv) {
                     timelineClockStartedAt = now;
                     timelineMismatchReported = false;
                 }
+                if (observation.trackChanged) {
+                    coverPresentation.clear();
+                    currentArtPath.clear();
+                }
                 if (observation.trackChanged && !pairedFollower) {
                     presetIndex = chooseAutomaticPreset(PresetEnergy::Medium);
                     recentPresets.clear();
@@ -966,7 +971,6 @@ int main(int argc, char** argv) {
                         engines[activeEngine], presets[presetIndex], false);
                     transitionWindowAt = now + 19000;
                     transitionDeadlineAt = now + 23000;
-                    if (hasCover) coverStartedAt = now;
                     publishPairedState(
                         presetIndex, 0, nativeEnabled ? 6 : 0, true,
                         nativeEnabled
@@ -985,11 +989,10 @@ int main(int argc, char** argv) {
                     && loadPngTexture(state.artPath, coverTexture, coverAspect)) {
                     currentArtPath = state.artPath;
                     albumColor = loadPaletteColor(state.artPath);
-                    hasCover = true;
-                    coverStartedAt = now;
+                    coverPresentation.show(now);
                     std::cerr << "cover: " << state.artPath << "\n";
                 }
-                if (!artLookupComplete && hasCover) {
+                if (!artLookupComplete && coverPresentation.hasArtwork()) {
                     artLookupComplete = true;
                 }
             } else if (!artLookupComplete) {
@@ -1445,9 +1448,8 @@ int main(int argc, char** argv) {
             if (skipPreset) nativeSceneDirector.requestNext();
             if (previousPreset) nativeSceneDirector.requestPrevious();
             const bool scriptedLeader = !scriptedScenes.empty() && !pairedFollower;
-            const bool coverPresentationComplete = !hasCover
-                || (now - coverStartedAt) / 1000.0f
-                    >= coverHoldSeconds + coverDissolveSeconds;
+            const bool coverPresentationComplete
+                = coverPresentation.frame(now).complete;
             const bool scriptedBarBoundary
                 = musicFrame.clockConfidence >= 0.35f
                && scriptedPreviousBarPhase > 0.72f
@@ -1523,22 +1525,9 @@ int main(int argc, char** argv) {
             0.0f, 1.0f);
         const float normalizedTreble = std::clamp(
             (audioFeatures.level[5] - 0.75f) / 1.75f, 0.0f, 1.0f);
-        float coverBlend = 0.0f;
-        float paletteInfluence = 0.0f;
-        if (hasCover) {
-            const float coverAge = (now - coverStartedAt) / 1000.0f;
-            // Establish the artwork, then get into the live visual quickly.
-            // A fifteen-second intro made every quick relaunch look stuck on
-            // the cover and hid the music response users were trying to test.
-            if (coverAge < coverHoldSeconds) coverBlend = 1.0f;
-            else if (coverAge < coverHoldSeconds + coverDissolveSeconds) {
-                const float x = (coverAge - coverHoldSeconds)
-                              / coverDissolveSeconds;
-                coverBlend = 1.0f - x * x * (3.0f - 2.0f * x);
-            }
-            paletteInfluence = 0.12f + 0.28f * std::exp(
-                -std::max(0.0f, coverAge - coverHoldSeconds) / 22.0f);
-        }
+        const CoverPresentationFrame coverFrame = coverPresentation.frame(now);
+        const float coverBlend = coverFrame.coverMix;
+        const float paletteInfluence = coverFrame.paletteInfluence;
 
         int outputW = 0, outputH = 0;
         SDL_GL_GetDrawableSize(window, &outputW, &outputH);
@@ -1567,7 +1556,9 @@ int main(int argc, char** argv) {
             std::string error;
             if (!nativeRenderer->render(musicFrame, nativeSceneState,
                                         sourceWidth, sourceHeight, albumColor,
-                                        hasCover ? coverTexture : 0, coverAspect,
+                                        coverPresentation.hasArtwork()
+                                            ? coverTexture : 0,
+                                        coverAspect,
                                         frameSeconds, error)) {
                 std::cerr << "native renderer: " << error << "\n";
                 running = false;
@@ -1666,7 +1657,8 @@ int main(int argc, char** argv) {
             glClear(GL_COLOR_BUFFER_BIT);
         }
         SDL_GL_SwapWindow(window);
-        if (!windowShown && (hasCover || artLookupComplete)) {
+        if (!windowShown
+            && (coverPresentation.hasArtwork() || artLookupComplete)) {
             if (!startReadyPath.empty()) {
                 std::ofstream ready(startReadyPath, std::ios::trunc);
                 ready << getpid() << '\n';

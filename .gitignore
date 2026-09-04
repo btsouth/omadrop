@@ -18,6 +18,7 @@ experiments/projectm-ascii/musical-structure-test
 experiments/projectm-ascii/music-frame-test
 experiments/projectm-ascii/signal-monitor-test
 experiments/projectm-ascii/live-compositor-test
+experiments/projectm-ascii/cover-presentation-test
 experiments/projectm-ascii/native-scene-state-test
 experiments/projectm-ascii/native-renderer-test
 experiments/projectm-ascii/native-renderer-soak

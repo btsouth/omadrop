@@ -19,6 +19,7 @@ Run the native music-contract and render audits with:
 ./experiments/projectm-ascii/music-frame-test
 ./experiments/projectm-ascii/signal-monitor-test
 ./experiments/projectm-ascii/live-compositor-test
+./experiments/projectm-ascii/cover-presentation-test
 ./experiments/projectm-ascii/mpris-state-test
 ./experiments/projectm-ascii/mpris-poller-test
 ./experiments/projectm-ascii/audio-output-session-test \
@@ -57,6 +58,12 @@ The MPRIS poller test exercises the asynchronous helper lifecycle, valid and
 invalid state parsing, the no-player result, duplicate-start protection, and
 cleanup. The render loop consumes completed track observations without owning
 fork, pipe, buffering, or child-process state.
+
+The cover-presentation test locks the complete artwork lifecycle: initial
+hold, smooth dissolve, completion, synchronized restart after the display
+gate, explicit removal, and replacement. A track change clears the previous
+cover before attempting to load the next one, so missing artwork cannot leave
+the old album image on screen.
 
 The renderer soak runs at 1920x1080 by default, cycles through every scene and
 the transition to its successor, and synchronizes each frame for real GPU
