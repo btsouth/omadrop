@@ -21,7 +21,7 @@ ship decision.
 | Orbital Loom | Pass | Pass | Selective | Pass | Pass | Pass | Keep the horizontal weave and local shuttles legible | Two full songs pass; live output |
 | Paper Horizon | Pass | Pass | Sparse | Pass | Pass | Pass | Keep every response on a ridge, tear, star, lantern, or moon detail | Two full songs pass; live output |
 | Particle Weave | Pass | Pass | Selective | Pass | Pass | Pass | Keep percussion on separate beads and knots, never the whole textile | Two full songs pass; live output |
-| Prism Garden | Pass | Pass | Sparse | Pass | Pass | Pass | Preserve the varied skyline during dense passages | Two full songs pass; live output |
+| Prism Garden | Pass | Pass | Sparse | Pass | Pass | Pass | Keep roots, facets, crown dew, and the traveler visually separate | Two full songs pass; live output |
 | Pulse Cathedral | Pass | Pass | Selective | Pass | Pass | Pass | Keep outer arches subordinate to the focal rose | Two full songs pass; live output |
 | Shadow Architecture | Pass | Pass | Sparse | Pass | Pass | Pass | Keep percussion confined to separate architectural surfaces | Two full songs pass; live output |
 | Spectral Ribbons | Pass | Pass | Flow | Pass | Pass | Pass | Keep sustained band contours and transient windows visually separate | Two full songs pass; live output |
@@ -110,6 +110,17 @@ spine while kicks use the roots, snares use middle branches, and hats use the
 crown. The composition stays fixed instead of bending, scaling, or pulsing as
 a whole. All five replay profiles and both approved full songs pass with zero
 moderate or severe broad-pulse frames.
+
+Prism Garden's previous repeated bars and single-diamond tops read as an
+equalizer rather than an authored place. Its replacement is a fixed garden of
+seven differently proportioned crystal plants with paired leaf blades,
+faceted crown clusters, connected surface roots, and separate underground
+filaments. Kicks illuminate three root bulbs, snares articulate selected
+facets, hats place dew on crown tips, and one pollinator carries beat position
+across the skyline. Low, middle, and high sustained material remains visible
+in roots, leaves, and crowns without moving the plants. All five replay
+profiles and both approved full songs pass with zero moderate or severe
+broad-pulse frames.
 
 Run the anonymous final review without exposing scene names:
 

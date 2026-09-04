@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Rebuild Prism Garden as seven fixed crystal plants with layered leaf blades,
+  faceted crown clusters, connected roots, and separate underground filaments.
+  Local root bulbs, crown facets, dew, and a traveling pollinator expose kicks,
+  snares, hats, and beat position without bouncing the garden. All locked
+  profiles and both approved full songs pass with zero broad-pulse frames.
 - Rebuild Wire Organism around a fixed translucent body, persistent spine,
   branching nerves, roots, and crown cilia. Beat position travels along the
   spine while kicks, snares, and hats activate separate local regions without
