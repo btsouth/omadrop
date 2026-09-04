@@ -79,4 +79,37 @@ json.dump(data, open(path, "w", encoding="utf-8"))
 PY
 expect_invalid future-schema 'schemaVersion must be 1'
 
+make_case global-pulse
+python3 - "$scratch/global-pulse/scenes/local-orbit.frag" <<'PY'
+import sys
+path = sys.argv[1]
+open(path, "w", encoding="utf-8").write('''#version 330 core
+in vec2 uv;
+out vec4 color;
+#include "scene-uniforms.glsl"
+void main() {
+    float transient = max(kick, max(snare, hat));
+    color = vec4(vec3(0.08 + transient), 1.0);
+}
+''')
+PY
+expect_invalid global-pulse 'global pulse exceeds declaration'
+
+make_case duplicate-role-shape
+python3 - "$scratch/duplicate-role-shape/scenes/local-orbit.frag" <<'PY'
+import sys
+path = sys.argv[1]
+open(path, "w", encoding="utf-8").write('''#version 330 core
+in vec2 uv;
+out vec4 color;
+#include "scene-uniforms.glsl"
+void main() {
+    float transient = max(kick, max(snare, hat));
+    float spot = 1.0 - smoothstep(0.025, 0.075, length(uv - vec2(0.5)));
+    color = vec4(vec3(0.08 + transient * spot), 1.0);
+}
+''')
+PY
+expect_invalid duplicate-role-shape 'do not have distinct visual roles'
+
 echo "scene pack validation passed"

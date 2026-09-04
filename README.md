@@ -82,8 +82,9 @@ without installing anything:
 omadrop pack validate examples/scene-pack
 ```
 
-The [format and safety rules](docs/scene-packs.md) keep community scenes
-separate from the official automatic rotation.
+The [format and safety rules](docs/scene-packs.md) compile and render each scene,
+measure silence, musical response, broad pulsing, recovery, and 720p frame time,
+and keep community work separate from the official automatic rotation.
 
 ## Install on Omarchy
 

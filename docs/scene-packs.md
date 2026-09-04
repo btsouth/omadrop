@@ -27,9 +27,18 @@ scenes. Local `.glsl` includes may stay inside the pack.
 The validator rejects unknown manifest fields, duplicate scenes or roles, path
 escapes, symlinks, oversized files, unsupported samplers, storage or atomic
 operations, shader extensions, dynamic or excessive loops, incompatible API
-versions, and GLSL compilation errors. Declared response and performance limits
-are bounds for the later dynamic audit. Passing static validation does not add a
-scene to the official rotation and does not imply visual approval.
+versions, and GLSL compilation errors. It then renders every scene through the
+real native path and measures:
+
+- near-still silence;
+- sustained quiet-motion coverage against the declared grammar limit;
+- visible, distinct kick, snare, and hat responses;
+- global-pulse coverage against the scene's declaration;
+- recovery within 167 ms so a hit does not become constant pumping;
+- 720p p99 frame time against the scene's declaration.
+
+Validation does not add a scene to the official rotation and does not imply
+visual approval.
 
 Official inclusion remains manual. A scene must also pass the full replay,
 motion, silence, transition, ASCII, palette, performance, attribution, and

@@ -91,7 +91,7 @@
             "globalPulse": {
               "type": "number",
               "exclusiveMinimum": 0,
-              "maximum": 0.7
+              "maximum": 0.35
             },
             "frameMilliseconds": {
               "type": "number",

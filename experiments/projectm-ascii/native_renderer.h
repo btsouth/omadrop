@@ -41,6 +41,9 @@ public:
     NativeRenderer& operator=(const NativeRenderer&) = delete;
 
     bool initialize(const std::filesystem::path& shaderDirectory, std::string& error);
+    bool initializeCustomShader(const std::filesystem::path& vertexPath,
+                                const std::filesystem::path& fragmentPath,
+                                std::string& error);
     bool render(const MusicFrame& music, const NativeSceneState& scene,
                 int width, int height,
                 const std::array<float, 3>& albumColor,
@@ -53,6 +56,7 @@ public:
     void shutdown();
 
 private:
+    void initializeTargets();
     bool resize(int width, int height, std::string& error);
 
     std::array<GLuint, nativeSceneCount> programs_{};

@@ -19,14 +19,13 @@ void main() {
 
     float kickWindow = exp(-42.0 * (angle + 1.8) * (angle + 1.8));
     float snareWindow = exp(-38.0 * (angle - 0.1) * (angle - 0.1));
-    float hatWindow = exp(-48.0 * (angle - 1.9) * (angle - 1.9));
     float orbitRadius = 0.28 + 0.035 * kick * kickWindow;
     float orbit = line(radius - orbitRadius, 0.008 + 0.003 * kickWindow * kick);
     float crossCut = line(p.y - 0.04, 0.004) * snare * snareWindow;
     float glintAngle = beatPhase * tau - 3.14159265;
     vec2 glintPoint = vec2(cos(glintAngle), sin(glintAngle)) * orbitRadius;
     float glint = (1.0 - smoothstep(0.008, 0.025, length(p - glintPoint)))
-                * hat * hatWindow;
+                * hat;
     float sectionRing = line(radius - mix(0.05, 0.62, section), 0.006)
                       * section;
 

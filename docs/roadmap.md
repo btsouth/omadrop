@@ -587,5 +587,7 @@ Completed after v0.3:
   ten-minute simulated 1080p soak with persisted evidence.
 - Defined scene-pack format 1, its JSON Schema, and a minimal authored example.
   `omadrop pack validate` performs read-only manifest, path-containment,
-  resource-safety, loop-bound, API-version, and GLSL compilation checks. It
-  does not install a pack or place community work in the official rotation.
+  resource-safety, loop-bound, API-version, and GLSL compilation checks, then
+  audits silence, quiet coverage, separate transient roles, global pulsing,
+  recovery, and 720p frame time through the native renderer. It does not
+  install a pack or place community work in the official rotation.

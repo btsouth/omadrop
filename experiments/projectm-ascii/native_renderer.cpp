@@ -96,6 +96,14 @@ GLuint linkProgram(const std::string& vertexSource, const std::string& fragmentS
 }
 }
 
+void NativeRenderer::initializeTargets() {
+    glGenVertexArrays(1, &vao_);
+    glGenFramebuffers(1, &framebuffer_);
+    for (auto& sceneTextures : textures_) {
+        glGenTextures(static_cast<GLsizei>(sceneTextures.size()), sceneTextures.data());
+    }
+}
+
 NativeRenderer::~NativeRenderer() {
     shutdown();
 }
@@ -121,11 +129,24 @@ bool NativeRenderer::initialize(const std::filesystem::path& shaderDirectory,
             return false;
         }
     }
-    glGenVertexArrays(1, &vao_);
-    glGenFramebuffers(1, &framebuffer_);
-    for (auto& sceneTextures : textures_) {
-        glGenTextures(static_cast<GLsizei>(sceneTextures.size()), sceneTextures.data());
+    initializeTargets();
+    return true;
+}
+
+bool NativeRenderer::initializeCustomShader(
+        const std::filesystem::path& vertexPath,
+        const std::filesystem::path& fragmentPath, std::string& error) {
+    const std::string vertexSource = readShaderFile(vertexPath, error);
+    if (vertexSource.empty()) return false;
+    const std::string fragmentSource = readShaderFile(fragmentPath, error);
+    if (fragmentSource.empty()) return false;
+    programs_[static_cast<std::size_t>(NativeSceneKind::DepthTunnel)]
+        = linkProgram(vertexSource, fragmentSource, error);
+    if (!programs_[0]) {
+        shutdown();
+        return false;
     }
+    initializeTargets();
     return true;
 }
 

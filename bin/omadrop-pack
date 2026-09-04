@@ -150,7 +150,8 @@ def expand_shader(path: Path, pack_root: Path, api_root: Path,
 
 
 def validate_shader(path: Path, pack_root: Path, api_root: Path,
-                    context: str) -> None:
+                    context: str, quiet_limit: float, pulse_limit: float,
+                    frame_limit: float) -> str:
     source = path.read_text(encoding="utf-8")
     if not re.search(r"^#version\s+330\s+core\s*$", source, re.MULTILINE):
         raise ValidationError(f"{context} must declare #version 330 core")
@@ -189,14 +190,34 @@ def validate_shader(path: Path, pack_root: Path, api_root: Path,
         result = subprocess.run(
             [compiler, "-S", "frag", shader.name], capture_output=True,
             text=True, timeout=15, check=False)
-    if result.returncode != 0:
-        details = (result.stdout + result.stderr).strip().splitlines()
-        useful = next((line.strip() for line in details if "ERROR:" in line),
-                      "GLSL compilation failed")
+        if result.returncode != 0:
+            details = (result.stdout + result.stderr).strip().splitlines()
+            useful = next((line.strip() for line in details if "ERROR:" in line),
+                          "GLSL compilation failed")
+            raise ValidationError(f"{context}: {useful}")
+
+        application_root = Path(__file__).resolve().parent.parent
+        audit = application_root / "experiments" / "projectm-ascii" / "scene-pack-audit"
+        vertex = api_root / "fullscreen.vert"
+        if not audit.is_file() or not audit.stat().st_mode & 0o111:
+            raise ValidationError(
+                "scene-pack-audit is required; run experiments/projectm-ascii/build.sh")
+        audit_result = subprocess.run(
+            [str(audit), str(vertex), shader.name, str(quiet_limit),
+             str(pulse_limit), str(frame_limit)],
+            capture_output=True, text=True, timeout=30, check=False)
+    if audit_result.returncode != 0:
+        details = (audit_result.stderr or audit_result.stdout).strip().splitlines()
+        useful = details[0] if details else "dynamic render audit failed"
+        metrics = audit_result.stdout.strip()
+        if metrics and metrics != useful:
+            useful = f"{useful}; {metrics}"
         raise ValidationError(f"{context}: {useful}")
+    return audit_result.stdout.strip()
 
 
-def validate_scene(scene: Any, index: int, root: Path, api_root: Path) -> str:
+def validate_scene(scene: Any, index: int, root: Path,
+                   api_root: Path) -> tuple[str, str]:
     context = f"scenes[{index}]"
     if not isinstance(scene, dict):
         raise ValidationError(f"{context} must be an object")
@@ -249,8 +270,8 @@ def validate_scene(scene: Any, index: int, root: Path, api_root: Path) -> str:
     if not 0.0 < quiet <= GRAMMAR_COVERAGE_LIMITS[grammar]:
         raise ValidationError(
             f"{context}.limits.quietMotionCoverage exceeds the {grammar} limit")
-    if not 0.0 < pulse <= 0.70:
-        raise ValidationError(f"{context}.limits.globalPulse must be in (0, 0.70]")
+    if not 0.0 < pulse <= 0.35:
+        raise ValidationError(f"{context}.limits.globalPulse must be in (0, 0.35]")
     if not 0.0 < frame <= 18.5:
         raise ValidationError(
             f"{context}.limits.frameMilliseconds must be in (0, 18.5]")
@@ -260,9 +281,10 @@ def validate_scene(scene: Any, index: int, root: Path, api_root: Path) -> str:
                          f"{context}.attribution")
     string_field(attribution, "author", f"{context}.attribution")
     string_field(attribution, "license", f"{context}.attribution")
-    validate_shader(contained_file(root, shader_name, f"{context}.shader"),
-                    root, api_root, f"{context}.shader")
-    return slug
+    audit = validate_shader(
+        contained_file(root, shader_name, f"{context}.shader"),
+        root, api_root, f"{context}.shader", quiet, pulse, frame)
+    return slug, audit
 
 
 def validate(pack_path: str) -> None:
@@ -297,11 +319,15 @@ def validate(pack_path: str) -> None:
         raise ValidationError("pack.scenes must contain between 1 and 64 scenes")
     api_root = Path(__file__).resolve().parent.parent / "shaders" / "native"
     slugs: set[str] = set()
+    audits: list[tuple[str, str]] = []
     for index, scene in enumerate(scenes):
-        slug = validate_scene(scene, index, root, api_root)
+        slug, audit = validate_scene(scene, index, root, api_root)
         if slug in slugs:
             raise ValidationError(f"duplicate scene slug: {slug}")
         slugs.add(slug)
+        audits.append((slug, audit))
+    for slug, audit in audits:
+        print(f"scene audit {slug}: {audit}")
     print(f"scene pack valid: {pack_id} {version} ({len(slugs)} scene{'s' if len(slugs) != 1 else ''})")
 
 
