@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Isolate hidden-window startup, synchronized reveal gates, readiness markers,
+  fade-in, fade-out, and recording completion in a tested display session.
 - Isolate MPRIS polling, playback observation, artwork deduplication, and the
   startup cover deadline in a tested track-session state machine.
 - Measure native-scene and final-compositor GPU time without blocking the

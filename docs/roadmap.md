@@ -470,6 +470,10 @@ Completed after v0.3:
   owns polling cadence, playback observation, artwork deduplication, startup
   cover timeout, late-player handling, track-change clearing, resume, and
   shutdown while the render loop only applies typed updates.
+- Extracted the display presentation lifecycle from the live loop. Hidden
+  startup, per-display readiness, synchronized reveal gates, entrance and exit
+  fades, capture readiness, recording completion, and close timing now run
+  through one deterministic state machine with direct tests.
 - Extracted cover timing into a deterministic presentation state machine with
   hold, dissolve, completion, synchronized start-gate restart, clear, and
   replacement tests. Track changes now remove the previous artwork before a

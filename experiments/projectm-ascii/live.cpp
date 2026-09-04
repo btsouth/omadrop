@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <deque>
-#include <fstream>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -28,6 +27,7 @@
 #include "audio_queue.h"
 #include "adaptive_render_quality.h"
 #include "cover_presentation.h"
+#include "display_session.h"
 #include "live_assets.h"
 #include "live_compositor.h"
 #include "live_projectm.h"
@@ -860,29 +860,19 @@ int main(int argc, char** argv) {
     }
 
     bool running = true;
-    bool windowShown = false;
     const std::filesystem::path startGatePath = std::getenv("OMADROP_START_GATE")
         ? std::getenv("OMADROP_START_GATE") : "";
-    const std::filesystem::path startReadyPath = startGatePath.empty()
-        ? std::filesystem::path{}
-        : std::filesystem::path(startGatePath.string() + "."
-            + std::to_string(displayIndex) + ".ready");
     const std::filesystem::path readyPath = std::getenv("OMADROP_READY_FILE")
         ? std::getenv("OMADROP_READY_FILE") : "";
     const std::filesystem::path recordStopPath
         = std::getenv("OMADROP_RECORD_STOP_FILE")
         ? std::getenv("OMADROP_RECORD_STOP_FILE") : "";
-    const uint64_t closeDurationMs = recordStopPath.empty() ? 420u : 920u;
-    bool recordStopSignaled = false;
-    const auto signalRecordingMarker = [](const std::filesystem::path& path) {
-        if (path.empty()) return;
-        std::ofstream marker(path, std::ios::trunc);
-        if (marker) marker << getpid() << '\n';
-    };
-    bool startGateOpened = startGatePath.empty();
-    uint64_t revealStartedAt = 0;
-    bool closing = false;
-    uint64_t closeStartedAt = 0;
+    DisplaySession displaySession({
+        .startGatePath = startGatePath,
+        .readyPath = readyPath,
+        .recordStopPath = recordStopPath,
+        .displayIndex = displayIndex,
+    });
     uint64_t calibrationStatusAt = 0;
     const std::string forcedCoverPath = std::getenv("OMADROP_COVER_PATH")
         ? std::getenv("OMADROP_COVER_PATH") : "";
@@ -1251,17 +1241,12 @@ int main(int argc, char** argv) {
             publishPairedState(presetIndex, 0, nativeEnabled ? 6 : transitionMode,
                                false);
         }
-        if (closeRequested && !closing) {
-            closing = true;
-            closeStartedAt = now;
-        }
-        if (closing && now - closeStartedAt >= closeDurationMs) {
+        if (closeRequested) displaySession.requestClose(now);
+        if (displaySession.closeComplete(now)) {
             running = false;
             continue;
         }
-        if (!startGateOpened && std::filesystem::exists(startGatePath)) {
-            startGateOpened = true;
-            revealStartedAt = now;
+        if (displaySession.pollStartGate(now)) {
             coverPresentation.restart(now);
         }
         if (now >= nextSinkPollAt) {
@@ -1929,7 +1914,8 @@ int main(int argc, char** argv) {
                 = musicFrame.clockConfidence >= 0.35f
                && scriptedPreviousBarPhase > 0.72f
                && musicFrame.barPhase < 0.28f;
-            if (scriptedLeader && windowShown && coverPresentationComplete
+            if (scriptedLeader && displaySession.windowShown()
+                && coverPresentationComplete
                 && !nativeSceneDirector.state().transitioning) {
                 if (scriptedSceneSettledAt == 0) {
                     scriptedSceneSettledAt = now;
@@ -1947,10 +1933,7 @@ int main(int argc, char** argv) {
                                 scriptedScenes[scriptedSceneIndex]);
                             scriptedSceneSettledAt = 0;
                         } else if (scriptedSequenceOnce) {
-                            if (!recordStopSignaled) {
-                                signalRecordingMarker(recordStopPath);
-                                recordStopSignaled = true;
-                            }
+                            displaySession.signalRecordingComplete();
                             closeRequested = true;
                             publishPairedState(
                                 presetIndex, 0, 6, false,
@@ -2091,15 +2074,6 @@ int main(int argc, char** argv) {
                                  * (1.0f - presetBlend)
                                  + nextMaterial.fieldExposure * presetBlend;
         }
-        const auto ease = [](float value) {
-            const float position = std::clamp(value, 0.0f, 1.0f);
-            return position * position * (3.0f - 2.0f * position);
-        };
-        const float entrance = startGateOpened && revealStartedAt > 0
-            ? ease((now - revealStartedAt) / 480.0f) : 0.0f;
-        const float exit = closing
-            ? 1.0f - ease((now - closeStartedAt)
-                / static_cast<float>(closeDurationMs)) : 1.0f;
         const int displayTransitionMode = nativeEnabled
             ? nativeSceneState.transitioning
                 ? static_cast<int>(nativeSceneState.transitionStyle)
@@ -2153,7 +2127,7 @@ int main(int argc, char** argv) {
                 && !preferences.flashLimited ? 1.16f : 1.0f,
             .flashLimited = preferences.flashLimited,
             .colorVisionSafe = preferences.colorVisionSafe,
-            .visibility = entrance * exit,
+            .visibility = displaySession.visibility(now),
         };
         if (!compositor.render(displayFrame, compositorError)) {
             std::cerr << "display compositor: " << compositorError << "\n";
@@ -2210,24 +2184,18 @@ int main(int argc, char** argv) {
             running = false;
             continue;
         }
-        if (!startGateOpened) {
+        if (!displaySession.startGateOpen()) {
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
         }
         SDL_GL_SwapWindow(window);
-        if (!windowShown
-            && (coverPresentation.hasArtwork()
-                || trackSession.artworkLookupComplete())
-            && (!nativeEnabled || !pairedFollower || reportedPairedMusic)) {
-            if (!startReadyPath.empty()) {
-                std::ofstream ready(startReadyPath, std::ios::trunc);
-                ready << getpid() << '\n';
-            }
+        if (displaySession.afterFramePresented(
+                now,
+                coverPresentation.hasArtwork()
+                    || trackSession.artworkLookupComplete(),
+                !nativeEnabled || !pairedFollower || reportedPairedMusic)) {
             SDL_ShowWindow(window);
-            signalRecordingMarker(readyPath);
-            if (startGatePath.empty()) revealStartedAt = now;
             SDL_DisableScreenSaver();
-            windowShown = true;
             std::cerr << "idle: inhibition requested while Omadrop is visible\n";
         }
         // SDL's swap interval is not reliably honored by every Wayland path.
