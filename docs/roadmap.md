@@ -474,6 +474,9 @@ Completed after v0.3:
   startup, per-display readiness, synchronized reveal gates, entrance and exit
   fades, capture readiness, recording completion, and close timing now run
   through one deterministic state machine with direct tests.
+- Extracted scripted demo direction from the render loop. Minimum scene dwell,
+  confident bar-aligned cues, maximum holds, looping, one-shot recording
+  completion, and transition-settled timing now have deterministic tests.
 - Extracted cover timing into a deterministic presentation state machine with
   hold, dissolve, completion, synchronized start-gate restart, clear, and
   replacement tests. Track changes now remove the previous artwork before a

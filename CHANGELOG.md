@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Isolate scripted native-scene sequencing with tested minimum dwell,
+  bar-aligned changes, maximum holds, looping, and one-shot completion.
 - Isolate hidden-window startup, synchronized reveal gates, readiness markers,
   fade-in, fade-out, and recording completion in a tested display session.
 - Isolate MPRIS polling, playback observation, artwork deduplication, and the

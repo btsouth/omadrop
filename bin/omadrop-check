@@ -32,6 +32,7 @@ tests=(
   mpris-poller-test
   track-session-test
   display-session-test
+  scripted-scene-sequence-test
   paired-transport-test
   paired-sync-test
   session-lifecycle-test

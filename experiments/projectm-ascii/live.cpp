@@ -42,6 +42,7 @@
 #include "pipewire_capture.h"
 #include "preset_profiles.h"
 #include "preset_selector.h"
+#include "scripted_scene_sequence.h"
 #include "session_lifecycle.h"
 #include "structure_timeline.h"
 #include "status_overlay.h"
@@ -541,6 +542,13 @@ int main(int argc, char** argv) {
                && std::string(std::getenv("OMADROP_NATIVE_SEQUENCE_ONCE")) != "0";
         }
     }
+    ScriptedSceneSequence scriptedSequence({
+        .scenes = std::move(scriptedScenes),
+        .minimumDwellSeconds = scriptedSceneDwellSeconds,
+        .maximumDwellSeconds = scriptedSceneMaximumSeconds,
+        .transitionSeconds = scriptedTransitionSeconds,
+        .playOnce = scriptedSequenceOnce,
+    });
     std::optional<StructureTimeline> timeline;
     if (const char* timelinePath = std::getenv("OMADROP_TIMELINE_PATH")) {
         StructureTimeline loaded;
@@ -808,11 +816,12 @@ int main(int argc, char** argv) {
             initialNativeScene = openingCandidates[openingNativeScene(randomEngine)];
         }
         nativeSceneDirector.selectScene(initialNativeScene);
-        if (!scriptedScenes.empty()) {
-            nativeSceneDirector.setTransitionDuration(scriptedTransitionSeconds);
+        if (scriptedSequence.active()) {
+            nativeSceneDirector.setTransitionDuration(
+                scriptedSequence.transitionSeconds());
         }
         std::cerr << "native scene: " << nativeSceneName(initialNativeScene)
-                  << (!scriptedScenes.empty() ? " (scripted opening)"
+                  << (scriptedSequence.active() ? " (scripted opening)"
                       : selectedNativeScene ? " (selected)"
                       : " (random opening)")
                   << "\n";
@@ -820,9 +829,6 @@ int main(int argc, char** argv) {
                            static_cast<int>(initialNativeScene),
                            static_cast<int>(initialNativeScene));
     }
-    std::size_t scriptedSceneIndex = 0;
-    uint64_t scriptedSceneSettledAt = 0;
-    float scriptedPreviousBarPhase = 0.0f;
     bool structureClockLocked = false;
     float bassImpact = 0.0f;
     float midImpact = 0.0f;
@@ -1907,52 +1913,32 @@ int main(int argc, char** argv) {
                 = !calibrationMode && (skipPreset || previousPreset);
             if (skipPreset) nativeSceneDirector.requestNext();
             if (previousPreset) nativeSceneDirector.requestPrevious();
-            const bool scriptedLeader = !scriptedScenes.empty() && !pairedFollower;
+            const bool scriptedLeader
+                = scriptedSequence.active() && !pairedFollower;
             const bool coverPresentationComplete
                 = coverPresentation.frame(now).complete;
-            const bool scriptedBarBoundary
-                = musicFrame.clockConfidence >= 0.35f
-               && scriptedPreviousBarPhase > 0.72f
-               && musicFrame.barPhase < 0.28f;
-            if (scriptedLeader && displaySession.windowShown()
-                && coverPresentationComplete
-                && !nativeSceneDirector.state().transitioning) {
-                if (scriptedSceneSettledAt == 0) {
-                    scriptedSceneSettledAt = now;
-                } else {
-                    const float scriptedDwell
-                        = (now - scriptedSceneSettledAt) / 1000.0f;
-                    const bool scriptedCue = scriptedDwell
-                            >= scriptedSceneMaximumSeconds
-                        || (scriptedDwell >= scriptedSceneDwellSeconds
-                            && scriptedBarBoundary);
-                    if (scriptedCue) {
-                        if (scriptedSceneIndex + 1 < scriptedScenes.size()) {
-                            ++scriptedSceneIndex;
-                            nativeSceneDirector.requestScene(
-                                scriptedScenes[scriptedSceneIndex]);
-                            scriptedSceneSettledAt = 0;
-                        } else if (scriptedSequenceOnce) {
-                            displaySession.signalRecordingComplete();
-                            closeRequested = true;
-                            publishPairedState(
-                                presetIndex, 0, 6, false,
-                                static_cast<int>(
-                                    nativeSceneDirector.state().currentScene),
-                                static_cast<int>(
-                                    nativeSceneDirector.state().currentScene));
-                        } else {
-                            scriptedSceneIndex = 0;
-                            nativeSceneDirector.requestScene(
-                                scriptedScenes.front());
-                            scriptedSceneSettledAt = 0;
-                        }
-                    }
-                }
+            const ScriptedSceneCue scriptedCue = scriptedSequence.update(
+                now, musicFrame,
+                scriptedLeader && displaySession.windowShown()
+                    && coverPresentationComplete,
+                nativeSceneDirector.state().transitioning);
+            if (scriptedCue.scene) {
+                nativeSceneDirector.requestScene(*scriptedCue.scene);
+            }
+            if (scriptedCue.complete) {
+                displaySession.signalRecordingComplete();
+                closeRequested = true;
+                publishPairedState(
+                    presetIndex, 0, 6, false,
+                    static_cast<int>(
+                        nativeSceneDirector.state().currentScene),
+                    static_cast<int>(
+                        nativeSceneDirector.state().currentScene));
             }
             nativeSceneState = nativeSceneDirector.update(
                 musicFrame, frameSeconds,
-                !pairedFollower && scriptedScenes.empty() && !calibrationMode);
+                !pairedFollower && !scriptedSequence.active()
+                    && !calibrationMode);
             if (nativeSceneState.transitioning && !nativeTransitionWasActive) {
                 const int authoredTransitionMode
                     = static_cast<int>(nativeSceneState.transitionStyle);
@@ -1975,10 +1961,9 @@ int main(int argc, char** argv) {
             } else if (!nativeSceneState.transitioning && nativeTransitionWasActive) {
                 std::cerr << "native scene: "
                           << nativeSceneName(nativeSceneState.currentScene) << "\n";
-                if (scriptedLeader) scriptedSceneSettledAt = now;
+                if (scriptedLeader) scriptedSequence.markSceneSettled(now);
             }
             nativeTransitionWasActive = nativeSceneState.transitioning;
-            scriptedPreviousBarPhase = musicFrame.barPhase;
         }
         bassImpact *= std::exp(-6.5f * frameSeconds);
         midImpact *= std::exp(-8.0f * frameSeconds);

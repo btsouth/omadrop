@@ -11,7 +11,7 @@ g++ -std=c++20 -O2 -Wall -Wextra live.cpp audio_output_session.cpp \
   cover_presentation.cpp display_session.cpp live_assets.cpp live_compositor.cpp live_projectm.cpp \
   live_settings.cpp mpris_poller.cpp track_session.cpp \
   native_renderer.cpp paired_transport.cpp pipewire_capture.cpp \
-  status_overlay.cpp \
+  scripted_scene_sequence.cpp status_overlay.cpp \
   -o projectm-ascii-live \
   $(pkg-config --cflags projectM-4 sdl2 glew libpng fftw3f json-c) \
   $(pkg-config --libs sdl2 glew libpng fftw3f json-c) -lprojectM-4 -lGL
@@ -33,6 +33,9 @@ g++ -std=c++20 -O2 -Wall -Wextra track_session_test.cpp track_session.cpp \
 
 g++ -std=c++20 -O2 -Wall -Wextra display_session_test.cpp display_session.cpp \
   -o display-session-test
+
+g++ -std=c++20 -O2 -Wall -Wextra scripted_scene_sequence_test.cpp \
+  scripted_scene_sequence.cpp -o scripted-scene-sequence-test
 
 g++ -std=c++20 -O2 -Wall -Wextra paired_transport_test.cpp \
   paired_transport.cpp -o paired-transport-test
