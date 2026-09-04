@@ -1,0 +1,194 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+video=$root/bin/native-song-video
+replay=$root/experiments/projectm-ascii/native-song-replay
+rights=$root/bin/demo-rights-audit
+template=$root/study/accessibility.html
+
+usage() {
+  cat <<'EOF'
+Usage: omadrop-accessibility-study AUDIO_FILE OUTPUT_DIRECTORY [START_SECONDS|auto] [DURATION_SECONDS]
+
+Build a local, silent visual-legibility study from an approved music file.
+By default, the production analyzer selects an excerpt around a detected
+section change. No source audio is copied into the study packet.
+EOF
+}
+
+case ${1:-} in
+  -h|--help) usage; exit 0 ;;
+esac
+if (($# < 2 || $# > 4)); then
+  usage >&2
+  exit 2
+fi
+for command in ffmpeg jq sha256sum; do
+  command -v "$command" >/dev/null || {
+    echo "omadrop-accessibility-study: required command not found: $command" >&2
+    exit 2
+  }
+done
+[[ -x $video && -x $replay && -x $rights && -f $template ]] || {
+  echo "omadrop-accessibility-study: build and study files are incomplete" >&2
+  exit 2
+}
+
+audio=$(readlink -f "$1")
+output=$(readlink -m "$2")
+start=${3:-auto}
+duration=${4:-18}
+[[ -f $audio ]] || {
+  echo "omadrop-accessibility-study: audio file not found: $1" >&2
+  exit 2
+}
+if [[ $start != auto && ! $start =~ ^[0-9]+$ ]] \
+    || [[ ! $duration =~ ^[1-9][0-9]*$ ]]; then
+  echo "omadrop-accessibility-study: start must be auto or a whole second; duration must be positive" >&2
+  exit 2
+fi
+mkdir -p "$output"
+if find "$output" -mindepth 1 -print -quit | grep -q .; then
+  echo "omadrop-accessibility-study: output directory must be empty: $output" >&2
+  exit 2
+fi
+
+attribution=$($rights "$audio" \
+  "${OMADROP_DEMO_RIGHTS_MANIFEST:-$root/demo/music-rights.json}")
+rights_id=$(sed -n 's/^Rights record: //p' <<<"$attribution")
+[[ $rights_id =~ ^[a-z0-9][a-z0-9-]*$ ]] || {
+  echo "omadrop-accessibility-study: invalid rights record" >&2
+  exit 1
+}
+source_sha=$(sha256sum "$audio" | awk '{print $1}')
+
+study_scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-accessibility-study.XXXXXX")
+trap 'rm -rf -- "$study_scratch"' EXIT
+source_raw=$study_scratch/source.f32
+ffmpeg -hide_banner -loglevel error -i "$audio" -vn -sn -dn \
+  -ar 44100 -ac 2 -f f32le "$source_raw"
+actual_bytes=$(stat -c %s "$source_raw")
+track_seconds=$((actual_bytes / (44100 * 2 * 4)))
+if ((track_seconds < duration)); then
+  echo "omadrop-accessibility-study: audio is shorter than the requested excerpt" >&2
+  exit 2
+fi
+
+analysis=$study_scratch/analysis
+mkdir -p "$analysis"
+env OMADROP_REPLAY_SCENE=ink-current \
+  OMADROP_REPLAY_WIDTH=320 \
+  OMADROP_REPLAY_HEIGHT=180 \
+  OMADROP_REPLAY_CAPTURE_HOPS=100000 \
+    "$replay" \
+      "$root/shaders/native" "$source_raw" "$analysis" >/dev/null
+
+if [[ $start == auto ]]; then
+  start=$(awk -F '\t' -v duration="$duration" -v total="$track_seconds" '
+    NR == 1 { for (i = 1; i <= NF; i++) column[$i] = i; next }
+    {
+      section = $(column["section"]) + 0
+      seconds = $(column["seconds"]) + 0
+      if (section > previous + 0.20 && seconds >= 8) {
+        candidate = int(seconds - 6)
+        if (candidate < 0) candidate = 0
+        if (candidate + duration <= total) { print candidate; exit }
+      }
+      previous = section
+    }
+  ' "$analysis/timeline.tsv")
+  [[ -n $start ]] || {
+    echo "omadrop-accessibility-study: analyzer found no usable section change" >&2
+    exit 1
+  }
+fi
+end=$((start + duration))
+if ((end > track_seconds)); then
+  echo "omadrop-accessibility-study: excerpt extends beyond the audio file" >&2
+  exit 2
+fi
+section_count=$(awk -F '\t' -v start="$start" -v end="$end" '
+  NR == 1 { for (i = 1; i <= NF; i++) column[$i] = i; next }
+  {
+    seconds = $(column["seconds"]) + 0
+    section = $(column["section"]) + 0
+    if (seconds >= start && seconds < end && section > previous + 0.20) count++
+    previous = section
+  }
+  END { print count + 0 }
+' "$analysis/timeline.tsv")
+if ((section_count == 0)); then
+  echo "omadrop-accessibility-study: selected excerpt has no detected section change" >&2
+  exit 2
+fi
+study_id=${source_sha:0:12}-${start}-${duration}
+
+mkdir -p "$output/clips" "$output/truth"
+install -Dm644 "$template" "$output/index.html"
+clip_jsonl=$study_scratch/clips.jsonl
+scenes=(
+  ink-current shadow-architecture particle-weave
+  ink-current shadow-architecture particle-weave
+  ink-current shadow-architecture particle-weave
+)
+policies=(default reduced flash flash default reduced reduced flash default)
+ids=(A B C D E F G H I)
+for index in "${!scenes[@]}"; do
+  scene=${scenes[$index]}
+  policy=${policies[$index]}
+  id=${ids[$index]}
+  echo "rendering anonymous clip $id"
+  render_environment=(env)
+  if [[ $policy == reduced ]]; then
+    render_environment+=(OMADROP_REPLAY_REDUCED_MOTION=1)
+  elif [[ $policy == flash ]]; then
+    render_environment+=(OMADROP_REPLAY_FLASH_LIMITED=1)
+  fi
+  "${render_environment[@]}" \
+    OMADROP_VIDEO_WIDTH=640 \
+    OMADROP_VIDEO_HEIGHT=360 \
+    OMADROP_VIDEO_START_SECONDS="$start" \
+    OMADROP_VIDEO_TIMELINE_OUTPUT="$output/truth/$id.tsv" \
+      "$video" --silent "$source_raw" "$output/clips/$id.mp4" "$scene" "$end"
+  jq -n --arg id "$id" --arg scene "$scene" --arg policy "$policy" \
+    --arg src "clips/$id.mp4" --arg timeline "truth/$id.tsv" \
+    '{id: $id, scene: $scene, policy: $policy,
+      src: $src, timeline: $timeline}' \
+    >>"$clip_jsonl"
+done
+
+jq -s --arg id "$study_id" --arg rights "$rights_id" \
+  --arg sha256 "$source_sha" --argjson start "$start" \
+  --argjson duration "$duration" \
+  '{format: 1, id: $id, rightsRecord: $rights, sourceSha256: $sha256,
+    startSeconds: $start, durationSeconds: $duration, clips: .}' \
+  "$clip_jsonl" >"$output/study.json"
+{
+  printf 'window.OMADROP_STUDY = '
+  jq '{id, clips: [.clips[] | {id, src}]}' "$output/study.json"
+  printf ';\n'
+} >"$output/study-data.js"
+
+{
+  echo '# Omadrop silent visual-legibility study'
+  echo
+  echo "Study ID: \`$study_id\`"
+  echo
+  echo 'Open `index.html` in a browser. Each participant watches every clip'
+  echo 'without sound, marks perceived beats and section changes, rates the'
+  echo 'visual, then downloads one anonymous JSON result file.'
+  echo
+  echo 'Keep `study.json` and `truth/` with the facilitator. They map anonymous'
+  echo 'clip IDs to scenes and analyzer timelines and should not be shown before'
+  echo 'a participant completes the study.'
+  echo
+  echo 'No audio is included in this directory. Source rights were verified:'
+  echo
+  while IFS= read -r line; do
+    echo "- $line"
+  done <<<"$attribution"
+} >"$output/README.md"
+
+echo "accessibility study: $output/index.html"
+echo "facilitator manifest: $output/study.json"

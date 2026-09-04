@@ -116,6 +116,8 @@ install -Dm644 "$root/docs/scene-pack-v1.schema.json" \
 install -Dm644 "$root/docs/scene-pack-v2.schema.json" \
   "$install_root/docs/scene-pack-v2.schema.json"
 install -Dm644 "$root/docs/demo-music.md" "$install_root/docs/demo-music.md"
+install -Dm644 "$root/docs/accessibility-testing.md" \
+  "$install_root/docs/accessibility-testing.md"
 install -Dm644 "$root/docs/real-song-audit.md" \
   "$install_root/docs/real-song-audit.md"
 install -Dm644 "$root/demo/music-rights.json" \

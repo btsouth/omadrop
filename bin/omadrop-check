@@ -86,6 +86,8 @@ echo "checking demo audio isolation"
 "$root/bin/demo-audio-audit-test"
 echo "checking demo music rights"
 "$root/bin/demo-rights-audit-test"
+echo "checking silent accessibility study workflow"
+"$root/bin/omadrop-accessibility-study-test"
 echo "checking replay fixture hashes"
 "$root/bin/native-replay-fixtures" --verify
 echo "checking scene pack validation"

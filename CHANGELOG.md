@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add an offline silent visual-legibility study for deaf and hard-of-hearing
+  product research. It blinds scene and policy identity, records perceived beat
+  and section marks plus five ratings, exports anonymous local JSON, and scores
+  results against the production analyzer timeline without network access.
 - Enforce visible beat response in every official scene alongside kick, snare,
   and hat response. Pulse Cathedral strengthens only its local architectural
   beat arch, without adding global scale, flash, or camera motion.

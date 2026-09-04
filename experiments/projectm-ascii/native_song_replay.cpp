@@ -294,6 +294,11 @@ int main(int argc, char** argv) {
         ? static_cast<std::size_t>(std::max(
             1, std::atoi(std::getenv("OMADROP_REPLAY_MAX_SECONDS")))) * 60
         : std::numeric_limits<std::size_t>::max();
+    const std::size_t streamStartHops
+        = std::getenv("OMADROP_REPLAY_STREAM_START_SECONDS")
+        ? static_cast<std::size_t>(std::max(
+            0, std::atoi(std::getenv("OMADROP_REPLAY_STREAM_START_SECONDS")))) * 60
+        : 0;
 
     while (hops < maximumHops
            && input.read(reinterpret_cast<char*>(pcm.data()),
@@ -344,7 +349,7 @@ int main(int argc, char** argv) {
         }
         if (structure.sectionCrossed) ++sections;
 
-        if (frameStream.is_open()) {
+        if (frameStream.is_open() && hops >= streamStartHops) {
             const std::vector<float> source = readTexture(
                 renderer.texture(scene.currentScene), width, height);
             const std::vector<float> incoming = scene.transitioning

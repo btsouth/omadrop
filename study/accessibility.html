@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Omadrop silent legibility study</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: #090b09;
+      color: #f4f7f2;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { width: min(960px, 100%); margin: 0 auto; padding: 32px 20px 56px; }
+    h1 { font-size: clamp(1.8rem, 5vw, 3.4rem); margin: 0 0 12px; }
+    h2 { margin-top: 0; }
+    p { line-height: 1.55; max-width: 72ch; }
+    .accent { color: #a7ff83; }
+    .panel { border: 1px solid #3b463c; padding: 20px; margin-top: 24px; background: #101410; }
+    video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+    button, select {
+      color: #f4f7f2;
+      background: #172018;
+      border: 1px solid #728275;
+      padding: 10px 12px;
+      font: inherit;
+    }
+    button:focus-visible, select:focus-visible { outline: 3px solid #a7ff83; outline-offset: 2px; }
+    button:hover { border-color: #a7ff83; }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+    .counts { color: #c5d1c5; }
+    .ratings { display: grid; grid-template-columns: 1fr auto; gap: 12px 18px; align-items: center; }
+    .ratings label { line-height: 1.35; }
+    .hidden { display: none; }
+    .progress { margin: 18px 0 8px; color: #a7ff83; }
+    .notice { border-left: 3px solid #a7ff83; padding-left: 14px; }
+    @media (max-width: 620px) {
+      .ratings { grid-template-columns: 1fr; }
+      .ratings select { margin: -6px 0 8px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <section id="intro">
+    <p class="accent">OMADROP RESEARCH</p>
+    <h1>Can the music be read without sound?</h1>
+    <p>This study is intentionally silent. Watch each short visual once. While it plays, press <strong>Space</strong> whenever you perceive a beat and <strong>Enter</strong> whenever you perceive a larger musical section change.</p>
+    <p class="notice">The page runs entirely on this computer. It does not collect your name, hearing status, microphone, browser history, or network data. Your answers leave the browser only when you choose <strong>Download results</strong>.</p>
+    <button id="begin" type="button">Begin study</button>
+  </section>
+
+  <section id="trial" class="panel hidden" aria-live="polite">
+    <p id="progress" class="progress"></p>
+    <h2 id="clip-title"></h2>
+    <video id="video" muted playsinline preload="metadata"></video>
+    <div class="controls">
+      <button id="play" type="button">Play from start</button>
+      <button id="tap" type="button">Mark beat (Space)</button>
+      <button id="section" type="button">Mark section change (Enter)</button>
+    </div>
+    <p id="counts" class="counts">Beat marks: 0 · Section marks: 0</p>
+    <div class="ratings">
+      <label for="beat-rating">How easy was the underlying beat to follow?</label>
+      <select id="beat-rating"><option value="">Choose 1–5</option></select>
+      <label for="role-rating">How clearly did different rhythmic parts look different?</label>
+      <select id="role-rating"><option value="">Choose 1–5</option></select>
+      <label for="structure-rating">How clear were larger changes in the music?</label>
+      <select id="structure-rating"><option value="">Choose 1–5</option></select>
+      <label for="comfort-rating">How visually comfortable was the motion?</label>
+      <select id="comfort-rating"><option value="">Choose 1–5</option></select>
+      <label for="beauty-rating">How beautiful or compelling was the visual?</label>
+      <select id="beauty-rating"><option value="">Choose 1–5</option></select>
+    </div>
+    <div class="controls">
+      <button id="next" type="button">Save and continue</button>
+    </div>
+    <p id="error" role="alert"></p>
+  </section>
+
+  <section id="complete" class="panel hidden">
+    <h2>Study complete</h2>
+    <p>Thank you. Download the anonymous result file and return it to the study facilitator.</p>
+    <div class="controls">
+      <button id="download" type="button">Download results</button>
+      <button id="restart" type="button">Clear and restart</button>
+    </div>
+  </section>
+</main>
+<script src="study-data.js"></script>
+<script>
+(() => {
+  "use strict";
+  const study = window.OMADROP_STUDY;
+  if (!study || !Array.isArray(study.clips) || study.clips.length === 0) {
+    document.body.textContent = "Study data is missing.";
+    return;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const ratingIds = ["beat-rating", "role-rating", "structure-rating", "comfort-rating", "beauty-rating"];
+  for (const id of ratingIds) {
+    const select = $(id);
+    for (let value = 1; value <= 5; value += 1) {
+      const option = document.createElement("option");
+      option.value = String(value);
+      option.textContent = `${value} ${value === 1 ? "(not at all)" : value === 5 ? "(extremely)" : ""}`;
+      select.append(option);
+    }
+  }
+
+  const storageKey = `omadrop-study:${study.id}`;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(storageKey) || "null"); } catch (_) {}
+  const result = saved || {format: 1, studyId: study.id, clips: [], order: []};
+  if (!Array.isArray(result.order) || result.order.length !== study.clips.length) {
+    result.order = study.clips.map((clip) => clip.id);
+    for (let offset = result.order.length - 1; offset > 0; offset -= 1) {
+      const random = new Uint32Array(1);
+      crypto.getRandomValues(random);
+      const swap = random[0] % (offset + 1);
+      [result.order[offset], result.order[swap]] = [result.order[swap], result.order[offset]];
+    }
+  }
+  const clipById = new Map(study.clips.map((clip) => [clip.id, clip]));
+  const orderedClips = result.order.map((id) => clipById.get(id));
+  let index = Math.min(result.clips.length, study.clips.length - 1);
+  let current = null;
+
+  function persist() {
+    localStorage.setItem(storageKey, JSON.stringify(result));
+  }
+
+  function updateCounts() {
+    $("counts").textContent = `Beat marks: ${current.taps.length} · Section marks: ${current.sections.length}`;
+  }
+
+  function mark(target) {
+    const video = $("video");
+    if (video.paused || video.ended) return;
+    current[target].push(Number(video.currentTime.toFixed(4)));
+    updateCounts();
+  }
+
+  function loadTrial() {
+    const clip = orderedClips[index];
+    current = {id: clip.id, taps: [], sections: [], ratings: {}};
+    $("progress").textContent = `Clip ${index + 1} of ${study.clips.length}`;
+    $("clip-title").textContent = `Silent visual ${clip.id}`;
+    $("video").src = clip.src;
+    $("video").load();
+    for (const id of ratingIds) $(id).value = "";
+    $("error").textContent = "";
+    updateCounts();
+  }
+
+  $("begin").addEventListener("click", () => {
+    $("intro").classList.add("hidden");
+    if (result.clips.length >= study.clips.length) {
+      $("complete").classList.remove("hidden");
+      return;
+    }
+    $("trial").classList.remove("hidden");
+    persist();
+    loadTrial();
+  });
+  $("play").addEventListener("click", () => {
+    current.taps = [];
+    current.sections = [];
+    updateCounts();
+    $("video").currentTime = 0;
+    $("video").play();
+  });
+  $("tap").addEventListener("click", () => mark("taps"));
+  $("section").addEventListener("click", () => mark("sections"));
+  document.addEventListener("keydown", (event) => {
+    if ($("trial").classList.contains("hidden") || event.repeat) return;
+    if ($("video").paused || $("video").ended) return;
+    if (event.code === "Space") {
+      event.preventDefault();
+      mark("taps");
+    } else if (event.code === "Enter") {
+      event.preventDefault();
+      mark("sections");
+    }
+  });
+
+  $("next").addEventListener("click", () => {
+    const values = ratingIds.map((id) => $(id).value);
+    if (values.some((value) => value === "")) {
+      $("error").textContent = "Choose all five ratings before continuing.";
+      return;
+    }
+    const keys = ["beat", "roles", "structure", "comfort", "beauty"];
+    keys.forEach((key, offset) => { current.ratings[key] = Number(values[offset]); });
+    result.clips[index] = current;
+    persist();
+    index += 1;
+    if (index < study.clips.length) {
+      loadTrial();
+    } else {
+      $("video").pause();
+      $("trial").classList.add("hidden");
+      $("complete").classList.remove("hidden");
+    }
+  });
+
+  $("download").addEventListener("click", () => {
+    const payload = {...result, completedAt: new Date().toISOString()};
+    const blob = new Blob([JSON.stringify(payload, null, 2) + "\n"], {type: "application/json"});
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `omadrop-study-${study.id}-results.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  });
+  $("restart").addEventListener("click", () => {
+    localStorage.removeItem(storageKey);
+    location.reload();
+  });
+})();
+</script>
+</body>
+</html>

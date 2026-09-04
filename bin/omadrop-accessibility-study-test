@@ -1,0 +1,93 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-accessibility-test.XXXXXX")
+trap 'rm -rf -- "$scratch"' EXIT
+
+"$root/bin/omadrop-accessibility-study" --help >/dev/null
+"$root/bin/omadrop-accessibility-score" --help >/dev/null
+if grep -Eq 'https?://' "$root/study/accessibility.html"; then
+  echo "accessibility study test: browser study references the network" >&2
+  exit 1
+fi
+
+"$root/experiments/projectm-ascii/scorecard-fixture" \
+  "$scratch/source.f32" structured-electronic >/dev/null
+OMADROP_VIDEO_WIDTH=320 \
+OMADROP_VIDEO_HEIGHT=180 \
+OMADROP_VIDEO_TIMELINE_OUTPUT="$scratch/video.timeline.tsv" \
+  "$root/bin/native-song-video" --silent "$scratch/source.f32" \
+  "$scratch/video.mp4" ink-current 1 >/dev/null
+[[ -s $scratch/video.mp4 && -s $scratch/video.timeline.tsv ]]
+
+OMADROP_VIDEO_WIDTH=320 \
+OMADROP_VIDEO_HEIGHT=180 \
+OMADROP_VIDEO_START_SECONDS=1 \
+OMADROP_VIDEO_TIMELINE_OUTPUT="$scratch/cropped.timeline.tsv" \
+  "$root/bin/native-song-video" --silent "$scratch/source.f32" \
+  "$scratch/cropped.mp4" ink-current 3 >/dev/null
+duration=$(ffprobe -v error -show_entries format=duration \
+  -of default=nw=1:nk=1 "$scratch/cropped.mp4")
+awk -v duration="$duration" 'BEGIN { exit !(duration > 1.95 && duration < 2.05) }'
+awk -F '\t' 'NR == 2 { exit !(($1 + 0) >= 0 && ($1 + 0) < 0.02) }' \
+  "$scratch/cropped.timeline.tsv"
+
+mkdir -p "$scratch/study/truth"
+cat >"$scratch/study/study.json" <<'JSON'
+{
+  "format": 1,
+  "id": "test-study",
+  "clips": [
+    {"id": "A", "scene": "Ink Current", "policy": "default", "src": "clips/A.mp4", "timeline": "truth/A.tsv"}
+  ]
+}
+JSON
+cat >"$scratch/study/truth/A.tsv" <<'TSV'
+seconds	beat_pulse	section
+0.0	0.0	0.0
+0.5	1.0	0.0
+0.6	0.2	0.0
+0.75	0.1	1.0
+0.9	0.0	0.1
+1.0	1.0	0.0
+1.1	0.2	0.0
+1.5	1.0	0.0
+1.6	0.2	0.0
+2.0	0.0	1.0
+2.1	0.0	0.1
+TSV
+cat >"$scratch/result.json" <<'JSON'
+{
+  "format": 1,
+  "studyId": "test-study",
+  "clips": [
+    {
+      "id": "A",
+      "taps": [0.52, 0.53, 1.04, 1.48],
+      "sections": [0.8, 2.1],
+      "ratings": {"beat": 5, "roles": 4, "structure": 4, "comfort": 5, "beauty": 5}
+    }
+  ]
+}
+JSON
+"$root/bin/omadrop-accessibility-score" "$scratch/study" \
+  "$scratch/result.json" >"$scratch/report.md"
+grep -Fq '| A | Ink Current | default | 75% | 100% | 20 ms | 100% | 100% | 5.0 / 4.0 / 4.0 / 5.0 / 5.0 |' \
+  "$scratch/report.md"
+
+python3 - "$scratch/result.json" <<'PY'
+import json
+import sys
+path = sys.argv[1]
+data = json.load(open(path, encoding="utf-8"))
+data["studyId"] = "wrong-study"
+json.dump(data, open(path, "w", encoding="utf-8"))
+PY
+if "$root/bin/omadrop-accessibility-score" "$scratch/study" \
+    "$scratch/result.json" >/dev/null 2>&1; then
+  echo "accessibility study test: mismatched study result passed" >&2
+  exit 1
+fi
+
+echo "accessibility study workflow passed"

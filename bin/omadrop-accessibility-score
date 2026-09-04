@@ -1,0 +1,212 @@
+#!/usr/bin/env python3
+"""Score anonymous Omadrop silent-legibility study results locally."""
+
+from __future__ import annotations
+
+import csv
+import json
+import math
+import statistics
+import sys
+from pathlib import Path
+from typing import Any
+
+
+class StudyError(Exception):
+    pass
+
+
+def load_json(path: Path) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise StudyError(f"could not read {path}: {error}") from error
+
+
+def timeline_events(path: Path) -> tuple[list[float], list[float]]:
+    beats: list[float] = []
+    sections: list[float] = []
+    previous_beat = 0.0
+    previous_section = 0.0
+    try:
+        with path.open(encoding="utf-8", newline="") as source:
+            for row in csv.DictReader(source, delimiter="\t"):
+                seconds = float(row["seconds"])
+                beat = float(row["beat_pulse"])
+                section = float(row["section"])
+                if beat > previous_beat + 0.20:
+                    beats.append(seconds)
+                if section > previous_section + 0.20:
+                    sections.append(seconds)
+                previous_beat = beat
+                previous_section = section
+    except (OSError, KeyError, TypeError, ValueError) as error:
+        raise StudyError(f"invalid timeline {path}: {error}") from error
+    return beats, sections
+
+
+def number_list(value: Any, context: str) -> list[float]:
+    if not isinstance(value, list):
+        raise StudyError(f"{context} must be an array")
+    result: list[float] = []
+    for item in value:
+        if isinstance(item, bool) or not isinstance(item, (int, float)):
+            raise StudyError(f"{context} must contain only numbers")
+        number = float(item)
+        if not math.isfinite(number) or number < 0.0:
+            raise StudyError(f"{context} contains an invalid timestamp")
+        result.append(number)
+    return result
+
+
+def event_score(marks: list[float], truth: list[float], tolerance: float) -> tuple[float, float, float | None]:
+    if not marks:
+        return 0.0, 0.0, None
+    if not truth:
+        return 0.0, 1.0, None
+    ordered_marks = sorted(marks)
+    ordered_truth = sorted(truth)
+    mark_index = 0
+    truth_index = 0
+    matched: list[float] = []
+    while mark_index < len(ordered_marks) and truth_index < len(ordered_truth):
+        difference = ordered_marks[mark_index] - ordered_truth[truth_index]
+        if difference < -tolerance:
+            mark_index += 1
+        elif difference > tolerance:
+            truth_index += 1
+        else:
+            matched.append(abs(difference))
+            mark_index += 1
+            truth_index += 1
+    precision = len(matched) / len(marks)
+    recall = len(matched) / len(truth)
+    median_error = statistics.median(matched) if matched else None
+    return precision, recall, median_error
+
+
+def rating_map(value: Any, context: str) -> dict[str, int]:
+    if not isinstance(value, dict):
+        raise StudyError(f"{context} must be an object")
+    keys = {"beat", "roles", "structure", "comfort", "beauty"}
+    if set(value) != keys:
+        raise StudyError(f"{context} must contain {', '.join(sorted(keys))}")
+    result: dict[str, int] = {}
+    for key in keys:
+        item = value[key]
+        if isinstance(item, bool) or not isinstance(item, int) or not 1 <= item <= 5:
+            raise StudyError(f"{context}.{key} must be an integer from 1 to 5")
+        result[key] = item
+    return result
+
+
+def percent(value: float) -> str:
+    return f"{value * 100:.0f}%"
+
+
+def main() -> int:
+    if len(sys.argv) == 2 and sys.argv[1] in {"-h", "--help"}:
+        print("usage: omadrop-accessibility-score STUDY_DIRECTORY RESULT.json...")
+        return 0
+    if len(sys.argv) < 3:
+        print("usage: omadrop-accessibility-score STUDY_DIRECTORY RESULT.json...",
+              file=sys.stderr)
+        return 2
+
+    study_root = Path(sys.argv[1]).expanduser().resolve()
+    manifest = load_json(study_root / "study.json")
+    if not isinstance(manifest, dict) or manifest.get("format") != 1:
+        raise StudyError("study.json must use format 1")
+    study_id = manifest.get("id")
+    clips = manifest.get("clips")
+    if not isinstance(study_id, str) or not isinstance(clips, list) or not clips:
+        raise StudyError("study.json is missing its id or clips")
+    clip_by_id: dict[str, dict[str, Any]] = {}
+    truth_by_id: dict[str, tuple[list[float], list[float]]] = {}
+    for clip in clips:
+        if not isinstance(clip, dict):
+            raise StudyError("study.json clips must be objects")
+        clip_id = clip.get("id")
+        scene = clip.get("scene")
+        timeline = clip.get("timeline")
+        if not all(isinstance(item, str) and item for item in (clip_id, scene, timeline)):
+            raise StudyError("study.json has an incomplete clip")
+        if clip_id in clip_by_id:
+            raise StudyError(f"study.json repeats clip {clip_id}")
+        timeline_path = (study_root / timeline).resolve()
+        try:
+            timeline_path.relative_to(study_root)
+        except ValueError as error:
+            raise StudyError(f"timeline for clip {clip_id} escapes the study") from error
+        clip_by_id[clip_id] = clip
+        truth_by_id[clip_id] = timeline_events(timeline_path)
+
+    observations: dict[str, list[dict[str, Any]]] = {
+        clip_id: [] for clip_id in clip_by_id
+    }
+    for supplied in sys.argv[2:]:
+        result_path = Path(supplied).expanduser().resolve()
+        result = load_json(result_path)
+        if not isinstance(result, dict) or result.get("format") != 1:
+            raise StudyError(f"{result_path} must use result format 1")
+        if result.get("studyId") != study_id:
+            raise StudyError(f"{result_path} belongs to a different study")
+        result_clips = result.get("clips")
+        if not isinstance(result_clips, list):
+            raise StudyError(f"{result_path} clips must be an array")
+        seen: set[str] = set()
+        for item in result_clips:
+            if not isinstance(item, dict) or not isinstance(item.get("id"), str):
+                raise StudyError(f"{result_path} has an invalid clip result")
+            clip_id = item["id"]
+            if clip_id not in clip_by_id or clip_id in seen:
+                raise StudyError(f"{result_path} has an unexpected clip {clip_id}")
+            seen.add(clip_id)
+            observations[clip_id].append({
+                "taps": number_list(item.get("taps"), f"{result_path}:{clip_id}.taps"),
+                "sections": number_list(item.get("sections"), f"{result_path}:{clip_id}.sections"),
+                "ratings": rating_map(item.get("ratings"), f"{result_path}:{clip_id}.ratings"),
+            })
+        if seen != set(clip_by_id):
+            raise StudyError(f"{result_path} does not contain every study clip")
+
+    print("# Omadrop silent visual-legibility results")
+    print()
+    print(f"Study: `{study_id}`  ")
+    print(f"Anonymous result files: {len(sys.argv) - 2}")
+    print()
+    print("| Clip | Scene | Policy | Beat precision | Beat coverage | Median beat error | Section precision | Section coverage | Beat / roles / structure / comfort / beauty |")
+    print("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |")
+    for clip_id, clip in clip_by_id.items():
+        rows = observations[clip_id]
+        beat_scores = [event_score(row["taps"], truth_by_id[clip_id][0], 0.18)
+                       for row in rows]
+        section_scores = [event_score(row["sections"], truth_by_id[clip_id][1], 1.5)
+                          for row in rows]
+        beat_precision = statistics.mean(score[0] for score in beat_scores)
+        beat_recall = statistics.mean(score[1] for score in beat_scores)
+        section_precision = statistics.mean(score[0] for score in section_scores)
+        section_recall = statistics.mean(score[1] for score in section_scores)
+        beat_errors = [score[2] for score in beat_scores if score[2] is not None]
+        median_error = statistics.median(beat_errors) if beat_errors else None
+        ratings = [statistics.mean(row["ratings"][key] for row in rows)
+                   for key in ("beat", "roles", "structure", "comfort", "beauty")]
+        error_text = f"{median_error * 1000:.0f} ms" if median_error is not None else "n/a"
+        rating_text = " / ".join(f"{rating:.1f}" for rating in ratings)
+        policy = clip.get("policy", "default")
+        print(f"| {clip_id} | {clip['scene']} | {policy} | {percent(beat_precision)} | "
+              f"{percent(beat_recall)} | {error_text} | {percent(section_precision)} | "
+              f"{percent(section_recall)} | {rating_text} |")
+    print()
+    print("Beat marks use a 180 ms matching window. Section marks use 1.5 seconds. "
+          "Scores describe this sample only and do not establish medical safety or "
+          "accessibility by themselves.")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except StudyError as error:
+        print(f"omadrop-accessibility-score: {error}", file=sys.stderr)
+        raise SystemExit(1)

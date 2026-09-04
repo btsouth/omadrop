@@ -33,12 +33,33 @@ music=$(readlink -f "$1")
 output=$2
 scene=$3
 maximum_seconds=${4:-}
+timeline_output=${OMADROP_VIDEO_TIMELINE_OUTPUT:-}
+capture_start=${OMADROP_VIDEO_START_SECONDS:-0}
 if [[ -e $output ]]; then
   echo "native-song-video: output already exists: $output" >&2
   exit 2
 fi
+if [[ -n $timeline_output ]]; then
+  timeline_output=$(readlink -m "$timeline_output")
+  if [[ -e $timeline_output ]]; then
+    echo "native-song-video: timeline output already exists: $timeline_output" >&2
+    exit 2
+  fi
+fi
 if [[ -n $maximum_seconds && ! $maximum_seconds =~ ^[1-9][0-9]*$ ]]; then
   echo "native-song-video: MAX_SECONDS must be a positive integer" >&2
+  exit 2
+fi
+if [[ ! $capture_start =~ ^[0-9]+$ ]]; then
+  echo "native-song-video: OMADROP_VIDEO_START_SECONDS must be a non-negative integer" >&2
+  exit 2
+fi
+if ((capture_start > 0)) && [[ -z $maximum_seconds ]]; then
+  echo "native-song-video: a capture start requires MAX_SECONDS" >&2
+  exit 2
+fi
+if [[ -n $maximum_seconds ]] && ((capture_start >= maximum_seconds)); then
+  echo "native-song-video: capture start must be earlier than MAX_SECONDS" >&2
   exit 2
 fi
 
@@ -73,7 +94,13 @@ encoder_command=(
 )
 if ((include_audio)); then
   encoder_command+=(
-    -f f32le -ar 44100 -ac 2 -i "$music"
+    -f f32le -ar 44100 -ac 2
+  )
+  if ((capture_start > 0)); then
+    encoder_command+=(-ss "$capture_start")
+  fi
+  encoder_command+=(
+    -i "$music"
     -map 0:v:0 -map 1:a:0
   )
 else
@@ -100,6 +127,9 @@ replay_environment=(
 if [[ -n $maximum_seconds ]]; then
   replay_environment+=(OMADROP_REPLAY_MAX_SECONDS="$maximum_seconds")
 fi
+if ((capture_start > 0)); then
+  replay_environment+=(OMADROP_REPLAY_STREAM_START_SECONDS="$capture_start")
+fi
 
 set +e
 "${replay_environment[@]}" \
@@ -116,6 +146,22 @@ if ((replay_status != 0 || encoder_status != 0)); then
   cat "$scratch/replay.log" >&2
   cat "$scratch/ffmpeg.log" >&2
   exit 1
+fi
+
+if [[ -n $timeline_output ]]; then
+  [[ -s $scratch/replay/timeline.tsv ]] || {
+    echo "native-song-video: replay did not create a timeline" >&2
+    exit 1
+  }
+  if ((capture_start > 0)); then
+    mkdir -p "$(dirname "$timeline_output")"
+    awk -F '\t' -v OFS='\t' -v start="$capture_start" \
+      'NR == 1 { print; next }
+       ($1 + 0) >= start { $1 = sprintf("%.6f", ($1 + 0) - start); print }' \
+      "$scratch/replay/timeline.tsv" >"$timeline_output"
+  else
+    install -Dm644 "$scratch/replay/timeline.tsv" "$timeline_output"
+  fi
 fi
 
 echo "continuous review: $output"
