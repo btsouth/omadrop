@@ -76,7 +76,8 @@ included for direct comparison with classic MilkDrop behavior.
 
 The full check writes its scorecards and soak log under `cache/release-check-*`.
 
-Create a deterministic source release bundle only from a clean committed tree:
+Create a deterministic source release bundle only from a clean committed tree
+whose `vVERSION` tag points at the exact commit:
 
 ```bash
 bin/omadrop-package

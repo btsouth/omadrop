@@ -77,7 +77,8 @@
   still during retries, and a lost PipeWire recorder is detected and restarted.
 - Add deterministic source packaging with clean-tree enforcement, safe archive
   member checks, the unified quick gate, an isolated install/pack/uninstall
-  smoke test, and a SHA-256 checksum. Packaging never publishes the result.
+  smoke test, exact VERSION-tag matching, and a SHA-256 checksum. Packaging
+  never publishes the result.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

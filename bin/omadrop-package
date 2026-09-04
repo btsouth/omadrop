@@ -22,6 +22,14 @@ if [[ ${OMADROP_PACKAGE_ALLOW_DIRTY:-0} != 1 ]] \
   echo "package: worktree must be clean so the archive matches a commit" >&2
   exit 1
 fi
+release_tag=v$version
+tag_commit=$(git -C "$root" rev-list -n 1 "$release_tag" 2>/dev/null || true)
+head_commit=$(git -C "$root" rev-parse HEAD)
+if [[ ${OMADROP_PACKAGE_ALLOW_UNTAGGED:-0} != 1 \
+      && $tag_commit != "$head_commit" ]]; then
+  echo "package: $release_tag must point at HEAD before creating a release bundle" >&2
+  exit 1
+fi
 if [[ ${OMADROP_PACKAGE_SKIP_CHECK:-0} != 1 ]]; then
   "$root/bin/omadrop-check" --quick
 fi

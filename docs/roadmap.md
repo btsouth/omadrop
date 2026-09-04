@@ -605,4 +605,5 @@ Completed after v0.3:
   is detected, retried every two seconds, and reset cleanly after recovery.
 - Added deterministic clean-commit source bundles with safe-member inspection,
   SHA-256 checksums, and an isolated extracted-archive smoke test covering
-  install, installed pack validation, version reporting, and uninstall.
+  install, installed pack validation, version reporting, and uninstall. Normal
+  packaging also requires the matching `vVERSION` tag to point at exact HEAD.
