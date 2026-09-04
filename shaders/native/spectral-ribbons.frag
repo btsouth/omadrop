@@ -9,20 +9,24 @@ void main() {
     vec2 aspect = vec2(resolution.x / max(1.0, resolution.y), 1.0);
     vec2 p = (uv - 0.5) * aspect;
 
+    float lowZone = 1.0 - smoothstep(-0.20, 0.02, p.y);
+    float highZone = smoothstep(0.08, 0.25, p.y);
+    float middleZone = clamp(1.0 - lowZone - highZone, 0.0, 1.0);
+    float roleGesture = kick * lowZone + snare * middleZone + hat * highZone;
+
     vec2 previousP = p;
     previousP.x += 0.00012 + 0.00035 * energySlow;
-    previousP.y *= 1.0 - 0.020 * beatPulse - 0.012 * onsetPulse - 0.009 * kick
+    previousP.y *= 1.0 - 0.003 * beatPulse - 0.026 * kick * lowZone
                          + 0.0012 * beatAnticipation;
-    previousP.x -= snare * 0.011 * sign(previousP.y);
-    previousP.y += hat * 0.0014 * sin(previousP.x * 52.0);
+    previousP.x -= snare * 0.013 * middleZone * sign(previousP.y);
+    previousP.y += hat * highZone * 0.0026 * sin(previousP.x * 52.0);
     vec2 previousUv = previousP / aspect + 0.5;
     float edge = smoothstep(0.0, 0.07, uv.x) * smoothstep(0.0, 0.07, uv.y)
                * smoothstep(0.0, 0.07, 1.0 - uv.x)
                * smoothstep(0.0, 0.07, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
                   * mix(0.865, 0.935, harmonic)
-                  * (1.0 - 0.050 * beatPulse - 0.060 * onsetPulse
-                         - 0.075 * max(kick, max(snare, hat))) * edge;
+                  * (1.0 - 0.018 * beatPulse - 0.070 * roleGesture) * edge;
 
     float lowRibbon = 0.0;
     float midRibbon = 0.0;
@@ -34,34 +38,35 @@ void main() {
         float band = spectrumLevel[index * 4 + 1];
         float frequency = 2.2 + fi * 0.72;
         float amplitude = 0.016 + 0.023 * band + 0.008 * development
-                        + (beatPulse + 0.72 * onsetPulse)
-                          * (0.030 + 0.0035 * fi);
+                        + (beatPulse + 0.45 * onsetPulse)
+                          * (0.007 + 0.0010 * fi);
         float roleWidth = 0.0;
         if (index < 3) {
             // Low ribbons open vertically and deepen their large curve.
-            amplitude += kick * (0.070 + 0.008 * fi);
-            y += sign(y) * kick * 0.040;
+            amplitude += kick * (0.105 + 0.012 * fi);
+            y += sign(y) * kick * 0.062;
             roleWidth = 0.0045 * kick;
         } else if (index < 6) {
             // Snares make the middle voices fold through one another.
-            amplitude += snare * 0.058;
-            y += snare * 0.032 * sin(fi * 2.3 + barPhase * tau);
+            amplitude += snare * 0.100;
+            y += snare * 0.063 * sin(fi * 2.3 + barPhase * tau);
             roleWidth = 0.0040 * snare;
         } else {
             // Hats reveal short, high-frequency ripples on the upper voices.
-            amplitude += hat * 0.034;
+            amplitude += hat * 0.076;
             roleWidth = 0.0032 * hat;
         }
         float curve = y + amplitude * sin(p.x * frequency * tau
-                    - flowTime * (0.14 + 0.040 * fi) + phrasePhase * tau);
+                    - flowTime * (0.065 + 0.018 * fi)
+                    + phrasePhase * tau * 0.18);
         if (index < 3) {
-            curve += kick * 0.030
+            curve += kick * 0.044
                    * sin(p.x * (frequency + 1.4) * tau + fi * 0.7);
         } else if (index < 6) {
-            curve += snare * 0.052
+            curve += snare * 0.090
                    * sin(p.x * frequency * 1.75 * tau + fi * 0.9);
         } else {
-            curve += hat * 0.021
+            curve += hat * 0.062
                    * sin(p.x * frequency * 3.2 * tau - flowTime * 3.0 + fi);
         }
         float ribbon = line(p.y - curve, 0.006 + 0.004 * band + roleWidth);
@@ -81,18 +86,17 @@ void main() {
     vec3 accent = paletteAccent(3.76);
     vec3 injection = primary * lowRibbon
                      * (0.12 + 0.07 * bandLevel[0]
-                        + 0.11 * beatPulse + 0.20 * kick)
+                        + 0.06 * beatPulse + 0.88 * kick)
                    + secondary * midRibbon
                      * (0.12 + 0.07 * bandLevel[3]
-                        + 0.11 * beatPulse + 0.19 * snare)
+                        + 0.06 * beatPulse + 1.00 * snare)
                    + accent * highRibbon
                      * (0.13 + 0.08 * bandLevel[5]
-                        + 0.11 * beatPulse + 0.22 * hat)
+                        + 0.06 * beatPulse + 1.28 * hat)
                    + accent * (intersections + playhead + sectionBand) * 0.20
                    + mix(primary, secondary, 0.5) * harmonicField * 0.07;
     injection *= 1.0 - 0.57 * release;
-    vec3 result = (feedback + injection)
-                * (1.0 + 0.12 * beatPulse + 0.10 * onsetPulse);
+    vec3 result = feedback + injection;
     result = max(result - vec3(0.0045), vec3(0.0));
     color = vec4(result, 1.0);
 }
