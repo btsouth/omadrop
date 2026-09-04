@@ -134,6 +134,11 @@ Wire Dance and its Reactive Wire edition.
 The ten original native scenes are the default renderer. They use the
 production audio, artwork, palette, ASCII, and windowing paths through
 Omadrop's HDR feedback backend. Press `N` or `P` to transition between scenes.
+Their versioned definitions live in `native_scene_registry.h`. A definition
+owns the scene's identity, shader, materials, declared musical roles, selection
+traits, transition anchor, and performance limit. The renderer and director
+both consume this registry, so a scene does not require a separate hardcoded
+shader or selection entry.
 Set `OMADROP_ENGINE=projectm` to run the preserved preset renderer for
 compatibility or A/B review. `OMADROP_NATIVE_SCENE` accepts `depth-tunnel`,
 `centrifuge`, `wire-organism`, `prism-garden`, `orbital-loom`, `tidal-grid`,

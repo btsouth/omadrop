@@ -57,19 +57,7 @@ bool writePpm(const std::filesystem::path& path,
 }
 
 std::string sceneSlug(NativeSceneKind scene) {
-    switch (scene) {
-        case NativeSceneKind::DepthTunnel: return "depth";
-        case NativeSceneKind::Centrifuge: return "centrifuge";
-        case NativeSceneKind::WireOrganism: return "wire";
-        case NativeSceneKind::PrismGarden: return "prism";
-        case NativeSceneKind::OrbitalLoom: return "orbital";
-        case NativeSceneKind::TidalGrid: return "tidal";
-        case NativeSceneKind::PulseCathedral: return "cathedral";
-        case NativeSceneKind::ConstellationField: return "constellation";
-        case NativeSceneKind::SpectralRibbons: return "ribbons";
-        case NativeSceneKind::BloomEngine: return "bloom";
-    }
-    return "unknown";
+    return std::string(nativeSceneDefinition(scene).slug);
 }
 
 struct FrameDelta {

@@ -1,0 +1,146 @@
+#pragma once
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <string_view>
+
+enum class NativeSceneKind : std::uint8_t {
+    DepthTunnel = 0,
+    Centrifuge = 1,
+    WireOrganism = 2,
+    PrismGarden = 3,
+    OrbitalLoom = 4,
+    TidalGrid = 5,
+    PulseCathedral = 6,
+    ConstellationField = 7,
+    SpectralRibbons = 8,
+    BloomEngine = 9,
+};
+
+inline constexpr std::size_t nativeSceneCount = 10;
+inline constexpr unsigned int nativeSceneRegistryVersion = 1;
+
+enum class NativeTransitionAnchor : std::uint8_t {
+    Center,
+    HorizontalAxis,
+    VerticalAxis,
+    DepthPoint,
+};
+
+enum NativeMusicalRole : std::uint8_t {
+    KickRole = 1 << 0,
+    SnareRole = 1 << 1,
+    HatRole = 1 << 2,
+    GrooveRole = 1 << 3,
+    HarmonyRole = 1 << 4,
+    StructureRole = 1 << 5,
+};
+
+struct NativeSceneMaterial {
+    float fieldExposure;
+    float asciiExposure;
+};
+
+struct NativeSceneSelectionTraits {
+    float energy;
+    float percussive;
+    float harmonic;
+    float centroid;
+    float stereo;
+};
+
+struct NativeSceneDefinition {
+    NativeSceneKind kind;
+    std::string_view slug;
+    std::string_view name;
+    std::string_view shader;
+    std::array<std::string_view, 3> aliases;
+    NativeSceneMaterial material;
+    NativeSceneSelectionTraits selection;
+    NativeTransitionAnchor transitionAnchor;
+    std::uint8_t musicalRoles;
+    float maximumFrameMilliseconds;
+};
+
+inline constexpr std::uint8_t transientRoles
+    = KickRole | SnareRole | HatRole;
+
+inline constexpr std::array<NativeSceneDefinition, nativeSceneCount>
+nativeSceneRegistry{{
+    {NativeSceneKind::DepthTunnel, "depth-tunnel", "Depth Tunnel",
+     "depth-tunnel.frag", {"depth", "tunnel", ""}, {1.05f, 1.08f},
+     {0.72f, 0.58f, 0.42f, 0.24f, 0.34f}, NativeTransitionAnchor::DepthPoint,
+     transientRoles | GrooveRole | StructureRole, 6.0f},
+    {NativeSceneKind::Centrifuge, "centrifuge", "Centrifuge",
+     "centrifuge.frag", {"", "", ""}, {0.92f, 1.00f},
+     {0.82f, 0.86f, 0.28f, 0.66f, 0.44f}, NativeTransitionAnchor::Center,
+     transientRoles | GrooveRole | StructureRole, 6.0f},
+    {NativeSceneKind::WireOrganism, "wire-organism", "Wire Organism",
+     "wire-organism.frag", {"wire", "", ""}, {1.26f, 1.16f},
+     {0.46f, 0.34f, 0.82f, 0.44f, 0.62f}, NativeTransitionAnchor::Center,
+     transientRoles | HarmonyRole | StructureRole, 6.0f},
+    {NativeSceneKind::PrismGarden, "prism-garden", "Prism Garden",
+     "prism-garden.frag", {"prism", "garden", ""}, {1.10f, 1.08f},
+     {0.54f, 0.28f, 0.88f, 0.78f, 0.48f}, NativeTransitionAnchor::VerticalAxis,
+     transientRoles | HarmonyRole | StructureRole, 6.0f},
+    {NativeSceneKind::OrbitalLoom, "orbital-loom", "Orbital Loom",
+     "orbital-loom.frag", {"orbit", "loom", ""}, {1.02f, 1.06f},
+     {0.60f, 0.44f, 0.74f, 0.54f, 0.92f}, NativeTransitionAnchor::Center,
+     transientRoles | GrooveRole | HarmonyRole, 6.0f},
+    {NativeSceneKind::TidalGrid, "tidal-grid", "Tidal Grid",
+     "tidal-grid.frag", {"tide", "grid", ""}, {1.12f, 1.10f},
+     {0.34f, 0.24f, 0.84f, 0.20f, 0.66f}, NativeTransitionAnchor::HorizontalAxis,
+     transientRoles | HarmonyRole | StructureRole, 6.0f},
+    {NativeSceneKind::PulseCathedral, "pulse-cathedral", "Pulse Cathedral",
+     "pulse-cathedral.frag", {"cathedral", "", ""}, {1.08f, 1.05f},
+     {0.48f, 0.26f, 0.96f, 0.36f, 0.34f}, NativeTransitionAnchor::VerticalAxis,
+     transientRoles | HarmonyRole | StructureRole, 6.0f},
+    {NativeSceneKind::ConstellationField, "constellation-field",
+     "Constellation Field", "constellation-field.frag",
+     {"stars", "constellation", ""}, {1.22f, 1.16f},
+     {0.24f, 0.18f, 0.74f, 0.72f, 0.76f}, NativeTransitionAnchor::Center,
+     transientRoles | HarmonyRole | StructureRole, 6.0f},
+    {NativeSceneKind::SpectralRibbons, "spectral-ribbons", "Spectral Ribbons",
+     "spectral-ribbons.frag", {"ribbons", "", ""}, {1.04f, 1.06f},
+     {0.64f, 0.56f, 0.64f, 0.62f, 0.72f}, NativeTransitionAnchor::HorizontalAxis,
+     transientRoles | GrooveRole | HarmonyRole, 6.0f},
+    {NativeSceneKind::BloomEngine, "bloom-engine", "Bloom Engine",
+     "bloom-engine.frag", {"bloom", "", ""}, {1.00f, 1.04f},
+     {0.74f, 0.66f, 0.66f, 0.48f, 0.54f}, NativeTransitionAnchor::Center,
+     transientRoles | GrooveRole | StructureRole, 6.0f},
+}};
+
+inline const NativeSceneDefinition& nativeSceneDefinition(NativeSceneKind scene) {
+    return nativeSceneRegistry[static_cast<std::size_t>(scene)];
+}
+
+inline const char* nativeSceneName(NativeSceneKind scene) {
+    return nativeSceneDefinition(scene).name.data();
+}
+
+inline NativeSceneMaterial nativeSceneMaterial(NativeSceneKind scene) {
+    return nativeSceneDefinition(scene).material;
+}
+
+inline bool nativeSceneFromName(std::string_view name, NativeSceneKind& scene) {
+    for (const NativeSceneDefinition& definition : nativeSceneRegistry) {
+        if (name == definition.slug || name == definition.name) {
+            scene = definition.kind;
+            return true;
+        }
+        for (const std::string_view alias : definition.aliases) {
+            if (!alias.empty() && name == alias) {
+                scene = definition.kind;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+inline NativeSceneKind nativeSceneOffset(NativeSceneKind scene, int direction) {
+    const int count = static_cast<int>(nativeSceneCount);
+    const int index = static_cast<int>(scene);
+    return static_cast<NativeSceneKind>((index + direction % count + count) % count);
+}

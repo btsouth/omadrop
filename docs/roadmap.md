@@ -366,3 +366,7 @@ Completed after v0.3:
   scene's own geometry.
 - Added normalized chroma, rhythmic density, syncopation, tonal motion, and
   harmonic-change signals to the shared `MusicFrame` contract.
+- Split settings, artwork, compatibility loading, and PipeWire capture out of
+  the live application loop.
+- Added a versioned scene registry for identity, shader, materials, musical
+  roles, selection traits, transition anchors, and performance limits.

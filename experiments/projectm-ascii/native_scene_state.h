@@ -1,120 +1,16 @@
 #pragma once
 
 #include "music_frame.h"
+#include "native_scene_registry.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
-#include <cstdint>
 #include <deque>
 #include <limits>
 #include <optional>
-#include <string_view>
 #include <unordered_map>
-
-enum class NativeSceneKind : std::uint8_t {
-    DepthTunnel = 0,
-    Centrifuge = 1,
-    WireOrganism = 2,
-    PrismGarden = 3,
-    OrbitalLoom = 4,
-    TidalGrid = 5,
-    PulseCathedral = 6,
-    ConstellationField = 7,
-    SpectralRibbons = 8,
-    BloomEngine = 9,
-};
-
-inline constexpr std::size_t nativeSceneCount = 10;
-
-inline const char* nativeSceneName(NativeSceneKind scene) {
-    switch (scene) {
-        case NativeSceneKind::DepthTunnel: return "Depth Tunnel";
-        case NativeSceneKind::Centrifuge: return "Centrifuge";
-        case NativeSceneKind::WireOrganism: return "Wire Organism";
-        case NativeSceneKind::PrismGarden: return "Prism Garden";
-        case NativeSceneKind::OrbitalLoom: return "Orbital Loom";
-        case NativeSceneKind::TidalGrid: return "Tidal Grid";
-        case NativeSceneKind::PulseCathedral: return "Pulse Cathedral";
-        case NativeSceneKind::ConstellationField: return "Constellation Field";
-        case NativeSceneKind::SpectralRibbons: return "Spectral Ribbons";
-        case NativeSceneKind::BloomEngine: return "Bloom Engine";
-    }
-    return "Unknown";
-}
-
-inline NativeSceneKind nativeSceneOffset(NativeSceneKind scene, int direction) {
-    const int count = static_cast<int>(nativeSceneCount);
-    const int index = static_cast<int>(scene);
-    return static_cast<NativeSceneKind>((index + direction % count + count) % count);
-}
-
-inline bool nativeSceneFromName(std::string_view name, NativeSceneKind& scene) {
-    if (name == "depth" || name == "tunnel" || name == "depth-tunnel") {
-        scene = NativeSceneKind::DepthTunnel;
-        return true;
-    }
-    if (name == "centrifuge") {
-        scene = NativeSceneKind::Centrifuge;
-        return true;
-    }
-    if (name == "wire" || name == "wire-organism") {
-        scene = NativeSceneKind::WireOrganism;
-        return true;
-    }
-    if (name == "prism" || name == "garden" || name == "prism-garden") {
-        scene = NativeSceneKind::PrismGarden;
-        return true;
-    }
-    if (name == "orbit" || name == "loom" || name == "orbital-loom") {
-        scene = NativeSceneKind::OrbitalLoom;
-        return true;
-    }
-    if (name == "tide" || name == "grid" || name == "tidal-grid") {
-        scene = NativeSceneKind::TidalGrid;
-        return true;
-    }
-    if (name == "cathedral" || name == "pulse-cathedral") {
-        scene = NativeSceneKind::PulseCathedral;
-        return true;
-    }
-    if (name == "stars" || name == "constellation"
-        || name == "constellation-field") {
-        scene = NativeSceneKind::ConstellationField;
-        return true;
-    }
-    if (name == "ribbons" || name == "spectral-ribbons") {
-        scene = NativeSceneKind::SpectralRibbons;
-        return true;
-    }
-    if (name == "bloom" || name == "bloom-engine") {
-        scene = NativeSceneKind::BloomEngine;
-        return true;
-    }
-    return false;
-}
-
-struct NativeSceneMaterial {
-    float fieldExposure;
-    float asciiExposure;
-};
-
-inline NativeSceneMaterial nativeSceneMaterial(NativeSceneKind scene) {
-    switch (scene) {
-        case NativeSceneKind::DepthTunnel: return {1.05f, 1.08f};
-        case NativeSceneKind::Centrifuge: return {0.92f, 1.00f};
-        case NativeSceneKind::WireOrganism: return {1.26f, 1.16f};
-        case NativeSceneKind::PrismGarden: return {1.10f, 1.08f};
-        case NativeSceneKind::OrbitalLoom: return {1.02f, 1.06f};
-        case NativeSceneKind::TidalGrid: return {1.12f, 1.10f};
-        case NativeSceneKind::PulseCathedral: return {1.08f, 1.05f};
-        case NativeSceneKind::ConstellationField: return {1.22f, 1.16f};
-        case NativeSceneKind::SpectralRibbons: return {1.04f, 1.06f};
-        case NativeSceneKind::BloomEngine: return {1.00f, 1.04f};
-    }
-    return {1.0f, 1.0f};
-}
 
 struct NativeSceneState {
     float development = 0.0f;
@@ -267,27 +163,6 @@ public:
     void reset() { *this = NativeSceneDirector{}; }
 
 private:
-    struct SceneTraits {
-        float energy;
-        float percussive;
-        float harmonic;
-        float centroid;
-        float stereo;
-    };
-
-    static constexpr std::array<SceneTraits, nativeSceneCount> sceneTraits{{
-        {0.72f, 0.58f, 0.42f, 0.24f, 0.34f}, // Depth Tunnel
-        {0.82f, 0.86f, 0.28f, 0.66f, 0.44f}, // Centrifuge
-        {0.46f, 0.34f, 0.82f, 0.44f, 0.62f}, // Wire Organism
-        {0.54f, 0.28f, 0.88f, 0.78f, 0.48f}, // Prism Garden
-        {0.60f, 0.44f, 0.74f, 0.54f, 0.92f}, // Orbital Loom
-        {0.34f, 0.24f, 0.84f, 0.20f, 0.66f}, // Tidal Grid
-        {0.48f, 0.26f, 0.96f, 0.36f, 0.34f}, // Pulse Cathedral
-        {0.24f, 0.18f, 0.74f, 0.72f, 0.76f}, // Constellation Field
-        {0.64f, 0.56f, 0.64f, 0.62f, 0.72f}, // Spectral Ribbons
-        {0.74f, 0.66f, 0.66f, 0.48f, 0.54f}, // Bloom Engine
-    }};
-
     NativeSceneKind chooseAutomaticScene(const MusicFrame& music) const {
         const float energy = std::clamp(
             0.58f * music.energyFast + 0.42f * music.energySlow, 0.0f, 1.0f);
@@ -300,7 +175,8 @@ private:
         for (std::size_t index = 0; index < nativeSceneCount; ++index) {
             const NativeSceneKind candidate = static_cast<NativeSceneKind>(index);
             if (candidate == state_.currentScene) continue;
-            const SceneTraits& traits = sceneTraits[index];
+            const NativeSceneSelectionTraits& traits
+                = nativeSceneDefinition(candidate).selection;
             const auto square = [](float value) { return value * value; };
             float score = 1.55f * square(energy - traits.energy)
                         + 1.30f * square(percussive - traits.percussive)

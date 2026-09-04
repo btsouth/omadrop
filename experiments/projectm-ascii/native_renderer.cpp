@@ -104,23 +104,13 @@ bool NativeRenderer::initialize(const std::filesystem::path& shaderDirectory,
                                 std::string& error) {
     const std::string vertexSource = readShaderFile(
         shaderDirectory / "fullscreen.vert", error);
-    const std::array<std::filesystem::path, nativeSceneCount> fragmentPaths{
-        shaderDirectory / "depth-tunnel.frag",
-        shaderDirectory / "centrifuge.frag",
-        shaderDirectory / "wire-organism.frag",
-        shaderDirectory / "prism-garden.frag",
-        shaderDirectory / "orbital-loom.frag",
-        shaderDirectory / "tidal-grid.frag",
-        shaderDirectory / "pulse-cathedral.frag",
-        shaderDirectory / "constellation-field.frag",
-        shaderDirectory / "spectral-ribbons.frag",
-        shaderDirectory / "bloom-engine.frag",
-    };
     if (vertexSource.empty()) {
         return false;
     }
     for (std::size_t scene = 0; scene < nativeSceneCount; ++scene) {
-        const std::string fragmentSource = readShaderFile(fragmentPaths[scene], error);
+        const NativeSceneDefinition& definition = nativeSceneRegistry[scene];
+        const std::string fragmentSource = readShaderFile(
+            shaderDirectory / definition.shader, error);
         if (fragmentSource.empty()) {
             shutdown();
             return false;
