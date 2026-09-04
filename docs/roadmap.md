@@ -549,3 +549,10 @@ Completed after v0.3:
   structured-track audits at 125 percent intensity and in reduced-motion mode.
   A 3,600-frame 1080p soak reports 0.40 ms at the 99th percentile, no slow
   streak, and 0.88 MiB resident-memory growth.
+- Added a synchronized, self-contained status overlay for interactive changes.
+  Scene skips explicitly show `AUTO: <scene>`, while ASCII, fullscreen, sync,
+  intensity, brightness, ambient motion, reduced motion, and high contrast show
+  their resulting state. The label fades after 1.8 seconds and is rendered
+  after the scene compositor, so it cannot contaminate feedback or recordings
+  without a user action. Hidden-context tests cover its raster, final pass,
+  placement, expiry, and paired manual-scene cue.

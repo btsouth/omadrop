@@ -18,6 +18,7 @@ Run the native music-contract and render audits with:
 ```sh
 ./experiments/projectm-ascii/music-frame-test
 ./experiments/projectm-ascii/signal-monitor-test
+./experiments/projectm-ascii/status-overlay-test
 ./experiments/projectm-ascii/live-compositor-test
 ./experiments/projectm-ascii/cover-presentation-test
 ./experiments/projectm-ascii/mpris-state-test
@@ -261,6 +262,12 @@ These choices are stored in the versioned
 `$XDG_CONFIG_HOME/omadrop/preferences.conf` file. Legacy `ascii-enabled`
 settings migrate automatically, and settings writes replace the complete file
 atomically so paired displays never observe a partial update.
+
+Every interactive change gets a brief bottom-center status label. Manual scene
+navigation reads `AUTO: <scene>` to make its one-shot behavior explicit. The
+overlay uses a small built-in bitmap font and its own final OpenGL pass, so it
+does not add a font dependency or alter the visual feedback buffers. Its raster,
+render, placement, and expiry paths run in a hidden-context regression test.
 
 Press Escape to exit. The process prints `audio: PipeWire` when nonzero sink
 samples arrive. `OMADROP_SYNTHETIC_AUDIO=1` forces a deterministic repeating

@@ -11,6 +11,7 @@ g++ -std=c++20 -O2 -Wall -Wextra live.cpp audio_output_session.cpp \
   cover_presentation.cpp live_assets.cpp live_compositor.cpp live_projectm.cpp \
   live_settings.cpp mpris_poller.cpp \
   native_renderer.cpp paired_transport.cpp pipewire_capture.cpp \
+  status_overlay.cpp \
   -o projectm-ascii-live \
   $(pkg-config --cflags projectM-4 sdl2 glew libpng fftw3f json-c) \
   $(pkg-config --libs sdl2 glew libpng fftw3f json-c) -lprojectM-4 -lGL
@@ -59,6 +60,9 @@ g++ -std=c++20 -O2 -Wall -Wextra signal_monitor_test.cpp \
 
 g++ -std=c++20 -O2 -Wall -Wextra live_compositor_test.cpp live_compositor.cpp \
   -o live-compositor-test $(pkg-config --cflags --libs sdl2 glew) -lGL
+
+g++ -std=c++20 -O2 -Wall -Wextra status_overlay_test.cpp status_overlay.cpp \
+  -o status-overlay-test $(pkg-config --cflags --libs sdl2 glew) -lGL
 
 g++ -std=c++20 -O2 -Wall -Wextra cover_presentation_test.cpp \
   cover_presentation.cpp -o cover-presentation-test

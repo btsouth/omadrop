@@ -117,7 +117,8 @@ omadrop --single    # focused display only
 Controls apply to every Omadrop window, regardless of which display has focus.
 ASCII, intensity, brightness, motion, reduced-motion, and high-contrast choices
 are remembered between launches. Per-output audio delay is remembered for each
-output device.
+output device. A compact status label confirms each change. Manual scene skips
+show `AUTO: <scene>` because `N` and `P` never disable automatic direction.
 `OMADROP_ASCII=0` remains available as a temporary override.
 
 ## How it works

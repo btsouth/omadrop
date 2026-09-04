@@ -24,6 +24,7 @@ struct PairedDisplayState {
     int reducedMotionMode = -1;
     int highContrastMode = -1;
     int directorProfile = -1;
+    int manualSceneCue = 0;
 };
 
 inline std::string encodePairedDisplayState(const PairedDisplayState& state) {
@@ -36,6 +37,7 @@ inline std::string encodePairedDisplayState(const PairedDisplayState& state) {
            << ' ' << state.intensityPercent << ' ' << state.brightnessPercent
            << ' ' << state.motionPercent << ' ' << state.reducedMotionMode
            << ' ' << state.highContrastMode << ' ' << state.directorProfile
+           << ' ' << state.manualSceneCue
            << '\n';
     return output.str();
 }
@@ -112,6 +114,13 @@ inline std::optional<PairedDisplayState> decodePairedDisplayState(
                     state.reducedMotionMode = reducedMotionMode;
                     state.highContrastMode = highContrastMode;
                     state.directorProfile = directorProfile;
+                    int manualSceneCue = 0;
+                    if (stream >> manualSceneCue) {
+                        if (manualSceneCue < 0 || manualSceneCue > 1) {
+                            return std::nullopt;
+                        }
+                        state.manualSceneCue = manualSceneCue;
+                    }
                 }
             }
         }

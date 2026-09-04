@@ -17,6 +17,7 @@ experiments/projectm-ascii/structure-timeline-test
 experiments/projectm-ascii/musical-structure-test
 experiments/projectm-ascii/music-frame-test
 experiments/projectm-ascii/signal-monitor-test
+experiments/projectm-ascii/status-overlay-test
 experiments/projectm-ascii/live-compositor-test
 experiments/projectm-ascii/cover-presentation-test
 experiments/projectm-ascii/native-scene-state-test

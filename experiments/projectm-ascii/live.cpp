@@ -43,6 +43,7 @@
 #include "preset_profiles.h"
 #include "preset_selector.h"
 #include "structure_timeline.h"
+#include "status_overlay.h"
 #include "visual_motifs.h"
 
 namespace {
@@ -578,6 +579,11 @@ int main(int argc, char** argv) {
         std::cerr << "display compositor: " << compositorError << "\n";
         return 1;
     }
+    StatusOverlay statusOverlay;
+    if (!statusOverlay.initialize(compositorError)) {
+        std::cerr << "status overlay: " << compositorError << "\n";
+        return 1;
+    }
     std::unique_ptr<NativeRenderer> nativeRenderer;
     if (nativeEnabled) {
         nativeRenderer = std::make_unique<NativeRenderer>();
@@ -627,7 +633,8 @@ int main(int argc, char** argv) {
     PairedMusicFollower pairedMusicFollower;
     auto publishPairedState = [&](std::size_t index, std::uint64_t duration,
                                   int mode, bool hardSync, int nativeScene = -1,
-                                  int nativeSourceScene = -1) {
+                                  int nativeSourceScene = -1,
+                                  bool manualSceneCue = false) {
         if (!pairedLeader) return;
         pairedTransport.publishDisplay({
             .serial = ++pairedSerial,
@@ -650,6 +657,7 @@ int main(int argc, char** argv) {
             .reducedMotionMode = preferences.reducedMotion ? 1 : 0,
             .highContrastMode = preferences.highContrast ? 1 : 0,
             .directorProfile = static_cast<int>(preferences.directorProfile),
+            .manualSceneCue = manualSceneCue ? 1 : 0,
         });
     };
     auto publishPairedMusic = [&](const MusicFrame& frame) {
@@ -840,36 +848,52 @@ int main(int argc, char** argv) {
         }
         return levels.front();
     };
-    auto applyVisualPreference = [&](const std::string& request) {
+    auto applyVisualPreference = [&](const std::string& request,
+                                     std::uint64_t statusAt) {
+        std::string status;
         if (request == "intensity") {
             preferences.intensity = cycleLevel(
                 preferences.intensity, {0.75f, 1.0f, 1.25f});
             std::cerr << "visual intensity: "
                       << std::lround(preferences.intensity * 100.0f) << "%\n";
+            status = "INTENSITY: "
+                   + std::to_string(std::lround(
+                       preferences.intensity * 100.0f)) + "%";
         } else if (request == "brightness") {
             preferences.brightness = cycleLevel(
                 preferences.brightness, {0.70f, 1.0f, 1.15f});
             std::cerr << "visual brightness: "
                       << std::lround(preferences.brightness * 100.0f) << "%\n";
+            status = "BRIGHTNESS: "
+                   + std::to_string(std::lround(
+                       preferences.brightness * 100.0f)) + "%";
         } else if (request == "motion") {
             preferences.motion = cycleLevel(
                 preferences.motion, {0.35f, 0.65f, 1.0f});
             std::cerr << "ambient motion: "
                       << std::lround(preferences.motion * 100.0f) << "%\n";
+            status = "AMBIENT MOTION: "
+                   + std::to_string(std::lround(
+                       preferences.motion * 100.0f)) + "%";
         } else if (request == "reduced-motion") {
             preferences.reducedMotion = !preferences.reducedMotion;
             std::cerr << "reduced motion: "
                       << (preferences.reducedMotion ? "on" : "off") << "\n";
+            status = std::string("REDUCED MOTION: ")
+                   + (preferences.reducedMotion ? "ON" : "OFF");
         } else if (request == "high-contrast") {
             preferences.highContrast = !preferences.highContrast;
             std::cerr << "high contrast: "
                       << (preferences.highContrast ? "on" : "off") << "\n";
+            status = std::string("HIGH CONTRAST: ")
+                   + (preferences.highContrast ? "ON" : "OFF");
         } else {
             return false;
         }
         if (!saveLivePreferences(preferences)) {
             std::cerr << "preferences: could not save\n";
         }
+        statusOverlay.show(status, statusAt);
         return true;
     };
     uint64_t nextSinkPollAt = SDL_GetTicks64() + 2000;
@@ -912,6 +936,8 @@ int main(int argc, char** argv) {
                     std::cerr << "display: "
                               << (asciiEnabled ? "Omadrop ASCII" : "continuous")
                               << "\n";
+                    statusOverlay.show(
+                        asciiEnabled ? "ASCII: ON" : "ASCII: OFF", now);
                 }
             }
             const char* visualPreferenceRequest = nullptr;
@@ -933,7 +959,7 @@ int main(int argc, char** argv) {
             if (visualPreferenceRequest) {
                 if (pairedFollower) pairedControlRequest = visualPreferenceRequest;
                 else {
-                    applyVisualPreference(visualPreferenceRequest);
+                    applyVisualPreference(visualPreferenceRequest, now);
                     pairedControlsChanged = true;
                 }
             }
@@ -944,6 +970,8 @@ int main(int argc, char** argv) {
                     SDL_SetWindowFullscreen(window, fullscreenEnabled
                         ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
                     pairedControlsChanged = true;
+                    statusOverlay.show(fullscreenEnabled
+                        ? "FULLSCREEN: ON" : "FULLSCREEN: OFF", now);
                 }
             }
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_LEFTBRACKET) {
@@ -953,6 +981,8 @@ int main(int argc, char** argv) {
                     saveSyncDelay(syncDelayMs, sink);
                     pairedControlsChanged = true;
                     std::cerr << "audio sync delay: " << syncDelayMs << " ms\n";
+                    statusOverlay.show(
+                        "SYNC: " + std::to_string(syncDelayMs) + " MS", now);
                 }
             }
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_RIGHTBRACKET) {
@@ -962,6 +992,8 @@ int main(int argc, char** argv) {
                     saveSyncDelay(syncDelayMs, sink);
                     pairedControlsChanged = true;
                     std::cerr << "audio sync delay: " << syncDelayMs << " ms\n";
+                    statusOverlay.show(
+                        "SYNC: " + std::to_string(syncDelayMs) + " MS", now);
                 }
             }
         }
@@ -986,25 +1018,33 @@ int main(int argc, char** argv) {
                     std::cerr << "display: "
                               << (asciiEnabled ? "Omadrop ASCII" : "continuous")
                               << "\n";
+                    statusOverlay.show(
+                        asciiEnabled ? "ASCII: ON" : "ASCII: OFF", now);
                 } else if (request == "fullscreen") {
                     fullscreenEnabled = !fullscreenEnabled;
                     SDL_SetWindowFullscreen(window, fullscreenEnabled
                         ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
                     pairedControlsChanged = true;
+                    statusOverlay.show(fullscreenEnabled
+                        ? "FULLSCREEN: ON" : "FULLSCREEN: OFF", now);
                 } else if (request == "delay-down") {
                     syncDelayMs = syncDelayMs >= 10 ? syncDelayMs - 10 : 0;
                     saveSyncDelay(syncDelayMs, sink);
                     pairedControlsChanged = true;
                     std::cerr << "audio sync delay: " << syncDelayMs << " ms\n";
+                    statusOverlay.show(
+                        "SYNC: " + std::to_string(syncDelayMs) + " MS", now);
                 } else if (request == "delay-up") {
                     syncDelayMs = std::min(500u, syncDelayMs + 10);
                     saveSyncDelay(syncDelayMs, sink);
                     pairedControlsChanged = true;
                     std::cerr << "audio sync delay: " << syncDelayMs << " ms\n";
+                    statusOverlay.show(
+                        "SYNC: " + std::to_string(syncDelayMs) + " MS", now);
                 } else if (request == "quit") {
                     closeRequested = true;
                     pairedControlsChanged = true;
-                } else if (applyVisualPreference(request)) {
+                } else if (applyVisualPreference(request, now)) {
                     pairedControlsChanged = true;
                 }
             }
@@ -1399,6 +1439,8 @@ int main(int argc, char** argv) {
                         std::cerr << "display: "
                                   << (asciiEnabled ? "Omadrop ASCII" : "continuous")
                                   << " (paired)\n";
+                        statusOverlay.show(
+                            asciiEnabled ? "ASCII: ON" : "ASCII: OFF", now);
                     }
                 }
                 if (pairedState->fullscreenMode >= 0) {
@@ -1408,6 +1450,8 @@ int main(int argc, char** argv) {
                         fullscreenEnabled = synchronizedFullscreen;
                         SDL_SetWindowFullscreen(window, fullscreenEnabled
                             ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+                        statusOverlay.show(fullscreenEnabled
+                            ? "FULLSCREEN: ON" : "FULLSCREEN: OFF", now);
                     }
                 }
                 if (pairedState->syncDelayMs >= 0
@@ -1416,25 +1460,62 @@ int main(int argc, char** argv) {
                     syncDelayMs = static_cast<unsigned int>(pairedState->syncDelayMs);
                     std::cerr << "audio sync delay: " << syncDelayMs
                               << " ms (paired)\n";
+                    statusOverlay.show(
+                        "SYNC: " + std::to_string(syncDelayMs) + " MS", now);
                 }
                 if (pairedState->intensityPercent >= 0) {
-                    preferences.intensity
+                    const float synchronizedIntensity
                         = pairedState->intensityPercent / 100.0f;
-                    preferences.brightness
+                    const float synchronizedBrightness
                         = pairedState->brightnessPercent / 100.0f;
-                    preferences.motion = pairedState->motionPercent / 100.0f;
+                    const float synchronizedMotion
+                        = pairedState->motionPercent / 100.0f;
+                    std::string synchronizedStatus;
+                    if (std::abs(preferences.intensity
+                                 - synchronizedIntensity) > 0.001f) {
+                        synchronizedStatus = "INTENSITY: "
+                            + std::to_string(pairedState->intensityPercent) + "%";
+                    } else if (std::abs(preferences.brightness
+                                        - synchronizedBrightness) > 0.001f) {
+                        synchronizedStatus = "BRIGHTNESS: "
+                            + std::to_string(pairedState->brightnessPercent) + "%";
+                    } else if (std::abs(preferences.motion
+                                        - synchronizedMotion) > 0.001f) {
+                        synchronizedStatus = "AMBIENT MOTION: "
+                            + std::to_string(pairedState->motionPercent) + "%";
+                    } else if (preferences.reducedMotion
+                               != (pairedState->reducedMotionMode == 1)) {
+                        synchronizedStatus = pairedState->reducedMotionMode == 1
+                            ? "REDUCED MOTION: ON" : "REDUCED MOTION: OFF";
+                    } else if (preferences.highContrast
+                               != (pairedState->highContrastMode == 1)) {
+                        synchronizedStatus = pairedState->highContrastMode == 1
+                            ? "HIGH CONTRAST: ON" : "HIGH CONTRAST: OFF";
+                    }
+                    preferences.intensity
+                        = synchronizedIntensity;
+                    preferences.brightness
+                        = synchronizedBrightness;
+                    preferences.motion = synchronizedMotion;
                     preferences.reducedMotion
                         = pairedState->reducedMotionMode == 1;
                     preferences.highContrast
                         = pairedState->highContrastMode == 1;
                     preferences.directorProfile = static_cast<DirectorProfile>(
                         pairedState->directorProfile);
+                    if (!synchronizedStatus.empty()) {
+                        statusOverlay.show(synchronizedStatus, now);
+                    }
                 }
                 if (pairedState->closeMode == 1) closeRequested = true;
             }
             if (nativeEnabled && pairedState && pairedState->nativeScene >= 0) {
                 const NativeSceneKind target = static_cast<NativeSceneKind>(
                     pairedState->nativeScene);
+                if (pairedState->manualSceneCue == 1) {
+                    statusOverlay.show(
+                        std::string("AUTO: ") + nativeSceneName(target), now);
+                }
                 if (pairedState->hardSync) nativeSceneDirector.selectScene(target);
                 else {
                     if (pairedState->nativeSourceScene >= 0) {
@@ -1609,6 +1690,7 @@ int main(int argc, char** argv) {
         const float frameSeconds = std::min(0.1f, (now - previousFrameAt) / 1000.0f);
         previousFrameAt = now;
         if (nativeEnabled) {
+            const bool manualSceneRequest = skipPreset || previousPreset;
             if (skipPreset) nativeSceneDirector.requestNext();
             if (previousPreset) nativeSceneDirector.requestPrevious();
             const bool scriptedLeader = !scriptedScenes.empty() && !pairedFollower;
@@ -1670,7 +1752,14 @@ int main(int argc, char** argv) {
                 publishPairedState(
                     presetIndex, 0, authoredTransitionMode, false,
                     static_cast<int>(nativeSceneState.incomingScene),
-                    static_cast<int>(nativeSceneState.currentScene));
+                    static_cast<int>(nativeSceneState.currentScene),
+                    manualSceneRequest);
+                if (manualSceneRequest) {
+                    statusOverlay.show(
+                        std::string("AUTO: ")
+                            + nativeSceneName(nativeSceneState.incomingScene),
+                        now);
+                }
             } else if (!nativeSceneState.transitioning && nativeTransitionWasActive) {
                 std::cerr << "native scene: "
                           << nativeSceneName(nativeSceneState.currentScene) << "\n";
@@ -1831,6 +1920,11 @@ int main(int argc, char** argv) {
             running = false;
             continue;
         }
+        if (!statusOverlay.render(outputW, outputH, now, compositorError)) {
+            std::cerr << "status overlay: " << compositorError << "\n";
+            running = false;
+            continue;
+        }
         if (!startGateOpened) {
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
@@ -1866,6 +1960,7 @@ int main(int argc, char** argv) {
     projectm_destroy(engines[0]);
     projectm_destroy(engines[1]);
     compositor.shutdown();
+    statusOverlay.shutdown();
     glDeleteTextures(2, frameTextures.data());
     glDeleteTextures(1, &coverTexture);
     SDL_GL_DeleteContext(context);

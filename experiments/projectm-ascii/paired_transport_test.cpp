@@ -32,6 +32,7 @@ int main() {
         .reducedMotionMode = 1,
         .highContrastMode = 0,
         .directorProfile = 2,
+        .manualSceneCue = 1,
     }));
     const auto first = displayFollower.consume(follower.readDisplay(), 8, 10);
     assert(first && first->nativeScene == 4 && first->asciiMode == 0);
@@ -39,6 +40,7 @@ int main() {
     assert(first->intensityPercent == 125 && first->brightnessPercent == 80);
     assert(first->motionPercent == 65 && first->reducedMotionMode == 1);
     assert(first->highContrastMode == 0 && first->directorProfile == 2);
+    assert(first->manualSceneCue == 1);
     assert(!displayFollower.consume(follower.readDisplay(), 8, 10));
 
     assert(leader.publishDisplay({

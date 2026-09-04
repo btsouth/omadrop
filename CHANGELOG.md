@@ -38,6 +38,8 @@
 - Add synchronized keyboard controls for intensity, brightness, ambient motion,
   reduced motion, and high contrast. Reduced motion limits feedback drift and
   transition travel without removing the music's localized timing cues.
+- Show a brief synchronized status label after interactive changes. Manual
+  scene skips say `AUTO: <scene>` so `N` and `P` cannot imply a hidden lock.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 
