@@ -63,12 +63,14 @@ std::string sceneSlug(NativeSceneKind scene) {
 struct FrameDelta {
     float motion = 0.0f;
     float coverage = 0.0f;
+    float coherence = 0.0f;
 };
 
 FrameDelta measureFrameDelta(const std::vector<float>& before,
                              const std::vector<float>& after) {
     if (before.size() != after.size() || before.empty()) return {};
     float total = 0.0f;
+    float signedTotal = 0.0f;
     int changed = 0;
     for (std::size_t index = 0; index < before.size(); index += 4) {
         const float beforeLight = 0.299f * before[index]
@@ -77,26 +79,35 @@ FrameDelta measureFrameDelta(const std::vector<float>& before,
         const float afterLight = 0.299f * after[index]
                                + 0.587f * after[index + 1]
                                + 0.114f * after[index + 2];
-        const float delta = std::abs(afterLight - beforeLight);
+        const float signedDelta = afterLight - beforeLight;
+        const float delta = std::abs(signedDelta);
         total += delta;
+        signedTotal += signedDelta;
         changed += delta >= 0.0125f;
     }
     const float pixels = static_cast<float>(before.size() / 4);
-    return {total / pixels, changed / pixels};
+    const float motion = total / pixels;
+    return {motion, changed / pixels,
+            std::abs(signedTotal / pixels) / std::max(1e-7f, motion)};
 }
 
 struct MotionBucket {
     float total = 0.0f;
     float coverageTotal = 0.0f;
+    float coherenceTotal = 0.0f;
     int count = 0;
     void add(const FrameDelta& delta) {
         total += delta.motion;
         coverageTotal += delta.coverage;
+        coherenceTotal += delta.coherence;
         ++count;
     }
     float mean() const { return count > 0 ? total / count : 0.0f; }
     float meanCoverage() const {
         return count > 0 ? coverageTotal / count : 0.0f;
+    }
+    float meanCoherence() const {
+        return count > 0 ? coherenceTotal / count : 0.0f;
     }
 };
 }
@@ -332,11 +343,17 @@ int main(int argc, char** argv) {
                          definition.motionGrammar)
                   << " quiet_coverage_limit="
                   << definition.maximumQuietMotionCoverage
+                  << " global_pulse_limit=" << definition.maximumGlobalPulse
                   << " beat_coverage=" << beatMotion.meanCoverage()
                   << " kick_coverage=" << kickMotion.meanCoverage()
                   << " snare_coverage=" << snareMotion.meanCoverage()
                   << " hat_coverage=" << hatMotion.meanCoverage()
                   << " onset_coverage=" << onsetMotion.meanCoverage()
+                  << " quiet_coherence=" << quietMotion.meanCoherence()
+                  << " beat_coherence=" << beatMotion.meanCoherence()
+                  << " kick_coherence=" << kickMotion.meanCoherence()
+                  << " snare_coherence=" << snareMotion.meanCoherence()
+                  << " hat_coherence=" << hatMotion.meanCoherence()
                   << " kick_recovery=" << kickRecoveryMotion.mean()
                       / std::max(1e-7f, kickMotion.mean())
                   << " snare_recovery=" << snareRecoveryMotion.mean()

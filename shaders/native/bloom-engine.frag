@@ -11,9 +11,13 @@ void main() {
     float radius = max(0.002, length(p));
     float angle = atan(p.y, p.x);
 
+    float petals = 7.0 + floor(development * 5.0);
+    float petalGesture = 0.30 + 0.70 * smoothstep(
+        -0.15, 0.85, sin(angle * petals + phrasePhase * tau));
     float twist = 0.00020 + 0.017 * snare * smoothstep(0.10, 0.66, radius);
     vec2 previousP = rotate2d(twist) * p;
-    previousP *= 1.0 - 0.024 * beatPulse - 0.014 * onsetPulse - 0.016 * kick
+    previousP *= 1.0 - (0.010 * beatPulse + 0.007 * onsetPulse
+                              + 0.009 * kick) * petalGesture
                          + 0.0012 * beatAnticipation;
     previousP += normalize(p) * sin(angle * 30.0 - flowTime * 3.5) * 0.0016 * hat;
     vec2 previousUv = previousP / aspect + 0.5;
@@ -22,21 +26,19 @@ void main() {
                * smoothstep(0.0, 0.07, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
                   * mix(0.88, 0.952, harmonic)
-                  * (1.0 - 0.055 * beatPulse - 0.060 * onsetPulse - 0.080 * kick
-                         - 0.085 * snare - 0.090 * hat) * edge;
+                  * (1.0 - 0.020 * beatPulse - 0.018 * onsetPulse) * edge;
 
-    float petals = 7.0 + floor(development * 5.0);
-    float petalRadius = 0.27 + 0.12 * development + 0.090 * beatPulse
-                      + 0.060 * onsetPulse
-                      + 0.145 * kick
+    float petalRadius = 0.27 + 0.12 * development
+                      + (0.052 * beatPulse + 0.038 * onsetPulse
+                         + 0.105 * kick) * petalGesture
                       + 0.045 * sin(angle * petals + phrasePhase * tau);
     float petalEdge = line(radius - petalRadius, 0.010 + 0.006 * bandLevel[2]);
     float veins = line(sin(angle * petals + snare * 2.5
                           + flowTime * (0.16 + 0.26 * drive)), 0.055)
                 * smoothstep(0.10, 0.25, radius)
                 * smoothstep(petalRadius + 0.08, petalRadius - 0.04, radius);
-    float innerPetals = line(radius - (0.13 + 0.055 * beatPulse
-                         + 0.078 * kick
+    float innerPetals = line(radius - (0.13 + 0.025 * beatPulse
+                         + 0.045 * kick * petalGesture
                          + 0.020 * sin(angle * (petals - 2.0) - flowTime * 0.2)), 0.008);
     float pollen = line(sin(angle * 24.0 + flowTime * 2.4 + beatPhase * tau), 0.055)
                  * line(radius - 0.20, 0.065) * hat;
@@ -79,9 +81,7 @@ void main() {
                    + mix(primary, secondary, 0.5) * medium * 0.08;
     injection *= 1.0 - 0.56 * release;
     float darkCore = smoothstep(0.045, 0.11, radius);
-    vec3 result = (feedback + injection) * darkCore
-                * (1.0 + 0.16 * beatPulse + 0.10 * onsetPulse + 0.12 * kick
-                       + 0.10 * snare + 0.08 * hat);
+    vec3 result = (feedback + injection) * darkCore;
     result = max(result - vec3(0.0043), vec3(0.0));
     color = vec4(result, 1.0);
 }

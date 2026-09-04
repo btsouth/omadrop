@@ -19,7 +19,7 @@ enum class NativeSceneKind : std::uint8_t {
 };
 
 inline constexpr std::size_t nativeSceneCount = 10;
-inline constexpr unsigned int nativeSceneRegistryVersion = 2;
+inline constexpr unsigned int nativeSceneRegistryVersion = 3;
 
 enum class NativeTransitionAnchor : std::uint8_t {
     Center,
@@ -67,6 +67,7 @@ struct NativeSceneDefinition {
     NativeTransitionAnchor transitionAnchor;
     NativeMotionGrammar motionGrammar;
     float maximumQuietMotionCoverage;
+    float maximumGlobalPulse;
     std::uint8_t musicalRoles;
     float maximumFrameMilliseconds;
 };
@@ -79,53 +80,53 @@ nativeSceneRegistry{{
     {NativeSceneKind::DepthTunnel, "depth-tunnel", "Depth Tunnel",
      "depth-tunnel.frag", {"depth", "tunnel", ""}, {1.05f, 1.08f},
      {0.72f, 0.58f, 0.42f, 0.24f, 0.34f}, NativeTransitionAnchor::DepthPoint,
-     NativeMotionGrammar::Flow, 0.45f,
+     NativeMotionGrammar::Flow, 0.45f, 0.55f,
      transientRoles | GrooveRole | StructureRole, 6.0f},
     {NativeSceneKind::Centrifuge, "centrifuge", "Centrifuge",
      "centrifuge.frag", {"", "", ""}, {0.92f, 1.00f},
      {0.82f, 0.86f, 0.28f, 0.66f, 0.44f}, NativeTransitionAnchor::Center,
-     NativeMotionGrammar::Selective, 0.30f,
+     NativeMotionGrammar::Selective, 0.18f, 0.30f,
      transientRoles | GrooveRole | StructureRole, 6.0f},
     {NativeSceneKind::WireOrganism, "wire-organism", "Wire Organism",
      "wire-organism.frag", {"wire", "", ""}, {1.26f, 1.16f},
      {0.46f, 0.34f, 0.82f, 0.44f, 0.62f}, NativeTransitionAnchor::Center,
-     NativeMotionGrammar::Sparse, 0.15f,
+     NativeMotionGrammar::Sparse, 0.12f, 0.28f,
      transientRoles | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::PrismGarden, "prism-garden", "Prism Garden",
      "prism-garden.frag", {"prism", "garden", ""}, {1.10f, 1.08f},
      {0.54f, 0.28f, 0.88f, 0.78f, 0.48f}, NativeTransitionAnchor::VerticalAxis,
-     NativeMotionGrammar::Sparse, 0.18f,
+     NativeMotionGrammar::Sparse, 0.12f, 0.25f,
      transientRoles | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::OrbitalLoom, "orbital-loom", "Orbital Loom",
      "orbital-loom.frag", {"orbit", "loom", ""}, {1.02f, 1.06f},
      {0.60f, 0.44f, 0.74f, 0.54f, 0.92f}, NativeTransitionAnchor::Center,
-     NativeMotionGrammar::Flow, 0.42f,
+     NativeMotionGrammar::Selective, 0.28f, 0.35f,
      transientRoles | GrooveRole | HarmonyRole, 6.0f},
     {NativeSceneKind::TidalGrid, "tidal-grid", "Tidal Grid",
      "tidal-grid.frag", {"tide", "grid", ""}, {1.12f, 1.10f},
      {0.34f, 0.24f, 0.84f, 0.20f, 0.66f}, NativeTransitionAnchor::HorizontalAxis,
-     NativeMotionGrammar::Selective, 0.32f,
+     NativeMotionGrammar::Selective, 0.26f, 0.25f,
      transientRoles | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::PulseCathedral, "pulse-cathedral", "Pulse Cathedral",
      "pulse-cathedral.frag", {"cathedral", "", ""}, {1.08f, 1.05f},
      {0.48f, 0.26f, 0.96f, 0.36f, 0.34f}, NativeTransitionAnchor::VerticalAxis,
-     NativeMotionGrammar::Selective, 0.36f,
+     NativeMotionGrammar::Selective, 0.30f, 0.38f,
      transientRoles | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::ConstellationField, "constellation-field",
      "Constellation Field", "constellation-field.frag",
      {"stars", "constellation", ""}, {1.22f, 1.16f},
      {0.24f, 0.18f, 0.74f, 0.72f, 0.76f}, NativeTransitionAnchor::Center,
-     NativeMotionGrammar::Sparse, 0.15f,
+     NativeMotionGrammar::Sparse, 0.12f, 0.45f,
      transientRoles | HarmonyRole | StructureRole, 6.0f},
     {NativeSceneKind::SpectralRibbons, "spectral-ribbons", "Spectral Ribbons",
      "spectral-ribbons.frag", {"ribbons", "", ""}, {1.04f, 1.06f},
      {0.64f, 0.56f, 0.64f, 0.62f, 0.72f}, NativeTransitionAnchor::HorizontalAxis,
-     NativeMotionGrammar::Flow, 0.45f,
+     NativeMotionGrammar::Flow, 0.45f, 0.70f,
      transientRoles | GrooveRole | HarmonyRole, 6.0f},
     {NativeSceneKind::BloomEngine, "bloom-engine", "Bloom Engine",
      "bloom-engine.frag", {"bloom", "", ""}, {1.00f, 1.04f},
      {0.74f, 0.66f, 0.66f, 0.48f, 0.54f}, NativeTransitionAnchor::Center,
-     NativeMotionGrammar::Selective, 0.32f,
+     NativeMotionGrammar::Selective, 0.18f, 0.30f,
      transientRoles | GrooveRole | StructureRole, 6.0f},
 }};
 

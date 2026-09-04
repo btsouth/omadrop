@@ -13,7 +13,10 @@ void main() {
 
     float rotation = 0.00020 + 0.00055 * drive + 0.024 * snare;
     vec2 previousP = rotate2d(rotation * smoothstep(0.08, 0.72, radius)) * p;
-    previousP *= 1.0 - 0.021 * beatPulse - 0.016 * onsetPulse - 0.013 * kick
+    float radialGesture = 0.38 + 0.62 * smoothstep(
+        -0.25, 0.85, sin(angle * 6.0 + phrasePhase * tau));
+    previousP *= 1.0 - (0.009 * beatPulse + 0.006 * onsetPulse
+                              + 0.007 * kick) * radialGesture
                          + 0.0012 * beatAnticipation;
     previousP += normalize(p) * sin(angle * 24.0 - flowTime * 3.2) * 0.0016 * hat;
     vec2 previousUv = previousP / aspect + 0.5;
@@ -22,18 +25,20 @@ void main() {
                * smoothstep(0.0, 0.07, 1.0 - uv.y);
     vec3 feedback = texture(previousFrame, clamp(previousUv, 0.001, 0.999)).rgb
                   * mix(0.875, 0.945, harmonic)
-                  * (1.0 - 0.050 * beatPulse - 0.070 * onsetPulse - 0.050 * kick
-                         - 0.060 * snare - 0.070 * hat) * edge;
+                  * (1.0 - 0.018 * beatPulse - 0.022 * onsetPulse) * edge;
 
     float threads = 0.0;
     float crossings = 0.0;
     for (int index = 0; index < 6; ++index) {
         float fi = float(index);
+        float threadGesture = 0.30 + 0.70
+                            * (0.5 + 0.5 * sin(fi * 2.3 + barPhase * tau));
         float tilt = fi * tau / 6.0 + phrasePhase * 0.35 + snare * 0.46;
         vec2 q = rotate2d(tilt) * p;
         q.y /= 0.34 + 0.08 * sin(fi * 2.2 + flowTime * 0.13);
-        q.x /= 0.52 + 0.09 * development + 0.065 * beatPulse
-              + 0.065 * onsetPulse + 0.095 * kick;
+        q.x /= 0.52 + 0.09 * development
+              + (0.042 * beatPulse + 0.044 * onsetPulse
+                 + 0.075 * kick) * threadGesture;
         float ellipse = abs(length(q) - 1.0);
         float strand = line(ellipse, 0.012 + 0.006 * bandLevel[index]);
         threads = max(threads, strand);
@@ -79,9 +84,7 @@ void main() {
                    + primary * medium * 0.09;
     injection *= 1.0 - 0.54 * release;
     float darkCore = smoothstep(0.045, 0.105, radius);
-    vec3 result = (feedback + injection) * darkCore
-                * (1.0 + 0.15 * beatPulse + 0.12 * onsetPulse + 0.07 * kick
-                       + 0.06 * snare + 0.05 * hat);
+    vec3 result = (feedback + injection) * darkCore;
     result = max(result - vec3(0.0043), vec3(0.0));
     color = vec4(result, 1.0);
 }

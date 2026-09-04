@@ -44,7 +44,9 @@ writes HTML-friendly Markdown plus raw TSV data to
 the 1.75x kick, snare, or hat response floor or exceeds the 0.003 absolute
 silence-drift ceiling. It also enforces per-scene non-transient motion coverage
 budgets for sparse, selective, and flow motion grammars, so broad pulsing does
-not become the default reaction. The scorecard is a regression gate. Still frames,
+not become the default reaction. A global-pulse gate also rejects reactions
+that move a large part of the frame in the same brightness direction. The
+scorecard is a regression gate. Still frames,
 motion, palettes, continuous rendering, and ASCII rendering still require
 human visual review.
 

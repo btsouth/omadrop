@@ -175,8 +175,7 @@ void main() {
 
     float organismMask = smoothstep(0.86, 0.66, abs(p.x))
                        * smoothstep(0.76, 0.56, abs(p.y));
-    vec3 result = (feedback + injection) * organismMask
-                * (1.0 + 0.14 * beatPulse + 0.27 * onsetPulse);
+    vec3 result = (feedback + injection) * organismMask;
     result = max(result - vec3(0.0043), vec3(0.0));
     color = vec4(result, 1.0);
 }

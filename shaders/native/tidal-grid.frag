@@ -56,8 +56,7 @@ void main() {
                    + accent * (crestTicks + downbeatTide + sectionHorizon) * 0.22
                    + secondary * sky * 0.07;
     injection *= 1.0 - 0.58 * release;
-    vec3 result = (feedback + injection)
-                * (1.0 + 0.13 * beatPulse + 0.09 * onsetPulse);
+    vec3 result = feedback + injection;
     result = max(result - vec3(0.0044), vec3(0.0));
     color = vec4(result, 1.0);
 }

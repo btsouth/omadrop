@@ -54,7 +54,7 @@ void main() {
                                   idleSpin + snareSpin * 0.46, region);
     float aperturePull = 0.00020 + 0.00045 * energySlow
                        + 0.0120 * beatPulse + 0.0080 * onsetPulse
-                       + 0.0090 * kick
+                       + 0.0040 * kick
                        - 0.0014 * beatAnticipation * clockConfidence;
     vec2 previousP = rotate2d(feedbackRotation) * p * (1.0 - aperturePull);
     previousP += vec2(sin(p.y * 26.0), cos(p.x * 23.0)) * 0.0018 * hat;
@@ -73,11 +73,11 @@ void main() {
 
     float apertureRadius = mix(0.13, 0.22, development)
                          + 0.060 * beatPulse + 0.050 * onsetPulse
-                         + 0.075 * kick;
+                         + 0.045 * kick;
     float apertureEdge = line(radius - apertureRadius, 0.010 + 0.009 * low);
     float shellPhase = radius * mix(24.0, 38.0, development)
                      - flowTime * (1.2 + 1.7 * drive)
-                     - beatPulse * 1.8 - kick * 2.4;
+                     - beatPulse * 1.8 - kick * 1.1;
     float shells = line(sin(shellPhase), 0.10 + 0.025 * energyFast);
     shells *= smoothstep(apertureRadius + 0.015, apertureRadius + 0.13, radius)
             * smoothstep(1.18, 0.52, radius);
@@ -105,6 +105,10 @@ void main() {
     float beatSquare = line(squareRadius - mix(0.18, frameSize,
                              1.0 - clamp(beatPulse, 0.0, 1.0)), 0.010)
                      * beatPulse * clockConfidence;
+    float kickRotor = line(radius - (apertureRadius + 0.07 + 0.075 * kick),
+                           0.010 + 0.006 * kick)
+                    * kick * smoothstep(apertureRadius, apertureRadius + 0.04,
+                                        radius);
     float sectionSquare = line(squareRadius - section * frameSize,
                                0.014) * section * 0.52;
 
@@ -117,7 +121,8 @@ void main() {
     focalSubject = max(focalSubject,
                        squareFrame * (0.26 + 0.32 * middle + 0.20 * snare));
     focalSubject = max(focalSubject, spokes * (0.18 + 0.28 * bandLevel[3]));
-    float accents = cornerTicks + beatSquare + downbeatSquare + sectionSquare;
+    float accents = cornerTicks + beatSquare + downbeatSquare + sectionSquare
+                  + kickRotor;
 
     vec3 primary = palettePrimary(0.42);
     vec3 secondary = paletteSecondary(0.42);
@@ -137,8 +142,7 @@ void main() {
     injection *= 1.0 - 0.56 * release;
 
     float core = smoothstep(apertureRadius * 0.52, apertureRadius, radius);
-    vec3 result = (feedback + injection) * core
-                * (1.0 + 0.13 * beatPulse + 0.09 * onsetPulse);
+    vec3 result = (feedback + injection) * core;
     result = max(result - vec3(0.0042), vec3(0.0));
     color = vec4(result, 1.0);
 }
