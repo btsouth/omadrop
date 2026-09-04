@@ -24,7 +24,7 @@ ship decision.
 | Prism Garden | Pass | Pass | Sparse | Pass | Pass | Pass | Preserve the varied skyline during dense passages | Continuous motion, varied genres |
 | Pulse Cathedral | Pass | Pass | Selective | Pass | Pass | Pass | Keep outer arches subordinate to the focal rose | Continuous motion, varied genres |
 | Shadow Architecture | Pass | Pass | Sparse | Pass | Pass | Pass | Keep percussion confined to separate architectural surfaces | Real music, varied genres |
-| Spectral Ribbons | Pass | Pass | Flow | Pass | Pass | Pass | Keep high-frequency folds from becoming visual noise | Continuous motion, varied genres |
+| Spectral Ribbons | Pass | Pass | Flow | Pass | Pass | Pass | Confirm localized role windows remain readable at native resolution | Continuous motion, varied genres |
 | Tidal Grid | Pass | Pass | Selective | Pass | Pass | Pass | Keep foreground grid lines below the horizon subject | Continuous motion, varied genres |
 | Wire Organism | Pass | Pass | Sparse | Pass | Pass | Pass | Keep its harmonic membrane subtle | Continuous motion, varied genres |
 
@@ -64,7 +64,7 @@ ordinary audio must not move the whole composition. The global-pulse score multi
 coverage by same-direction luminance coherence and has a scene-specific limit.
 Pulse duty measures how often that score exceeds 20 percent. Sparse and
 selective scenes may spend at most 12 percent of frames above that level; flow
-scenes may spend at most 60 percent there. A scene also fails when kick, snare,
+scenes may spend at most 25 percent there. A scene also fails when kick, snare,
 and hat all change a similarly broad part of the image, or when their gestures
 recover so slowly that repeated hits become constant motion. On the current
 full-song review, every sparse and selective scene stays at or below 4 percent.
@@ -72,3 +72,6 @@ The complete 90-combination default suite also passes after adding live motion
 controls. Separate 18-scene structured-track runs pass at both 125 percent
 response intensity and with reduced motion enabled, including the same pulse,
 recovery, role-separation, and silence gates.
+Spectral Ribbons now reports zero frames above the 20 percent broad-pulse level
+on all five locked profiles after assigning percussion to separate local
+windows and removing raw spectrum changes from its full-width geometry.

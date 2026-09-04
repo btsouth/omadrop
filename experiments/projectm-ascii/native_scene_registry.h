@@ -181,7 +181,7 @@ nativeSceneRegistry{{
     {NativeSceneKind::SpectralRibbons, "spectral-ribbons", "Spectral Ribbons",
      "spectral-ribbons.frag", {"ribbons", "", ""}, {1.04f, 1.06f},
      {0.64f, 0.56f, 0.64f, 0.62f, 0.72f}, NativeTransitionAnchor::HorizontalAxis,
-     NativeMotionGrammar::Flow, NativeVisualFamily::Filament, 0.45f, 0.70f,
+     NativeMotionGrammar::Flow, NativeVisualFamily::Filament, 0.45f, 0.35f,
      transientRoles | GrooveRole | HarmonyRole, 6.0f},
     {NativeSceneKind::BloomEngine, "bloom-engine", "Bloom Engine",
      "bloom-engine.frag", {"bloom", "", ""}, {1.00f, 1.04f},

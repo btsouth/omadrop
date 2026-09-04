@@ -569,3 +569,9 @@ Completed after v0.3:
   manual `N`/`P` navigation. `F`, `X`, and `Shift+X` apply across paired
   displays, and the director rejects a hidden set that would leave fewer than
   two usable scenes.
+- Tightened the scorecard's broad-pulse duty ceiling for flow scenes from 60
+  to 25 percent. Spectral Ribbons now assigns kick, snare, and hat gestures to
+  separate local windows and removes raw spectrum changes from its full-width
+  geometry. Its broad-pulse duty fell from 44 to 55 percent to zero across all
+  five locked replay profiles while every transient response remains above
+  2.8 times quiet motion.

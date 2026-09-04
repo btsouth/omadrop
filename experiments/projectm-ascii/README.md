@@ -163,9 +163,10 @@ not become the default reaction. A global-pulse gate also rejects reactions
 that move a large part of the frame in the same brightness direction. A pulse
 duty gate prevents sparse and selective scenes from spending more than 12
 percent of their frames above a 20 percent global-pulse score. Flow scenes have
-a separate 75 percent ceiling. The scorecard is a regression gate. Still
-frames, motion, palettes, continuous rendering, and ASCII rendering still
-require human visual review.
+a separate 25 percent ceiling, enough for deliberate broad travel without
+turning steady audio into continuous whole-frame pulsing. The scorecard is a
+regression gate. Still frames, motion, palettes, continuous rendering, and
+ASCII rendering still require human visual review.
 
 The locked replay suite adds sparse acoustic-like, dense compressed,
 sustained vocal-like, and syncopated fast-section probes to the structured

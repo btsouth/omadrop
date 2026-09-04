@@ -98,7 +98,7 @@ for row in "${scenes[@]}"; do
   pulse_duty_20=$(metric "$music_line" pulse_duty_20)
   case "$grammar" in
     sparse|selective) pulse_duty_limit=0.12 ;;
-    flow) pulse_duty_limit=0.60 ;;
+    flow) pulse_duty_limit=0.25 ;;
     *)
       echo "native-scene-scorecard: unknown motion grammar for $name: $grammar" >&2
       exit 1
@@ -172,7 +172,7 @@ done
   echo
   echo "Audio: $source_label"
   echo
-  echo 'The transient floor is 1.75x quiet motion for kick, snare, and hat. The absolute silence-drift ceiling is 0.003. Each scene also has a non-transient motion coverage budget based on its sparse, selective, or flow grammar. Global pulse combines changed area with same-direction luminance motion, so a full-frame flash approaches 1.0 while localized or counter-moving detail stays lower. Pulse duty is the share of frames whose global-pulse score exceeds 20 percent. Sparse and selective scenes may spend at most 12 percent of frames there; flow scenes may spend at most 60 percent. A scene fails when kick, snare, and hat all move a similarly broad area, or when their gestures recover so slowly that they accumulate into constant motion. Recovery compares motion 167 ms after an isolated hit with motion on the hit; a new transient cancels that sample. These are regression gates, not a substitute for visual review.'
+  echo 'The transient floor is 1.75x quiet motion for kick, snare, and hat. The absolute silence-drift ceiling is 0.003. Each scene also has a non-transient motion coverage budget based on its sparse, selective, or flow grammar. Global pulse combines changed area with same-direction luminance motion, so a full-frame flash approaches 1.0 while localized or counter-moving detail stays lower. Pulse duty is the share of frames whose global-pulse score exceeds 20 percent. Sparse and selective scenes may spend at most 12 percent of frames there; flow scenes may spend at most 25 percent. A scene fails when kick, snare, and hat all move a similarly broad area, or when their gestures recover so slowly that they accumulate into constant motion. Recovery compares motion 167 ms after an isolated hit with motion on the hit; a new transient cancels that sample. These are regression gates, not a substitute for visual review.'
   echo
   echo '| Scene | Grammar | Quiet coverage | Pulse duty | Beat | Kick | Snare | Hat | K/S/H coverage | K/S/H global pulse | K/S/H recovery | Motion | Silence | Status |'
   echo '| --- | :---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :---: | ---: | :---: |'

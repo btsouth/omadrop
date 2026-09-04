@@ -45,6 +45,10 @@
 - Add synchronized scene favorites and hiding. Favorites modestly bias close
   automatic choices; hidden scenes leave automatic direction, motif recall,
   opening selection, and N/P navigation while preserving a two-scene minimum.
+- Tighten the broad-pulse duty ceiling for flow scenes from 60 to 25 percent.
+  Rework Spectral Ribbons so kicks, snares, and hats act on separate local
+  windows instead of changing every line, with zero broad-pulse frames across
+  all five deterministic replay profiles.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

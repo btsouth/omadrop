@@ -45,6 +45,8 @@ from the v0.3 release demo, not mockups.
 - **Separate musical signals.** Kick, snare, hat, bass, mids, treble, onsets,
   beats, bars, phrases, and arrangement changes do not collapse into one volume
   value.
+- **Scoped movement.** Percussion changes specific forms and regions. Steady
+  audio does not make the entire composition bounce or flash.
 - **Musical scene direction.** Omadrop changes scenes on detected bar and
   section boundaries, avoids immediate repeats, and recalls a visual family
   when a familiar part of the song returns.
