@@ -106,6 +106,22 @@ float maximumLuminance(const std::vector<unsigned char>& pixels) {
     return maximum;
 }
 
+float meanLuminanceDifference(const std::vector<unsigned char>& a,
+                              const std::vector<unsigned char>& b) {
+    assert(a.size() == b.size());
+    double difference = 0.0;
+    for (std::size_t index = 0; index < a.size(); index += 4) {
+        const float left = 0.299f * a[index]
+                         + 0.587f * a[index + 1]
+                         + 0.114f * a[index + 2];
+        const float right = 0.299f * b[index]
+                          + 0.587f * b[index + 1]
+                          + 0.114f * b[index + 2];
+        difference += std::abs(left - right);
+    }
+    return static_cast<float>(difference / (a.size() * 0.25 * 255.0));
+}
+
 MusicFrame reviewMusic(int frame) {
     MusicFrame music;
     music.bpm = 120.0f;
@@ -228,8 +244,50 @@ int main(int argc, char** argv) {
         }
     }
 
+    float minimumSceneColorDifference = 1.0f;
+    float maximumSceneLuminanceDifference = 0.0f;
+    for (std::size_t sceneIndex = 0;
+         sceneIndex < nativeSceneCount; ++sceneIndex) {
+        const NativeSceneKind scene = static_cast<NativeSceneKind>(sceneIndex);
+        const NativeSceneMaterial material = nativeSceneMaterial(scene);
+        LiveCompositorFrame frame;
+        frame.sourceTexture = renderer.texture(scene);
+        frame.nextTexture = frame.sourceTexture;
+        frame.coverTexture = black;
+        frame.width = width;
+        frame.height = height;
+        frame.fieldExposure = material.fieldExposure;
+        frame.asciiExposure = material.asciiExposure;
+        frame.nativeRenderer = true;
+        frame.visibility = 1.0f;
+        assert(compositor.render(frame, error));
+        glFinish();
+        const std::vector<unsigned char> standard = readFrame();
+        frame.colorVisionSafe = true;
+        assert(compositor.render(frame, error));
+        glFinish();
+        const std::vector<unsigned char> colorSafe = readFrame();
+        minimumSceneColorDifference = std::min(
+            minimumSceneColorDifference, meanDifference(standard, colorSafe));
+        maximumSceneLuminanceDifference = std::max(
+            maximumSceneLuminanceDifference,
+            meanLuminanceDifference(standard, colorSafe));
+        if (!output.empty()) {
+            assert(writePpm(output
+                / (std::string(nativeSceneDefinition(scene).slug)
+                   + "-color-safe.ppm"), colorSafe));
+        }
+    }
+    std::cout << "color-safe scenes=" << nativeSceneCount
+              << " minimum_color_difference=" << minimumSceneColorDifference
+              << " maximum_luminance_difference="
+              << maximumSceneLuminanceDifference << '\n';
+    assert(minimumSceneColorDifference > 0.002f);
+    assert(maximumSceneLuminanceDifference < 0.025f);
+
     auto renderPolicyFrame = [&](float motion, float contrast,
-                                 bool flashLimited = false) {
+                                 bool flashLimited = false,
+                                 bool colorVisionSafe = false) {
         LiveCompositorFrame frame;
         frame.sourceTexture = renderer.texture(NativeSceneKind::Centrifuge);
         frame.nextTexture = renderer.texture(NativeSceneKind::BloomEngine);
@@ -245,6 +303,7 @@ int main(int argc, char** argv) {
         frame.motionScale = motion;
         frame.contrastScale = contrast;
         frame.flashLimited = flashLimited;
+        frame.colorVisionSafe = colorVisionSafe;
         frame.visibility = 1.0f;
         assert(compositor.render(frame, error));
         glFinish();
@@ -260,15 +319,28 @@ int main(int argc, char** argv) {
         = renderPolicyFrame(1.0f, 1.0f, true);
     const float flashLimitDifference = meanDifference(
         standardPolicy, flashLimitedPolicy);
+    const std::vector<unsigned char> colorSafePolicy
+        = renderPolicyFrame(1.0f, 1.0f, false, true);
+    const float colorSafeDifference = meanDifference(
+        standardPolicy, colorSafePolicy);
+    const float colorSafeLuminanceDifference = meanLuminanceDifference(
+        standardPolicy, colorSafePolicy);
+    if (!output.empty()) {
+        assert(writePpm(output / "color-safe-policy.ppm", colorSafePolicy));
+    }
     std::cout << "transition policy reduced_motion_difference="
               << reducedMotionDifference << " high_contrast_difference="
               << highContrastDifference << " flash_limit_difference="
-              << flashLimitDifference << '\n';
+              << flashLimitDifference << " color_safe_difference="
+              << colorSafeDifference << " color_safe_luminance_difference="
+              << colorSafeLuminanceDifference << '\n';
     assert(reducedMotionDifference > 0.0005f);
     assert(highContrastDifference > 0.0005f);
     assert(flashLimitDifference > 0.001f);
     assert(maximumLuminance(flashLimitedPolicy)
            < maximumLuminance(standardPolicy));
+    assert(colorSafeDifference > 0.01f);
+    assert(colorSafeLuminanceDifference < 0.025f);
 
     constexpr std::array<float, 6> progress{0.0f, 0.2f, 0.4f,
                                             0.6f, 0.8f, 1.0f};

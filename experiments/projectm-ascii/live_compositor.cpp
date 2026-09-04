@@ -133,6 +133,8 @@ bool LiveCompositor::render(const LiveCompositorFrame& frame,
                 std::clamp(frame.contrastScale, 1.0f, 1.25f));
     glUniform1i(glGetUniformLocation(program_, "flashLimited"),
                 frame.flashLimited ? 1 : 0);
+    glUniform1i(glGetUniformLocation(program_, "colorVisionSafe"),
+                frame.colorVisionSafe ? 1 : 0);
     glUniform1f(glGetUniformLocation(program_, "visibility"), frame.visibility);
     glBindVertexArray(vao_);
     glDrawArrays(GL_TRIANGLES, 0, 3);

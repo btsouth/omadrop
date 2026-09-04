@@ -97,6 +97,7 @@ uniform int nativeRenderer;
 uniform float motionScale;
 uniform float contrastScale;
 uniform int flashLimited;
+uniform int colorVisionSafe;
 uniform float visibility;
 
 float luminance(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
@@ -106,6 +107,27 @@ vec3 limitFlashBrightness(vec3 sampleColor) {
     float light = luminance(sampleColor);
     float limitedLight = 0.68 * (1.0 - exp(-light / 0.68));
     return sampleColor * limitedLight / max(0.0001, light);
+}
+
+vec3 colorSafePalette(vec3 sampleColor) {
+    if (colorVisionSafe == 0) return sampleColor;
+    float light = luminance(sampleColor);
+    float maximum = max(sampleColor.r, max(sampleColor.g, sampleColor.b));
+    float minimum = min(sampleColor.r, min(sampleColor.g, sampleColor.b));
+    float chroma = maximum - minimum;
+    float warm = smoothstep(-0.10, 0.12,
+                            sampleColor.r + sampleColor.g * 0.20
+                          - sampleColor.b * 0.92);
+    vec3 cool = vec3(0.12, 0.55, 0.88);
+    vec3 gold = vec3(1.00, 0.66, 0.08);
+    vec3 tint = mix(cool, gold, warm);
+    tint *= light / max(0.001, luminance(tint));
+    // Hue is redundant with luminance in this mode. Saturation falls toward
+    // black and white so the transform remains in gamut while preserving the
+    // scene's brightness structure.
+    float gamut = 4.0 * light * (1.0 - light);
+    float amount = (0.30 + 0.58 * smoothstep(0.015, 0.20, chroma)) * gamut;
+    return clamp(mix(vec3(light), tint, amount), 0.0, 1.0);
 }
 
 vec2 reactedUv(vec2 sampleUv, int mode, vec3 gain) {
@@ -286,6 +308,7 @@ vec3 sceneSample(vec2 sampleUv) {
         visual = clamp(mix(vec3(nativeLight), visual,
                            1.34 * contrastScale), 0.0, 1.0);
     }
+    visual = colorSafePalette(visual);
     if (coverMix <= 0.0) return visual;
     vec2 p = coverSampleUv - 0.5;
     float screenAspect = resolution.x / resolution.y;
@@ -687,6 +710,7 @@ int main(int argc, char** argv) {
             .directorProfile = static_cast<int>(preferences.directorProfile),
             .manualSceneCue = manualSceneCue ? 1 : 0,
             .flashLimitMode = preferences.flashLimited ? 1 : 0,
+            .colorVisionSafeMode = preferences.colorVisionSafe ? 1 : 0,
         });
     };
     auto publishPairedMusic = [&](const MusicFrame& frame, float flowTime) {
@@ -929,6 +953,12 @@ int main(int argc, char** argv) {
                       << (preferences.highContrast ? "on" : "off") << "\n";
             status = std::string("HIGH CONTRAST: ")
                    + (preferences.highContrast ? "ON" : "OFF");
+        } else if (request == "color-vision-safe") {
+            preferences.colorVisionSafe = !preferences.colorVisionSafe;
+            std::cerr << "color-safe palette: "
+                      << (preferences.colorVisionSafe ? "on" : "off") << "\n";
+            status = std::string("COLOR SAFE: ")
+                   + (preferences.colorVisionSafe ? "ON" : "OFF");
         } else if (request == "director") {
             const int next = (static_cast<int>(preferences.directorProfile) + 1)
                            % 4;
@@ -1090,6 +1120,9 @@ int main(int argc, char** argv) {
             } else if (event.type == SDL_KEYDOWN
                        && event.key.keysym.sym == SDLK_h) {
                 visualPreferenceRequest = "high-contrast";
+            } else if (event.type == SDL_KEYDOWN
+                       && event.key.keysym.sym == SDLK_c) {
+                visualPreferenceRequest = "color-vision-safe";
             } else if (event.type == SDL_KEYDOWN
                        && event.key.keysym.sym == SDLK_s) {
                 visualPreferenceRequest = "flash-limit";
@@ -1668,6 +1701,12 @@ int main(int argc, char** argv) {
                                   != (pairedState->flashLimitMode == 1)) {
                         synchronizedStatus = pairedState->flashLimitMode == 1
                             ? "FLASH LIMIT: ON" : "FLASH LIMIT: OFF";
+                    } else if (pairedState->colorVisionSafeMode >= 0
+                               && preferences.colorVisionSafe
+                                  != (pairedState->colorVisionSafeMode == 1)) {
+                        synchronizedStatus
+                            = pairedState->colorVisionSafeMode == 1
+                            ? "COLOR SAFE: ON" : "COLOR SAFE: OFF";
                     } else if (preferences.directorProfile
                                != static_cast<DirectorProfile>(
                                    pairedState->directorProfile)) {
@@ -1687,6 +1726,10 @@ int main(int argc, char** argv) {
                     if (pairedState->flashLimitMode >= 0) {
                         preferences.flashLimited
                             = pairedState->flashLimitMode == 1;
+                    }
+                    if (pairedState->colorVisionSafeMode >= 0) {
+                        preferences.colorVisionSafe
+                            = pairedState->colorVisionSafeMode == 1;
                     }
                     preferences.directorProfile = static_cast<DirectorProfile>(
                         pairedState->directorProfile);
@@ -2124,6 +2167,7 @@ int main(int argc, char** argv) {
             .contrastScale = preferences.highContrast
                 && !preferences.flashLimited ? 1.16f : 1.0f,
             .flashLimited = preferences.flashLimited,
+            .colorVisionSafe = preferences.colorVisionSafe,
             .visibility = entrance * exit,
         };
         if (!compositor.render(displayFrame, compositorError)) {

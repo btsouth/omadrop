@@ -12,6 +12,7 @@
 | `R` | Toggle reduced motion | Yes |
 | `S` | Toggle flash limit | Yes |
 | `H` | Toggle high contrast | Yes |
+| `C` | Toggle the color-safe palette | Yes |
 | `D` | Cycle director profile | Yes |
 | `F` | Favorite or unfavorite the current scene | Yes |
 | `X` | Hide the current scene and continue | Yes |
@@ -33,3 +34,7 @@ selection, and manual navigation. Omadrop keeps at least two scenes available.
 
 Balanced, Kinetic, Restrained, and High Contrast change scene selection only.
 They do not change musical timing or bypass per-scene response limits.
+
+The color-safe palette maps scene color to a luminance-preserving blue and
+gold range. Album covers keep their original color, and visual information
+remains redundant with brightness rather than depending on hue alone.

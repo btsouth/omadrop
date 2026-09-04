@@ -173,6 +173,8 @@ LivePreferences loadLivePreferences() {
             parseBool(value, preferences.flashLimited);
         } else if (key == "high-contrast") {
             parseBool(value, preferences.highContrast);
+        } else if (key == "color-vision-safe") {
+            parseBool(value, preferences.colorVisionSafe);
         } else if (key == "director") {
             preferences.directorProfile = parseDirectorProfile(value);
         } else if (key == "favorite") {
@@ -211,6 +213,8 @@ bool saveLivePreferences(const LivePreferences& supplied) {
            << "reduced-motion=" << (preferences.reducedMotion ? 1 : 0) << '\n'
            << "flash-limited=" << (preferences.flashLimited ? 1 : 0) << '\n'
            << "high-contrast=" << (preferences.highContrast ? 1 : 0) << '\n'
+           << "color-vision-safe="
+           << (preferences.colorVisionSafe ? 1 : 0) << '\n'
            << "director=" << directorProfileName(preferences.directorProfile)
            << '\n';
     std::set<std::string> writtenFavorites;

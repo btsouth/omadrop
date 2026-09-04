@@ -106,6 +106,7 @@ int main() {
                 .highContrastMode = 0,
                 .directorProfile = 0,
                 .flashLimitMode = 1,
+                .colorVisionSafeMode = 1,
             });
         } else if (tick % 137u == 0u) {
             wireDisplay = encodePairedDisplayState({
@@ -125,6 +126,7 @@ int main() {
                 .highContrastMode = 0,
                 .directorProfile = 0,
                 .flashLimitMode = 1,
+                .colorVisionSafeMode = 1,
             });
         }
 

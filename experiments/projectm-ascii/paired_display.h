@@ -26,6 +26,7 @@ struct PairedDisplayState {
     int directorProfile = -1;
     int manualSceneCue = 0;
     int flashLimitMode = -1;
+    int colorVisionSafeMode = -1;
 };
 
 inline std::string encodePairedDisplayState(const PairedDisplayState& state) {
@@ -39,6 +40,7 @@ inline std::string encodePairedDisplayState(const PairedDisplayState& state) {
            << ' ' << state.motionPercent << ' ' << state.reducedMotionMode
            << ' ' << state.highContrastMode << ' ' << state.directorProfile
            << ' ' << state.manualSceneCue << ' ' << state.flashLimitMode
+           << ' ' << state.colorVisionSafeMode
            << '\n';
     return output.str();
 }
@@ -127,6 +129,15 @@ inline std::optional<PairedDisplayState> decodePairedDisplayState(
                                 return std::nullopt;
                             }
                             state.flashLimitMode = flashLimitMode;
+                            int colorVisionSafeMode = -1;
+                            if (stream >> colorVisionSafeMode) {
+                                if (colorVisionSafeMode < -1
+                                    || colorVisionSafeMode > 1) {
+                                    return std::nullopt;
+                                }
+                                state.colorVisionSafeMode
+                                    = colorVisionSafeMode;
+                            }
                         }
                     }
                 }

@@ -164,6 +164,7 @@ omadrop --single    # focused display only
 | `R` | Toggle reduced motion |
 | `S` | Toggle flash limit |
 | `H` | Toggle high contrast |
+| `C` | Toggle the color-safe palette |
 | `D` | Cycle director profile |
 | `F` | Favorite or unfavorite the current scene |
 | `X` | Hide the current scene and continue automatically |
@@ -174,8 +175,8 @@ omadrop --single    # focused display only
 
 Controls apply to every Omadrop window, regardless of which display has focus.
 ASCII, intensity, brightness, motion, reduced-motion, flash-limit,
-high-contrast, director, favorite, and hidden-scene choices are remembered
-between launches. Favorites
+high-contrast, color-safe palette, director, favorite, and hidden-scene choices
+are remembered between launches. Favorites
 slightly influence automatic selection when several scenes fit the music.
 Hidden scenes leave automatic rotation and N/P navigation. Omadrop always keeps
 at least two scenes available. Per-output audio delay is remembered for each

@@ -552,6 +552,11 @@ Completed after v0.3:
   structured-track audits at 125 percent intensity and in reduced-motion mode.
   A two-hour, 432,000-frame 1080p soak reports 1.33 ms at the 99th percentile,
   a 6.76 ms maximum, no slow streak, and 7.38 MiB resident-memory growth.
+- Added a persisted color-safe palette that applies the same luminance-
+  preserving blue and gold transform to continuous and ASCII scene output,
+  synchronizes across displays, and leaves album covers in their original
+  color. The production compositor gate rejects a missing visual change or a
+  material change to the scene's luminance structure.
 - Added a synchronized, self-contained status overlay for interactive changes.
   Scene skips explicitly show `AUTO: <scene>`, while ASCII, fullscreen, sync,
   intensity, brightness, ambient motion, reduced motion, flash limit, and high contrast show

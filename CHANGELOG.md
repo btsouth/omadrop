@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add a persisted, paired-display color-safe palette on `C`. It preserves
+  scene luminance structure, uses a restrained blue and gold range, and leaves
+  album-cover color intact.
+
 - Add Negative Space, a restrained eleventh native scene whose beat, kick,
   snare, hats, and section changes carve separate parts of one stable field.
 - Add Ink Current, a selective fluid scene with local spectral shaping, beat

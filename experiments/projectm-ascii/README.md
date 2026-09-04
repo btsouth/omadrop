@@ -276,6 +276,9 @@ percussion, beat, and section cues readable. Press F11 to toggle fullscreen.
 Press `s` for flash limit. It lowers fast event gain, caps requested brightness,
 compresses bright final output, and prevents the high-contrast boost while
 keeping localized timing cues active.
+Press `c` for the persisted color-safe palette. It remaps scene color to a
+blue and gold range while preserving luminance structure. Album covers keep
+their original color.
 Press `d` to cycle Balanced, Kinetic, Restrained, and High Contrast direction.
 Profiles change candidate scoring while preserving the same musical boundaries
 and per-scene response limits.
@@ -286,8 +289,8 @@ next visible scene. Hidden scenes are omitted from automatic selection, motif
 recall, and `n`/`p` navigation. Press `Shift+x` to restore them. The director
 refuses a hidden set that would leave fewer than two scenes available.
 These choices are stored in the versioned
-`$XDG_CONFIG_HOME/omadrop/preferences.conf` file. Version 1 preferences load
-with flash limit off and are upgraded on the next write. Legacy `ascii-enabled`
+`$XDG_CONFIG_HOME/omadrop/preferences.conf` file. Older preferences load with
+new safety modes off and are upgraded on the next write. Legacy `ascii-enabled`
 settings migrate automatically, and settings writes replace the complete file
 atomically so paired displays never observe a partial update.
 

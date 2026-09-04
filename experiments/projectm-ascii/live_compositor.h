@@ -34,6 +34,7 @@ struct LiveCompositorFrame {
     float motionScale = 1.0f;
     float contrastScale = 1.0f;
     bool flashLimited = false;
+    bool colorVisionSafe = false;
     float visibility = 1.0f;
 };
 
