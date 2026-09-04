@@ -6,6 +6,8 @@
   snare, hats, and section changes carve separate parts of one stable field.
 - Add Ink Current, a selective fluid scene with local spectral shaping, beat
   travel, kick eddies, snare cuts, hat droplets, and structural branching.
+- Add Glass Choir, a restrained harmonic scene with fixed refractive shards,
+  moving internal caustics, localized percussion, and structural reassembly.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

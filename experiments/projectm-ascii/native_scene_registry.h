@@ -18,10 +18,11 @@ enum class NativeSceneKind : std::uint8_t {
     BloomEngine = 9,
     NegativeSpace = 10,
     InkCurrent = 11,
+    GlassChoir = 12,
 };
 
-inline constexpr std::size_t nativeSceneCount = 12;
-inline constexpr unsigned int nativeSceneRegistryVersion = 5;
+inline constexpr std::size_t nativeSceneCount = 13;
+inline constexpr unsigned int nativeSceneRegistryVersion = 6;
 
 enum class NativeTransitionAnchor : std::uint8_t {
     Center,
@@ -142,6 +143,12 @@ nativeSceneRegistry{{
      NativeTransitionAnchor::HorizontalAxis,
      NativeMotionGrammar::Selective, 0.18f, 0.24f,
      transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
+    {NativeSceneKind::GlassChoir, "glass-choir", "Glass Choir",
+     "glass-choir.frag", {"glass", "choir", ""}, {1.16f, 1.20f},
+     {0.32f, 0.18f, 0.96f, 0.60f, 0.54f},
+     NativeTransitionAnchor::VerticalAxis,
+     NativeMotionGrammar::Selective, 0.18f, 0.24f,
+     transientRoles | HarmonyRole | StructureRole, 6.0f},
 }};
 
 inline constexpr std::string_view nativeMotionGrammarName(

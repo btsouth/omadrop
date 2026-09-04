@@ -351,8 +351,9 @@ Allow more people to create scenes while keeping the official rotation strict.
 4. Add the developer signal monitor and repeatable presentation-delay tool.
 5. Continue splitting track state, display session, cover presentation,
    direction, and rendering out of the live application loop.
-6. Prototype Glass Choir as the next deliberately different scene family after
-   the accepted Negative Space and Ink Current scenes.
+6. Prototype Shadow Architecture as the next deliberately different scene
+   family after the accepted Negative Space, Ink Current, and Glass Choir
+   scenes.
 7. Promote only candidates that pass still-frame, motion, music-response,
    ASCII, transition, and performance review.
 
@@ -471,3 +472,8 @@ Completed after v0.3:
   kick eddies, snare cuts, hat droplets, and section branches remain local.
   Continuous color, grayscale, ASCII, six album palettes, the 60-combination
   replay suite, and a 1080p renderer soak all pass.
+- Added Glass Choir as a restrained harmonic scene. Five fixed, overlapping
+  shards expose moving internal caustics while beat travel, low-pane kick
+  resonance, snare fractures, hat-tip glints, and section reassembly stay
+  local. Continuous color, grayscale, ASCII, six album palettes, the
+  65-combination replay suite, and a 1080p renderer soak all pass.
