@@ -1,4 +1,5 @@
 #include "status_overlay.h"
+#include "first_run_controls.h"
 
 #include <SDL2/SDL.h>
 
@@ -35,6 +36,10 @@ int main(int argc, char** argv) {
     assert(calibration.width > 600);
     assert(calibration.width < 885);
 
+    const StatusBitmap controls = rasterizeStatusLabel(firstRunControlsLabel);
+    assert(controls.width < 885);
+    assert(controls.height == 93);
+
     assert(SDL_Init(SDL_INIT_VIDEO) == 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
@@ -58,9 +63,15 @@ int main(int argc, char** argv) {
     std::array<unsigned char, 4> pixel{};
     glReadPixels(320, 27, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel.data());
     assert(pixel[0] < 100);
+    overlay.show(firstRunControlsLabel, 1500, firstRunControlsDurationMs);
+    glClearColor(0.5f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    assert(overlay.render(1280, 720, 6500, error));
+    glReadPixels(640, 45, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel.data());
+    assert(pixel[0] < 100);
     glClearColor(0.0f, 0.5f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-    assert(overlay.render(640, 360, 3000, error));
+    assert(overlay.render(640, 360, 9000, error));
     glReadPixels(320, 27, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel.data());
     assert(pixel[1] >= 126);
     overlay.shutdown();
@@ -71,14 +82,15 @@ int main(int argc, char** argv) {
     if (argc == 2) {
         std::ofstream output(argv[1], std::ios::binary);
         assert(output);
-        output << "P6\n" << label.width << ' ' << label.height << "\n255\n";
-        for (std::size_t index = 0; index < label.rgba.size(); index += 4) {
-            const float alpha = label.rgba[index + 3] / 255.0f;
+        output << "P6\n" << controls.width << ' ' << controls.height
+               << "\n255\n";
+        for (std::size_t index = 0; index < controls.rgba.size(); index += 4) {
+            const float alpha = controls.rgba[index + 3] / 255.0f;
             const std::array<unsigned char, 3> background{24, 13, 39};
             for (int channel = 0; channel < 3; ++channel) {
                 const auto value = static_cast<unsigned char>(
                     background[channel] * (1.0f - alpha)
-                    + label.rgba[index + channel] * alpha + 0.5f);
+                    + controls.rgba[index + channel] * alpha + 0.5f);
                 output.write(reinterpret_cast<const char*>(&value), 1);
             }
         }

@@ -148,8 +148,9 @@ missing Arch packages with `omarchy pkg add`.
 ## Run
 
 ```bash
-omadrop             # all connected displays
-omadrop --single    # focused display only
+omadrop             # use the saved display choice, initially all displays
+omadrop --single    # use one display and remember it
+omadrop --all       # use every connected display and remember it
 omadrop calibrate   # align visuals with the current audio output
 ```
 
@@ -186,6 +187,8 @@ readable scene, and guides the `[` earlier / `]` later adjustment through the
 real output and capture path. A compact status label confirms each change.
 Manual scene skips show `AUTO: <scene>` because `N` and `P` never disable automatic direction.
 `OMADROP_ASCII=0` remains available as a temporary override.
+After the first album-art entrance, Omadrop shows one compact control card and
+remembers that it has been seen. Scripted demos and calibration stay clean.
 
 See the [control reference](docs/controls.md) for persistence and automatic
 direction behavior. For launch, audio, artwork, display, or GPU problems, use

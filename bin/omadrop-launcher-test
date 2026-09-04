@@ -3,6 +3,7 @@ set -euo pipefail
 
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-launcher-test.XXXXXX")
+export XDG_CONFIG_HOME=$scratch/config
 launcher_pid=
 existing_renderer=
 cleanup() {
@@ -35,6 +36,37 @@ events=$scratch/events.log
 processes=$scratch/processes.log
 hypr_log=$scratch/hypr.log
 touch "$events" "$processes" "$hypr_log"
+
+[[ $("$root/bin/omadrop" --display-mode) == all ]]
+OMADROP_PERSIST_DISPLAY=0 \
+OMADROP_LIVE_EXECUTABLE=/usr/bin/true \
+OMADROP_RUN_CURATED=/usr/bin/true \
+  "$root/bin/omadrop" --single
+[[ $("$root/bin/omadrop" --display-mode) == all ]]
+OMADROP_LIVE_EXECUTABLE=/usr/bin/true \
+OMADROP_RUN_CURATED=/usr/bin/true \
+  "$root/bin/omadrop" --single
+[[ $("$root/bin/omadrop" --display-mode) == single ]]
+grep -q '^display=single$' "$XDG_CONFIG_HOME/omadrop/preferences.conf"
+OMADROP_LIVE_EXECUTABLE=/usr/bin/true \
+OMADROP_RUN_CURATED=/usr/bin/true \
+  "$root/bin/omadrop" --all
+[[ $("$root/bin/omadrop" --display-mode) == all ]]
+if (( $(grep -c '^display=' "$XDG_CONFIG_HOME/omadrop/preferences.conf") != 1 )); then
+  echo "launcher test: display preference was duplicated" >&2
+  exit 1
+fi
+
+printf 'version=999\ndisplay=single\n' \
+  >"$XDG_CONFIG_HOME/omadrop/preferences.conf"
+OMADROP_LIVE_EXECUTABLE=/usr/bin/true \
+OMADROP_RUN_CURATED=/usr/bin/true \
+  "$root/bin/omadrop" --all 2>"$scratch/future-preferences.log"
+grep -q '^version=999$' "$XDG_CONFIG_HOME/omadrop/preferences.conf"
+grep -q '^display=single$' "$XDG_CONFIG_HOME/omadrop/preferences.conf"
+grep -q 'newer preferences file was left unchanged' \
+  "$scratch/future-preferences.log"
+rm -f "$XDG_CONFIG_HOME/omadrop/preferences.conf"
 
 XDG_RUNTIME_DIR=$scratch/runtime \
 OMADROP_HYPRCTL=$root/experiments/projectm-ascii/fixtures/fake-hyprctl \

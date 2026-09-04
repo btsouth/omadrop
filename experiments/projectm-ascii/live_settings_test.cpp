@@ -35,6 +35,8 @@ int main() {
     preferences.flashLimited = true;
     preferences.highContrast = true;
     preferences.colorVisionSafe = true;
+    preferences.controlsReferenceSeen = true;
+    preferences.displayMode = "single";
     preferences.directorProfile = DirectorProfile::Restrained;
     preferences.favoriteScenes = {"paper-horizon", "paper-horizon",
                                   "not valid"};
@@ -50,6 +52,8 @@ int main() {
     assert(restored.flashLimited);
     assert(restored.highContrast);
     assert(restored.colorVisionSafe);
+    assert(restored.controlsReferenceSeen);
+    assert(restored.displayMode == "single");
     assert(restored.directorProfile == DirectorProfile::Restrained);
     assert(restored.favoriteScenes.size() == 1);
     assert(restored.favoriteScenes.front() == "paper-horizon");
@@ -67,6 +71,8 @@ int main() {
     assert(!migrated.asciiEnabled && migrated.reducedMotion);
     assert(!migrated.flashLimited);
     assert(!migrated.colorVisionSafe);
+    assert(!migrated.controlsReferenceSeen);
+    assert(migrated.displayMode == "all");
     assert(saveLivePreferences(migrated));
     migrated = loadLivePreferences();
     assert(migrated.version == livePreferencesVersion);
@@ -78,6 +84,8 @@ int main() {
                   << "intensity=99\n"
                   << "brightness=-2\n"
                   << "motion=nan\n"
+                  << "controls-reference-seen=maybe\n"
+                  << "display=wall-of-monitors\n"
                   << "director=unknown\n"
                   << "favorite=../escape\n";
     }
@@ -88,6 +96,8 @@ int main() {
     assert(repaired.motion == 1.0f);
     assert(!repaired.flashLimited);
     assert(!repaired.colorVisionSafe);
+    assert(!repaired.controlsReferenceSeen);
+    assert(repaired.displayMode == "all");
     assert(repaired.directorProfile == DirectorProfile::Balanced);
     assert(repaired.favoriteScenes.empty());
 

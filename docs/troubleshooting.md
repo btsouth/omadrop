@@ -46,6 +46,8 @@ does not change music analysis.
 ## A display is missing or misplaced
 
 Use `omadrop --all` for every connected display and `omadrop --single` for one.
+Either explicit choice persists; `omadrop --display-mode` prints the value a
+bare launch will use.
 Check the compositor's current output list with `hyprctl monitors`. Omadrop
 replaces the complete display session after a hotplug so a disconnected window
 cannot remain behind.

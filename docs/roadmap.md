@@ -605,6 +605,15 @@ Completed after v0.3:
   after the scene compositor, so it cannot contaminate feedback or recordings
   without a user action. Hidden-context tests cover its raster, final pass,
   placement, expiry, and paired manual-scene cue.
+- Added a compact three-line control reference after the first ordinary cover
+  entrance. It waits until the album-art dissolve is complete, expires after
+  seven seconds, appears across a paired display session, and never enters a
+  scripted demo or calibration run. Its seen state is part of the migrated,
+  versioned preferences contract.
+- Made explicit `--single` and `--all` display choices persistent. Bare hotkey
+  launches now restore the saved topology, `--display-mode` reports it without
+  opening a window, and the atomic launcher update refuses to rewrite a newer
+  unknown preferences format. Scripted demo display flags remain temporary.
 - Activated the four persisted director profiles without changing scene timing.
   Balanced keeps the established score, Kinetic favors percussive and flow
   compositions, Restrained favors sparse lower-energy compositions, and High

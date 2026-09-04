@@ -175,6 +175,12 @@ LivePreferences loadLivePreferences() {
             parseBool(value, preferences.highContrast);
         } else if (key == "color-vision-safe") {
             parseBool(value, preferences.colorVisionSafe);
+        } else if (key == "controls-reference-seen") {
+            parseBool(value, preferences.controlsReferenceSeen);
+        } else if (key == "display") {
+            if (value == "all" || value == "single") {
+                preferences.displayMode = value;
+            }
         } else if (key == "director") {
             preferences.directorProfile = parseDirectorProfile(value);
         } else if (key == "favorite") {
@@ -215,6 +221,10 @@ bool saveLivePreferences(const LivePreferences& supplied) {
            << "high-contrast=" << (preferences.highContrast ? 1 : 0) << '\n'
            << "color-vision-safe="
            << (preferences.colorVisionSafe ? 1 : 0) << '\n'
+           << "controls-reference-seen="
+           << (preferences.controlsReferenceSeen ? 1 : 0) << '\n'
+           << "display="
+           << (preferences.displayMode == "single" ? "single" : "all") << '\n'
            << "director=" << directorProfileName(preferences.directorProfile)
            << '\n';
     std::set<std::string> writtenFavorites;

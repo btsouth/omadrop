@@ -11,6 +11,8 @@ constexpr int glyphScale = 3;
 constexpr int horizontalPadding = 12;
 constexpr int verticalPadding = 9;
 constexpr std::size_t maximumCharacters = 48;
+constexpr std::size_t maximumLines = 3;
+constexpr int lineGap = 6;
 
 std::array<unsigned char, glyphHeight> glyph(char character) {
     switch (character) {
@@ -56,6 +58,7 @@ std::array<unsigned char, glyphHeight> glyph(char character) {
         case '/': return {1, 2, 2, 4, 8, 8, 16};
         case '[': return {14, 8, 8, 8, 8, 8, 14};
         case ']': return {14, 2, 2, 2, 2, 2, 14};
+        case '?': return {14, 17, 1, 2, 4, 0, 4};
         default: return {};
     }
 }
@@ -104,20 +107,33 @@ void main() {
 }
 
 StatusBitmap rasterizeStatusLabel(std::string_view supplied) {
-    std::string text;
-    text.reserve(std::min(supplied.size(), maximumCharacters));
+    std::vector<std::string> lines(1);
     for (const unsigned char character : supplied) {
-        if (text.size() >= maximumCharacters) break;
-        text += static_cast<char>(std::toupper(character));
+        if (character == '\n') {
+            if (lines.size() >= maximumLines) break;
+            while (!lines.back().empty() && lines.back().back() == ' ') {
+                lines.back().pop_back();
+            }
+            lines.emplace_back();
+        } else if (lines.back().size() < maximumCharacters) {
+            lines.back() += static_cast<char>(std::toupper(character));
+        }
     }
-    while (!text.empty() && text.back() == ' ') text.pop_back();
-    if (text.empty()) return {};
+    while (!lines.empty() && lines.back().empty()) lines.pop_back();
+    if (lines.empty()) return {};
+
+    const std::size_t widestLine = std::max_element(
+        lines.begin(), lines.end(), [](const auto& left, const auto& right) {
+            return left.size() < right.size();
+        })->size();
 
     StatusBitmap bitmap;
     bitmap.width = horizontalPadding * 2
-        + static_cast<int>(text.size()) * (glyphWidth + 1) * glyphScale
+        + static_cast<int>(widestLine) * (glyphWidth + 1) * glyphScale
         - glyphScale;
-    bitmap.height = verticalPadding * 2 + glyphHeight * glyphScale;
+    bitmap.height = verticalPadding * 2
+        + static_cast<int>(lines.size()) * glyphHeight * glyphScale
+        + static_cast<int>(lines.size() - 1) * lineGap;
     bitmap.rgba.resize(static_cast<std::size_t>(bitmap.width * bitmap.height * 4));
 
     constexpr float radius = 9.0f;
@@ -138,29 +154,37 @@ StatusBitmap rasterizeStatusLabel(std::string_view supplied) {
         }
     }
 
-    int glyphX = horizontalPadding;
-    for (const char character : text) {
-        const auto rows = glyph(character);
-        for (int row = 0; row < glyphHeight; ++row) {
-            for (int column = 0; column < glyphWidth; ++column) {
-                if ((rows[row] & (1u << (glyphWidth - 1 - column))) == 0) {
-                    continue;
-                }
-                for (int sy = 0; sy < glyphScale; ++sy) {
-                    for (int sx = 0; sx < glyphScale; ++sx) {
-                        const int x = glyphX + column * glyphScale + sx;
-                        const int y = verticalPadding + row * glyphScale + sy;
-                        const std::size_t offset
-                            = static_cast<std::size_t>(y * bitmap.width + x) * 4;
-                        bitmap.rgba[offset] = 238;
-                        bitmap.rgba[offset + 1] = 244;
-                        bitmap.rgba[offset + 2] = 255;
-                        bitmap.rgba[offset + 3] = 255;
+    for (std::size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
+        const std::string& text = lines[lineIndex];
+        int glyphX = (bitmap.width
+            - (static_cast<int>(text.size()) * (glyphWidth + 1) * glyphScale
+               - glyphScale)) / 2;
+        const int lineY = verticalPadding
+            + static_cast<int>(lineIndex) * (glyphHeight * glyphScale + lineGap);
+        for (const char character : text) {
+            const auto rows = glyph(character);
+            for (int row = 0; row < glyphHeight; ++row) {
+                for (int column = 0; column < glyphWidth; ++column) {
+                    if ((rows[row] & (1u << (glyphWidth - 1 - column))) == 0) {
+                        continue;
+                    }
+                    for (int sy = 0; sy < glyphScale; ++sy) {
+                        for (int sx = 0; sx < glyphScale; ++sx) {
+                            const int x = glyphX + column * glyphScale + sx;
+                            const int y = lineY + row * glyphScale + sy;
+                            const std::size_t offset
+                                = static_cast<std::size_t>(
+                                    y * bitmap.width + x) * 4;
+                            bitmap.rgba[offset] = 238;
+                            bitmap.rgba[offset + 1] = 244;
+                            bitmap.rgba[offset + 2] = 255;
+                            bitmap.rgba[offset + 3] = 255;
+                        }
                     }
                 }
             }
+            glyphX += (glyphWidth + 1) * glyphScale;
         }
-        glyphX += (glyphWidth + 1) * glyphScale;
     }
     return bitmap;
 }
@@ -199,7 +223,8 @@ bool StatusOverlay::initialize(std::string& error) {
     return glGetError() == GL_NO_ERROR;
 }
 
-void StatusOverlay::show(std::string_view text, std::uint64_t nowMilliseconds) {
+void StatusOverlay::show(std::string_view text, std::uint64_t nowMilliseconds,
+                         std::uint64_t durationMilliseconds) {
     if (!texture_) return;
     const StatusBitmap bitmap = rasterizeStatusLabel(text);
     if (bitmap.rgba.empty()) return;
@@ -210,6 +235,7 @@ void StatusOverlay::show(std::string_view text, std::uint64_t nowMilliseconds) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width_, height_, 0,
                  GL_RGBA, GL_UNSIGNED_BYTE, bitmap.rgba.data());
     shownAt_ = nowMilliseconds;
+    duration_ = std::max<std::uint64_t>(durationMilliseconds, 300);
     active_ = true;
 }
 
@@ -221,10 +247,12 @@ bool StatusOverlay::render(int outputWidth, int outputHeight,
     }
     if (nowMilliseconds < shownAt_) return true;
     const std::uint64_t age = nowMilliseconds - shownAt_;
-    if (age >= 1800) return true;
+    if (age >= duration_) return true;
     if (outputWidth <= 0 || outputHeight <= 0) return true;
-    const float opacity = age <= 1350
-        ? 1.0f : 1.0f - (age - 1350) / 450.0f;
+    const std::uint64_t fadeDuration = std::min<std::uint64_t>(450, duration_);
+    const std::uint64_t fadeStart = duration_ - fadeDuration;
+    const float opacity = age <= fadeStart
+        ? 1.0f : 1.0f - (age - fadeStart) / static_cast<float>(fadeDuration);
     const float left = 0.5f - width_ / (2.0f * outputWidth);
     const float bottom = std::max(24.0f, outputHeight * 0.035f) / outputHeight;
     const float right = left + width_ / static_cast<float>(outputWidth);
@@ -267,5 +295,6 @@ void StatusOverlay::shutdown() {
     width_ = 0;
     height_ = 0;
     shownAt_ = 0;
+    duration_ = 1800;
     active_ = false;
 }

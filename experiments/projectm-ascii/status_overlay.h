@@ -23,7 +23,8 @@ public:
     StatusOverlay& operator=(const StatusOverlay&) = delete;
 
     bool initialize(std::string& error);
-    void show(std::string_view text, std::uint64_t nowMilliseconds);
+    void show(std::string_view text, std::uint64_t nowMilliseconds,
+              std::uint64_t durationMilliseconds = 1800);
     bool render(int outputWidth, int outputHeight,
                 std::uint64_t nowMilliseconds, std::string& error);
     void shutdown();
@@ -37,5 +38,6 @@ private:
     int width_ = 0;
     int height_ = 0;
     std::uint64_t shownAt_ = 0;
+    std::uint64_t duration_ = 1800;
     bool active_ = false;
 };

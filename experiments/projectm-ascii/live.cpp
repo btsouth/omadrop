@@ -28,6 +28,7 @@
 #include "adaptive_render_quality.h"
 #include "cover_presentation.h"
 #include "display_session.h"
+#include "first_run_controls.h"
 #include "live_assets.h"
 #include "live_compositor.h"
 #include "live_projectm.h"
@@ -579,6 +580,12 @@ int main(int argc, char** argv) {
         .transitionSeconds = scriptedTransitionSeconds,
         .playOnce = scriptedSequenceOnce,
     });
+    const bool firstRunControlsEligible
+        = !preferences.controlsReferenceSeen
+       && !calibrationMode
+       && !scriptedSequence.active()
+       && (!std::getenv("OMADROP_HIDE_FIRST_RUN_CONTROLS")
+           || std::string(std::getenv("OMADROP_HIDE_FIRST_RUN_CONTROLS")) == "0");
     std::optional<StructureTimeline> timeline;
     if (const char* timelinePath = std::getenv("OMADROP_TIMELINE_PATH")) {
         StructureTimeline loaded;
@@ -910,6 +917,7 @@ int main(int argc, char** argv) {
         .displayIndex = displayIndex,
     });
     uint64_t calibrationStatusAt = 0;
+    FirstRunControls firstRunControls(firstRunControlsEligible);
     const std::string forcedCoverPath = std::getenv("OMADROP_COVER_PATH")
         ? std::getenv("OMADROP_COVER_PATH") : "";
     const bool disableArt = std::getenv("OMADROP_DISABLE_ART") != nullptr
@@ -2209,6 +2217,17 @@ int main(int argc, char** argv) {
                 now);
             calibrationStatusAt = now;
         }
+        if (firstRunControls.shouldShow(now)) {
+            statusOverlay.show(
+                firstRunControlsLabel, now, firstRunControlsDurationMs);
+            firstRunControls.markShown();
+            if (!pairedFollower) {
+                preferences.controlsReferenceSeen = true;
+                if (!saveLivePreferences(preferences)) {
+                    std::cerr << "preferences: could not save control reference state\n";
+                }
+            }
+        }
         if (!statusOverlay.render(outputW, outputH, now, compositorError)) {
             std::cerr << "status overlay: " << compositorError << "\n";
             running = false;
@@ -2227,6 +2246,9 @@ int main(int argc, char** argv) {
             SDL_ShowWindow(window);
             SDL_DisableScreenSaver();
             std::cerr << "idle: inhibition requested while Omadrop is visible\n";
+            firstRunControls.onWindowShown(
+                now, coverPresentation.hasArtwork(),
+                coverHoldSeconds, coverDissolveSeconds);
         }
         // SDL's swap interval is not reliably honored by every Wayland path.
         // MilkDrop presets contain equations that advance once per rendered

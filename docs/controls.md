@@ -21,6 +21,15 @@
 | `F11` | Toggle fullscreen | No |
 | `Esc` | Quit | No |
 
+The first ordinary launch shows a compact control card after the cover has
+finished dissolving. It is shown once, is not included in scripted demos or
+calibration, and its seen state persists with the other preferences.
+
+`omadrop --single` and `omadrop --all` select and save the launch display mode.
+A later bare `omadrop` launch uses that choice. `omadrop --display-mode` prints
+the saved value without launching the visualizer. The `omadrop-demo` wrapper
+uses a temporary display choice and never changes this preference.
+
 Run `omadrop calibrate` after changing speakers, headphones, or Bluetooth
 devices when the visual onset does not land with the sound. It plays a repeating
 reference beat through the normal output, keeps one scene fixed, and saves the

@@ -19,6 +19,7 @@ Run the native music-contract and render audits with:
 ./experiments/projectm-ascii/music-frame-test
 ./experiments/projectm-ascii/signal-monitor-test
 ./experiments/projectm-ascii/status-overlay-test
+./experiments/projectm-ascii/first-run-controls-test
 ./experiments/projectm-ascii/live-compositor-test
 ./experiments/projectm-ascii/cover-presentation-test
 ./experiments/projectm-ascii/mpris-state-test
@@ -304,7 +305,8 @@ a poor musical match. Press `x` to hide the current scene and continue to the
 next visible scene. Hidden scenes are omitted from automatic selection, motif
 recall, and `n`/`p` navigation. Press `Shift+x` to restore them. The director
 refuses a hidden set that would leave fewer than two scenes available.
-These choices are stored in the versioned
+These choices, the saved all/single display mode, and whether the one-time
+control card has been shown are stored in the versioned
 `$XDG_CONFIG_HOME/omadrop/preferences.conf` file. Older preferences load with
 new safety modes off and are upgraded on the next write. Legacy `ascii-enabled`
 settings migrate automatically, and settings writes replace the complete file

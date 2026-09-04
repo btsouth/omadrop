@@ -7,6 +7,42 @@ pair_state=$runtime_dir/pair-state
 start_gate=$runtime_dir/start-gate
 hyprctl_command=${OMADROP_HYPRCTL:-hyprctl}
 crash_recorded=0
+config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+preferences_file=$config_home/omadrop/preferences.conf
+preferences_format=4
+
+load_display_mode() {
+  local saved
+  saved=$(awk -F= '$1 == "display" && ($2 == "all" || $2 == "single") {
+    value = $2
+  } END { print value }' "$preferences_file" 2>/dev/null || true)
+  printf '%s' "${saved:-all}"
+}
+
+save_display_mode() {
+  local mode=$1 saved_version temporary
+  if [[ -r $preferences_file ]]; then
+    saved_version=$(awk -F= '$1 == "version" { print $2; exit }' \
+      "$preferences_file")
+    if [[ $saved_version =~ ^[0-9]+$ ]] \
+      && ((saved_version > preferences_format)); then
+      return 1
+    fi
+  fi
+  mkdir -p "$(dirname "$preferences_file")"
+  temporary=$(mktemp "$(dirname "$preferences_file")/.preferences.XXXXXX")
+  if [[ -r $preferences_file ]]; then
+    awk -v mode="$mode" '$0 !~ /^display=/ { print } END {
+      print "display=" mode
+    }' "$preferences_file" >"$temporary"
+    chmod --reference="$preferences_file" "$temporary"
+  else
+    printf 'version=%s\ndisplay=%s\n' "$preferences_format" "$mode" \
+      >"$temporary"
+    chmod 600 "$temporary"
+  fi
+  mv "$temporary" "$preferences_file"
+}
 
 safe_report_value() {
   local value=${1:-unknown}
@@ -62,9 +98,14 @@ case ${1:-} in
     printf 'Omadrop %s\n' "$(<"$root/VERSION")"
     exit 0
     ;;
+  --display-mode)
+    load_display_mode
+    printf '\n'
+    exit 0
+    ;;
   -h|--help)
     cat <<'EOF'
-Usage: omadrop [--single|--all|--toggle-secondary|--version]
+Usage: omadrop [--single|--all|--display-mode|--toggle-secondary|--version]
        omadrop calibrate
        omadrop pack validate PACK_DIRECTORY
        omadrop pack author PACK_DIRECTORY [SCENE_SLUG]
@@ -72,8 +113,9 @@ Usage: omadrop [--single|--all|--toggle-secondary|--version]
        omadrop pack list
        omadrop pack remove PACK_ID [VERSION]
 
-  --single            Visualize on one display
-  --all               Visualize on every connected display (default)
+  --single            Use one display and remember the choice
+  --all               Use every connected display and remember the choice
+  --display-mode      Print the saved all/single display choice
   --toggle-secondary  Hide or restore the secondary Omadrop display
   --version            Print the installed version
   calibrate            Align visuals with the current audio output
@@ -113,10 +155,24 @@ if [[ ${1:-} == --toggle-secondary ]]; then
   exit 0
 fi
 
-monitor_mode=${OMADROP_MONITORS:-all}
+monitor_mode=${OMADROP_MONITORS:-$(load_display_mode)}
 case ${1:-} in
-  --all) monitor_mode=all; shift ;;
-  --single) monitor_mode=single; shift ;;
+  --all)
+    monitor_mode=all
+    if [[ ${OMADROP_PERSIST_DISPLAY:-1} != 0 ]]; then
+      save_display_mode "$monitor_mode" \
+        || echo "omadrop: a newer preferences file was left unchanged" >&2
+    fi
+    shift
+    ;;
+  --single)
+    monitor_mode=single
+    if [[ ${OMADROP_PERSIST_DISPLAY:-1} != 0 ]]; then
+      save_display_mode "$monitor_mode" \
+        || echo "omadrop: a newer preferences file was left unchanged" >&2
+    fi
+    shift
+    ;;
 esac
 
 # Explicit recovery path while the projectM application replaces the QML

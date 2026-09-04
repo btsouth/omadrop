@@ -28,6 +28,7 @@ esac
 
 tests=(
   live-settings-test
+  first-run-controls-test
   mpris-state-test
   mpris-poller-test
   track-session-test
