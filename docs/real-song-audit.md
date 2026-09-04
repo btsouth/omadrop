@@ -44,6 +44,11 @@ assigns four nodes to each percussion role instead of activating the complete
 network. Its moderate-pulse duty fell from 35.47 to 6.77 percent while kick,
 snare, and hat response remained 7.47x, 4.02x, and 4.43x quiet motion.
 
+Spectral Ribbons maps sustained low, middle, and high frequency groups into
+separate portions of its lines. The base composition now changes between
+attacks without any full-width scale or luminance control. Its severe-pulse
+duty remains zero on both complete songs and all five generated profiles.
+
 The automatic director also passes both songs:
 
 | Result | beat me | To Free Me |

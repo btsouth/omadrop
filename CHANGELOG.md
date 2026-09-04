@@ -110,6 +110,9 @@
 - Split Constellation Field into separate kick, snare, and hat node groups.
   Its real-song moderate-pulse duty falls from 35 to 7 percent while all three
   roles remain clearly above the response floor.
+- Let Spectral Ribbons' low, middle, and high lines carry separate sustained
+  frequency contours between attacks. Each contour stays in its own horizontal
+  window, so melodic movement does not become another full-field pulse.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 

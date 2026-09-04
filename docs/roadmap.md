@@ -640,3 +640,6 @@ Completed after v0.3:
 - Added a moderate-pulse duty gate beside the severe-pulse limit. It exposed
   and removed shared percussion transforms from Depth Tunnel and Constellation
   Field while preserving deliberate depth flow and stronger local role cues.
+- Added separate sustained low, middle, and high contours to Spectral Ribbons.
+  The lines now carry instrumentation between attacks while every band and
+  percussion role stays spatially local and severe pulse duty remains zero.

@@ -29,6 +29,15 @@ void main() {
     float localHat = sceneHat * hatFocus;
     float roleGesture = localKick * lowZone + localSnare * middleZone
                       + localHat * highZone;
+    // Sustained frequency groups shape separate portions of the lines. This
+    // makes melody and instrumentation readable between percussion hits
+    // without applying one shared scale or brightness pulse to the field.
+    float lowSustain = clamp(0.58 * bandLevel[0] + 0.42 * bandLevel[1],
+                             0.0, 1.5);
+    float midSustain = clamp(0.46 * bandLevel[2] + 0.54 * bandLevel[3],
+                             0.0, 1.5);
+    float highSustain = clamp(0.55 * bandLevel[4] + 0.45 * bandLevel[5],
+                              0.0, 1.5);
 
     vec2 previousP = p;
     previousP.x += (0.00003 + 0.00005 * energySlow) * motionScale;
@@ -59,20 +68,32 @@ void main() {
         float frequency = 2.2 + fi * 0.72;
         float amplitude = 0.013 + 0.008 * development;
         float roleWidth = 0.0;
+        float sustain = 0.0;
+        float sustainCenter = 0.0;
+        float sustainDepth = 0.0;
         if (index < 3) {
             // Low ribbons open vertically and deepen their large curve.
             amplitude += localKick * (0.120 + 0.014 * fi);
             y += sign(y) * localKick * 0.070;
             roleWidth = 0.0052 * localKick;
+            sustain = lowSustain;
+            sustainCenter = -0.42 + 0.05 * fi;
+            sustainDepth = 0.042;
         } else if (index < 6) {
             // Snares make the middle voices fold through one another.
             amplitude += localSnare * 0.210;
             y += localSnare * 0.074 * sin(fi * 2.3 + barPhase * tau);
             roleWidth = 0.0048 * localSnare;
+            sustain = midSustain;
+            sustainCenter = -0.03 + 0.05 * (fi - 4.0);
+            sustainDepth = 0.034;
         } else {
             // Hats reveal short, high-frequency ripples on the upper voices.
             amplitude += localHat * 0.180;
             roleWidth = 0.0040 * localHat;
+            sustain = highSustain;
+            sustainCenter = 0.39 + 0.06 * (fi - 6.5);
+            sustainDepth = 0.026;
         }
         float curve = y + amplitude * sin(p.x * frequency * tau
                     - flowTime * (0.015 + 0.004 * fi)
@@ -80,6 +101,11 @@ void main() {
         curve += (0.018 + 0.020 * development)
                * sin(p.x * tau * 0.72 + fi * 0.66
                      + phrasePhase * tau * 0.24);
+        float sustainWindow = exp(
+            -18.0 * (p.x - sustainCenter) * (p.x - sustainCenter));
+        curve += sustainWindow * sustain * sustainDepth
+               * sin(p.x * tau * (1.4 + 0.18 * fi)
+                     + fi * 0.71 + tonalMotion * 1.8);
         if (index < 3) {
             curve += localKick * 0.052
                    * sin(p.x * (frequency + 1.4) * tau + fi * 0.7);

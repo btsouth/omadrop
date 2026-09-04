@@ -24,7 +24,7 @@ ship decision.
 | Prism Garden | Pass | Pass | Sparse | Pass | Pass | Pass | Preserve the varied skyline during dense passages | Two full songs pass; live output |
 | Pulse Cathedral | Pass | Pass | Selective | Pass | Pass | Pass | Keep outer arches subordinate to the focal rose | Two full songs pass; live output |
 | Shadow Architecture | Pass | Pass | Sparse | Pass | Pass | Pass | Keep percussion confined to separate architectural surfaces | Two full songs pass; live output |
-| Spectral Ribbons | Pass | Pass | Flow | Pass | Pass | Pass | Confirm localized role windows remain readable at native resolution | Two full songs pass; live output |
+| Spectral Ribbons | Pass | Pass | Flow | Pass | Pass | Pass | Keep sustained band contours and transient windows visually separate | Two full songs pass; live output |
 | Tidal Grid | Pass | Pass | Selective | Pass | Pass | Pass | Keep foreground grid lines below the horizon subject | Two full songs pass; live output |
 | Wire Organism | Pass | Pass | Sparse | Pass | Pass | Pass | Keep its harmonic membrane subtle | Two full songs pass; live output |
 
