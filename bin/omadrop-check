@@ -34,6 +34,7 @@ tests=(
   track-session-test
   display-session-test
   scripted-scene-sequence-test
+  demo-sequence-test
   paired-transport-test
   paired-sync-test
   session-lifecycle-test
@@ -55,7 +56,11 @@ tests=(
 
 for test in "${tests[@]}"; do
   echo "checking $test"
-  "$native/$test"
+  if [[ $test == demo-sequence-test ]]; then
+    "$native/$test" "$root/demo/scene-sequence.txt"
+  else
+    "$native/$test"
+  fi
 done
 
 echo "checking audio output handoff"

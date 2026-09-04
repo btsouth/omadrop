@@ -12,6 +12,7 @@ experiments/projectm-ascii/mpris-poller-test
 experiments/projectm-ascii/track-session-test
 experiments/projectm-ascii/display-session-test
 experiments/projectm-ascii/scripted-scene-sequence-test
+experiments/projectm-ascii/demo-sequence-test
 experiments/projectm-ascii/paired-transport-test
 experiments/projectm-ascii/paired-sync-test
 experiments/projectm-ascii/session-lifecycle-test

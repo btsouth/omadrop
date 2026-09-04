@@ -477,6 +477,11 @@ Completed after v0.3:
 - Extracted scripted demo direction from the render loop. Minimum scene dwell,
   confident bar-aligned cues, maximum holds, looping, one-shot recording
   completion, and transition-settled timing now have deterministic tests.
+- Reauthored the short showcase around five post-v0.3 scenes: Ink Current,
+  Glass Choir, Shadow Architecture, Particle Weave, and Living Mosaic. The
+  checked route spans five visual families and at least three transition
+  grammars, moving from fluid form through glass, depth, particles, and cells
+  instead of repeating similar line compositions.
 - Extracted cover timing into a deterministic presentation state machine with
   hold, dissolve, completion, synchronized start-gate restart, clear, and
   replacement tests. Track changes now remove the previous artwork before a

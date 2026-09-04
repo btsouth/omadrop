@@ -268,10 +268,12 @@ omadrop-demo
 omadrop-demo-record
 ```
 
-The showcase moves through Spectral Ribbons, Constellation Field, Prism Garden,
-Wire Organism, and Orbital Loom. Transitions begin on detected bar boundaries,
-with a fallback deadline when the beat clock is uncertain. The recorder creates
-a timestamped 60 FPS MP4 in `~/Videos`, suppresses desktop notifications during
+The showcase moves through Ink Current, Glass Choir, Shadow Architecture,
+Particle Weave, and Living Mosaic. The route moves from fluid calligraphy
+through glass, depth, particles, and cellular form, using three distinct
+transition grammars. Transitions begin on detected bar boundaries, with a
+fallback deadline when the beat clock is uncertain. The recorder creates a
+timestamped 60 FPS MP4 in `~/Videos`, suppresses desktop notifications during
 capture, and ends inside the final fade. Pass an output path to
 `omadrop-demo-record` to choose another destination.
 

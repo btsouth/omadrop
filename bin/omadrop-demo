@@ -20,7 +20,8 @@ EOF
     ;;
 esac
 
-export OMADROP_NATIVE_SEQUENCE=${OMADROP_DEMO_SCENES:-spectral-ribbons,constellation-field,prism-garden,wire-organism,orbital-loom}
+default_sequence=$(paste -sd, "$root/demo/scene-sequence.txt")
+export OMADROP_NATIVE_SEQUENCE=${OMADROP_DEMO_SCENES:-$default_sequence}
 export OMADROP_NATIVE_SEQUENCE_SECONDS=${OMADROP_DEMO_SCENE_SECONDS:-3.25}
 export OMADROP_NATIVE_SEQUENCE_MAX_SECONDS=${OMADROP_DEMO_SCENE_MAX_SECONDS:-5.75}
 export OMADROP_NATIVE_TRANSITION_SECONDS=${OMADROP_DEMO_TRANSITION_SECONDS:-1.75}

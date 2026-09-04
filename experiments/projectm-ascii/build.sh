@@ -40,6 +40,9 @@ g++ -std=c++20 -O2 -Wall -Wextra display_session_test.cpp display_session.cpp \
 g++ -std=c++20 -O2 -Wall -Wextra scripted_scene_sequence_test.cpp \
   scripted_scene_sequence.cpp -o scripted-scene-sequence-test
 
+g++ -std=c++20 -O2 -Wall -Wextra demo_sequence_test.cpp \
+  -o demo-sequence-test
+
 g++ -std=c++20 -O2 -Wall -Wextra paired_transport_test.cpp \
   paired_transport.cpp -o paired-transport-test
 
