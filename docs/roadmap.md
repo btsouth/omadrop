@@ -414,3 +414,6 @@ Completed after v0.3:
   prove capture shutdown, analysis reset, per-output delay selection, and
   capture restart order, and capture startup detects an executable failure
   instead of silently leaving the visualizer without audio.
+- Added an automated opening-audio guard test. A delayed approved source passes
+  while an unrelated source is rejected, covering the final recording audit
+  that protects release demos from stray desktop audio.

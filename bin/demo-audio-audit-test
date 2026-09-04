@@ -1,0 +1,39 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+audit=$root/bin/demo-audio-audit
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-demo-audio-test.XXXXXX")
+cleanup() {
+  rm -rf -- "$scratch"
+}
+trap cleanup EXIT
+
+for command in ffmpeg "$root/experiments/projectm-ascii/audio-match"; do
+  command -v "$command" >/dev/null || {
+    echo "demo-audio-audit-test: required command not found: $command" >&2
+    exit 2
+  }
+done
+
+approved=$scratch/approved.wav
+matching=$scratch/matching-opening.wav
+unrelated=$scratch/unrelated-opening.wav
+ffmpeg -hide_banner -loglevel error -f lavfi \
+  -i 'sine=frequency=523.251:sample_rate=48000:duration=2' \
+  -c:a pcm_s16le "$approved"
+ffmpeg -hide_banner -loglevel error -i "$approved" \
+  -af 'adelay=250,apad=pad_dur=2' -t 4 -c:a pcm_s16le "$matching"
+ffmpeg -hide_banner -loglevel error -f lavfi \
+  -i 'sine=frequency=659.255:sample_rate=48000:duration=4' \
+  -c:a pcm_s16le "$unrelated"
+
+"$audit" "$matching" "$approved" >"$scratch/matching.log"
+grep -q '^opening_audio correlation=' "$scratch/matching.log"
+if "$audit" "$unrelated" "$approved" >"$scratch/unrelated.log" 2>&1; then
+  echo "demo-audio-audit-test: unrelated opening was accepted" >&2
+  exit 1
+fi
+grep -q 'captured opening does not match' "$scratch/unrelated.log"
+
+echo "demo opening-audio guard passed"

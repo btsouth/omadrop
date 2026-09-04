@@ -24,6 +24,7 @@ Run the native music-contract and render audits with:
 ./experiments/projectm-ascii/native-scene-state-test
 ./experiments/projectm-ascii/native-renderer-test ./shaders/native
 ./bin/omadrop-launcher-test
+./bin/demo-audio-audit-test
 ```
 
 The launcher test uses two deterministic fake displays and renderers. It
@@ -37,6 +38,10 @@ The audio-output session test uses a fake capture process. It verifies the
 exact sink passed to `pw-record`, orderly capture replacement, state reset, a
 per-output delay change, and a clean failure when the capture executable cannot
 start.
+
+The demo-audio audit test accepts a capture with the approved opening at a
+known delay and rejects a different source. This protects the release recorder
+from silently accepting desktop audio that does not belong in the demo.
 
 Pass an optional output directory to `native-renderer-test` to write one
 deterministic continuous frame and one production-equivalent ASCII frame per
