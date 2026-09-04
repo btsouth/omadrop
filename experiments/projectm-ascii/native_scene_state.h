@@ -28,6 +28,11 @@ struct NativeSceneState {
     bool motifRecalled = false;
 };
 
+struct NativeScenePlan {
+    NativeSceneKind next = NativeSceneKind::Centrifuge;
+    NativeSceneKind following = NativeSceneKind::WireOrganism;
+};
+
 // Turns musical measurements into a slow scene lifecycle. The renderer gets
 // deliberate compositional state instead of deriving long-form behavior from
 // momentary audio levels.
@@ -73,16 +78,19 @@ public:
             pendingScene_.reset();
             pendingTransitionStyle_.reset();
         }
-        std::optional<NativeSceneKind> automaticScene;
-        if (automaticTransition) automaticScene = chooseAutomaticScene(music);
+        std::optional<NativeScenePlan> automaticPlan;
+        if (automaticTransition) automaticPlan = chooseAutomaticPlan(music);
         if (!state_.transitioning
             && (pendingScene_ || pendingDirection_ != 0
                 || recallTransition || automaticTransition)) {
+            const bool automaticRequest = !pendingScene_
+                && pendingDirection_ == 0 && !recallTransition
+                && automaticPlan.has_value();
             state_.incomingScene = pendingScene_ ? *pendingScene_
                 : pendingDirection_ != 0
                 ? nextVisibleScene(state_.currentScene, pendingDirection_)
                 : recallTransition ? recalledScene
-                : *automaticScene;
+                : automaticPlan->next;
             const float transitionEnergy = std::clamp(
                 0.58f * music.energyFast + 0.42f * music.energySlow,
                 0.0f, 1.0f);
@@ -110,6 +118,9 @@ public:
             pendingDirection_ = 0;
             pendingScene_.reset();
             pendingTransitionStyle_.reset();
+            plannedAutomaticScene_ = automaticRequest
+                ? std::optional<NativeSceneKind>(automaticPlan->following)
+                : std::nullopt;
             rememberSceneUse(state_.incomingScene);
         }
         if (sectionStarted && music.motifIdentity >= 0 && !hasRecalledScene) {
@@ -151,9 +162,18 @@ public:
         return state_;
     }
 
-    void requestNext() { pendingDirection_ = 1; }
-    void requestPrevious() { pendingDirection_ = -1; }
-    void requestScene(NativeSceneKind scene) { pendingScene_ = scene; }
+    void requestNext() {
+        pendingDirection_ = 1;
+        plannedAutomaticScene_.reset();
+    }
+    void requestPrevious() {
+        pendingDirection_ = -1;
+        plannedAutomaticScene_.reset();
+    }
+    void requestScene(NativeSceneKind scene) {
+        pendingScene_ = scene;
+        plannedAutomaticScene_.reset();
+    }
     void requestTransitionStyle(NativeTransitionStyle style) {
         pendingTransitionStyle_ = style;
     }
@@ -180,6 +200,9 @@ public:
             }
         }
         if (visibleSceneCount() < 2) hiddenScenes_.fill(false);
+        if (plannedAutomaticScene_ && sceneHidden(*plannedAutomaticScene_)) {
+            plannedAutomaticScene_.reset();
+        }
     }
     bool sceneFavorite(NativeSceneKind scene) const {
         return favoriteScenes_[static_cast<std::size_t>(scene)];
@@ -190,6 +213,9 @@ public:
     std::size_t visibleSceneCount() const {
         return static_cast<std::size_t>(std::count(
             hiddenScenes_.begin(), hiddenScenes_.end(), false));
+    }
+    std::optional<NativeSceneKind> plannedScene() const {
+        return plannedAutomaticScene_;
     }
     const NativeSceneState& state() const { return state_; }
     void selectScene(NativeSceneKind scene) {
@@ -202,6 +228,7 @@ public:
         pendingDirection_ = 0;
         pendingScene_.reset();
         pendingTransitionStyle_.reset();
+        plannedAutomaticScene_.reset();
         transitionElapsed_ = 0.0f;
         dwellBeats_ = 0.0f;
         previousSection_ = 0.0f;
@@ -226,57 +253,51 @@ public:
     void reset() { *this = NativeSceneDirector{}; }
 
 private:
-    NativeSceneKind chooseAutomaticScene(const MusicFrame& music) const {
+    float selectionScore(NativeSceneKind candidate,
+                         NativeSceneKind current,
+                         const MusicFrame& music,
+                         bool includeHistory) const {
         const float energy = std::clamp(
             0.58f * music.energyFast + 0.42f * music.energySlow, 0.0f, 1.0f);
         const float percussive = std::clamp(music.percussive, 0.0f, 1.0f);
         const float harmonic = std::clamp(music.harmonic, 0.0f, 1.0f);
         const float centroid = std::clamp(music.spectralCentroid, 0.0f, 1.0f);
         const float stereo = std::clamp(music.stereoWidth, 0.0f, 1.0f);
-        NativeSceneKind best = nextVisibleScene(state_.currentScene, 1);
-        float bestScore = std::numeric_limits<float>::max();
-        bool found = false;
-        for (std::size_t index = 0; index < nativeSceneCount; ++index) {
-            const NativeSceneKind candidate = static_cast<NativeSceneKind>(index);
-            if (candidate == state_.currentScene) continue;
-            if (sceneHidden(candidate)) continue;
-            if (nativeSceneDefinition(candidate).visualFamily
-                == nativeSceneDefinition(state_.currentScene).visualFamily) {
-                continue;
-            }
-            const NativeSceneSelectionTraits& traits
-                = nativeSceneDefinition(candidate).selection;
-            const auto square = [](float value) { return value * value; };
-            float score = 1.55f * square(energy - traits.energy)
-                        + 1.30f * square(percussive - traits.percussive)
-                        + 1.10f * square(harmonic - traits.harmonic)
-                        + 0.72f * square(centroid - traits.centroid)
-                        + 0.55f * square(stereo - traits.stereo)
-                        + 0.055f * sceneUseCount_[index];
-            if (sceneFavorite(candidate)) score -= 0.20f;
-            const NativeSceneDefinition& currentDefinition
-                = nativeSceneDefinition(state_.currentScene);
-            const NativeSceneDefinition& candidateDefinition
-                = nativeSceneDefinition(candidate);
-            if (profile_ == NativeDirectorProfile::Kinetic) {
-                score -= 0.16f * traits.percussive + 0.10f * traits.energy;
-                if (candidateDefinition.motionGrammar
-                    == NativeMotionGrammar::Flow) score -= 0.10f;
-                if (candidateDefinition.motionGrammar
-                    == NativeMotionGrammar::Sparse) score += 0.16f;
-            } else if (profile_ == NativeDirectorProfile::Restrained) {
-                score += 0.22f * traits.energy + 0.12f * traits.percussive;
-                if (candidateDefinition.motionGrammar
-                    == NativeMotionGrammar::Flow) score += 0.48f;
-                if (candidateDefinition.motionGrammar
-                    == NativeMotionGrammar::Sparse) score -= 0.12f;
-            } else if (profile_ == NativeDirectorProfile::HighContrast) {
-                if (candidateDefinition.motionGrammar
-                    == currentDefinition.motionGrammar) score += 0.32f;
-                else score -= 0.08f;
-                if (candidateDefinition.transitionAnchor
-                    == currentDefinition.transitionAnchor) score += 0.14f;
-            }
+        const std::size_t index = static_cast<std::size_t>(candidate);
+        const NativeSceneSelectionTraits& traits
+            = nativeSceneDefinition(candidate).selection;
+        const auto square = [](float value) { return value * value; };
+        float score = 1.55f * square(energy - traits.energy)
+                    + 1.30f * square(percussive - traits.percussive)
+                    + 1.10f * square(harmonic - traits.harmonic)
+                    + 0.72f * square(centroid - traits.centroid)
+                    + 0.55f * square(stereo - traits.stereo)
+                    + 0.055f * sceneUseCount_[index];
+        if (sceneFavorite(candidate)) score -= 0.20f;
+        const NativeSceneDefinition& currentDefinition
+            = nativeSceneDefinition(current);
+        const NativeSceneDefinition& candidateDefinition
+            = nativeSceneDefinition(candidate);
+        if (profile_ == NativeDirectorProfile::Kinetic) {
+            score -= 0.16f * traits.percussive + 0.10f * traits.energy;
+            if (candidateDefinition.motionGrammar
+                == NativeMotionGrammar::Flow) score -= 0.10f;
+            if (candidateDefinition.motionGrammar
+                == NativeMotionGrammar::Sparse) score += 0.16f;
+        } else if (profile_ == NativeDirectorProfile::Restrained) {
+            score += 0.22f * traits.energy + 0.12f * traits.percussive;
+            if (candidateDefinition.motionGrammar
+                == NativeMotionGrammar::Flow) score += 0.48f;
+            if (candidateDefinition.motionGrammar
+                == NativeMotionGrammar::Sparse) score -= 0.12f;
+        } else if (profile_ == NativeDirectorProfile::HighContrast) {
+            if (candidateDefinition.motionGrammar
+                == currentDefinition.motionGrammar) score += 0.32f;
+            else score -= 0.08f;
+            if (candidateDefinition.transitionAnchor
+                == currentDefinition.transitionAnchor) score += 0.14f;
+        }
+        if (includeHistory) {
             for (std::size_t age = 0; age < recentScenes_.size(); ++age) {
                 const NativeSceneKind recent
                     = recentScenes_[recentScenes_.size() - 1 - age];
@@ -290,13 +311,108 @@ private:
                     break;
                 }
             }
-            if (score < bestScore) {
-                bestScore = score;
-                best = candidate;
-                found = true;
+        }
+        return score;
+    }
+
+    NativeScenePlan chooseAutomaticPlan(const MusicFrame& music) const {
+        // Current musical fit remains decisive. The future route only breaks
+        // very close choices, while the stored follow-up gets a larger bonus
+        // when it remains within the live-fit tolerance at the next boundary.
+        constexpr float futureRouteWeight = 0.005f;
+        constexpr float plannedFitTolerance = 0.10f;
+        constexpr float plannedContinuityBonus = 0.08f;
+        MusicFrame projected = music;
+        const float direction = std::clamp(
+            music.energySlope * 1.8f, -0.22f, 0.22f);
+        projected.energyFast = std::clamp(
+            projected.energyFast + direction, 0.0f, 1.0f);
+        projected.energySlow = std::clamp(
+            projected.energySlow + direction * 0.65f, 0.0f, 1.0f);
+        projected.percussive = std::clamp(
+            projected.percussive + direction * 0.18f, 0.0f, 1.0f);
+        projected.rhythmicDensity = std::clamp(
+            projected.rhythmicDensity + direction * 0.30f, 0.0f, 1.0f);
+
+        NativeScenePlan best;
+        best.next = nextVisibleScene(state_.currentScene, 1);
+        best.following = nextVisibleScene(best.next, 1);
+        float bestPlanScore = std::numeric_limits<float>::max();
+        float bestImmediateScore = std::numeric_limits<float>::max();
+        bool foundPlan = false;
+        for (std::size_t index = 0; index < nativeSceneCount; ++index) {
+            const NativeSceneKind candidate
+                = static_cast<NativeSceneKind>(index);
+            if (candidate == state_.currentScene || sceneHidden(candidate)) {
+                continue;
+            }
+            if (nativeSceneDefinition(candidate).visualFamily
+                == nativeSceneDefinition(state_.currentScene).visualFamily) {
+                continue;
+            }
+            bestImmediateScore = std::min(bestImmediateScore, selectionScore(
+                candidate, state_.currentScene, music, true));
+        }
+        for (std::size_t firstIndex = 0;
+             firstIndex < nativeSceneCount; ++firstIndex) {
+            const NativeSceneKind first
+                = static_cast<NativeSceneKind>(firstIndex);
+            if (first == state_.currentScene || sceneHidden(first)) continue;
+            if (nativeSceneDefinition(first).visualFamily
+                == nativeSceneDefinition(state_.currentScene).visualFamily) {
+                continue;
+            }
+            float firstScore = selectionScore(
+                first, state_.currentScene, music, true);
+            if (plannedAutomaticScene_ == first
+                && firstScore <= bestImmediateScore + plannedFitTolerance) {
+                firstScore -= plannedContinuityBonus;
+            }
+            NativeSceneKind bestFollowing = nextVisibleScene(first, 1);
+            float bestFollowingScore = std::numeric_limits<float>::max();
+            bool foundFollowing = false;
+            for (std::size_t secondIndex = 0;
+                 secondIndex < nativeSceneCount; ++secondIndex) {
+                const NativeSceneKind second
+                    = static_cast<NativeSceneKind>(secondIndex);
+                if (second == first || second == state_.currentScene
+                    || sceneHidden(second)) {
+                    continue;
+                }
+                const NativeSceneDefinition& firstDefinition
+                    = nativeSceneDefinition(first);
+                const NativeSceneDefinition& secondDefinition
+                    = nativeSceneDefinition(second);
+                if (secondDefinition.visualFamily
+                    == firstDefinition.visualFamily) {
+                    continue;
+                }
+                float secondScore = selectionScore(
+                    second, first, projected, true);
+                if (secondDefinition.motionGrammar
+                    == firstDefinition.motionGrammar) secondScore += 0.16f;
+                if (secondDefinition.transitionAnchor
+                    == firstDefinition.transitionAnchor) secondScore += 0.08f;
+                if (secondScore < bestFollowingScore) {
+                    bestFollowingScore = secondScore;
+                    bestFollowing = second;
+                    foundFollowing = true;
+                }
+            }
+            if (!foundFollowing) bestFollowingScore = 0.0f;
+            const float planScore
+                = firstScore + futureRouteWeight * bestFollowingScore;
+            if (planScore < bestPlanScore) {
+                bestPlanScore = planScore;
+                best = {first, bestFollowing};
+                foundPlan = true;
             }
         }
-        return found ? best : nextVisibleScene(state_.currentScene, 1);
+        if (foundPlan) return best;
+        NativeScenePlan fallback;
+        fallback.next = nextVisibleScene(state_.currentScene, 1);
+        fallback.following = nextVisibleScene(fallback.next, 1);
+        return fallback;
     }
 
     NativeSceneKind nextVisibleScene(NativeSceneKind current,
@@ -332,6 +448,7 @@ private:
     int pendingDirection_ = 0;
     std::optional<NativeSceneKind> pendingScene_;
     std::optional<NativeTransitionStyle> pendingTransitionStyle_;
+    std::optional<NativeSceneKind> plannedAutomaticScene_;
     float transitionElapsed_ = 0.0f;
     float transitionDuration_ = 4.0f;
     float transitionSecondsOverride_ = -1.0f;

@@ -81,6 +81,7 @@ for index in "${!expected[@]}"; do
   scene=${row#* sec }
   if [[ $scene != "${expected[$index]}" ]]; then
     echo "native-director-program-test: change $index expected ${expected[$index]}, got $scene" >&2
+    sed -n '/^\(scene\|transition\) /p' "$log" >&2
     exit 1
   fi
   awk -v current="$time" -v previous="$previous_time" \
@@ -96,6 +97,7 @@ for index in "${!expected_transitions[@]}"; do
   payload=${row#* sec }
   if [[ $payload != "${expected_transitions[$index]} "* ]]; then
     echo "native-director-program-test: transition $index expected ${expected_transitions[$index]}, got $payload" >&2
+    sed -n '/^\(scene\|transition\) /p' "$log" >&2
     exit 1
   fi
 done

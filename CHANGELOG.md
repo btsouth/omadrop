@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Plan one scene beyond each automatic choice to maintain visual contrast.
+  The director follows that plan only while it remains close to the best fit
+  for the current music, so arrangement changes can override stale intent.
 - Add per-scene transition focal points, motion vectors, and depth strength.
   Native transitions now preserve authored spatial direction instead of using
   one hardcoded center and horizontal path for every scene.

@@ -460,18 +460,76 @@ int main() {
     assert(nativeSceneDefinition(afterLandscape).visualFamily
            != NativeVisualFamily::Landscape);
 
-    assert(automaticChoiceWithProfile(NativeSceneKind::Centrifuge,
-        wideHarmonic, NativeDirectorProfile::Balanced)
-        == NativeSceneKind::ParticleWeave);
-    assert(automaticChoiceWithProfile(NativeSceneKind::Centrifuge,
-        wideHarmonic, NativeDirectorProfile::Kinetic)
-        == NativeSceneKind::SpectralRibbons);
-    assert(automaticChoiceWithProfile(NativeSceneKind::Centrifuge,
-        wideHarmonic, NativeDirectorProfile::Restrained)
-        == NativeSceneKind::WireOrganism);
-    assert(automaticChoiceWithProfile(NativeSceneKind::Centrifuge,
-        wideHarmonic, NativeDirectorProfile::HighContrast)
-        == NativeSceneKind::SpectralRibbons);
+    const NativeSceneKind balancedChoice = automaticChoiceWithProfile(
+        NativeSceneKind::Centrifuge, wideHarmonic,
+        NativeDirectorProfile::Balanced);
+    const NativeSceneKind kineticChoice = automaticChoiceWithProfile(
+        NativeSceneKind::Centrifuge, wideHarmonic,
+        NativeDirectorProfile::Kinetic);
+    const NativeSceneKind restrainedChoice = automaticChoiceWithProfile(
+        NativeSceneKind::Centrifuge, wideHarmonic,
+        NativeDirectorProfile::Restrained);
+    const NativeSceneKind highContrastChoice = automaticChoiceWithProfile(
+        NativeSceneKind::Centrifuge, wideHarmonic,
+        NativeDirectorProfile::HighContrast);
+    assert(balancedChoice == NativeSceneKind::ParticleWeave);
+    assert(kineticChoice == NativeSceneKind::SpectralRibbons);
+    assert(restrainedChoice == NativeSceneKind::WireOrganism);
+    assert(highContrastChoice == NativeSceneKind::SpectralRibbons);
+
+    NativeSceneDirector planningDirector;
+    planningDirector.selectScene(NativeSceneKind::Centrifuge);
+    MusicFrame planningMusic = wideHarmonic;
+    planningMusic.bpm = 120.0f;
+    for (int frame = 0; frame < 520; ++frame) {
+        planningDirector.update(planningMusic, 1.0f / 60.0f);
+    }
+    planningMusic.section = 1.0f;
+    const NativeSceneState plannedFirst = planningDirector.update(
+        planningMusic, 1.0f / 60.0f);
+    assert(plannedFirst.transitioning);
+    assert(planningDirector.plannedScene());
+    const NativeSceneKind plannedFollowing = *planningDirector.plannedScene();
+    assert(plannedFollowing != plannedFirst.currentScene);
+    assert(plannedFollowing != plannedFirst.incomingScene);
+    assert(nativeSceneDefinition(plannedFollowing).visualFamily
+        != nativeSceneDefinition(plannedFirst.incomingScene).visualFamily);
+    finishTransition(planningDirector, planningMusic);
+    planningMusic.section = 0.0f;
+    for (int frame = 0; frame < 520; ++frame) {
+        planningDirector.update(planningMusic, 1.0f / 60.0f);
+    }
+    planningMusic.section = 1.0f;
+    const NativeSceneState plannedSecond = planningDirector.update(
+        planningMusic, 1.0f / 60.0f);
+    assert(plannedSecond.transitioning);
+    assert(plannedSecond.incomingScene == plannedFollowing);
+    planningDirector.requestNext();
+    assert(!planningDirector.plannedScene());
+
+    NativeSceneDirector adaptivePlanDirector;
+    adaptivePlanDirector.selectScene(NativeSceneKind::Centrifuge);
+    MusicFrame calmPlanMusic = calmHarmonic;
+    calmPlanMusic.bpm = 120.0f;
+    for (int frame = 0; frame < 520; ++frame) {
+        adaptivePlanDirector.update(calmPlanMusic, 1.0f / 60.0f);
+    }
+    calmPlanMusic.section = 1.0f;
+    adaptivePlanDirector.update(calmPlanMusic, 1.0f / 60.0f);
+    assert(adaptivePlanDirector.plannedScene());
+    const NativeSceneKind stalePlan = *adaptivePlanDirector.plannedScene();
+    finishTransition(adaptivePlanDirector, calmPlanMusic);
+    MusicFrame changedPlanMusic = radialMatch;
+    changedPlanMusic.bpm = 120.0f;
+    for (int frame = 0; frame < 520; ++frame) {
+        changedPlanMusic.section = 0.0f;
+        adaptivePlanDirector.update(changedPlanMusic, 1.0f / 60.0f);
+    }
+    changedPlanMusic.section = 1.0f;
+    const NativeSceneState adaptedPlan = adaptivePlanDirector.update(
+        changedPlanMusic, 1.0f / 60.0f);
+    assert(adaptedPlan.transitioning);
+    assert(adaptedPlan.incomingScene != stalePlan);
 
     NativeSceneDirector preferenceDirector;
     preferenceDirector.setScenePreferences(

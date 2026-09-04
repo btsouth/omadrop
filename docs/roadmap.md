@@ -541,6 +541,12 @@ Completed after v0.3:
   enforces at least eight seconds between completed automatic scene changes.
   The first run exposed and fixed an immediate depth-family repeat and a
   premature motif recall after only 3.4 seconds.
+- Added bounded two-scene planning to automatic direction. The immediate scene
+  remains driven by current musical fit, while a visually distinct follow-up
+  provides continuity when the song remains similar. A fit guard rejects the
+  stored plan after a meaningful arrangement change, and manual input clears
+  it immediately. Tests cover both following and overriding a plan while the
+  locked 128-second performance retains its established sequence and timing.
 - Added five native transition grammars selected from scene compatibility:
   flow carry, focal morph, depth travel, controlled fracture, and
   negative-space reveal. All 18 scenes now have at least two deterministic
