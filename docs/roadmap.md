@@ -382,3 +382,6 @@ Completed after v0.3:
   colors and grayscale.
 - Raised all ten current scenes to the still-frame quality floor. Full-song
   motion and operational regression review remain before Phase 0 is complete.
+- Added active-playback, pause, resume, seek, and track-change clock tests.
+  Extracted paired-display transport from the live loop with atomic state,
+  music, and focused-monitor control-request coverage.

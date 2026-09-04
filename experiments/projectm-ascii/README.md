@@ -18,6 +18,7 @@ Run the native music-contract and render audits with:
 ```sh
 ./experiments/projectm-ascii/music-frame-test
 ./experiments/projectm-ascii/mpris-state-test
+./experiments/projectm-ascii/paired-transport-test
 ./experiments/projectm-ascii/native-scene-state-test
 ./experiments/projectm-ascii/native-renderer-test ./shaders/native
 ```

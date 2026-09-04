@@ -36,6 +36,7 @@
 #include "native_renderer.h"
 #include "paired_display.h"
 #include "paired_music_state.h"
+#include "paired_transport.h"
 #include "pipewire_capture.h"
 #include "preset_profiles.h"
 #include "preset_selector.h"
@@ -566,12 +567,7 @@ int main(int argc, char** argv) {
     bool fullscreenEnabled
         = (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0
        || pairedLeader || pairedFollower;
-    const std::filesystem::path pairedRequestPath = pairedStatePath.empty()
-        ? std::filesystem::path{}
-        : std::filesystem::path(pairedStatePath.string() + ".request");
-    const std::filesystem::path pairedMusicPath = pairedStatePath.empty()
-        ? std::filesystem::path{}
-        : std::filesystem::path(pairedStatePath.string() + ".music");
+    const PairedTransport pairedTransport(pairedStatePath);
     std::uint64_t pairedSerial = 0;
     std::uint64_t pairedMusicSerial = 0;
     PairedDisplayFollower pairedDisplayFollower;
@@ -580,10 +576,7 @@ int main(int argc, char** argv) {
                                   int mode, bool hardSync, int nativeScene = -1,
                                   int nativeSourceScene = -1) {
         if (!pairedLeader) return;
-        const std::filesystem::path temporary = pairedStatePath.string()
-            + "." + std::to_string(getpid()) + ".tmp";
-        std::ofstream output(temporary, std::ios::trunc);
-        output << encodePairedDisplayState({
+        pairedTransport.publishDisplay({
             .serial = ++pairedSerial,
             .presetIndex = index,
             .durationMs = duration,
@@ -596,10 +589,6 @@ int main(int argc, char** argv) {
             .syncDelayMs = static_cast<int>(syncDelayMs),
             .closeMode = closeRequested ? 1 : 0,
         });
-        output.close();
-        std::error_code error;
-        std::filesystem::rename(temporary, pairedStatePath, error);
-        if (error) std::filesystem::remove(temporary, error);
     };
     auto publishPairedMusic = [&](const MusicFrame& frame) {
         if (!pairedLeader) return;
@@ -607,15 +596,7 @@ int main(int argc, char** argv) {
             .serial = ++pairedMusicSerial,
             .frame = frame,
         };
-        const std::string encoded = encodePairedMusicState(state);
-        const std::filesystem::path temporary = pairedMusicPath.string()
-            + "." + std::to_string(getpid()) + ".tmp";
-        std::ofstream output(temporary, std::ios::binary | std::ios::trunc);
-        output.write(encoded.data(), static_cast<std::streamsize>(encoded.size()));
-        output.close();
-        std::error_code error;
-        std::filesystem::rename(temporary, pairedMusicPath, error);
-        if (error) std::filesystem::remove(temporary, error);
+        pairedTransport.publishMusic(state);
     };
     std::uniform_int_distribution<std::size_t> openingPreset(0, presets.size() - 1);
     std::size_t presetIndex = std::getenv("OMADROP_START_PRESET")
@@ -894,23 +875,15 @@ int main(int argc, char** argv) {
         }
         if (pairedFollower
             && (skipPreset || previousPreset || !pairedControlRequest.empty())) {
-            const std::filesystem::path temporary = pairedRequestPath.string()
-                + "." + std::to_string(getpid()) + ".tmp";
-            std::ofstream output(temporary, std::ios::trunc);
             const std::string request = previousPreset ? "previous"
                 : skipPreset ? "next" : pairedControlRequest;
-            output << request << '\n';
-            output.close();
-            std::error_code error;
-            std::filesystem::rename(temporary, pairedRequestPath, error);
-            if (error) std::filesystem::remove(temporary, error);
+            pairedTransport.publishRequest(request);
             skipPreset = false;
             previousPreset = false;
         }
         if (pairedLeader) {
-            std::ifstream requestInput(pairedRequestPath);
-            std::string request;
-            if (requestInput >> request) {
+            if (const auto pairedRequest = pairedTransport.consumeRequest()) {
+                const std::string& request = *pairedRequest;
                 skipPreset = request == "next";
                 previousPreset = request == "previous";
                 if (request == "ascii") {
@@ -939,8 +912,6 @@ int main(int argc, char** argv) {
                     closeRequested = true;
                     pairedControlsChanged = true;
                 }
-                std::error_code error;
-                std::filesystem::remove(pairedRequestPath, error);
             }
         }
         if (pairedLeader && pairedControlsChanged) {
@@ -1274,11 +1245,8 @@ int main(int argc, char** argv) {
         }
 
         if (nativeEnabled && pairedFollower) {
-            std::ifstream pairedMusicInput(pairedMusicPath, std::ios::binary);
-            const std::string pairedMusic{
-                std::istreambuf_iterator<char>(pairedMusicInput),
-                std::istreambuf_iterator<char>()};
-            if (const auto synchronized = pairedMusicFollower.consume(pairedMusic)) {
+            if (const auto synchronized = pairedMusicFollower.consume(
+                    pairedTransport.readMusic())) {
                 musicFrame = *synchronized;
                 if (!reportedPairedMusic) {
                     std::cerr << "paired music: synchronized to leader\n";
@@ -1339,11 +1307,8 @@ int main(int argc, char** argv) {
         }
 
         if (pairedFollower) {
-            std::ifstream pairedInput(pairedStatePath);
-            std::ostringstream pairedText;
-            pairedText << pairedInput.rdbuf();
             const auto pairedState = pairedDisplayFollower.consume(
-                pairedText.str(), presets.size(), nativeSceneCount);
+                pairedTransport.readDisplay(), presets.size(), nativeSceneCount);
             if (pairedState) {
                 if (pairedState->asciiMode >= 0) {
                     const bool synchronizedAscii = pairedState->asciiMode == 1;
