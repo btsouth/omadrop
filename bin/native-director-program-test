@@ -1,0 +1,88 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+fixture="$root/experiments/projectm-ascii/scorecard-fixture"
+replay="$root/experiments/projectm-ascii/native-song-replay"
+shaders="$root/shaders/native"
+
+[[ -x $fixture && -x $replay ]] || {
+  echo "native-director-program-test: run experiments/projectm-ascii/build.sh first" >&2
+  exit 2
+}
+command -v ffmpeg >/dev/null || {
+  echo "native-director-program-test: ffmpeg is required" >&2
+  exit 2
+}
+
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-director-program.XXXXXX")
+trap 'rm -rf -- "$scratch"' EXIT
+mkdir -p "$scratch/replay"
+
+profiles=(
+  structured-electronic
+  sparse-acoustic
+  dense-compressed
+  sustained-vocal
+  syncopated-sections
+)
+files=()
+for profile in "${profiles[@]}"; do
+  file="$scratch/$profile.f32"
+  "$fixture" "$file" "$profile" >/dev/null
+  files+=("$file")
+done
+
+ffmpeg -hide_banner -loglevel error \
+  -f f32le -ar 44100 -ac 2 -i "${files[0]}" \
+  -f f32le -ar 44100 -ac 2 -i "${files[1]}" \
+  -f f32le -ar 44100 -ac 2 -i "${files[2]}" \
+  -f f32le -ar 44100 -ac 2 -i "${files[3]}" \
+  -f f32le -ar 44100 -ac 2 -i "${files[4]}" \
+  -filter_complex '[0:a][1:a][2:a][3:a][4:a]concat=n=5:v=0:a=1[out]' \
+  -map '[out]' -f f32le "$scratch/program.f32"
+
+log="$scratch/replay.log"
+OMADROP_REPLAY_CAPTURE_HOPS=100000 \
+  "$replay" "$shaders" "$scratch/program.f32" "$scratch/replay" \
+  >"$log"
+
+mapfile -t changes < <(sed -n '/^scene /p' "$log")
+expected=(
+  "Ink Current"
+  "Shadow Architecture"
+  "Pulse Cathedral"
+  "Wire Organism"
+  "Paper Horizon"
+)
+if ((${#changes[@]} != ${#expected[@]})); then
+  echo "native-director-program-test: expected ${#expected[@]} changes, got ${#changes[@]}" >&2
+  sed -n '/^scene /p' "$log" >&2
+  exit 1
+fi
+
+previous_time=0
+for index in "${!expected[@]}"; do
+  row=${changes[$index]}
+  time=$(awk '{print $2}' <<<"$row")
+  scene=${row#* sec }
+  if [[ $scene != "${expected[$index]}" ]]; then
+    echo "native-director-program-test: change $index expected ${expected[$index]}, got $scene" >&2
+    exit 1
+  fi
+  awk -v current="$time" -v previous="$previous_time" \
+    'BEGIN { exit !((current - previous) >= 8.0) }' || {
+      echo "native-director-program-test: scene changed before eight settled seconds at $time" >&2
+      exit 1
+    }
+  previous_time=$time
+done
+
+grep -Fq 'native song replay 128 sec, 5 frames, 4 sections' "$log" || {
+  echo "native-director-program-test: analyzer summary changed" >&2
+  tail -1 "$log" >&2
+  exit 1
+}
+
+sed -n '/^scene /p' "$log"
+echo "native director program passed"

@@ -244,8 +244,17 @@ int main() {
     const NativeSceneState recalled = recurrenceDirector.update(
         recurrenceMusic, 1.0f / 60.0f);
     assert(recalled.motifRecalled);
-    assert(recalled.transitioning);
-    assert(recalled.incomingScene == NativeSceneKind::DepthTunnel);
+    assert(!recalled.transitioning);
+    recurrenceMusic.section = 0.0f;
+    for (int frame = 0; frame < 260; ++frame) {
+        recurrenceDirector.update(recurrenceMusic, 1.0f / 60.0f);
+    }
+    recurrenceMusic.section = 1.0f;
+    const NativeSceneState settledRecurrence = recurrenceDirector.update(
+        recurrenceMusic, 1.0f / 60.0f);
+    assert(settledRecurrence.motifRecalled);
+    assert(settledRecurrence.transitioning);
+    assert(settledRecurrence.incomingScene == NativeSceneKind::DepthTunnel);
 
     NativeSceneDirector trackResetDirector;
     trackResetDirector.selectScene(NativeSceneKind::WireOrganism);
@@ -329,6 +338,33 @@ int main() {
         NativeSceneKind::TidalGrid, landscapeMatch);
     assert(nativeSceneDefinition(afterLandscape).visualFamily
            != NativeVisualFamily::Landscape);
+
+    NativeSceneDirector recallDwellDirector;
+    MusicFrame recallDwellMusic;
+    recallDwellMusic.bpm = 120.0f;
+    recallDwellMusic.motifIdentity = 11;
+    recallDwellMusic.section = 1.0f;
+    recallDwellDirector.update(recallDwellMusic, 1.0f / 60.0f);
+    recallDwellMusic.section = 0.0f;
+    recallDwellDirector.update(recallDwellMusic, 1.0f / 60.0f);
+    recallDwellDirector.requestNext();
+    recallDwellDirector.update(recallDwellMusic, 1.0f / 60.0f);
+    finishTransition(recallDwellDirector, recallDwellMusic);
+    recallDwellMusic.section = 1.0f;
+    const NativeSceneState earlyRecall = recallDwellDirector.update(
+        recallDwellMusic, 1.0f / 60.0f);
+    assert(earlyRecall.motifRecalled);
+    assert(!earlyRecall.transitioning);
+    recallDwellMusic.section = 0.0f;
+    for (int frame = 0; frame < 260; ++frame) {
+        recallDwellDirector.update(recallDwellMusic, 1.0f / 60.0f);
+    }
+    recallDwellMusic.section = 1.0f;
+    const NativeSceneState settledRecall = recallDwellDirector.update(
+        recallDwellMusic, 1.0f / 60.0f);
+    assert(settledRecall.motifRecalled);
+    assert(settledRecall.transitioning);
+    assert(settledRecall.incomingScene == NativeSceneKind::DepthTunnel);
 
     NativeSceneDirector fallbackDirector;
     MusicFrame fallbackMusic;

@@ -61,7 +61,8 @@ public:
             }
         }
         const bool recallTransition = allowAutomaticTransitions && hasRecalledScene
-                                   && recalledScene != state_.currentScene;
+                                   && recalledScene != state_.currentScene
+                                   && dwellBeats_ >= 8.0f;
         if (pendingScene_ && *pendingScene_ == state_.currentScene
             && !state_.transitioning) {
             pendingScene_.reset();
@@ -175,6 +176,10 @@ private:
         for (std::size_t index = 0; index < nativeSceneCount; ++index) {
             const NativeSceneKind candidate = static_cast<NativeSceneKind>(index);
             if (candidate == state_.currentScene) continue;
+            if (nativeSceneDefinition(candidate).visualFamily
+                == nativeSceneDefinition(state_.currentScene).visualFamily) {
+                continue;
+            }
             const NativeSceneSelectionTraits& traits
                 = nativeSceneDefinition(candidate).selection;
             const auto square = [](float value) { return value * value; };

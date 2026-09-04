@@ -31,6 +31,7 @@ Run the native music-contract and render audits with:
 ./experiments/projectm-ascii/native-transition-test ./shaders/native \
   ./experiments/projectm-ascii/live.cpp
 ./experiments/projectm-ascii/native-renderer-soak ./shaders/native 10
+./bin/native-director-program-test
 ./bin/omadrop-launcher-test
 ./bin/demo-audio-audit-test
 ```
@@ -78,6 +79,12 @@ the transition to its successor, and synchronizes each frame for real GPU
 timing. It fails on OpenGL errors, a 99th-percentile frame time above 18.5 ms, a
 continuous second below 55 FPS, or more than 64 MiB of resident-memory growth
 after warmup. The final argument is simulated minutes from 1 to 240.
+
+The native director program concatenates all five locked audio profiles into a
+128-second deterministic performance and runs it through the real analyzer,
+structure detector, director, and renderer. It locks the automatic scene
+sequence, requires at least eight seconds between completed scene changes, and
+prevents adjacent visual-family repetition.
 
 Pass an optional output directory to `native-renderer-test` to write one
 deterministic continuous frame and one production-equivalent ASCII frame per

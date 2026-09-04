@@ -511,6 +511,12 @@ Completed after v0.3:
   minimal, fluid, faceted, and cellular repetition while manual scene requests
   and motif recall remain exact. Deterministic director tests cover radial and
   landscape spacing under audio that would otherwise favor repetition.
+- Added a 128-second deterministic director program built from all five locked
+  audio profiles. It runs through the production analyzer and renderer, locks
+  the six-scene performance sequence, rejects adjacent family repetition, and
+  enforces at least eight seconds between completed automatic scene changes.
+  The first run exposed and fixed an immediate depth-family repeat and a
+  premature motif recall after only 3.4 seconds.
 - Added five native transition grammars selected from scene compatibility:
   flow carry, focal morph, depth travel, controlled fracture, and
   negative-space reveal. The four post-v0.3 scenes have explicit authored

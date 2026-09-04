@@ -20,6 +20,8 @@
   star, lantern, moon, and section responses.
 - Classify every scene by visual family and make automatic selection avoid
   recently shown families without changing manual navigation or motif recall.
+- Add a deterministic 128-second director program test and prevent automatic
+  family repeats or motif recalls before a scene has settled.
 - Choose native transitions from scene compatibility, with separate flow,
   focal, depth, fracture, and negative-space paths.
 - Add a hidden production-compositor gallery test for deterministic transition
