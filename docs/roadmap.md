@@ -351,8 +351,8 @@ Allow more people to create scenes while keeping the official rotation strict.
 4. Add the developer signal monitor and repeatable presentation-delay tool.
 5. Continue splitting track state, display session, cover presentation,
    direction, and rendering out of the live application loop.
-6. Prototype Kinetic Relief as the next scene family, using fixed sculptural
-   surfaces and localized light or material changes instead of object bounce.
+6. Prototype Light Sculpture as the next scene family, using fixed volumetric
+   planes and localized light changes instead of camera or object bounce.
 7. Promote only candidates that pass still-frame, motion, music-response,
    ASCII, transition, and performance review.
 
@@ -488,6 +488,12 @@ Completed after v0.3:
   separate locations. Continuous color, grayscale, ASCII, six album palettes,
   the 75-combination replay suite, and a 3,600-frame 1080p renderer soak pass
   with zero pulse-duty activity or slow-frame streaks.
+- Added Living Mosaic as a filled organic scene. Its fixed stained cells keep
+  a stable full-frame composition while beat timing selects narrow seams and
+  percussion activates separate cells, cuts, and nuclei. Continuous color,
+  grayscale, high-exposure ASCII, six album palettes, the 80-combination
+  replay suite, and a 3,600-frame 1080p soak pass with zero pulse-duty activity
+  in every profile and no slow-frame streak.
 - Added five native transition grammars selected from scene compatibility:
   flow carry, focal morph, depth travel, controlled fracture, and
   negative-space reveal. The four post-v0.3 scenes have explicit authored

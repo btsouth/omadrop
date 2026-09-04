@@ -12,6 +12,8 @@
   separate floor, incision, lintel, beat, and section responses.
 - Add Particle Weave, a fixed textile of braided beads with localized beat,
   kick, snare, hat, harmony, and section gestures.
+- Add Living Mosaic, a stable field of stained cells whose seams, cuts, nuclei,
+  and selected interiors carry separate musical roles.
 - Choose native transitions from scene compatibility, with separate flow,
   focal, depth, fracture, and negative-space paths.
 - Add a hidden production-compositor gallery test for deterministic transition

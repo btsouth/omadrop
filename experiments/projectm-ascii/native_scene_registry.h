@@ -21,10 +21,11 @@ enum class NativeSceneKind : std::uint8_t {
     GlassChoir = 12,
     ShadowArchitecture = 13,
     ParticleWeave = 14,
+    LivingMosaic = 15,
 };
 
-inline constexpr std::size_t nativeSceneCount = 15;
-inline constexpr unsigned int nativeSceneRegistryVersion = 9;
+inline constexpr std::size_t nativeSceneCount = 16;
+inline constexpr unsigned int nativeSceneRegistryVersion = 10;
 
 enum class NativeTransitionAnchor : std::uint8_t {
     Center,
@@ -170,6 +171,12 @@ nativeSceneRegistry{{
      "particle-weave.frag", {"particle", "weave", ""}, {1.14f, 1.34f},
      {0.52f, 0.60f, 0.76f, 0.66f, 0.82f},
      NativeTransitionAnchor::HorizontalAxis,
+     NativeMotionGrammar::Selective, 0.18f, 0.22f,
+     transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
+    {NativeSceneKind::LivingMosaic, "living-mosaic", "Living Mosaic",
+     "living-mosaic.frag", {"living", "mosaic", ""}, {1.12f, 2.05f},
+     {0.48f, 0.44f, 0.86f, 0.72f, 0.56f},
+     NativeTransitionAnchor::Center,
      NativeMotionGrammar::Selective, 0.18f, 0.22f,
      transientRoles | GrooveRole | HarmonyRole | StructureRole, 6.0f},
 }};

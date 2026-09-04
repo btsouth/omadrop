@@ -27,7 +27,7 @@ NativeSceneKind automaticChoice(MusicFrame music) {
 }
 
 int main() {
-    assert(nativeSceneRegistryVersion == 9);
+    assert(nativeSceneRegistryVersion == 10);
     std::set<std::string> sceneSlugs;
     std::set<std::string> sceneShaders;
     for (std::size_t index = 0; index < nativeSceneRegistry.size(); ++index) {
@@ -44,7 +44,7 @@ int main() {
     }
     assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Flow) == 2);
     assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Sparse) == 5);
-    assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Selective) == 8);
+    assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Selective) == 9);
     NativeSceneKind parsedScene = NativeSceneKind::DepthTunnel;
     assert(nativeSceneFromName("wire", parsedScene));
     assert(parsedScene == NativeSceneKind::WireOrganism);
@@ -64,6 +64,8 @@ int main() {
     assert(parsedScene == NativeSceneKind::ShadowArchitecture);
     assert(nativeSceneFromName("weave", parsedScene));
     assert(parsedScene == NativeSceneKind::ParticleWeave);
+    assert(nativeSceneFromName("mosaic", parsedScene));
+    assert(parsedScene == NativeSceneKind::LivingMosaic);
     assert(nativeTransitionStyle(NativeSceneKind::NegativeSpace,
         NativeSceneKind::GlassChoir)
         == NativeTransitionStyle::NegativeSpaceReveal);
