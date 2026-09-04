@@ -89,3 +89,13 @@ recovery, finite bounded pixels, silence, reduced motion, and 1080p frame cost.
 Do not reinstate the old sparse composition in response to its motion score.
 Evaluate whether the larger deformations feel connected to the sound, then
 revise the aesthetic acceptance criteria with the user.
+
+## Live feedback
+
+The user described a scene that looked like a tunnel with doors as "really
+boring and bland." This most likely identifies Shadow Architecture, whose
+geometry consists of three nested doorway frames; the exact scene was not
+confirmed from session state. Treat the observed design as rejected. This is
+feedback on an existing scene reachable with N/P, not acceptance or rejection
+of the rebuilt Ink Current. A future architectural scene needs musical changes
+to transform its space, depth, and light rather than decorate fixed doorways.
