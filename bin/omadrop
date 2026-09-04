@@ -21,6 +21,9 @@ case ${1:-} in
 Usage: omadrop [--single|--all|--toggle-secondary|--version]
        omadrop pack validate PACK_DIRECTORY
        omadrop pack author PACK_DIRECTORY [SCENE_SLUG]
+       omadrop pack install PACK_DIRECTORY
+       omadrop pack list
+       omadrop pack remove PACK_ID [VERSION]
 
   --single            Visualize on one display
   --all               Visualize on every connected display (default)
@@ -28,6 +31,9 @@ Usage: omadrop [--single|--all|--toggle-secondary|--version]
   --version            Print the installed version
   pack validate        Validate a native scene pack without installing it
   pack author          Preview and live-reload a scene pack
+  pack install         Validate and install a community scene pack
+  pack list            List installed community scene packs
+  pack remove          Remove one installed community scene pack
 EOF
     exit 0
     ;;

@@ -81,13 +81,17 @@ without installing anything:
 ```bash
 omadrop pack validate examples/scene-pack
 omadrop pack author examples/scene-pack local-orbit
+omadrop pack install examples/scene-pack
+omadrop pack list
 ```
 
 The [format and safety rules](docs/scene-packs.md) compile and render each scene,
 measure silence, musical response, broad pulsing, recovery, and 720p frame time,
 and keep community work separate from the official automatic rotation. The
 authoring view automatically reloads valid edits and shows continuous and ASCII
-output together against a deterministic 16-second signal loop.
+output together against a deterministic 16-second signal loop. Installed
+community packs live in a separate local store and never enter automatic scene
+selection.
 
 ## Install on Omarchy
 

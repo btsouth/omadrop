@@ -57,6 +57,23 @@ respond strongly, but a transient cannot justify moving most of the frame.
 Validation does not add a scene to the official rotation and does not imply
 visual approval.
 
+## Community pack storage
+
+Install a pack only after its static and measured gates pass:
+
+```bash
+omadrop pack install path/to/pack
+omadrop pack list
+omadrop pack remove org.example.pack 1.0.0
+```
+
+Community packs are copied atomically into
+`$XDG_DATA_HOME/omadrop/community-packs`, or
+`~/.local/share/omadrop/community-packs` when `XDG_DATA_HOME` is unset. The
+installer rejects links, special files, oversized files, oversized packs, and
+duplicate versions. The production director does not scan this directory.
+Installation therefore cannot add a community scene to automatic rotation.
+
 Official inclusion remains manual. A scene must also pass the full replay,
 motion, silence, transition, ASCII, palette, performance, attribution, and
 human visual review gates.

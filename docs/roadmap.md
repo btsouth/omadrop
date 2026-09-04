@@ -594,3 +594,6 @@ Completed after v0.3:
 - Added a pack authoring session with safe automatic shader reload, a silent
   deterministic 16-second quiet/groove/dense/release loop, kick/snare/hat/energy
   inspection, timeline controls, and side-by-side continuous and ASCII output.
+- Added an isolated community-pack store with atomic installation, discovery,
+  exact-version removal, file and size limits, and no connection to official
+  automatic scene selection.

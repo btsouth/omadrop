@@ -414,28 +414,173 @@ def author(pack_path: str, slug: str | None) -> int:
         return process.returncode or 0
 
 
+def community_root() -> Path:
+    supplied = os.environ.get("XDG_DATA_HOME")
+    data_home = Path(supplied).expanduser() if supplied else Path.home() / ".local/share"
+    if not data_home.is_absolute():
+        raise ValidationError("XDG_DATA_HOME must be an absolute path")
+    return data_home / "omadrop" / "community-packs"
+
+
+def safe_pack_tree(root: Path) -> None:
+    file_count = 0
+    total_bytes = 0
+    for path in root.rglob("*"):
+        if path.is_symlink():
+            raise ValidationError(
+                f"installed packs may not contain symlinks: {path.relative_to(root)}")
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            raise ValidationError(
+                f"installed packs may contain only files and directories: "
+                f"{path.relative_to(root)}")
+        file_count += 1
+        size = path.stat().st_size
+        if size > 256 * 1024:
+            raise ValidationError(
+                f"pack file exceeds 256 KiB: {path.relative_to(root)}")
+        total_bytes += size
+    if file_count > 256:
+        raise ValidationError("installed packs may not contain more than 256 files")
+    if total_bytes > 8 * 1024 * 1024:
+        raise ValidationError("installed packs may not exceed 8 MiB")
+
+
+def install_pack(pack_path: str) -> None:
+    root, manifest, _ = validate(pack_path, run_dynamic=True, emit=True)
+    safe_pack_tree(root)
+    store = community_root()
+    target_parent = store / manifest["id"]
+    target = target_parent / manifest["version"]
+    if target.exists() or target.is_symlink():
+        raise ValidationError(
+            f"community pack is already installed: {manifest['id']} {manifest['version']}")
+    store.mkdir(parents=True, exist_ok=True)
+    if store.is_symlink():
+        raise ValidationError("community pack store may not be a symlink")
+    target_parent.mkdir(exist_ok=True)
+    if target_parent.is_symlink():
+        raise ValidationError("community pack id directory may not be a symlink")
+    staging = target_parent / f".{manifest['version']}.installing-{os.getpid()}"
+    try:
+        shutil.copytree(root, staging, symlinks=False)
+        os.replace(staging, target)
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
+    print(f"community pack installed: {manifest['id']} {manifest['version']}")
+    print("community packs remain outside Omadrop's official automatic rotation")
+
+
+def installed_packs() -> list[tuple[str, str, str]]:
+    store = community_root()
+    if not store.is_dir() or store.is_symlink():
+        return []
+    result = []
+    for manifest_path in sorted(store.glob("*/*/pack.json")):
+        if (manifest_path.is_symlink() or manifest_path.parent.is_symlink()
+                or manifest_path.parent.parent.is_symlink()):
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            pack_id = string_field(manifest, "id", "installed pack")
+            version = string_field(manifest, "version", "installed pack")
+            name = string_field(manifest, "name", "installed pack")
+            expected = store / pack_id / version / "pack.json"
+            if manifest_path.resolve() != expected.resolve():
+                continue
+            result.append((pack_id, version, name))
+        except (OSError, UnicodeError, json.JSONDecodeError, ValidationError):
+            continue
+    return result
+
+
+def list_packs() -> None:
+    packs = installed_packs()
+    if not packs:
+        print("no community scene packs installed")
+        return
+    for pack_id, version, name in packs:
+        print(f"{pack_id}\t{version}\t{name}")
+
+
+def remove_pack(pack_id: str, version: str | None) -> None:
+    if not PACK_ID.fullmatch(pack_id):
+        raise ValidationError("pack id must be a lowercase dotted identifier")
+    matches = [item for item in installed_packs()
+               if item[0] == pack_id and (version is None or item[1] == version)]
+    if not matches:
+        suffix = f" {version}" if version else ""
+        raise ValidationError(f"community pack is not installed: {pack_id}{suffix}")
+    if version is None and len(matches) > 1:
+        versions = ", ".join(item[1] for item in matches)
+        raise ValidationError(
+            f"multiple versions are installed ({versions}); specify one")
+    selected_version = matches[0][1]
+    store = community_root().resolve()
+    id_directory = store / pack_id
+    target = id_directory / selected_version
+    try:
+        target.resolve().relative_to(store)
+    except ValueError as error:
+        raise ValidationError("installed pack target escapes the community store") from error
+    if id_directory.is_symlink() or target.is_symlink() or not target.is_dir():
+        raise ValidationError("installed pack target is not a safe directory")
+    shutil.rmtree(target)
+    parent = target.parent
+    if parent.is_dir() and not any(parent.iterdir()):
+        parent.rmdir()
+    print(f"community pack removed: {pack_id} {selected_version}")
+
+
 def main() -> int:
     if len(sys.argv) == 2 and sys.argv[1] in {"-h", "--help"}:
         print("Usage: omadrop pack validate PACK_DIRECTORY\n"
-              "       omadrop pack author PACK_DIRECTORY [SCENE_SLUG]")
+              "       omadrop pack author PACK_DIRECTORY [SCENE_SLUG]\n"
+              "       omadrop pack install PACK_DIRECTORY\n"
+              "       omadrop pack list\n"
+              "       omadrop pack remove PACK_ID [VERSION]")
         return 0
     if len(sys.argv) == 3 and sys.argv[1] == "validate":
         command = "validate"
     elif len(sys.argv) in {3, 4} and sys.argv[1] == "author":
         command = "author"
+    elif len(sys.argv) == 3 and sys.argv[1] == "install":
+        command = "install"
+    elif len(sys.argv) == 2 and sys.argv[1] == "list":
+        command = "list"
+    elif len(sys.argv) in {3, 4} and sys.argv[1] == "remove":
+        command = "remove"
     else:
         print("Usage: omadrop pack validate PACK_DIRECTORY\n"
-              "       omadrop pack author PACK_DIRECTORY [SCENE_SLUG]",
+              "       omadrop pack author PACK_DIRECTORY [SCENE_SLUG]\n"
+              "       omadrop pack install PACK_DIRECTORY\n"
+              "       omadrop pack list\n"
+              "       omadrop pack remove PACK_ID [VERSION]",
               file=sys.stderr)
         return 2
     try:
         if command == "validate":
             validate(sys.argv[2])
-        else:
+        elif command == "author":
             return author(sys.argv[2], sys.argv[3] if len(sys.argv) == 4 else None)
+        elif command == "install":
+            install_pack(sys.argv[2])
+        elif command == "list":
+            list_packs()
+        else:
+            remove_pack(sys.argv[2], sys.argv[3] if len(sys.argv) == 4 else None)
     except (OSError, UnicodeError, subprocess.SubprocessError,
             ValidationError) as error:
-        print(f"scene pack invalid: {error}", file=sys.stderr)
+        prefix = {
+            "validate": "scene pack invalid",
+            "author": "scene author failed",
+            "install": "scene pack install failed",
+            "list": "scene pack list failed",
+            "remove": "scene pack removal failed",
+        }[command]
+        print(f"{prefix}: {error}", file=sys.stderr)
         return 1
     return 0
 

@@ -119,4 +119,37 @@ if "$validator" author "$example" missing-scene \
 fi
 grep -q 'scene slug not found: missing-scene' "$scratch/missing-scene.log"
 
+XDG_DATA_HOME="$scratch/data" "$validator" list >"$scratch/list-empty.log"
+grep -q '^no community scene packs installed$' "$scratch/list-empty.log"
+XDG_DATA_HOME="$scratch/data" "$validator" install "$example" \
+  >"$scratch/install.log"
+grep -q '^community pack installed: org.omadrop.example.local-orbit 1.0.0$' \
+  "$scratch/install.log"
+grep -q 'outside Omadrop.*official automatic rotation' "$scratch/install.log"
+XDG_DATA_HOME="$scratch/data" "$validator" list >"$scratch/list.log"
+grep -q $'^org.omadrop.example.local-orbit\t1.0.0\tLocal Orbit$' \
+  "$scratch/list.log"
+if XDG_DATA_HOME="$scratch/data" "$validator" install "$example" \
+    >"$scratch/install-again.log" 2>&1; then
+  echo "omadrop-pack-test: duplicate install passed" >&2
+  exit 1
+fi
+grep -q 'community pack is already installed' "$scratch/install-again.log"
+XDG_DATA_HOME="$scratch/data" "$validator" remove \
+  org.omadrop.example.local-orbit 1.0.0 >"$scratch/remove.log"
+grep -q '^community pack removed: org.omadrop.example.local-orbit 1.0.0$' \
+  "$scratch/remove.log"
+XDG_DATA_HOME="$scratch/data" "$validator" list >"$scratch/list-removed.log"
+grep -q '^no community scene packs installed$' "$scratch/list-removed.log"
+
+make_case install-symlink
+ln -s pack.json "$scratch/install-symlink/unreferenced-link"
+if XDG_DATA_HOME="$scratch/data" "$validator" install "$scratch/install-symlink" \
+    >"$scratch/install-symlink.log" 2>&1; then
+  echo "omadrop-pack-test: symlinked pack install passed" >&2
+  exit 1
+fi
+grep -q 'installed packs may not contain symlinks' \
+  "$scratch/install-symlink.log"
+
 echo "scene pack validation passed"

@@ -66,6 +66,9 @@
 - Add `omadrop pack author` with automatic shader reload, a deterministic
   quiet-to-peak signal loop, visible kick/snare/hat/energy meters, seeking and
   pause controls, and simultaneous continuous and ASCII output.
+- Add atomic install, list, and removal commands for validated community packs.
+  The isolated store rejects links, special files, oversized content, and
+  duplicate versions, and is never scanned by the official scene director.
 - Make scene galleries follow the registry so palette and grayscale review
   automatically includes new scenes.
 
