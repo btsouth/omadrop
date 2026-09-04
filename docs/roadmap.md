@@ -435,3 +435,8 @@ Completed after v0.3:
   resolves a 70/140 half-time pattern to 139 BPM, holds its 120 BPM clock
   through a four-second onset-free gap, reacquires on the first returning beat,
   and remains aligned under displaced percussion.
+- Made role separation and gesture recovery release gates instead of review
+  notes. A scene now fails when kick, snare, and hat all move the same broad
+  area, when their responses accumulate into constant activity, or when even a
+  deliberate flow scene spends more than 60 percent of its frames in coherent
+  full-frame motion.

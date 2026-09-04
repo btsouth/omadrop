@@ -111,7 +111,7 @@ for scene in "${scenes[@]}"; do
   pulse_duty_20=$(metric "$music_line" pulse_duty_20)
   case "$grammar" in
     sparse|selective) pulse_duty_limit=0.12 ;;
-    flow) pulse_duty_limit=0.75 ;;
+    flow) pulse_duty_limit=0.60 ;;
     *)
       echo "native-scene-scorecard: unknown motion grammar for $name: $grammar" >&2
       exit 1
@@ -163,6 +163,10 @@ for scene in "${scenes[@]}"; do
       status=TUNE
       failed=1
     }
+  if [[ $motion_review != selective ]]; then
+    status=TUNE
+    failed=1
+  fi
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$name" "$quiet" "$quiet_coverage" "$grammar" "$quiet_coverage_limit" \
     "$global_pulse_limit" "$mean_global_pulse" "$pulse_duty_10" \
@@ -181,7 +185,7 @@ done
   echo
   echo "Audio: $source_label"
   echo
-  echo 'The transient floor is 1.75x quiet motion for kick, snare, and hat. The absolute silence-drift ceiling is 0.003. Each scene also has a non-transient motion coverage budget based on its sparse, selective, or flow grammar. Global pulse combines changed area with same-direction luminance motion, so a full-frame flash approaches 1.0 while localized or counter-moving detail stays lower. Pulse duty is the share of frames whose global-pulse score exceeds 20 percent. Sparse and selective scenes may spend at most 12 percent of frames there; flow scenes may spend at most 75 percent. Broad coverage flags scenes where all three roles move a similar amount of the frame. Recovery compares motion 167 ms after an isolated hit with motion on the hit; a new transient cancels that sample. These are regression gates, not a substitute for visual review.'
+  echo 'The transient floor is 1.75x quiet motion for kick, snare, and hat. The absolute silence-drift ceiling is 0.003. Each scene also has a non-transient motion coverage budget based on its sparse, selective, or flow grammar. Global pulse combines changed area with same-direction luminance motion, so a full-frame flash approaches 1.0 while localized or counter-moving detail stays lower. Pulse duty is the share of frames whose global-pulse score exceeds 20 percent. Sparse and selective scenes may spend at most 12 percent of frames there; flow scenes may spend at most 60 percent. A scene fails when kick, snare, and hat all move a similarly broad area, or when their gestures recover so slowly that they accumulate into constant motion. Recovery compares motion 167 ms after an isolated hit with motion on the hit; a new transient cancels that sample. These are regression gates, not a substitute for visual review.'
   echo
   echo '| Scene | Grammar | Quiet coverage | Pulse duty | Beat | Kick | Snare | Hat | K/S/H coverage | K/S/H global pulse | K/S/H recovery | Motion | Silence | Status |'
   echo '| --- | :---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :---: | ---: | :---: |'

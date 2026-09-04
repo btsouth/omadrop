@@ -49,5 +49,7 @@ kick, snare, and hat gestures. The global-pulse score multiplies changed pixel
 coverage by same-direction luminance coherence and has a scene-specific limit.
 Pulse duty measures how often that score exceeds 20 percent. Sparse and
 selective scenes may spend at most 12 percent of frames above that level; flow
-scenes may spend at most 75 percent there. On the current full-song review,
-every sparse and selective scene stays at or below 4 percent.
+scenes may spend at most 60 percent there. A scene also fails when kick, snare,
+and hat all change a similarly broad part of the image, or when their gestures
+recover so slowly that repeated hits become constant motion. On the current
+full-song review, every sparse and selective scene stays at or below 4 percent.
