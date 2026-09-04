@@ -555,19 +555,7 @@ bool captureReference(NativeRenderer& renderer, NativeSceneKind kind,
                              1.0f / 60.0f, error)) return false;
     }
     std::filesystem::create_directories(outputDirectory);
-    std::string slug;
-    switch (kind) {
-        case NativeSceneKind::DepthTunnel: slug = "depth-tunnel"; break;
-        case NativeSceneKind::Centrifuge: slug = "centrifuge"; break;
-        case NativeSceneKind::WireOrganism: slug = "wire-organism"; break;
-        case NativeSceneKind::PrismGarden: slug = "prism-garden"; break;
-        case NativeSceneKind::OrbitalLoom: slug = "orbital-loom"; break;
-        case NativeSceneKind::TidalGrid: slug = "tidal-grid"; break;
-        case NativeSceneKind::PulseCathedral: slug = "pulse-cathedral"; break;
-        case NativeSceneKind::ConstellationField: slug = "constellation-field"; break;
-        case NativeSceneKind::SpectralRibbons: slug = "spectral-ribbons"; break;
-        case NativeSceneKind::BloomEngine: slug = "bloom-engine"; break;
-    }
+    const std::string slug(nativeSceneDefinition(kind).slug);
     return writeReferencePpm(outputDirectory / (slug + ".ppm"),
                              readTexture(renderer.texture(kind)));
 }
@@ -587,13 +575,14 @@ std::vector<float> renderArtworkFrame(NativeRenderer& renderer,
     return readTexture(renderer.texture(NativeSceneKind::DepthTunnel));
 }
 
-float measureFrameMilliseconds(NativeRenderer& renderer, std::string& error) {
+float measureFrameMilliseconds(NativeRenderer& renderer, NativeSceneKind kind,
+                               std::string& error) {
     constexpr int performanceWidth = 1280;
     constexpr int performanceHeight = 720;
     constexpr int warmupFrames = 30;
     constexpr int measuredFrames = 120;
     MusicFrame music = baseMusic();
-    NativeSceneState scene = baseScene(NativeSceneKind::DepthTunnel);
+    NativeSceneState scene = baseScene(kind);
     renderer.reset();
     for (int frame = 0; frame < warmupFrames; ++frame) {
         if (!renderer.render(music, scene, performanceWidth, performanceHeight,
@@ -674,9 +663,19 @@ int main(int argc, char** argv) {
     const float artworkResponse = withoutArtwork.empty() || withArtwork.empty()
         ? 0.0f : mean(luminanceDifference(withoutArtwork, withArtwork));
     std::cout << "native Depth Tunnel artwork_response=" << artworkResponse << "\n";
-    const float frameMilliseconds = measureFrameMilliseconds(renderer, error);
-    std::cout << "native 720p frame_ms=" << frameMilliseconds
-              << " fps_capacity=" << 1000.0f / frameMilliseconds << "\n";
+    bool performancePasses = true;
+    for (std::size_t index = 0; index < nativeSceneCount; ++index) {
+        const NativeSceneKind kind = static_cast<NativeSceneKind>(index);
+        const float frameMilliseconds = measureFrameMilliseconds(
+            renderer, kind, error);
+        const NativeSceneDefinition& definition = nativeSceneDefinition(kind);
+        std::cout << "native " << definition.name << " 720p frame_ms="
+                  << frameMilliseconds << " budget_ms="
+                  << definition.maximumFrameMilliseconds << " fps_capacity="
+                  << 1000.0f / frameMilliseconds << "\n";
+        performancePasses = performancePasses
+            && frameMilliseconds <= definition.maximumFrameMilliseconds;
+    }
 
     bool referencesWritten = true;
     if (argc == 3) {
@@ -698,6 +697,5 @@ int main(int argc, char** argv) {
         scenesPass = scenesPass && auditPasses(audits[index]);
     }
     return scenesPass && artworkResponse >= 0.0005f
-        && frameMilliseconds <= 16.667f
-        && referencesWritten ? 0 : 1;
+        && performancePasses && referencesWritten ? 0 : 1;
 }
