@@ -49,7 +49,7 @@ ffmpeg -hide_banner -loglevel error -f lavfi -i anullsrc=r=44100:cl=stereo \
 mkdir -p "$output"
 tsv="$output/scorecard.tsv"
 markdown="$output/scorecard.md"
-printf 'scene\tquiet_motion\tbeat_gain\tkick_gain\tsnare_gain\that_gain\tonset_gain\tkick_coverage\tsnare_coverage\that_coverage\tkick_recovery\tsnare_recovery\that_recovery\tmotion_review\tsilence_drift\tstatus\n' > "$tsv"
+printf 'scene\tquiet_motion\tquiet_coverage\tmotion_grammar\tquiet_coverage_limit\tbeat_gain\tkick_gain\tsnare_gain\that_gain\tonset_gain\tkick_coverage\tsnare_coverage\that_coverage\tkick_recovery\tsnare_recovery\that_recovery\tmotion_review\tsilence_drift\tstatus\n' > "$tsv"
 
 metric() {
   local line=$1 key=$2
@@ -102,6 +102,9 @@ for scene in "${scenes[@]}"; do
   }
 
   quiet=$(metric "$music_line" quiet)
+  quiet_coverage=$(metric "$music_line" quiet_coverage)
+  grammar=$(metric "$music_line" grammar)
+  quiet_coverage_limit=$(metric "$music_line" quiet_coverage_limit)
   beat=$(metric "$music_line" beat | tr -d x)
   kick=$(metric "$music_line" kick | tr -d x)
   snare=$(metric "$music_line" snare | tr -d x)
@@ -131,12 +134,14 @@ for scene in "${scenes[@]}"; do
     } || true
   status=PASS
   awk -v kick="$kick" -v snare="$snare" -v hat="$hat" -v drift="$drift" \
-    'BEGIN { exit !(kick >= 1.75 && snare >= 1.75 && hat >= 1.75 && drift <= 0.003) }' || {
+    -v quiet_coverage="$quiet_coverage" -v limit="$quiet_coverage_limit" \
+    'BEGIN { exit !(kick >= 1.75 && snare >= 1.75 && hat >= 1.75 && drift <= 0.003 && quiet_coverage <= limit) }' || {
       status=TUNE
       failed=1
     }
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-    "$name" "$quiet" "$beat" "$kick" "$snare" "$hat" "$onset" \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$name" "$quiet" "$quiet_coverage" "$grammar" "$quiet_coverage_limit" \
+    "$beat" "$kick" "$snare" "$hat" "$onset" \
     "$kick_coverage" "$snare_coverage" "$hat_coverage" \
     "$kick_recovery" "$snare_recovery" "$hat_recovery" "$motion_review" \
     "$drift" "$status" \
@@ -148,13 +153,16 @@ done
   echo
   echo "Audio: $source_label"
   echo
-  echo 'The transient floor is 1.75x quiet motion for kick, snare, and hat. The absolute silence-drift ceiling is 0.003. Broad coverage flags scenes where all three roles move a similar amount of the frame. Recovery compares motion 167 ms after an isolated hit with motion on the hit; a new transient cancels that sample. Broad or slow-recovery results require anti-thump review. These are regression gates, not a substitute for visual review.'
+  echo 'The transient floor is 1.75x quiet motion for kick, snare, and hat. The absolute silence-drift ceiling is 0.003. Each scene also has a quiet-motion coverage budget based on its sparse, selective, or flow grammar. This prevents every scene from becoming a full-frame pulse. Broad coverage flags scenes where all three roles move a similar amount of the frame. Recovery compares motion 167 ms after an isolated hit with motion on the hit; a new transient cancels that sample. Broad or slow-recovery results require anti-thump review. These are regression gates, not a substitute for visual review.'
   echo
-  echo '| Scene | Quiet | Beat | Kick | Snare | Hat | K/S/H coverage | K/S/H recovery | Motion | Silence | Status |'
-  echo '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :---: | ---: | :---: |'
-  tail -n +2 "$tsv" | while IFS=$'\t' read -r name quiet beat kick snare hat onset kick_coverage snare_coverage hat_coverage kick_recovery snare_recovery hat_recovery motion_review drift status; do
-    printf '| %s | %.5f | %.2fx | %.2fx | %.2fx | %.2fx | %.0f/%.0f/%.0f%% | %.0f/%.0f/%.0f%% | %s | %.5f | %s |\n' \
-      "$name" "$quiet" "$beat" "$kick" "$snare" "$hat" \
+  echo '| Scene | Grammar | Quiet coverage | Beat | Kick | Snare | Hat | K/S/H coverage | K/S/H recovery | Motion | Silence | Status |'
+  echo '| --- | :---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :---: | ---: | :---: |'
+  tail -n +2 "$tsv" | while IFS=$'\t' read -r name quiet quiet_coverage grammar quiet_coverage_limit beat kick snare hat onset kick_coverage snare_coverage hat_coverage kick_recovery snare_recovery hat_recovery motion_review drift status; do
+    printf '| %s | %s | %.0f/%.0f%% | %.2fx | %.2fx | %.2fx | %.2fx | %.0f/%.0f/%.0f%% | %.0f/%.0f/%.0f%% | %s | %.5f | %s |\n' \
+      "$name" "$grammar" \
+      "$(awk -v value="$quiet_coverage" 'BEGIN { print value * 100 }')" \
+      "$(awk -v value="$quiet_coverage_limit" 'BEGIN { print value * 100 }')" \
+      "$beat" "$kick" "$snare" "$hat" \
       "$(awk -v value="$kick_coverage" 'BEGIN { print value * 100 }')" \
       "$(awk -v value="$snare_coverage" 'BEGIN { print value * 100 }')" \
       "$(awk -v value="$hat_coverage" 'BEGIN { print value * 100 }')" \

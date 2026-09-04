@@ -1,0 +1,51 @@
+#!/bin/bash
+set -euo pipefail
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+renderer="$root/experiments/projectm-ascii/native-renderer-test"
+output=${1:-$root/cache/native-scene-gallery}
+
+[[ -x $renderer ]] || {
+  echo "native-scene-gallery: run experiments/projectm-ascii/build.sh first" >&2
+  exit 2
+}
+command -v magick >/dev/null || {
+  echo "native-scene-gallery: ImageMagick is required" >&2
+  exit 2
+}
+
+mkdir -p "$output"
+palettes=(
+  'neutral:#B5A8A7'
+  'electric:#FAF50A'
+  'red:#F90400'
+  'gold:#DEC82D'
+  'green:#62B100'
+  'cyan:#0DFEFF'
+)
+
+palette_sheets=()
+for entry in "${palettes[@]}"; do
+  name=${entry%%:*}
+  color=${entry#*:}
+  directory="$output/$name"
+  mkdir -p "$directory"
+  echo "rendering $name palette $color"
+  OMADROP_REFERENCE_COLOR="$color" \
+    "$renderer" "$root/shaders/native" "$directory" \
+    >"$directory/audit.log"
+  sheet="$output/$name.png"
+  magick montage "$directory"/*.ppm -thumbnail 384x216 -set label '%t' \
+    -tile 5x2 -geometry +6+22 -background '#05070a' -fill white \
+    -font Adwaita-Mono -pointsize 15 "$sheet"
+  palette_sheets+=("$sheet")
+done
+
+magick montage "${palette_sheets[@]}" -thumbnail 960x520 -set label '%t' \
+  -tile 2x3 -geometry +10+24 -background '#05070a' -fill white \
+  -font Adwaita-Mono -pointsize 18 "$output/palette-matrix.png"
+magick "$output/neutral.png" -colorspace Gray \
+  "$output/grayscale-matrix.png"
+
+echo "palette review: $output/palette-matrix.png"
+echo "grayscale review: $output/grayscale-matrix.png"

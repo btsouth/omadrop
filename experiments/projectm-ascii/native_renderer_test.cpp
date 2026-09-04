@@ -7,9 +7,11 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -26,6 +28,7 @@ struct ContinuityResult {
     float minimumSimilarity = 1.0f;
     float meanSimilarity = 1.0f;
     float minimumLandmarkContrast = 1000.0f;
+    int minimumFrame = -1;
 };
 
 struct SceneAudit {
@@ -395,7 +398,10 @@ ContinuityResult measureContinuity(NativeRenderer& renderer, NativeSceneKind kin
                 result.minimumLandmarkContrast, landmarkContrast(current, kind));
             if (!previous.empty()) {
                 const float value = similarity(previous, current);
-                result.minimumSimilarity = std::min(result.minimumSimilarity, value);
+                if (value < result.minimumSimilarity) {
+                    result.minimumSimilarity = value;
+                    result.minimumFrame = frame;
+                }
                 similaritySum += value;
                 ++comparisons;
             }
@@ -510,6 +516,7 @@ void printAudit(NativeSceneKind kind, const SceneAudit& audit) {
               << audit.hatLatency.peakFrame
               << " continuity=" << audit.continuity.minimumSimilarity << ","
               << audit.continuity.meanSimilarity
+              << " continuity_frame=" << audit.continuity.minimumFrame
               << " landmark=" << audit.continuity.minimumLandmarkContrast << "\n";
 }
 
@@ -539,6 +546,7 @@ bool auditPasses(const SceneAudit& audit) {
 
 bool captureReference(NativeRenderer& renderer, NativeSceneKind kind,
                       const std::filesystem::path& outputDirectory,
+                      const std::array<float, 3>& albumColor,
                       std::string& error) {
     renderer.reset();
     MusicFrame music = baseMusic();
@@ -552,7 +560,7 @@ bool captureReference(NativeRenderer& renderer, NativeSceneKind kind,
         music.hat = frame % 15 < 4
             ? std::exp(-(frame % 15) * 13.0f / 60.0f) : 0.0f;
         if (!renderer.render(music, baseScene(kind), width, height,
-                             {0.46f, 0.72f, 1.0f}, 0, 1.0f,
+                             albumColor, 0, 1.0f,
                              1.0f / 60.0f, error)) return false;
     }
     std::filesystem::create_directories(outputDirectory);
@@ -560,6 +568,22 @@ bool captureReference(NativeRenderer& renderer, NativeSceneKind kind,
     return writeReferencePpm(outputDirectory / (slug + ".ppm"),
                              readTexture(renderer.texture(kind)),
                              nativeSceneMaterial(kind).fieldExposure);
+}
+
+std::optional<std::array<float, 3>> referenceColorFromEnvironment() {
+    const char* configured = std::getenv("OMADROP_REFERENCE_COLOR");
+    if (!configured) return std::array<float, 3>{0.46f, 0.72f, 1.0f};
+    const std::string hex(configured);
+    if (hex.size() != 7 || hex[0] != '#') return std::nullopt;
+    try {
+        const unsigned long value = std::stoul(hex.substr(1), nullptr, 16);
+        return std::array<float, 3>{
+            ((value >> 16) & 255) / 255.0f,
+            ((value >> 8) & 255) / 255.0f,
+            (value & 255) / 255.0f};
+    } catch (...) {
+        return std::nullopt;
+    }
 }
 
 std::vector<float> renderArtworkFrame(NativeRenderer& renderer,
@@ -629,6 +653,11 @@ int main(int argc, char** argv) {
         std::cerr << error << "\n";
         return 1;
     }
+    const auto referenceColor = referenceColorFromEnvironment();
+    if (!referenceColor) {
+        std::cerr << "OMADROP_REFERENCE_COLOR must be #RRGGBB\n";
+        return 2;
+    }
 
     std::array<SceneAudit, nativeSceneCount> audits{};
     for (std::size_t index = 0; index < nativeSceneCount; ++index) {
@@ -683,7 +712,8 @@ int main(int argc, char** argv) {
     if (argc == 3) {
         for (std::size_t index = 0; index < nativeSceneCount; ++index) {
             referencesWritten = referencesWritten && captureReference(
-                renderer, static_cast<NativeSceneKind>(index), argv[2], error);
+                renderer, static_cast<NativeSceneKind>(index), argv[2],
+                *referenceColor, error);
         }
         if (!referencesWritten) std::cerr << "reference capture: " << error << "\n";
     }

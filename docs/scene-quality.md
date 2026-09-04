@@ -7,18 +7,18 @@ continuous material, ASCII material, palettes, and transitions all pass.
 `Pass` below applies only to the evidence already reviewed. It is not a final
 ship decision.
 
-| Scene | Still | Response | Motion scope | Main issue | Next review |
-| --- | :---: | :---: | :---: | --- | --- |
-| Bloom Engine | Pass | Pass | Selective | Close radial similarity to Orbital Loom | Grayscale, palettes, ASCII |
-| Centrifuge | Pass | Pass | Selective | Side rails can dominate quiet passages | Grayscale, palettes, ASCII |
-| Constellation Field | Pass | Pass | Selective | Central rings can compete with the network | Full-song motion, ASCII |
-| Depth Tunnel | Pass | Pass | Broad by design | Keep the depth pull from becoming constant zoom | Full-song motion, palettes |
-| Orbital Loom | Pass | Pass | Broad by design | Needs clearer separation from other radial scenes | Full-song motion, grayscale |
-| Prism Garden | Tune | Pass | Selective | Repeated columns need more depth and development | Composition, ASCII |
-| Pulse Cathedral | Tune | Pass | Selective | Repeated arches need a stronger focal hierarchy | Composition, grayscale |
-| Spectral Ribbons | Tune | Pass | Broad by design | Bands are readable but still visually repetitive | Composition, full-song motion |
-| Tidal Grid | Tune | Pass | Selective | Horizon, grid, and foreground compete for attention | Composition, palettes |
-| Wire Organism | Tune | Pass | Selective | Strong identity but too little supporting structure | Composition, quiet passages |
+| Scene | Still | Response | Grammar | Color | Gray | Main issue | Next review |
+| --- | :---: | :---: | :---: | :---: | :---: | --- | --- |
+| Bloom Engine | Pass | Pass | Selective | Pass | Pass | Close radial similarity to Orbital Loom | Full-song motion, ASCII |
+| Centrifuge | Pass | Pass | Selective | Pass | Pass | Side rails can dominate quiet passages | Full-song motion, ASCII |
+| Constellation Field | Pass | Pass | Sparse | Pass | Pass | Central rings can compete with the network | Full-song motion, ASCII |
+| Depth Tunnel | Pass | Pass | Flow | Pass | Tune | Layers lose hierarchy without hue separation | Full-song motion, grayscale |
+| Orbital Loom | Pass | Pass | Flow | Pass | Pass | Needs clearer separation from other radial scenes | Full-song motion, ASCII |
+| Prism Garden | Tune | Pass | Sparse | Pass | Tune | Repeated columns need more depth and development | Composition, ASCII |
+| Pulse Cathedral | Tune | Pass | Selective | Pass | Tune | Bright arches flatten into one layer in grayscale | Composition, grayscale |
+| Spectral Ribbons | Tune | Pass | Flow | Pass | Tune | Bands merge and remain visually repetitive | Composition, full-song motion |
+| Tidal Grid | Tune | Pass | Selective | Pass | Pass | Horizon, grid, and foreground compete for attention | Composition, ASCII |
+| Wire Organism | Tune | Pass | Sparse | Pass | Pass | Strong identity but too little supporting structure | Composition, quiet passages |
 
 ## Current priorities
 
@@ -28,7 +28,20 @@ ship decision.
    and Wire Organism.
 3. Review Depth Tunnel and Orbital Loom over full songs to confirm that their
    deliberately broad motion does not become constant pulsing.
-4. Review every scene in grayscale, continuous color, ASCII, and six difficult
-   album palettes before promoting another scene.
+4. Fix the four grayscale hierarchy failures, then review every scene in ASCII
+   before promoting another scene.
 5. Add new scenes only when their composition and motion grammar are clearly
    different from this matrix.
+
+## Motion grammar
+
+- Sparse scenes keep non-transient frame coverage below 15 to 18 percent and
+  reserve most changes for small objects or lines.
+- Selective scenes keep non-transient coverage below 30 to 36 percent and
+  assign percussion roles to different regions or structures.
+- Flow scenes may sustain motion across as much as 42 to 45 percent of the
+  frame. No more than one third of the library may use this grammar.
+
+A scene fails the automated quality floor when it exceeds its coverage budget.
+Full-frame brightness and scale pulses are not valid substitutes for distinct
+kick, snare, and hat gestures.

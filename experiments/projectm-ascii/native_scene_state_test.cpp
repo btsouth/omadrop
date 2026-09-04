@@ -27,7 +27,7 @@ NativeSceneKind automaticChoice(MusicFrame music) {
 }
 
 int main() {
-    assert(nativeSceneRegistryVersion == 1);
+    assert(nativeSceneRegistryVersion == 2);
     std::set<std::string> sceneSlugs;
     std::set<std::string> sceneShaders;
     for (std::size_t index = 0; index < nativeSceneRegistry.size(); ++index) {
@@ -36,8 +36,13 @@ int main() {
         assert(sceneSlugs.insert(std::string(definition.slug)).second);
         assert(sceneShaders.insert(std::string(definition.shader)).second);
         assert((definition.musicalRoles & transientRoles) == transientRoles);
+        assert(definition.maximumQuietMotionCoverage > 0.0f);
+        assert(definition.maximumQuietMotionCoverage <= 0.50f);
         assert(definition.maximumFrameMilliseconds > 0.0f);
     }
+    assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Flow) == 3);
+    assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Sparse) == 3);
+    assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Selective) == 4);
     NativeSceneKind parsedScene = NativeSceneKind::DepthTunnel;
     assert(nativeSceneFromName("wire", parsedScene));
     assert(parsedScene == NativeSceneKind::WireOrganism);

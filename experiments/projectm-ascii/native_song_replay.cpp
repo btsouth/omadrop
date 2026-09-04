@@ -316,6 +316,8 @@ int main(int argc, char** argv) {
               << " frames, " << sections << " sections\n";
     if (measureMotion) {
         const float quiet = std::max(1e-7f, quietMotion.mean());
+        const NativeSceneDefinition& definition = nativeSceneDefinition(
+            sceneDirector.state().currentScene);
         std::cout << "motion " << nativeSceneName(sceneDirector.state().currentScene)
                   << " quiet=" << quietMotion.mean() << " (" << quietMotion.count
                   << ") beat=" << beatMotion.mean() / quiet << "x ("
@@ -326,6 +328,10 @@ int main(int argc, char** argv) {
                   << hatMotion.count << ") onset=" << onsetMotion.mean() / quiet
                   << "x (" << onsetMotion.count << ")"
                   << " quiet_coverage=" << quietMotion.meanCoverage()
+                  << " grammar=" << nativeMotionGrammarName(
+                         definition.motionGrammar)
+                  << " quiet_coverage_limit="
+                  << definition.maximumQuietMotionCoverage
                   << " beat_coverage=" << beatMotion.meanCoverage()
                   << " kick_coverage=" << kickMotion.meanCoverage()
                   << " snare_coverage=" << snareMotion.meanCoverage()

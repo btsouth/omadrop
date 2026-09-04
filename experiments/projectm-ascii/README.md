@@ -42,9 +42,18 @@ With no arguments, `native-scene-scorecard` generates the fixture itself and
 writes HTML-friendly Markdown plus raw TSV data to
 `cache/native-scene-scorecard`. Add `--enforce` to fail when any scene misses
 the 1.75x kick, snare, or hat response floor or exceeds the 0.003 absolute
-silence-drift ceiling. The scorecard is a regression gate. Still frames,
+silence-drift ceiling. It also enforces per-scene non-transient motion coverage
+budgets for sparse, selective, and flow motion grammars, so broad pulsing does
+not become the default reaction. The scorecard is a regression gate. Still frames,
 motion, palettes, continuous rendering, and ASCII rendering still require
 human visual review.
+
+Render the production tone map across six difficult album colors, plus a
+grayscale review sheet, with:
+
+```sh
+./bin/native-scene-gallery /tmp/omadrop-native-gallery
+```
 
 Run:
 

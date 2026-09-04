@@ -76,17 +76,22 @@ void main() {
     vec2 perspectiveP = p * vec2(1.0, mix(0.92, 0.76, development));
     float radius = max(0.035, length(perspectiveP));
     float angle = atan(p.y, p.x);
+    float overload = smoothstep(2.65, 3.0, kick + snare + hat);
+    float overloadScale = mix(1.0, 0.72, overload);
+    float sceneKick = kick * overloadScale;
+    float sceneSnare = snare * overloadScale;
+    float sceneHat = hat * overloadScale;
 
     // Sample the previous frame through the tunnel's own flow field. The
     // vanishing point remains stable while detail travels through depth.
     float pull = 0.00018 + 0.00035 * energySlow + 0.00025 * drive
-               + 0.0120 * beatPulse + 0.0160 * kick
+               + 0.0120 * beatPulse + 0.0160 * sceneKick
                - 0.0024 * beatAnticipation * clockConfidence;
     float twist = 0.0005 * sin(radius * 8.0 + flowTime * 0.31)
-                + 0.0210 * snare * smoothstep(0.08, 0.75, radius);
+                + 0.0210 * sceneSnare * smoothstep(0.08, 0.75, radius);
     vec2 previousP = rotate2d(twist) * p * (1.0 - pull);
     previousP += normalize(p) * sin(angle * 10.0 + flowTime * 3.0)
-               * 0.0080 * hat;
+               * 0.0080 * sceneHat;
     vec2 previousUv = previousP / aspect + 0.5 + center / aspect;
     float edge = smoothstep(0.0, 0.08, uv.x)
                * smoothstep(0.0, 0.08, uv.y)
@@ -100,7 +105,7 @@ void main() {
     float depth = mix(0.24, 0.34, development) / radius
                 + flowTime * (0.20 + 0.20 * development + 0.28 * drive
                               + 0.18 * bandLevel[0]);
-    depth += beatPulse * 0.55 + kick * 4.5
+    depth += beatPulse * 0.55 + sceneKick * 4.5
            - beatAnticipation * 0.8;
     depth += artworkStructure * mix(0.58, 0.16, development);
     float localLow = clamp(0.5 * spectrumLevel[3] + 0.5 * spectrumLevel[7],
@@ -113,33 +118,33 @@ void main() {
                        0.12 + 0.025 * energyFast);
     rings *= smoothstep(0.055, 0.16, radius) * smoothstep(1.18, 0.48, radius);
     rings *= (0.66 + 0.20 * localLow)
-           * (1.0 + 0.26 * beatPulse + 0.42 * kick);
+           * (1.0 + 0.26 * beatPulse + 0.42 * sceneKick);
 
     float wallBend = 0.20 * sin(radius * 6.0 - flowTime * 0.37)
-                   + 0.92 * snare;
+                   + 0.65 * sceneSnare;
     float ribCount = mix(8.0, 14.0, development) + 2.0 * peak;
     float ribs = line(sin(angle * ribCount + wallBend + phrasePhase * 0.7),
                       0.055 + 0.018 * bandLevel[3]);
     ribs *= smoothstep(0.12, 0.46, radius) * smoothstep(1.25, 0.62, radius);
-    ribs *= (0.68 + 0.18 * localMid) * (1.0 + 0.76 * snare);
+    ribs *= (0.68 + 0.18 * localMid) * (1.0 + 0.42 * sceneSnare);
 
     float fineRibs = line(sin(angle * 42.0 - flowTime * 0.7
-                              + hat * 2.4), 0.028);
-    fineRibs *= hat * (1.20 + 0.72 * peak) * (0.76 + 0.32 * localHigh)
+                              + sceneHat * 2.4), 0.028);
+    fineRibs *= sceneHat * (1.20 + 0.72 * peak) * (0.76 + 0.32 * localHigh)
                     * smoothstep(0.22, 0.62, radius)
                     * smoothstep(1.15, 0.58, radius);
 
-    float kickShock = line(radius - (0.17 + 0.09 * kick),
-                           0.014 + 0.008 * kick)
-                    * kick * smoothstep(0.06, 0.18, radius);
+    float kickShock = line(radius - (0.17 + 0.09 * sceneKick),
+                           0.014 + 0.008 * sceneKick)
+                    * sceneKick * smoothstep(0.06, 0.18, radius);
     float snareShutter = line(
-        sin(angle * 12.0 + phrasePhase * tau + snare * 2.1), 0.030)
+        sin(angle * 12.0 + phrasePhase * tau + sceneSnare * 2.1), 0.030)
         * smoothstep(0.17, 0.42, radius)
-        * smoothstep(1.10, 0.58, radius) * snare;
+        * smoothstep(1.10, 0.58, radius) * sceneSnare;
     float hatGlints = line(sin(angle * 56.0 - beatPhase * tau), 0.020)
         * line(sin(radius * 34.0 + flowTime * 0.5), 0.075)
         * smoothstep(0.20, 0.48, radius)
-        * smoothstep(1.15, 0.62, radius) * hat;
+        * smoothstep(1.15, 0.62, radius) * sceneHat;
 
     float beatRingRadius = 0.16 + beatPhase * 0.72;
     float beatRing = line(radius - beatRingRadius, 0.008 + 0.012 * percussive)
@@ -156,10 +161,11 @@ void main() {
                         * smoothstep(1.24, 0.58, radius);
     backgroundMedium = max(backgroundMedium, artworkMedium);
     float focalSubject = max(
-        rings * (0.32 + 0.45 * bandLevel[1] + 0.34 * kick),
-        ribs * (0.20 + 0.36 * bandLevel[3] + 0.18 * snare));
+        rings * (0.32 + 0.45 * bandLevel[1] + 0.34 * sceneKick),
+        ribs * (0.20 + 0.36 * bandLevel[3] + 0.18 * sceneSnare));
     focalSubject *= 0.72 + 0.22 * sin(barPhase * tau + radius * 2.0);
-    float accents = fineRibs * (0.76 + 1.85 * hat) + beatRing + sectionWave;
+    float accents = fineRibs * (0.56 + 0.68 * sceneHat)
+                  + beatRing + sectionWave;
 
     vec3 primary = palettePrimary(-0.16);
     vec3 secondary = paletteSecondary(-0.16);
@@ -167,12 +173,12 @@ void main() {
                            0.24 + 0.26 * spectralCentroid
                            + 0.24 * sin(angle * 2.0 + flowTime * 0.12));
     tunnelColor = mix(tunnelColor, vec3(0.86, 0.94, 1.0),
-                      0.10 + 0.16 * hat);
+                      0.10 + 0.16 * sceneHat);
     vec3 mediumColor = mix(primary * 0.42, secondary * 0.40,
                            0.5 + 0.5 * sin(angle + flowTime * 0.08
                                          + artworkLight * 0.9));
     vec3 accentColor = mix(paletteAccent(-0.16), vec3(0.92, 0.97, 1.0),
-                           0.42 + 0.24 * hat);
+                           0.42 + 0.24 * sceneHat);
     float lifecycleLight = 0.125 + 0.045 * development + 0.05 * drive
                          + 0.06 * peak + 0.10 * beatPulse;
     vec3 injection = mediumColor * backgroundMedium * (0.12 + 0.10 * harmonic)
@@ -180,8 +186,8 @@ void main() {
                      * (lifecycleLight + 0.07 * max(0.0, energySlope))
                    + accentColor * accents * (0.32 + 0.16 * peak)
                    + mix(accentColor, vec3(1.0), 0.28) * kickShock * 0.50
-                   + mix(accentColor, vec3(1.0), 0.40) * snareShutter * 0.72
-                   + mix(tunnelColor, vec3(1.0), 0.58) * hatGlints * 0.88;
+                   + mix(accentColor, vec3(1.0), 0.40) * snareShutter * 0.95
+                   + mix(tunnelColor, vec3(1.0), 0.58) * hatGlints * 1.10;
     injection *= 1.0 - 0.58 * release;
 
     // Preserve a dark, readable vanishing point and prevent feedback haze.
