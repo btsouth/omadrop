@@ -17,6 +17,10 @@ struct MusicFrame {
     std::array<float, AudioFeatures::spectrumCount> spectrumLevel{};
     std::array<float, AudioFeatures::spectrumCount> spectrumFlux{};
     std::array<float, AudioFeatures::chromaCount> chroma{};
+    // One shared spectral reference preserves the balance between frequencies.
+    // These are measured timbre components, not instrument stems.
+    std::array<float, 32> harmonicShape{};
+    float bassBody = 0.0f;
     float kick = 0.0f;
     float snare = 0.0f;
     float hat = 0.0f;
@@ -63,6 +67,8 @@ public:
         frame_.spectrumLevel = features.spectrumLevel;
         frame_.spectrumFlux = features.spectrumFlux;
         frame_.chroma = features.chroma;
+        frame_.harmonicShape = features.harmonicShape;
+        frame_.bassBody = features.bassBody;
         // Analyzer impacts intentionally linger for classification and tempo
         // work. Visual gestures need a separate, much shorter envelope or a
         // busy recording reads as one continuous kick/snare state. Trigger on

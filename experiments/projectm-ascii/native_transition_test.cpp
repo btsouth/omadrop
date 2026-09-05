@@ -1,3 +1,4 @@
+#include "live_compositor_shaders.h"
 #include "live_compositor.h"
 #include "native_renderer.h"
 
@@ -15,6 +16,8 @@
 #include <string>
 #include <vector>
 
+// Legacy gesture and accessibility contracts remain scoped to the original
+// scenes. collection-render-test covers the evolving collection and its joins.
 namespace {
 constexpr int width = 640;
 constexpr int height = 360;
@@ -28,25 +31,6 @@ void main() {
     gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
 }
 )GLSL";
-
-std::string readFile(const std::filesystem::path& path) {
-    std::ifstream input(path, std::ios::binary);
-    if (!input) return {};
-    return {std::istreambuf_iterator<char>(input),
-            std::istreambuf_iterator<char>()};
-}
-
-std::string compositorFragment(const std::filesystem::path& liveSource) {
-    const std::string source = readFile(liveSource);
-    const std::string opening = "const char* fragmentSource = R\"GLSL(\n";
-    const std::string closing = "\n)GLSL\";";
-    const std::size_t begin = source.find(opening);
-    if (begin == std::string::npos) return {};
-    const std::size_t content = begin + opening.size();
-    const std::size_t end = source.find(closing, content);
-    if (end == std::string::npos) return {};
-    return source.substr(content, end - content);
-}
 
 GLuint blackTexture() {
     constexpr std::array<unsigned char, 4> pixel{0, 0, 0, 255};
@@ -270,7 +254,7 @@ int main(int argc, char** argv) {
                      "LIVE_CPP [OUTPUT_DIRECTORY]\n";
         return 2;
     }
-    const std::string fragment = compositorFragment(argv[2]);
+    const std::string fragment = LiveCompositorShaders::fragmentSource;
     if (fragment.empty()) {
         std::cerr << "could not extract production compositor shader\n";
         return 1;
@@ -324,7 +308,7 @@ int main(int argc, char** argv) {
     }};
     for (int frame = 0; frame < 180; ++frame) {
         for (std::size_t sceneIndex = 0;
-             sceneIndex < nativeSceneCount; ++sceneIndex) {
+             sceneIndex < collectionFirstScene; ++sceneIndex) {
             const NativeSceneKind kind
                 = static_cast<NativeSceneKind>(sceneIndex);
             NativeSceneState state;
@@ -343,7 +327,7 @@ int main(int argc, char** argv) {
     NativeSceneKind minimumColorDifferenceScene = NativeSceneKind::DepthTunnel;
     float maximumSceneLuminanceDifference = 0.0f;
     for (std::size_t sceneIndex = 0;
-         sceneIndex < nativeSceneCount; ++sceneIndex) {
+         sceneIndex < collectionFirstScene; ++sceneIndex) {
         const NativeSceneKind scene = static_cast<NativeSceneKind>(sceneIndex);
         const NativeSceneMaterial material = nativeSceneMaterial(scene);
         LiveCompositorFrame frame;
@@ -377,7 +361,7 @@ int main(int argc, char** argv) {
                    + "-color-safe.ppm"), colorSafe));
         }
     }
-    std::cout << "color-safe scenes=" << nativeSceneCount
+    std::cout << "color-safe scenes=" << collectionFirstScene
               << " minimum_color_difference=" << minimumSceneColorDifference
               << " minimum_scene="
               << nativeSceneDefinition(minimumColorDifferenceScene).name
@@ -561,7 +545,7 @@ int main(int argc, char** argv) {
     PolicyCueFloor colorSafeCueFloor;
     float minimumDefaultCue = 1.0f;
     for (std::size_t sceneIndex = 0;
-         sceneIndex < nativeSceneCount; ++sceneIndex) {
+         sceneIndex < collectionFirstScene; ++sceneIndex) {
         const NativeSceneKind scene
             = static_cast<NativeSceneKind>(sceneIndex);
         MusicFrame baselineMusic = reviewMusic(11);
@@ -598,7 +582,7 @@ int main(int argc, char** argv) {
             comparePolicy(colorSafeVisualPolicy, colorSafeCueFloor);
         }
     }
-    std::cout << "accessibility cues scenes=" << nativeSceneCount
+    std::cout << "accessibility cues scenes=" << collectionFirstScene
               << " roles=3 default_floor=" << minimumDefaultCue
               << " reduced=" << reducedCueFloor.retention << '/'
               << reducedCueFloor.similarity << '/'
@@ -646,7 +630,7 @@ int main(int argc, char** argv) {
     renderer.reset();
     for (int frame = 0; frame < 180; ++frame) {
         for (std::size_t sceneIndex = 0;
-             sceneIndex < nativeSceneCount; ++sceneIndex) {
+             sceneIndex < collectionFirstScene; ++sceneIndex) {
             const NativeSceneKind kind
                 = static_cast<NativeSceneKind>(sceneIndex);
             NativeSceneState state;
@@ -727,13 +711,13 @@ int main(int argc, char** argv) {
     // are permutations of the registry, every scene also gets two incoming
     // paths. This exercises the exact production compositor and style chooser,
     // not a simplified transition shader.
-    std::array<unsigned int, nativeSceneCount> outgoing{};
-    std::array<unsigned int, nativeSceneCount> incoming{};
+    std::array<unsigned int, collectionFirstScene> outgoing{};
+    std::array<unsigned int, collectionFirstScene> incoming{};
     constexpr std::array<int, 2> coverageOffsets{1, 7};
     constexpr std::array<float, 3> coverageProgress{0.0f, 0.5f, 1.0f};
     std::size_t coveragePaths = 0;
     for (std::size_t sourceIndex = 0;
-         sourceIndex < nativeSceneCount; ++sourceIndex) {
+         sourceIndex < collectionFirstScene; ++sourceIndex) {
         const NativeSceneKind source
             = static_cast<NativeSceneKind>(sourceIndex);
         for (const int offset : coverageOffsets) {
@@ -796,11 +780,11 @@ int main(int argc, char** argv) {
             ++coveragePaths;
         }
     }
-    for (std::size_t index = 0; index < nativeSceneCount; ++index) {
+    for (std::size_t index = 0; index < collectionFirstScene; ++index) {
         assert(outgoing[index] >= 2);
         assert(incoming[index] >= 2);
     }
-    std::cout << "transition coverage scenes=" << nativeSceneCount
+    std::cout << "transition coverage scenes=" << collectionFirstScene
               << " paths=" << coveragePaths
               << " incoming_per_scene=2 outgoing_per_scene=2\n";
 

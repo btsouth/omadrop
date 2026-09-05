@@ -204,15 +204,18 @@ public:
             plannedAutomaticScene_.reset();
         }
     }
+    void setCollectionOnly(bool enabled) { collectionOnly_ = enabled; }
     bool sceneFavorite(NativeSceneKind scene) const {
         return favoriteScenes_[static_cast<std::size_t>(scene)];
     }
     bool sceneHidden(NativeSceneKind scene) const {
-        return hiddenScenes_[static_cast<std::size_t>(scene)];
+        return (isCollectionScene(scene) != collectionOnly_)
+            || hiddenScenes_[static_cast<std::size_t>(scene)];
     }
     std::size_t visibleSceneCount() const {
-        return static_cast<std::size_t>(std::count(
-            hiddenScenes_.begin(), hiddenScenes_.end(), false));
+        return static_cast<std::size_t>(std::count_if(
+            nativeSceneRegistry.begin(), nativeSceneRegistry.end(),
+            [&](const auto& definition) { return !sceneHidden(definition.kind); }));
     }
     std::optional<NativeSceneKind> plannedScene() const {
         return plannedAutomaticScene_;
@@ -243,11 +246,13 @@ public:
         const NativeDirectorProfile retainedProfile = profile_;
         const auto retainedFavorites = favoriteScenes_;
         const auto retainedHidden = hiddenScenes_;
+        const bool retainedCollection = collectionOnly_;
         *this = NativeSceneDirector{};
         transitionSecondsOverride_ = retainedTransitionOverride;
         profile_ = retainedProfile;
         favoriteScenes_ = retainedFavorites;
         hiddenScenes_ = retainedHidden;
+        collectionOnly_ = retainedCollection;
         selectScene(retainedScene);
     }
     void reset() { *this = NativeSceneDirector{}; }
@@ -517,6 +522,7 @@ private:
     float transitionSecondsOverride_ = -1.0f;
     NativeDirectorProfile profile_ = NativeDirectorProfile::Balanced;
     std::array<bool, nativeSceneCount> favoriteScenes_{};
+    bool collectionOnly_ = false;
     std::array<bool, nativeSceneCount> hiddenScenes_{};
     std::unordered_map<int, NativeSceneKind> motifScenes_;
     std::deque<NativeSceneKind> recentScenes_;

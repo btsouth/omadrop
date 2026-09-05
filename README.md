@@ -1,337 +1,89 @@
 # Omadrop
 
-<p align="center">
-  <a href="https://github.com/btsouth/omadrop/releases/download/v0.3.0/omadrop-v0.3.0-demo.mp4">
-    <img src=".github/assets/omadrop-hero.jpg" alt="Orbital Loom reacting to music in Omadrop" width="100%">
-  </a>
-</p>
+Music visuals for Omarchy, with 21 curated MilkDrop presets and audio response
+adapted to each scene. Album artwork opens the show, then dissolves into glass,
+fluid surfaces, fractals, particles and light.
 
-<p align="center"><strong>Music, rendered live.</strong></p>
+![Liquid Ice in Omadrop](site/public/media/scenes/collection-06.jpg)
 
-Omadrop is a native music visualizer for Omarchy. It turns the audio playing
-through PipeWire into eighteen original GPU feedback scenes. Kicks, snares, hats,
-bass, musical phrases, and section changes each control different parts of the
-image.
+This checkout is the **0.4.0 release candidate**. The published release remains
+[v0.3.0](https://github.com/btsouth/omadrop/releases/tag/v0.3.0).
 
-Its audio engine separates percussion, frequency bands, beats, phrases, and
-arrangement changes before the renderer draws them. The result follows both
-the immediate rhythm and the larger structure of a track, not just its volume.
+## What it does
 
-<p align="center">
-  <a href="https://omadrop.com">Website</a> ·
-  <a href="https://github.com/btsouth/omadrop/releases/download/v0.3.0/omadrop-v0.3.0-demo.mp4">31-second demo</a> ·
-  <a href="https://github.com/btsouth/omadrop/releases/tag/v0.3.0">Latest release</a>
-</p>
+- Captures the audio playing through PipeWire, locally.
+- Adds continuous low, mid, high and timbral response to authored MilkDrop visuals.
+- Shows available MPRIS album artwork for 3.5 seconds, then dissolves into a scene.
+- Rotates through the collection with shuffled selection and blended transitions.
+- Supports one or multiple displays, with shared scene changes and controls.
+- Remembers display choice and audio timing for each output device.
 
-## Visuals
+The visuals use projectM 4.1.7 with a small Omadrop audio-input extension. Original
+preset shaders, PCM response and feedback remain. Frequency bands are not
+isolated instruments. Preset loading can still cause occasional short stalls.
 
-Every scene uses the same live music analysis differently. These are frames
-from the v0.3 release demo, not mockups.
+## Install
 
-<p align="center">
-  <img src=".github/assets/spectral-ribbons.jpg" alt="Spectral Ribbons scene" width="49%">
-  <img src=".github/assets/constellation-field.jpg" alt="Constellation Field scene" width="49%">
-</p>
-<p align="center"><sub>Spectral Ribbons · Constellation Field</sub></p>
+Build from this checkout:
 
-<p align="center">
-  <img src=".github/assets/prism-garden.jpg" alt="Prism Garden scene" width="49%">
-  <img src=".github/assets/wire-organism.jpg" alt="Wire Organism scene" width="49%">
-</p>
-<p align="center"><sub>Prism Garden · Wire Organism</sub></p>
-
-## What makes it different
-
-- **Separate musical signals.** Kick, snare, hat, bass, mids, treble, onsets,
-  beats, bars, phrases, and arrangement changes do not collapse into one volume
-  value.
-- **Scoped movement.** Percussion changes specific forms and regions. Steady
-  audio does not make the entire composition bounce or flash.
-- **Musical scene direction.** Omadrop changes scenes on detected bar and
-  section boundaries, avoids immediate repeats, and recalls a visual family
-  when a familiar part of the song returns.
-- **Eighteen authored scenes.** Radial engines, deep architecture, restrained
-  landscapes, fluid calligraphy, glass, light, particles, and cellular forms
-  each use a distinct composition and response grammar.
-- **High-resolution album art.** MPRIS artwork opens the show, supplies the
-  scene palette, and dissolves into the first visual. ASCII mode keeps the
-  full-resolution cover underneath its dot field.
-- **Synchronized multi-monitor output.** Launch, musical timing, autonomous
-  flow, scene changes, ASCII state, and keyboard input stay synchronized across
-  displays.
-- **Local by design.** Audio analysis runs on the machine. There is no account,
-  model download, hosted AI service, or song upload.
-- **Playback recovery.** Switching speakers, reconnecting Bluetooth, resuming
-  from sleep, or losing the PipeWire recorder falls back to stillness and
-  recovers without closing the visualizer.
-
-The native renderer is the default. An 11-preset projectM compatibility mode is
-included for direct comparison with classic MilkDrop behavior.
-
-## Verify a build
-
-```bash
-./bin/omadrop-check          # build and run deterministic checks
-./bin/omadrop-check --full   # add all replay profiles and a 10-minute soak
-```
-
-The full check writes its scorecards and soak log under `cache/release-check-*`.
-
-Create a deterministic source release bundle only from a clean committed tree
-whose `vVERSION` tag points at the exact commit:
-
-```bash
-bin/omadrop-package
-```
-
-Packaging runs the quick gate, installs the extracted archive into isolated
-directories, validates a scene pack through the installed commands, uninstalls
-it, and writes the archive plus SHA-256 checksum under `dist/`. It does not
-publish anything.
-
-## Create a native scene pack
-
-Use the checked-in [scene-pack example](examples/scene-pack) and validate it
-without installing anything:
-
-```bash
-omadrop pack validate examples/scene-pack
-omadrop pack author examples/scene-pack local-orbit
-omadrop pack install examples/scene-pack
-omadrop pack list
-```
-
-The [format and safety rules](docs/scene-packs.md) compile and render each scene,
-measure silence, musical response, broad pulsing, recovery, and 720p frame time,
-and keep community work separate from the official automatic rotation. The
-authoring view automatically reloads valid edits and shows continuous and ASCII
-output together against a deterministic 16-second signal loop. Installed
-community packs live in a separate local store and never enter automatic scene
-selection. The current manifest pins its shader API explicitly, while legacy
-format 1 packs keep compiling against their original bundled API snapshot.
-
-## Install on Omarchy
-
-```bash
-git clone --branch v0.3.0 https://github.com/btsouth/omadrop.git
-cd omadrop
+```sh
 ./install.sh
 ```
 
-The installer checks dependencies, builds the renderer, installs Omadrop under
-`~/.local/share/omadrop`, and adds its Hyprland shortcuts. Existing bindings
-are backed up and restored automatically if Hyprland rejects the new config.
+The installer adds Arch dependencies, builds pinned projectM source, stages the
+complete runtime, and installs it under `~/.local/share/omadrop`. An existing
+installation is preserved in a sibling `omadrop.previous.*` directory. Close
+Omadrop before updating. Settings and cached artwork stay in place.
 
-Run `./install.sh` again to update. Use `--no-deps` or `--no-bindings` to skip
-automatic package or shortcut setup.
+Use `--no-deps` to manage dependencies yourself or `--no-bindings` to leave
+keyboard shortcuts alone. Build requirements include GCC, Git, Python, CMake,
+Ninja, pkgconf, SDL2, GLEW, libpng, FFTW, json-c and libprojectm. Runtime helpers
+include PipeWire, PulseAudio utilities, ImageMagick, GLib, curl and jq.
 
-```bash
-# Check the machine before building
-./bin/omadrop-doctor
+## Use
 
-# Check only OpenGL, native shaders, and a hidden rendered frame
-./bin/omadrop-doctor --gpu
-
-# Print the last privacy-safe renderer failure report
-./bin/omadrop-doctor --crash-report
-
-# Remove Omadrop while preserving sync settings and cached covers
-~/.local/share/omadrop/uninstall.sh
-```
-
-### Requirements
-
-Omadrop builds against libprojectM, SDL2, GLEW, OpenGL 3.3, PipeWire, FFTW,
-json-c, libpng, ImageMagick, GLib, curl, jq, GCC, and pkgconf. Demo recording
-also uses FFmpeg and gpu-screen-recorder. On Omarchy, the installer can add
-missing Arch packages with `omarchy pkg add`.
-
-## Run
-
-```bash
-omadrop             # use the saved display choice, initially all displays
-omadrop --single    # use one display and remember it
-omadrop --all       # use every connected display and remember it
-omadrop calibrate   # align visuals with the current audio output
+```sh
+omadrop                 # launch, or close an already running instance
+omadrop --single        # use one display and remember it
+omadrop --all           # use all displays and remember it
+omadrop --single --original  # start with added audio response disabled
+omadrop calibrate       # adjust timing for the current audio output
 ```
 
 | Key | Action |
 | --- | --- |
-| `Super + Shift + V` | Toggle Omadrop |
-| `Super + Alt + V` | Hide or restore the secondary display |
-| `A` | Toggle ASCII and continuous rendering |
-| `N` / `P` | Next or previous scene |
-| `I` | Cycle local music-response intensity |
-| `B` | Cycle brightness |
-| `M` | Cycle ambient motion |
-| `R` | Toggle reduced motion |
-| `S` | Toggle flash limit |
-| `H` | Toggle high contrast |
-| `C` | Toggle the color-safe palette |
-| `D` | Cycle director profile |
-| `F` | Favorite or unfavorite the current scene |
-| `X` | Hide the current scene and continue automatically |
-| `Shift + X` | Restore all hidden scenes |
-| `[` / `]` | Adjust audio sync by 10 ms |
-| `F11` | Toggle fullscreen |
-| `Esc` | Quit |
+| Super + Shift + V | Toggle Omadrop |
+| Super + Alt + V | Toggle the secondary display |
+| N / P | Next / previous preset |
+| O | Toggle Omadrop's added audio response |
+| A | Toggle ASCII rendering |
+| [ / ] | Move audio timing by 10 ms |
+| F11 | Toggle fullscreen |
+| Esc | Close |
 
-Controls apply to every Omadrop window, regardless of which display has focus.
-ASCII, intensity, brightness, motion, reduced-motion, flash-limit,
-high-contrast, color-safe palette, director, favorite, and hidden-scene choices
-are remembered between launches. Favorites
-slightly influence automatic selection when several scenes fit the music.
-Hidden scenes leave automatic rotation and N/P navigation. Omadrop always keeps
-at least two scenes available. Per-output audio delay is remembered for each
-output device. `omadrop calibrate` plays a repeating reference beat, holds one
-readable scene, and guides the `[` earlier / `]` later adjustment through the
-real output and capture path. A compact status label confirms each change.
-Manual scene skips show `AUTO: <scene>` because `N` and `P` never disable automatic direction.
-`OMADROP_ASCII=0` remains available as a temporary override.
-After the first album-art entrance, Omadrop shows one compact control card and
-remembers that it has been seen. Scripted demos and calibration stay clean.
+The native scene editor and its scene packs remain available through
+`omadrop pack`. Native favorites, hidden scenes and director profiles do not
+apply to the MilkDrop collection. See [controls](docs/controls.md).
 
-See the [control reference](docs/controls.md) for persistence and automatic
-direction behavior. For launch, audio, artwork, display, or GPU problems, use
-the [troubleshooting guide](docs/troubleshooting.md).
+## Check and remove
 
-The [real-song audit](docs/real-song-audit.md) records complete-song motion and
-director results for two exact, rights-cleared tracks. It specifically rejects
-constant whole-scene pulsing as well as weak or stalled response.
-
-The [silent visual-legibility workflow](docs/accessibility-testing.md) creates
-an offline, identity-masked study for deaf and hard-of-hearing testers. It
-compares default, reduced-motion, and flash-limited rendering without
-collecting names, hearing status, audio, or network data. Engineering checks
-are not presented as proof of accessibility.
-
-`bin/native-motion-review --anonymous` renders every native scene with stable
-letter IDs, a still contact sheet, and silent motion boards. Scene names stay
-in a separate facilitator map until composition, distinction, music
-legibility, and excessive whole-scene motion have been reviewed.
-
-Director profiles are Balanced, Kinetic, Restrained, and High Contrast. They
-change scene selection, not beat timing or the per-scene pulse limits. Kinetic
-favors scenes that carry dense percussion cleanly; it does not make every scene
-bounce harder.
-
-Flash limit preserves the location and shape of local rhythm cues, caps display
-brightness, compresses bright final output, and disables the optional contrast
-boost. This is a conservative visual setting, not a medical certification.
-
-## How it works
-
-```text
-PipeWire output  ->  musical roles and structure  ->  scene director
-MPRIS artwork    ->  cover, palette, and texture  ->  native feedback renderer
+```sh
+omadrop-doctor
+./bin/omadrop-check
+./bin/omadrop-check --full
+~/.local/share/omadrop/uninstall.sh
 ```
 
-Each scene maps the same music frame into its own geometry. A transient detector
-preserves fast attacks, the beat clock groups beats into bars and phrases, and
-the structure tracker waits for sustained musical changes before directing a
-new scene. Optional ASCII is a final GPU material, not a replacement for the
-underlying image.
+The full check loads all 21 presets and exercises a longer rotation. Installation
+and package checks use isolated paths. Development details are in
+[release engineering](docs/releasing.md).
 
-Non-blocking GPU timers measure the native scene and final material passes.
-Sustained overload reduces ray-march detail without changing scene geometry,
-musical timing, or full-frame motion, then restores it only after long headroom.
+## Credits
 
-<details>
-<summary><strong>Scene targeting and projectM compatibility</strong></summary>
+The collection preserves work by the original MilkDrop artists, including Geiss,
+Martin, Flexi and their collaborators. Omadrop adds curation, desktop integration
+and audio adaptations. [All presets and notices](THIRD_PARTY_NOTICES.md).
 
-Start the native renderer on a specific scene:
-
-```bash
-OMADROP_NATIVE_SCENE=spectral-ribbons omadrop --single
-```
-
-Accepted names are `depth-tunnel`, `centrifuge`, `wire-organism`,
-`prism-garden`, `orbital-loom`, `tidal-grid`, `pulse-cathedral`,
-`constellation-field`, `spectral-ribbons`, `bloom-engine`, `negative-space`,
-`ink-current`, `glass-choir`, `shadow-architecture`, `particle-weave`,
-`living-mosaic`, `lumen-fold`, and `paper-horizon`.
-
-Run the preserved projectM renderer:
-
-```bash
-OMADROP_ENGINE=projectm omadrop --single
-```
-
-Focused A/B modes are available for the authored Reactive Tunnel, Halls of
-Centrifuge, and Wire Dance editions:
-
-```bash
-OMADROP_ENGINE=projectm OMADROP_CONTORTION_ONLY=1 omadrop --single
-OMADROP_ENGINE=projectm OMADROP_HALLS_ONLY=1 omadrop --single
-OMADROP_ENGINE=projectm OMADROP_WIRE_ONLY=1 omadrop --single
-```
-
-Add `OMADROP_CLASSIC_CONTORTION=1`, `OMADROP_CLASSIC_HALLS=1`, or
-`OMADROP_CLASSIC_WIRE=1` to run the matching original preset.
-
-</details>
-
-<details>
-<summary><strong>Record the release showcase</strong></summary>
-
-```bash
-omadrop-demo
-omadrop-demo-record
-```
-
-The showcase moves through Ink Current, Glass Choir, Shadow Architecture,
-Particle Weave, and Living Mosaic. The route moves from fluid calligraphy
-through glass, depth, particles, and cellular form, using three distinct
-transition grammars. Transitions begin on detected bar boundaries, with a
-fallback deadline when the beat clock is uncertain. The recorder creates a
-timestamped 60 FPS MP4 in `~/Videos`, suppresses desktop notifications during
-capture, and ends inside the final fade. Pass an output path to
-`omadrop-demo-record` to choose another destination.
-
-Use `omadrop-demo --single` for one display or `omadrop-demo --loop` to repeat
-the sequence.
-
-For a release recording, set `OMADROP_DEMO_AUDIO_FILE` to the approved local
-audio file. The recorder routes that file through a private capture sink, so
-browser and desktop audio cannot affect the visuals or enter the MP4. It also
-uses Omadrop's own showcase card instead of reading unrelated player metadata.
-Before accepting the MP4, it verifies the checked-in rights record and matches
-the captured opening to the approved source. The exact required credit is
-written to `OUTPUT.mp4.attribution.txt`. See the
-[approved demo music and license records](docs/demo-music.md).
-
-</details>
-
-## Build and test
-
-```bash
-./experiments/projectm-ascii/build.sh
-./bin/omadrop
-```
-
-Renderer and audio tests live in `experiments/projectm-ascii`. Run the full
-native visual audit with:
-
-```bash
-experiments/projectm-ascii/native-renderer-test shaders/native
-bin/reactivity-audit
-```
-
-Read [NOTES.md](NOTES.md) before changing the renderer. It records the audio
-fixtures, visual test workflow, architecture decisions, and known silent
-failure modes. The next product phases are in
-[docs/roadmap.md](docs/roadmap.md); the completed native-engine buildout is in
-[docs/native-engine-plan.md](docs/native-engine-plan.md).
-
-The landing page is an Astro project in [`site/`](site/). Run it locally with
-`npm install && npm run dev` from that directory. Cloudflare Pages deploys
-`site/dist` from `master` to [omadrop.com](https://omadrop.com).
-
-## Presets and attribution
-
-Classic presets retain their original author credits and are preserved for A/B
-testing. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the complete
-list and rights notice. projectM is a separate project and is not affiliated
-with Omadrop.
-
-Omadrop is released under the [MIT License](LICENSE).
+Omadrop code is MIT licensed. projectM is LGPL licensed. Presets and textures
+retain their original authorship and rights; they are not covered by Omadrop's
+MIT license. projectM is an independent project.

@@ -76,6 +76,16 @@ int main() {
     assert(second->flashLimitMode == 0);
     assert(second->colorVisionSafeMode == 0);
 
+    // Original-preset dissolves must reach the other monitor too.
+    auto originalState=*second;
+    originalState.serial=3; originalState.presetIndex=5;
+    originalState.durationMs=5000; originalState.transitionMode=11;
+    originalState.nativeScene=-1; originalState.nativeSourceScene=-1;
+    originalState.closeMode=0;
+    assert(leader.publishDisplay(originalState));
+    const auto original=displayFollower.consume(follower.readDisplay(),8,10);
+    assert(original && original->presetIndex==5 && original->transitionMode==11);
+    assert(original->durationMs==5000 && original->nativeScene==-1);
     const std::string legacyDisplay = "3 2 1000 7 0 4 2 1 1 35 0\n";
     const auto legacy = decodePairedDisplayState(legacyDisplay, 8, 10);
     assert(legacy && legacy->nativeScene == 4);
@@ -121,6 +131,17 @@ int main() {
     assert(!decodePairedMusicState(encodePairedMusicState(corrupt)));
     corrupt.frame.arrangementRole = ArrangementRole::Unknown;
     corrupt.flowTime = std::numeric_limits<float>::infinity();
+    assert(!decodePairedMusicState(encodePairedMusicState(corrupt)));
+
+    corrupt.flowTime = 0.0f;
+    corrupt.collectionControls = {.5f, .2f, .3f, .4f, 0, .1f, .2f, .3f};
+    assert(decodePairedMusicState(encodePairedMusicState(corrupt)));
+    corrupt.collectionControls[3] = std::numeric_limits<float>::quiet_NaN();
+    assert(!decodePairedMusicState(encodePairedMusicState(corrupt)));
+    corrupt.collectionControls[3] = 1.1f;
+    assert(!decodePairedMusicState(encodePairedMusicState(corrupt)));
+    corrupt.collectionControls[3] = 0;
+    corrupt.collectionResponseEnabled = 2;
     assert(!decodePairedMusicState(encodePairedMusicState(corrupt)));
 
     assert(follower.publishRequest("ascii"));

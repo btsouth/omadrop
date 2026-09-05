@@ -93,13 +93,13 @@ echo "  MPRIS players        $mpris_count"
 
 live="$root/experiments/projectm-ascii/projectm-ascii-live"
 echo
-echo "Native renderer"
+echo "Collection renderer"
 if [[ ! -x $live ]]; then
   echo "  executable           NOT BUILT"
   ((failures += 1))
 else
   echo "  executable           ok"
-  missing_libraries=$(ldd "$live" 2>/dev/null | awk '/not found/ { print $1 }')
+  missing_libraries=$(LD_LIBRARY_PATH="$root/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ldd "$live" 2>/dev/null | awk '/not found/ { print $1 }')
   if [[ -n $missing_libraries ]]; then
     echo "  linked libraries     MISSING: ${missing_libraries//$'\n'/, }"
     ((failures += 1))

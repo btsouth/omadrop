@@ -43,6 +43,22 @@ int main() {
     const auto state = motion.update(music, 1.0f / 165.0f);
     assert(state.impact[0] > 0.7f && state.impact[1] == 0.0f && state.impact[2] == 0.0f);
     assert(state.bands[0] > 0.9f && state.bands[1] == 0.0f);
+    // A one-packet percussion event must become a short traveling gesture,
+    // not a near-instant flash. Check its peak, adjacent-frame jump and tail
+    // at the actual high-refresh presentation rate.
+    MusicalMotion impulse;
+    float last = 0.0f, peak = 0.0f, largestJump = 0.0f;
+    for (int frame = 0; frame < 165; ++frame) {
+        MusicFrame packet;
+        if (frame < 3) packet.kick = 1.0f;
+        const float current = impulse.update(packet, 1.0f / 165.0f).impact[0];
+        peak = std::max(peak, current);
+        largestJump = std::max(largestJump, std::abs(current-last));
+        if (frame >= 83) assert(current < 0.0001f);
+        last = current;
+    }
+    assert(peak > 0.10f && peak < 0.25f);
+    assert(largestJump < 0.04f);
     motion.reset();
     assert(motion.update({}, 0).impact[0] == 0);
     std::cout << "frame-rate independent motion, continuous trajectories, role isolation, and headroom passed\n";

@@ -1,0 +1,140 @@
+{
+  "source": "https://www.geisswerks.com/milkdrop/favorite_presets_2021_01_03.zip",
+  "source_sha256": "92b327b73eaf114cebddce99bbaa84663d363d9b57a63570a8b1b6001ee0db79",
+  "selection": "21 presets selected from Ryan Geiss personal favorites after reviewing 54 candidates; no user aesthetic approval or universal popularity ranking claimed.",
+  "engine": "projectM 4.1.7",
+  "presets": [
+    {
+      "name": "Flexi - crush ice 62.milk",
+      "source_entry": "Flexi - crush ice 62.milk",
+      "sha256": "e1eb2b13d894560ae6f1d68bf2672de3cdc6c92fd563aeb5a4e24764c282c2d0",
+      "review_id": 37
+    },
+    {
+      "name": "flexi - bouncing icecubes.milk",
+      "source_entry": "flexi - bouncing icecubes.milk",
+      "sha256": "f0f6a087046d98ce4a2dc5ad2938e687034cdb2bca2eef2a8fdbb17bdaf87af9",
+      "review_id": 32
+    },
+    {
+      "name": "martin - mandelbox explorer - wreck diver nz+ phranq.milk",
+      "source_entry": "martin - mandelbox explorer - wreck diver nz+ phranq.milk",
+      "sha256": "28be5fb450baf3e1721a7556b269421af14b1ce0e5f5e250216c25ba988ab323",
+      "review_id": 40
+    },
+    {
+      "name": "Serge + martin - crystal palace010.milk",
+      "source_entry": "Serge + martin - crystal palace010.milk",
+      "sha256": "82698a2eb82220c19600c2009b3a97cc6b57f057a327bdfd3641c097588f66e7",
+      "review_id": 4
+    },
+    {
+      "name": "flexi - swing out on the spiral.milk",
+      "source_entry": "flexi - swing out on the spiral.milk",
+      "sha256": "f8271b23dd08f594aeedecd43a8fd7b36bed16e2c1c57f3a8c3f1b0731aa8585",
+      "review_id": 45
+    },
+    {
+      "name": "martin - rogue wave -ps3.milk",
+      "source_entry": "martin - rogue wave -ps3.milk",
+      "sha256": "f658d0cd89ee54299553b08b1f21bdb003c658b7d71a63ee6139339bef3627f8",
+      "review_id": 13
+    },
+    {
+      "name": "martin - crystal palace.milk",
+      "source_entry": "martin - crystal palace.milk",
+      "sha256": "7ec828af9563e7cca647e8a07154862a150dd4c740073b80fc3eb28cb029de38",
+      "review_id": 39
+    },
+    {
+      "name": "_Geiss - Reaction Diffusion 3 (Lichen Relief Mix).milk",
+      "source_entry": "_Geiss - Reaction Diffusion 3 (Lichen Relief Mix).milk",
+      "sha256": "d24bf829f062e65c2b763ac88891263b6479837e9dff0c699e3b1a4a7a86e325",
+      "review_id": 1
+    },
+    {
+      "name": "martin - organic light.milk",
+      "source_entry": "martin - organic light.milk",
+      "sha256": "b0c700821ad3b149d12891b3e0a80159e3a36d869694525ff14251ccda79f9bb",
+      "review_id": 31
+    },
+    {
+      "name": "TonyMilkdrop - Dawning The Peacocks [Flexi - quirks + multiverse].milk",
+      "source_entry": "TonyMilkdrop - Dawning The Peacocks [Flexi - quirks + multiverse].milk",
+      "sha256": "de60d303142ba45a1218284b7e5bbf541543ac450c4e73a63ebb85f1773676e9",
+      "review_id": 46
+    },
+    {
+      "name": "martin - infinity.milk",
+      "source_entry": "martin - infinity.milk",
+      "sha256": "87ee768cbccac56d6659a4b4deec38169975165fec368a9a4b11b6ec98749016",
+      "review_id": 30
+    },
+    {
+      "name": "LuX - Spiral of Light (Minimal Mix).milk",
+      "source_entry": "LuX - Spiral of Light (Minimal Mix).milk",
+      "sha256": "e4aacd0595b1d40a9b5bfe37c605f680af2921abc35d068c8c44ddbd17df2ba3",
+      "review_id": 44
+    },
+    {
+      "name": "martin - mandelbox explorer - high speed demo version.milk",
+      "source_entry": "martin - mandelbox explorer - high speed demo version.milk",
+      "sha256": "53fd33587c6110760d86dd29789a3e97791fda81c1ee6d188ac16e3fc134dd6b",
+      "review_id": 6
+    },
+    {
+      "name": "Eo.S. + Geiss - glowsticks v2 03 music shifter edit b (water mix).milk",
+      "source_entry": "Eo.S. + Geiss - glowsticks v2 03 music shifter edit b (water mix).milk",
+      "sha256": "fa661d15faa59a09dc195c972e5f1d016bb142b7bd63fc93b6f7dfe4501e18c5",
+      "review_id": 52
+    },
+    {
+      "name": "yin - 350 - Chromatron.milk",
+      "source_entry": "yin - 350 - Chromatron.milk",
+      "sha256": "ff0878844c71f7e6ca0ecba252b98059504610a001bcd06eef4797958a471d47",
+      "review_id": 10
+    },
+    {
+      "name": "Goody + martin - crystal palace - Aqua Lumens5.milk",
+      "source_entry": "Goody + martin - crystal palace - Aqua Lumens5.milk",
+      "sha256": "eaacd788f4eb636772d2269b1f6cfe94d5d1d2311330a43a396e40aa504948e4",
+      "review_id": 5
+    },
+    {
+      "name": "Martin - Pixies Party (Hakan mash-up) 9-1.milk",
+      "source_entry": "Martin - Pixies Party (Hakan mash-up) 9-1.milk",
+      "sha256": "1b4109c2899949e3498e39f56ab51ab8c9d0fb3418575255a099f1d8256d5a90",
+      "review_id": 22
+    },
+    {
+      "name": "Hexcollie - Amorphous Magic carpet.milk",
+      "source_entry": "Hexcollie - Amorphous Magic carpet.milk",
+      "sha256": "d59534850548cc84bd8419e36d97558b01f4211c9afd2bfa5c9d3244d3d14650",
+      "review_id": 38
+    },
+    {
+      "name": "martin - pixies party.milk",
+      "source_entry": "martin - pixies party.milk",
+      "sha256": "deda3362220aa4eb3e004258f4f94b01e87711986e2e6118385f3c458a0528d7",
+      "review_id": 41
+    },
+    {
+      "name": "Geiss - Desert Rose 4.milk",
+      "source_entry": "Geiss - Desert Rose 4.milk",
+      "sha256": "0dd4c867fa103a4547009d6a35d116d19b7417ac20f7f4a7ff9f5076d32bd1a5",
+      "review_id": 15
+    },
+    {
+      "name": "Tripgnosis - Firesticks.milk",
+      "source_entry": "Tripgnosis - Firesticks.milk",
+      "sha256": "dd0341db8aefca1f3d7ce25543cfd38bbf432ea18cb9ed224f1042c8cbb1b416",
+      "review_id": 26
+    }
+  ],
+  "excluded_after_sequence": [
+    {
+      "name": "Stahlregen - Spiral Beats (Fluctuating Flowers).milk",
+      "reason": "Repeated near-black phases in the multi-song transition review."
+    }
+  ]
+}

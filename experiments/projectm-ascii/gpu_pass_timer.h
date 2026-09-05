@@ -69,7 +69,6 @@ public:
     }
 
     std::uint64_t sampleSerial() const { return latestSequence_; }
-    bool supported() const { return supported_; }
 
     void shutdown() {
         if (activeSlot_ >= 0) {

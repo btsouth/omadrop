@@ -73,7 +73,7 @@ NativeSceneKind automaticChoiceWithPreferences(
 }
 
 int main() {
-    assert(nativeSceneRegistryVersion == 21);
+    assert(nativeSceneRegistryVersion == 23);
     std::set<std::string> sceneSlugs;
     std::set<std::string> sceneShaders;
     for (std::size_t index = 0; index < nativeSceneRegistry.size(); ++index) {
@@ -81,10 +81,12 @@ int main() {
         assert(static_cast<std::size_t>(definition.kind) == index);
         assert(sceneSlugs.insert(std::string(definition.slug)).second);
         assert(sceneShaders.insert(std::string(definition.shader)).second);
-        assert((definition.musicalRoles & transientRoles) == transientRoles);
-        assert((definition.musicalRoles & GrooveRole) == GrooveRole);
+        if (!isCollectionScene(definition.kind)) {
+            assert((definition.musicalRoles & transientRoles) == transientRoles);
+            assert((definition.musicalRoles & GrooveRole) == GrooveRole);
+        }
         assert(definition.maximumQuietMotionCoverage > 0.0f);
-        assert(definition.maximumQuietMotionCoverage <= 0.50f);
+        assert(definition.maximumQuietMotionCoverage <= (isCollectionScene(definition.kind) ? 1.0f : 0.50f));
         assert(definition.maximumGlobalPulse > 0.0f);
         assert(definition.maximumGlobalPulse <= 0.70f);
         assert(definition.maximumFrameMilliseconds > 0.0f);
@@ -112,14 +114,14 @@ int main() {
             assert(geometry.depthStrength >= 0.80f);
         }
     }
-    assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Flow) == 2);
+    assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Flow) == 22);
     assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Sparse) == 6);
     assert(nativeSceneMotionGrammarCount(NativeMotionGrammar::Selective) == 10);
-    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Radial) == 4);
-    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Filament) == 3);
-    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Depth) == 2);
-    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Vertical) == 2);
-    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Landscape) == 2);
+    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Radial) == 8);
+    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Filament) == 6);
+    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Depth) == 6);
+    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Vertical) == 3);
+    assert(nativeSceneVisualFamilyCount(NativeVisualFamily::Landscape) == 3);
     NativeSceneKind parsedScene = NativeSceneKind::DepthTunnel;
     assert(nativeSceneFromName("wire", parsedScene));
     assert(parsedScene == NativeSceneKind::WireOrganism);
@@ -555,7 +557,7 @@ int main() {
         {"paper-horizon"}, {"centrifuge", "wire-organism"});
     assert(preferenceDirector.sceneFavorite(NativeSceneKind::PaperHorizon));
     assert(preferenceDirector.sceneHidden(NativeSceneKind::Centrifuge));
-    assert(preferenceDirector.visibleSceneCount() == nativeSceneCount - 2);
+    assert(preferenceDirector.visibleSceneCount() == collectionFirstScene - 2);
     preferenceDirector.requestNext();
     preferenceDirector.update(music, 1.0f / 60.0f);
     finishTransition(preferenceDirector, music);
@@ -580,7 +582,7 @@ int main() {
         nearlyAllHidden.emplace_back(nativeSceneRegistry[index].slug);
     }
     preferenceDirector.setScenePreferences({}, nearlyAllHidden);
-    assert(preferenceDirector.visibleSceneCount() == nativeSceneCount);
+    assert(preferenceDirector.visibleSceneCount() == collectionFirstScene);
     preferenceDirector.setScenePreferences(
         {"paper-horizon"}, {"centrifuge", "wire-organism"});
     preferenceDirector.resetForTrack();

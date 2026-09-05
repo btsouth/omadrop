@@ -18,6 +18,10 @@ struct AudioFeatures {
     std::array<float, spectrumCount> spectrumLevel{};
     std::array<float, spectrumCount> spectrumFlux{};
     std::array<float, chromaCount> chroma{};
+    // One shared spectral reference preserves the balance between frequencies.
+    // These are measured timbre components, not instrument stems.
+    std::array<float, 32> harmonicShape{};
+    float bassBody = 0.0f;
     bool kick = false;
     bool snare = false;
     bool hat = false;
@@ -181,6 +185,16 @@ private:
             spectrumMagnitude[band] = sum / std::max(1, last - first + 1);
         }
 
+        float bassPower=0.0f;
+        for (int bin=1; bin<=static_cast<int>(150.0f*windowSize/sampleRate); ++bin) {
+            bassPower+=fftOutput_[bin][0]*fftOutput_[bin][0]
+                      +fftOutput_[bin][1]*fftOutput_[bin][1];
+        }
+        // Absolute low-frequency amplitude survives repeated hits and sustained
+        // bass. It is not divided by its own recent history.
+        features_.bassBody=1.0f-std::exp(-8.0f*std::sqrt(bassPower)/windowSize);
+        const float spectralReference=std::max(0.15f,
+            *std::max_element(spectrumMagnitude.begin(),spectrumMagnitude.end()));
         features_.chroma.fill(0.0f);
         float chromaTotal = 0.0f;
         const int firstChromaBin = std::max(
@@ -236,6 +250,8 @@ private:
             const float percussivePower = percussive * percussive;
             const float denominator = harmonicPower + percussivePower + 1e-8f;
             const float magnitudeValue = spectrumMagnitude[band];
+            features_.harmonicShape[band]=magnitudeValue/spectralReference
+                *harmonicPower/denominator;
             harmonicSum += magnitudeValue * harmonicPower / denominator;
             percussiveSum += magnitudeValue * percussivePower / denominator;
             spectrumSum += magnitudeValue;

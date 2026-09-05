@@ -63,7 +63,6 @@ public:
 
     float quality() const { return qualityLevels[level_]; }
     std::size_t level() const { return level_; }
-    double smoothedLoad() const { return smoothedLoad_; }
 
 private:
     static constexpr std::array<float, 3> qualityLevels{1.0f, 0.72f, 0.50f};

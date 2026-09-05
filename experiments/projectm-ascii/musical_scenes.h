@@ -2,7 +2,7 @@
 #include "native_scene_registry.h"
 #include <algorithm>
 
-// These scenes implement musical-response.glsl v1 and its causal contract.
+// These scenes implement musical-response.glsl v3 and its causal contract.
 inline constexpr std::array musicalScenes{
     NativeSceneKind::ConstellationField,
     NativeSceneKind::PrismGarden,

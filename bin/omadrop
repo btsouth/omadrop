@@ -105,7 +105,8 @@ case ${1:-} in
     ;;
   -h|--help)
     cat <<'EOF'
-Usage: omadrop [--single|--all|--display-mode|--toggle-secondary|--version]
+Usage: omadrop [--single|--all] [--original]
+       omadrop [--display-mode|--toggle-secondary|--version]
        omadrop calibrate
        omadrop pack validate PACK_DIRECTORY
        omadrop pack author PACK_DIRECTORY [SCENE_SLUG]
@@ -176,6 +177,10 @@ case ${1:-} in
     ;;
 esac
 
+for argument in "$@"; do
+  case $argument in --original|--stop) ;; *) echo "omadrop: unknown option: $argument" >&2; exit 2 ;; esac
+done
+
 # Explicit recovery path while the projectM application replaces the QML
 # prototype. The normal Omarchy hotkey always exercises the unified renderer.
 if [[ ${OMADROP_LEGACY:-0} == 1 ]]; then
@@ -184,7 +189,7 @@ if [[ ${OMADROP_LEGACY:-0} == 1 ]]; then
 fi
 
 live=${OMADROP_LIVE_EXECUTABLE:-$root/experiments/projectm-ascii/projectm-ascii-live}
-runner=${OMADROP_RUN_CURATED:-$root/experiments/projectm-ascii/run-curated.sh}
+runner=${OMADROP_RUN_CURATED:-$root/experiments/projectm-ascii/run-collection.sh}
 [[ -x $live ]] || {
   echo "omadrop: unified renderer is not built; run ./experiments/projectm-ascii/build.sh" >&2
   exit 1
@@ -310,7 +315,7 @@ launch_renderers() {
   if command -v "$hyprctl_command" >/dev/null && [[ -n ${monitor_names[0]} ]]; then
     for ((display_index = 0; display_index < display_count; display_index++)); do
       pid=${pids[$display_index]}
-      for ((attempt = 0; attempt < 100; attempt++)); do
+      for ((attempt = 0; attempt < 160; attempt++)); do
         [[ -e $start_gate.$display_index.ready ]] && break
         kill -0 "$pid" 2>/dev/null || break
         sleep 0.1

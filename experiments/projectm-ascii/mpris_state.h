@@ -13,6 +13,7 @@ struct MprisState {
     std::string artPath;
     double positionSeconds = 0.0;
     double durationSeconds = 0.0;
+    std::string artUrl{};
 };
 
 inline std::optional<MprisState> parseMprisState(const std::string& input,
@@ -55,6 +56,7 @@ inline std::optional<MprisState> parseMprisState(const std::string& input,
         error = "MPRIS state is missing a required field";
         return std::nullopt;
     }
+    readString("art_url", state.artUrl);
     json_object_put(root);
     return state;
 }

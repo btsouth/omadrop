@@ -300,6 +300,9 @@ bool NativeRenderer::render(const MusicFrame& music, const NativeSceneState& sce
                      musicalMotion.bands.data());
         glUniform1fv(glGetUniformLocation(program, "spectrumMotion[0]"), 32,
                      musicalMotion.spectrum.data());
+        glUniform1fv(glGetUniformLocation(program, "harmonicShape[0]"),32,
+                     musicalMotion.harmonicShape.data());
+        glUniform1f(glGetUniformLocation(program, "bassBody"),musicalMotion.bassBody);
         glUniform1f(glGetUniformLocation(program, "grooveMotion"), musicalMotion.groove);
         glUniform1f(glGetUniformLocation(program, "musicalExpansion"), musicalMotion.expansion);
         glUniform1f(glGetUniformLocation(program, "renderSeconds"),

@@ -139,8 +139,8 @@ h1 { font-size: clamp(58px, 9.5vw, 148px); }
 .worlds__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; max-width: 1500px; margin: 0 auto; border: 1px solid var(--line); background: var(--line); }
 .scene-card { min-width: 0; margin: 0; background: #000; }
 .scene-card img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
-.scene-card figcaption { display: flex; justify-content: space-between; gap: 12px; padding: 13px 14px 14px; border-top: 1px solid var(--line); color: #d4d1c8; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
-.scene-card small { color: var(--muted); font: inherit; white-space: nowrap; }
+.scene-card figcaption { display: flex; flex-direction: column; gap: 12px; padding: 13px 14px 14px; border-top: 1px solid var(--line); color: #d4d1c8; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.scene-card small { color: var(--muted); font: inherit; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
 
 .engine { position: relative; display: grid; min-height: 100svh; place-items: center; overflow: hidden; border-top: 1px solid var(--line); }
 .engine__field { position: absolute; inset: 0; display: grid; align-content: space-around; color: rgb(168 255 120 / 8%); font-size: clamp(54px, 12vw, 190px); letter-spacing: .03em; white-space: nowrap; transform: scale(1.2) rotate(-7deg); }
@@ -180,8 +180,8 @@ kbd { padding: 8px 10px; border: 1px solid var(--line); color: var(--paper); fon
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .hero__film { display: none; }
-  .hero { background: #000 url('/media/hero-poster.avif?v=20260904c') center / cover no-repeat; }
+  .hero { background: #000 url('/media/collection-poster.jpg') center / cover no-repeat; }
   .proof__stage video { display: none; }
-  .proof__stage { background: #000 url('/media/variety-poster.avif?v=20260904c') center / contain no-repeat; }
+  .proof__stage { background: #000 url('/media/collection-poster.jpg') center / contain no-repeat; }
   .button { transition: none; }
 }

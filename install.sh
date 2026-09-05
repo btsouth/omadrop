@@ -34,8 +34,30 @@ done
   exit 1
 }
 
+[[ $install_root != / && $install_root != "$HOME" && $install_root != "$root" && ! -L $install_root ]] || {
+  echo 'install: unsafe installation root' >&2; exit 1;
+}
+mkdir -p "$(dirname "$install_root")"
+exec {install_lock_fd}>"${install_root}.install.lock"
+flock -n "$install_lock_fd" || { echo 'install: another installation is running' >&2; exit 1; }
+if [[ -e $install_root && ! -f $install_root/VERSION ]]; then
+  echo 'install: target is not an existing Omadrop installation' >&2; exit 1
+fi
+if pgrep -f "^${install_root//./\\.}/experiments/projectm-ascii/projectm-ascii-live( |$)" >/dev/null; then
+  echo 'install: close Omadrop before updating' >&2; exit 1
+fi
+commands=(omadrop omadrop-preview omadrop-close-window omadrop-demo omadrop-demo-record omadrop-doctor)
+for command in "${commands[@]}"; do
+  path=$bin_dir/$command
+  if [[ -e $path || -L $path ]]; then
+    [[ -L $path && $(readlink -m "$path") == "$install_root/"* ]] || {
+      echo "install: refusing to replace unrelated command $path" >&2; exit 1;
+    }
+  fi
+done
+
 dependencies=(
-  gcc pkgconf glslang libprojectm sdl2-compat glew libpng fftw
+  gcc pkgconf cmake ninja git python glslang libprojectm sdl2-compat glew libpng fftw
   json-c pipewire-audio libpulse imagemagick curl glib2 jq
   ffmpeg gpu-screen-recorder
 )
@@ -50,7 +72,33 @@ if ((install_dependencies)); then
   fi
 fi
 
-"$root/experiments/projectm-ascii/build.sh"
+"$root/bin/build-install-runtime"
+
+# Assemble the complete runtime beside the target, then promote it.
+final_root=$install_root
+mkdir -p "$(dirname "$final_root")"
+install_root=$(mktemp -d "${final_root}.staging.XXXXXX")
+staging_root=$install_root
+backup_root=
+promoted=0
+transaction_done=0
+cleanup_install() {
+  local status=$?
+  if ((transaction_done == 0)); then
+    if ((promoted)); then
+      rm -rf -- "$final_root"
+      [[ -z $backup_root ]] || mv -- "$backup_root" "$final_root"
+      for command in "${commands[@]}"; do
+        if [[ -L $bin_dir/$command && $(readlink -m "$bin_dir/$command") == "$final_root/"* && ! -e $bin_dir/$command ]]; then
+          unlink "$bin_dir/$command"
+        fi
+      done
+    fi
+    [[ ! -d $staging_root ]] || rm -rf -- "$staging_root"
+  fi
+  return "$status"
+}
+trap cleanup_install EXIT
 
 install -Dm755 "$root/bin/omadrop" "$install_root/bin/omadrop"
 install -Dm755 "$root/bin/omadrop-preview" "$install_root/bin/omadrop-preview"
@@ -85,6 +133,18 @@ for api_file in "$root"/scene-api/1/*.{vert,glsl}; do
   install -Dm644 "$api_file" \
     "$install_root/scene-api/1/$(basename "$api_file")"
 done
+install -Dm755 "$root/experiments/projectm-ascii/run-originals.sh"   "$install_root/experiments/projectm-ascii/run-originals.sh"
+install -d "$install_root/third-party/projectm"
+cp -a "$root/third-party/projectm/." "$install_root/third-party/projectm/"
+install -d "$install_root/lib" "$install_root/presets/milkdrop-originals" "$install_root/presets/textures"
+cp -a "$root"/lib/libprojectM-4.so* "$install_root/lib/"
+cp -a "$root/presets/milkdrop-originals/." "$install_root/presets/milkdrop-originals/"
+cp -a "$root/presets/textures/." "$install_root/presets/textures/"
+install -d "$install_root/presets/pilot"
+cp -a "$root/presets/pilot/." "$install_root/presets/pilot/"
+install -Dm644 "$root/presets/pilot.txt" "$install_root/presets/pilot.txt"
+install -Dm755 "$root/experiments/projectm-ascii/run-collection.sh" "$install_root/experiments/projectm-ascii/run-collection.sh"
+install -Dm644 "$root/experiments/milkdrop-audio-pilot/manifest.json" "$install_root/presets/collection-manifest.json"
 install -d "$install_root/presets/curated"
 rm -f "$install_root/presets/curated/A New Definition for Milk - AdamFX - Laser Show in a Crystalstorm  ft Orb n Martin Inside the Forge of Isengard.milk"
 rm -f "$install_root/presets/curated/shifter - lattice (eclipse) Phat + EoS more color mix_v2.milk"
@@ -107,6 +167,7 @@ install -Dm755 "$root/uninstall.sh" "$install_root/uninstall.sh"
 install -Dm644 "$root/README.md" "$install_root/README.md"
 install -Dm644 "$root/CHANGELOG.md" "$install_root/CHANGELOG.md"
 install -Dm644 "$root/LICENSE" "$install_root/LICENSE"
+install -Dm644 "$root/docs/legacy-preset-notices.md" "$install_root/docs/legacy-preset-notices.md"
 install -Dm644 "$root/THIRD_PARTY_NOTICES.md" "$install_root/THIRD_PARTY_NOTICES.md"
 install -Dm644 "$root/VERSION" "$install_root/VERSION"
 install -Dm644 "$root/docs/controls.md" "$install_root/docs/controls.md"
@@ -128,6 +189,20 @@ install -Dm644 "$root/demo/scene-sequence.txt" \
   "$install_root/demo/scene-sequence.txt"
 install -Dm644 "$root/site/public/og.png" \
   "$install_root/site/public/og.png"
+# Stage checks run before any installed file is replaced.
+[[ -x $install_root/experiments/projectm-ascii/projectm-ascii-live ]]
+[[ $(wc -l < "$install_root/presets/pilot.txt") == 21 ]]
+if [[ -e $final_root ]]; then
+  backup_root=$(mktemp -d "${final_root}.previous.XXXXXX")
+  rmdir "$backup_root"
+  mv -- "$final_root" "$backup_root"
+fi
+if ! mv -- "$staging_root" "$final_root"; then
+  [[ -z $backup_root ]] || mv -- "$backup_root" "$final_root"
+  exit 1
+fi
+promoted=1
+install_root=$final_root
 mkdir -p "$bin_dir"
 ln -sfn "$install_root/bin/omadrop" "$bin_dir/omadrop"
 ln -sfn "$install_root/bin/omadrop-preview" "$bin_dir/omadrop-preview"
@@ -202,6 +277,8 @@ if ((install_bindings)); then
   fi
 fi
 
+transaction_done=1
+[[ -z $backup_root ]] || echo "Previous installation preserved: $backup_root"
 version=$(<"$root/VERSION")
 echo "Omadrop $version installed in $install_root"
 echo "Run: $bin_dir/omadrop"

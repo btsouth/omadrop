@@ -1,65 +1,18 @@
 # Controls
 
-`omadrop-preview` opens the music-connected Ink Current prototype in continuous
-rendering and holds the scene for listening. `A` compares ASCII, and `N` / `P`
-change scenes manually. Automatic direction remains off for that preview
-session; the ordinary `omadrop` launcher retains automatic direction.
+`omadrop` toggles the visualizer. `--single` and `--all` select and remember the
+display mode. `--original` starts without the added audio response; it can follow
+the display option. `omadrop calibrate` retains output-specific timing settings.
 
-| Key | Action | Persisted |
-| --- | --- | --- |
-| `Super + Shift + V` | Toggle Omadrop | No |
-| `Super + Alt + V` | Hide or restore the secondary display | No |
-| `A` | Toggle ASCII and continuous rendering | Yes |
-| `N` / `P` | Request the next or previous scene | No |
-| `I` | Cycle local music-response intensity | Yes |
-| `B` | Cycle brightness | Yes |
-| `M` | Cycle ambient motion | Yes |
-| `R` | Toggle reduced motion | Yes |
-| `S` | Toggle flash limit | Yes |
-| `H` | Toggle high contrast | Yes |
-| `C` | Toggle the color-safe palette | Yes |
-| `D` | Cycle director profile | Yes |
-| `F` | Favorite or unfavorite the current scene | Yes |
-| `X` | Hide the current scene and continue | Yes |
-| `Shift + X` | Restore all hidden scenes | Yes |
-| `[` / `]` | Adjust the current output's sync delay by 10 ms | Yes |
-| `F11` | Toggle fullscreen | No |
-| `Esc` | Quit | No |
+N/P change presets. O blends added response off or on. A toggles ASCII. F11 toggles
+fullscreen. Escape closes the session. Brackets change audio delay by 10 ms.
+The comparison toggle does not reset preset history or rewind camera movement.
 
-On Omarchy, `Super + W` closes the complete Omadrop session when an Omadrop
-window is focused, including a renderer that stops responding. Other apps keep
-the usual Hyprland close action. `omadrop --stop` provides the same external
-session stop from a terminal.
+Scene changes and supported controls are shared across displays. Authored preset
+randomness can produce different details on each display; pixel-identical output
+is not promised. Continuous rendering is the collection's default.
 
-The first ordinary launch shows a compact control card after the cover has
-finished dissolving. It is shown once, is not included in scripted demos or
-calibration, and its seen state persists with the other preferences.
-
-`omadrop --single` and `omadrop --all` select and save the launch display mode.
-A later bare `omadrop` launch uses that choice. `omadrop --display-mode` prints
-the saved value without launching the visualizer. The `omadrop-demo` wrapper
-uses a temporary display choice and never changes this preference.
-
-Run `omadrop calibrate` after changing speakers, headphones, or Bluetooth
-devices when the visual onset does not land with the sound. It plays a repeating
-reference beat through the normal output, keeps one scene fixed, and saves the
-`[` earlier / `]` later correction for that output. Pause other audio while
-calibrating.
-
-Every key works from either Omadrop window. The leader applies the request and
-sends one complete control and scene snapshot to every follower.
-
-`N` and `P` do not select a manual mode. They request one scene change, then
-automatic direction continues. The status label says `AUTO: <scene>` to make
-that behavior explicit.
-
-Favorites influence close automatic choices without overriding musical fit.
-Hidden scenes are excluded from automatic direction, motif recall, opening
-selection, and manual navigation. Omadrop keeps at least two scenes available.
-
-Balanced, Kinetic, Restrained, and High Contrast change scene selection only.
-They do not change musical timing or bypass per-scene response limits.
-
-The color-safe palette maps scene color to a luminance-preserving blue and
-gold range. Album covers keep their original color, and visual information
-remains redundant with brightness rather than depending on hue alone.
+The older native renderer's favorite/hide and director controls are not supported
+by this collection. Existing native preferences are preserved. Brightness and
+accessibility options inherited from the compositor are not an assertion of
+medical safety or tested accessibility for these presets.

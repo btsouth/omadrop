@@ -1,1 +1,3 @@
 *.milk whitespace=-trailing-space
+
+third-party/projectm/LICENSE.txt whitespace=-trailing-space,-blank-at-eof

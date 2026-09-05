@@ -149,6 +149,8 @@ int main(int argc, char** argv) {
                         std::string(names[role]) + " response is too weak");
                 if (role >= 3) {
                     for (int i = 0; i < 60; ++i) render(music, 0.0f);
+                    save(read(renderer), std::filesystem::path(argv[2]) /
+                        (std::string(names[role]) + "-held.ppm"));
                     require(difference(reference, read(renderer)) > (testScene == NativeSceneKind::InkCurrent ? 0.006f : 0.0005f),
                             "sustained response vanished");
                 }
@@ -205,6 +207,85 @@ int main(int argc, char** argv) {
             }
             require(difference(heldImage, read(renderer)) < 0.00001f,
                     "predicted rhythm or scene time moved the picture");
+            // Regression for Kid Quill: a busy middle/high bed must not bury
+            // the bass gesture, and different sustained pitched content must
+            // create different forms even when broadband levels are identical.
+            auto settledImage = [&](const MusicFrame& input) {
+                baseline();
+                for (int i=0;i<120;++i) render(input,1.0f/60.0f);
+                return read(renderer);
+            };
+            MusicFrame accompaniment;
+            accompaniment.bandLevel.fill(1.0f);
+            accompaniment.spectrumLevel.fill(1.0f);
+            const auto bed=settledImage(accompaniment);
+            auto bass=accompaniment;
+            bass.kick=0.8f; bass.bassBody=0.55f;
+            const auto bassImage=settledImage(bass);
+            const float bassDifference=difference(bed,bassImage);
+            auto weakLowEnd=bass;
+            weakLowEnd.bassBody=0.0f;
+            const float weakLowDifference=difference(bed,settledImage(weakLowEnd));
+            require(bassDifference>weakLowDifference*1.10f,
+                    "strong low-frequency body does not distinguish a bass hit from a weak-low transient");
+            require(bassDifference>0.015f,"busy accompaniment buried bass movement");
+            save(bed,std::filesystem::path(argv[2])/"busy-bed.ppm");
+            save(bassImage,std::filesystem::path(argv[2])/"busy-bass.ppm");
+            auto voiceA=accompaniment,voiceB=accompaniment;
+            voiceA.harmonicShape[14]=voiceA.harmonicShape[15]=0.85f;
+            voiceB.harmonicShape[21]=voiceB.harmonicShape[22]=0.85f;
+            const auto voiceImageA=settledImage(voiceA);
+            const auto voiceImageB=settledImage(voiceB);
+            const float voiceDifference=difference(voiceImageA,voiceImageB);
+            require(voiceDifference>0.004f,"distinct tonal content has no distinct visible form");
+            save(voiceImageA,std::filesystem::path(argv[2])/"tonal-a.ppm");
+            save(voiceImageB,std::filesystem::path(argv[2])/"tonal-b.ppm");
+            render(voiceB,1.0f/60.0f);
+            require(difference(voiceImageB,read(renderer))<0.00001f,
+                    "held tonal content invents movement");
+            std::cout<<"busy-bass difference="<<bassDifference
+                     <<" tonal-form difference="<<voiceDifference<<'\n';
+            if (testScene == NativeSceneKind::ConstellationField) {
+                // Musical ownership: different held notes may bend the
+                // connecting folds but must leave the approved bass interiors
+                // comparatively stable, including over a strong bass bed.
+                voiceA.bassBody=voiceB.bassBody=0.55f;
+                voiceA.kick=voiceB.kick=0.8f;
+                const auto a=settledImage(voiceA), b=settledImage(voiceB);
+                const std::array<std::array<float,2>,7> anchors{{
+                    {0.054f,-1.504f},{2.258f,-1.368f},{-1.754f,-0.648f},
+                    {0.449f,-0.264f},{2.557f,-0.208f},{3.046f,1.192f},
+                    {-1.115f,1.696f}}};
+                double coreDelta=0, foldDelta=0;
+                int coreCount=0, foldCount=0;
+                for(int y=0;y<height;++y) for(int x=0;x<width;++x) {
+                    const float px=((x+0.5f)/width-0.5f)*3.4f*width/height;
+                    const float py=((y+0.5f)/height-0.5f)*3.4f;
+                    float distance=100;
+                    for(const auto& anchor:anchors)
+                        distance=std::min(distance,std::hypot(px-anchor[0],py-anchor[1]));
+                    for(int c=0;c<3;++c) {
+                        const auto i=(y*width+x)*4+c;
+                        const float delta=std::abs(a[i]-b[i]);
+                        if(distance<0.30f) { coreDelta+=delta; ++coreCount; }
+                        if(distance>0.95f) { foldDelta+=delta; ++foldCount; }
+                    }
+                }
+                coreDelta/=coreCount; foldDelta/=foldCount;
+                require(foldDelta>coreDelta*2.0,
+                    "sustained folds overwhelmed the protected bass interiors");
+                std::cout<<"sustained ownership core="<<coreDelta
+                         <<" folds="<<foldDelta<<'\n';
+                // An ordinary snare over bass and tonal accompaniment must
+                // produce readable geometry, not only pass an isolated hit.
+                const auto bedWithVoices=settledImage(voiceA);
+                voiceA.snare=0.45f;
+                const auto compoundSnare=settledImage(voiceA);
+                const float compoundDifference=difference(bedWithVoices,compoundSnare);
+                require(compoundDifference>0.006f,
+                    "compound music buried the percussion flex");
+                std::cout<<"compound snare="<<compoundDifference<<'\n';
+            }
             // A real hit moves the body, then settles within half a second.
             baseline();
             MusicFrame hit;

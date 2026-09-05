@@ -37,6 +37,15 @@ int main() {
     presentation.show(30000);
     frame = presentation.frame(30000);
     assert(presentation.hasArtwork() && closeTo(frame.coverMix, 1.0f));
+    // Arrival can be late; the visible hold starts at arrival, not metadata.
+    CoverPresentation delayed(3.5f,1.75f);
+    delayed.show(8000);
+    assert(closeTo(delayed.frame(11499).coverMix,1.0f));
+    assert(closeTo(delayed.frame(12375).coverMix,0.5f));
+    assert(delayed.frame(13250).complete);
+    // Same-album songs reuse a texture but each gets a complete reveal.
+    delayed.show(14000);
+    assert(closeTo(delayed.frame(17499).coverMix,1.0f));
     std::cout << "cover presentation passed\n";
     return 0;
 }

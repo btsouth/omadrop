@@ -4,6 +4,8 @@
 #include "native_renderer.h"
 #include "native_scene_state.h"
 #include "signal_monitor.h"
+#include "live_compositor.h"
+#include "live_compositor_shaders.h"
 
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
@@ -61,7 +63,8 @@ std::vector<float> readTexture(GLuint texture, int width, int height) {
 bool writeRgb(std::ostream& output, const std::vector<float>& source,
               const std::vector<float>& incoming, float transition,
               float exposure, int width, int height,
-              const MusicFrame* signalMonitor = nullptr) {
+              const MusicFrame* signalMonitor = nullptr,
+              bool displayMapped = false) {
     const float mix = std::clamp(transition, 0.0f, 1.0f);
     for (int y = height - 1; y >= 0; --y) {
         for (int x = 0; x < width; ++x) {
@@ -70,7 +73,8 @@ bool writeRgb(std::ostream& output, const std::vector<float>& source,
             for (int channel = 0; channel < 3; ++channel) {
                 const float linear = source[offset + channel] * (1.0f - mix)
                                    + incoming[offset + channel] * mix;
-                const float mapped = linear / (1.0f + linear * 0.85f);
+                const float mapped = displayMapped ? linear
+                    : linear / (1.0f + linear * 0.85f);
                 pixel[channel] = std::clamp(mapped * exposure, 0.0f, 1.0f);
             }
             if (signalMonitor) {
@@ -80,7 +84,8 @@ bool writeRgb(std::ostream& output, const std::vector<float>& source,
             }
             for (int channel = 0; channel < 3; ++channel) {
                 const auto value = static_cast<unsigned char>(
-                    std::pow(pixel[channel], 1.0f / 2.2f) * 255.0f + 0.5f);
+                    (displayMapped ? pixel[channel]
+                        : std::pow(pixel[channel], 1.0f / 2.2f)) * 255.0f + 0.5f);
                 output.write(reinterpret_cast<const char*>(&value), 1);
             }
         }
@@ -92,12 +97,13 @@ bool writePpm(const std::filesystem::path& path,
               const std::vector<float>& source,
               const std::vector<float>& incoming, float transition,
               float exposure, int width, int height,
-              const MusicFrame* signalMonitor = nullptr) {
+              const MusicFrame* signalMonitor = nullptr,
+              bool displayMapped = false) {
     std::ofstream output(path, std::ios::binary);
     if (!output) return false;
     output << "P6\n" << width << " " << height << "\n255\n";
     return writeRgb(output, source, incoming, transition, exposure,
-                    width, height, signalMonitor);
+                    width, height, signalMonitor, displayMapped);
 }
 
 std::string sceneSlug(NativeSceneKind scene) {
@@ -242,6 +248,44 @@ int main(int argc, char** argv) {
         std::cerr << error << "\n";
         return 1;
     }
+    // Opt in for matched artistic comparisons. Older scorecards retain their
+    // historical export until migrated; no second gamma curve is applied here.
+    const bool liveColor = std::getenv("OMADROP_REPLAY_LIVE_COLOR") != nullptr;
+    LiveCompositor compositor;
+    if (liveColor && !compositor.initialize(LiveCompositorShaders::vertexSource,
+            LiveCompositorShaders::fragmentSource, error)) {
+        std::cerr << error << '\n';
+        return 1;
+    }
+    const bool collectionReplay = std::getenv("OMADROP_REPLAY_COLLECTION") != nullptr;
+    NativeSceneState displayScene;
+    auto displayedImage = [&](GLuint source, GLuint incoming, float mix,
+                              float exposure) {
+        LiveCompositorFrame frame;
+        frame.sourceTexture=source;
+        frame.nextTexture=incoming;
+        frame.width=width; frame.height=height;
+        frame.sceneMix=mix;
+        frame.transitionMode=static_cast<int>(displayScene.transitionStyle);
+        const auto& sourceGeometry=nativeSceneDefinition(displayScene.currentScene).transitionGeometry;
+        const auto& nextGeometry=nativeSceneDefinition(displayScene.incomingScene).transitionGeometry;
+        frame.sourceTransitionAnchor=sourceGeometry.focalPoint;
+        frame.incomingTransitionAnchor=nextGeometry.focalPoint;
+        frame.sourceTransitionMotion=sourceGeometry.motionVector;
+        frame.incomingTransitionMotion=nextGeometry.motionVector;
+        frame.sourceTransitionDepth=sourceGeometry.depthStrength;
+        frame.incomingTransitionDepth=nextGeometry.depthStrength;
+        frame.fieldExposure=exposure*(renderPolicy.flashLimited ? 0.90f : 1.0f);
+        frame.nativeRenderer=true;
+        frame.flashLimited=renderPolicy.flashLimited;
+        if (!compositor.render(frame,error)) {
+            std::cerr << error << '\n';
+            return std::vector<float>{};
+        }
+        std::vector<float> pixels(width*height*4);
+        glReadPixels(0,0,width,height,GL_RGBA,GL_FLOAT,pixels.data());
+        return pixels;
+    };
     AudioFeatureBus bus;
     MusicalStructureTracker structureTracker;
     MusicFrameBuilder musicFrameBuilder;
@@ -256,6 +300,16 @@ int main(int argc, char** argv) {
         }
         sceneDirector.selectScene(selectedScene);
         fixedScene = true;
+    }
+    if (collectionReplay) {
+        sceneDirector.setCollectionOnly(true);
+        sceneDirector.selectScene(NativeSceneKind::CrystalVault);
+        sceneDirector.setTransitionDuration(3.5f);
+    }
+    if (liveColor && !fixedScene && !collectionReplay) {
+        std::cerr << "matched live-color review requires OMADROP_REPLAY_SCENE; "
+                     "automatic transition geometry is not exported yet\n";
+        return 2;
     }
     const bool measureMotion = std::getenv("OMADROP_REPLAY_MEASURE") != nullptr;
     const bool showSignalMonitor
@@ -311,8 +365,13 @@ int main(int argc, char** argv) {
             : -1.0f;
         const MusicFrame& music = musicFrameBuilder.update(
             features, structure, 1.0f / 60.0f, 0.0f, trackProgress);
+        if (collectionReplay && hops > 0 && hops % 480 == 0) {
+            const auto index = collectionFirstScene + (hops / 480) % (nativeSceneCount - collectionFirstScene);
+            sceneDirector.requestScene(static_cast<NativeSceneKind>(index));
+        }
         const NativeSceneState& scene = sceneDirector.update(
-            music, 1.0f / 60.0f, !fixedScene);
+            music, 1.0f / 60.0f, !fixedScene && !collectionReplay);
+        displayScene = scene;
         if (!renderer.render(music, scene, width, height, color,
                              0, 1.0f, 1.0f / 60.0f, error,
                              renderPolicy)) {
@@ -362,8 +421,15 @@ int main(int argc, char** argv) {
             const float transition = scene.transitioning ? scene.transition : 0.0f;
             const float exposure = sourceMaterial.fieldExposure * (1.0f - transition)
                                  + incomingMaterial.fieldExposure * transition;
-            if (!writeRgb(frameStream, source, incoming, transition, exposure,
-                          width, height, showSignalMonitor ? &music : nullptr)) {
+            const auto display = liveColor ? displayedImage(
+                renderer.texture(scene.currentScene),
+                renderer.texture(scene.transitioning ? scene.incomingScene : scene.currentScene),
+                transition, exposure) : std::vector<float>{};
+            if (liveColor && display.empty()) return 1;
+            if (!writeRgb(frameStream, liveColor ? display : source,
+                          liveColor ? display : incoming, transition,
+                          liveColor ? 1.0f : exposure, width, height,
+                          showSignalMonitor ? &music : nullptr, liveColor)) {
                 std::cerr << "could not write replay frame stream\n";
                 return 1;
             }
@@ -467,9 +533,15 @@ int main(int argc, char** argv) {
             const float transition = scene.transitioning ? scene.transition : 0.0f;
             const float exposure = sourceMaterial.fieldExposure * (1.0f - transition)
                                  + incomingMaterial.fieldExposure * transition;
-            if (!writePpm(outputDirectory / filename.str(), source, incoming,
-                          transition, exposure, width, height,
-                          showSignalMonitor ? &music : nullptr)) {
+            const auto display = liveColor ? displayedImage(
+                renderer.texture(scene.currentScene),
+                renderer.texture(scene.transitioning ? scene.incomingScene : scene.currentScene),
+                transition, exposure) : std::vector<float>{};
+            if (liveColor && display.empty()) return 1;
+            if (!writePpm(outputDirectory / filename.str(),
+                          liveColor ? display : source, liveColor ? display : incoming,
+                          transition, liveColor ? 1.0f : exposure, width, height,
+                          showSignalMonitor ? &music : nullptr, liveColor)) {
                 std::cerr << "could not write replay frame\n";
                 return 1;
             }
@@ -478,6 +550,7 @@ int main(int argc, char** argv) {
         ++hops;
     }
 
+    compositor.shutdown();
     renderer.shutdown();
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);

@@ -17,6 +17,14 @@ MprisPoller::~MprisPoller() {
 }
 
 bool MprisPoller::start(bool skipArt, std::uint64_t nowMs) {
+    return startCommand(skipArt ? "--no-art" : nullptr, false, nowMs);
+}
+
+bool MprisPoller::startArtwork(const std::string& url, std::uint64_t nowMs) {
+    return startCommand(url.c_str(), true, nowMs);
+}
+
+bool MprisPoller::startCommand(const char* argument, bool artwork, std::uint64_t nowMs) {
     if (running()) return false;
     int pipeFds[2];
     if (pipe2(pipeFds, O_CLOEXEC | O_NONBLOCK) != 0) return false;
@@ -28,8 +36,8 @@ bool MprisPoller::start(bool skipArt, std::uint64_t nowMs) {
         if (nullFd >= 0) dup2(nullFd, STDERR_FILENO);
         close(pipeFds[0]);
         close(pipeFds[1]);
-        if (skipArt) {
-            execl(helper_.c_str(), helper_.c_str(), "--no-art",
+        if (argument) {
+            execl(helper_.c_str(), helper_.c_str(), argument,
                   static_cast<char*>(nullptr));
         } else {
             execl(helper_.c_str(), helper_.c_str(),
@@ -48,12 +56,13 @@ bool MprisPoller::start(bool skipArt, std::uint64_t nowMs) {
     output_.clear();
     startedAtMs_ = nowMs;
     launchedAt_ = std::chrono::steady_clock::now();
+    artworkMode_ = artwork;
     return true;
 }
 
 std::optional<MprisPollResult> MprisPoller::update() {
     if (!running()) return std::nullopt;
-    if (std::chrono::steady_clock::now() - launchedAt_ > std::chrono::seconds(2)) {
+    if (std::chrono::steady_clock::now() - launchedAt_ > std::chrono::seconds(artworkMode_ ? 12 : 2)) {
         MprisPollResult result;
         result.error = "MPRIS helper timed out";
         result.startedAtMs = startedAtMs_;
@@ -110,7 +119,10 @@ std::optional<MprisPollResult> MprisPoller::update() {
         return result;
     }
     if (!output_.empty()) {
-        result.state = parseMprisState(output_, result.error);
+        if (artworkMode_) {
+            if (output_.front() == '/') result.artworkPath = output_;
+            else result.error = "artwork helper returned an invalid path";
+        } else result.state = parseMprisState(output_, result.error);
     }
     output_.clear();
     return result;

@@ -602,6 +602,7 @@ float landmarkContrast(const std::vector<float>& light, NativeSceneKind kind) {
         case NativeSceneKind::LivingMosaic:
         case NativeSceneKind::LumenFold:
         case NativeSceneKind::PaperHorizon:
+        default: // Evolving collection uses generic contrast only.
             break;
     }
     return spatialContrast;
@@ -978,11 +979,14 @@ int main(int argc, char** argv) {
     std::array<SceneAudit, nativeSceneCount> audits{};
     for (std::size_t index = 0; index < nativeSceneCount; ++index) {
         const NativeSceneKind scene = static_cast<NativeSceneKind>(index);
-        audits[index] = auditScene(renderer, scene, error);
+        // Isolated gesture contracts apply to the legacy musical collection.
+        // The evolving visual studies have a separate collection-render-test.
+        if (!isCollectionScene(scene)) audits[index] = auditScene(renderer, scene, error);
     }
     if (!error.empty()) std::cerr << error << "\n";
     for (std::size_t index = 0; index < nativeSceneCount; ++index) {
-        printAudit(static_cast<NativeSceneKind>(index), audits[index]);
+        if (!isCollectionScene(static_cast<NativeSceneKind>(index)))
+            printAudit(static_cast<NativeSceneKind>(index), audits[index]);
     }
 
     const NativeRenderPolicy normalPolicy;
@@ -1093,7 +1097,8 @@ int main(int argc, char** argv) {
 
     bool scenesPass = true;
     for (std::size_t index = 0; index < nativeSceneCount; ++index) {
-        scenesPass = scenesPass && auditPasses(audits[index]);
+        if (!isCollectionScene(static_cast<NativeSceneKind>(index)))
+            scenesPass = scenesPass && auditPasses(audits[index]);
     }
     return scenesPass && artworkResponse >= 0.0005f
         && performancePasses && referencesWritten ? 0 : 1;

@@ -2,26 +2,113 @@
 import "../styles/global.css";
 
 const title = "Omadrop | See the music";
-const description = "Original music-driven feedback worlds for Omarchy. See rhythm and song structure in motion.";
+const description = "21 curated MilkDrop visuals with Omadrop audio adaptations, album artwork and desktop audio capture.";
 const scenes = [
-  ["bloom-engine", "Bloom Engine", "radial / selective"],
-  ["centrifuge", "Centrifuge", "radial / selective"],
-  ["constellation-field", "Constellation Field", "network / sparse"],
-  ["depth-tunnel", "Depth Tunnel", "depth / flow"],
-  ["glass-choir", "Glass Choir", "faceted / selective"],
-  ["ink-current", "Ink Current", "fluid / selective"],
-  ["living-mosaic", "Living Mosaic", "cellular / selective"],
-  ["lumen-fold", "Lumen Fold", "vertical / selective"],
-  ["negative-space", "Negative Space", "minimal / sparse"],
-  ["orbital-loom", "Orbital Loom", "radial / selective"],
-  ["paper-horizon", "Paper Horizon", "landscape / sparse"],
-  ["particle-weave", "Particle Weave", "filament / selective"],
-  ["prism-garden", "Prism Garden", "vertical / sparse"],
-  ["pulse-cathedral", "Pulse Cathedral", "radial / selective"],
-  ["shadow-architecture", "Shadow Architecture", "depth / sparse"],
-  ["spectral-ribbons", "Spectral Ribbons", "filament / flow"],
-  ["tidal-grid", "Tidal Grid", "landscape / selective"],
-  ["wire-organism", "Wire Organism", "filament / sparse"],
+  [
+    "collection-01",
+    "Cloud Cubes",
+    "flexi - bouncing icecubes"
+  ],
+  [
+    "collection-02",
+    "Fractal Caves",
+    "martin - mandelbox explorer - wreck diver nz+ phranq"
+  ],
+  [
+    "collection-03",
+    "Ice Wave",
+    "martin - rogue wave -ps3"
+  ],
+  [
+    "collection-04",
+    "Color Spiral",
+    "yin - 350 - Chromatron"
+  ],
+  [
+    "collection-05",
+    "Living Cells",
+    "_Geiss - Reaction Diffusion 3 (Lichen Relief Mix)"
+  ],
+  [
+    "collection-06",
+    "Liquid Ice",
+    "Flexi - crush ice 62"
+  ],
+  [
+    "collection-07",
+    "Neon Orbits",
+    "Serge + martin - crystal palace010"
+  ],
+  [
+    "collection-08",
+    "Aqua Filaments",
+    "Goody + martin - crystal palace - Aqua Lumens5"
+  ],
+  [
+    "collection-09",
+    "Pixie Swarm",
+    "martin - pixies party"
+  ],
+  [
+    "collection-10",
+    "Desert Rose",
+    "Geiss - Desert Rose 4"
+  ],
+  [
+    "collection-11",
+    "Silk Spiral",
+    "flexi - swing out on the spiral"
+  ],
+  [
+    "collection-12",
+    "Crystal Palace",
+    "martin - crystal palace"
+  ],
+  [
+    "collection-13",
+    "Organic Light",
+    "martin - organic light"
+  ],
+  [
+    "collection-14",
+    "Peacock Weave",
+    "TonyMilkdrop - Dawning The Peacocks [Flexi - quirks + multiverse]"
+  ],
+  [
+    "collection-15",
+    "Infinity Layers",
+    "martin - infinity"
+  ],
+  [
+    "collection-16",
+    "Spiral of Light",
+    "LuX - Spiral of Light (Minimal Mix)"
+  ],
+  [
+    "collection-17",
+    "Fractal Flight",
+    "martin - mandelbox explorer - high speed demo version"
+  ],
+  [
+    "collection-18",
+    "Water Glowsticks",
+    "Eo.S. + Geiss - glowsticks v2 03 music shifter edit b (water mix)"
+  ],
+  [
+    "collection-19",
+    "Silver Pixies",
+    "Martin - Pixies Party (Hakan mash-up) 9-1"
+  ],
+  [
+    "collection-20",
+    "Magic Carpet",
+    "Hexcollie - Amorphous Magic carpet"
+  ],
+  [
+    "collection-21",
+    "Firesticks",
+    "Tripgnosis - Firesticks"
+  ]
 ];
 ---
 
@@ -45,7 +132,7 @@ const scenes = [
     <meta property="og:image" content="https://omadrop.com/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Omadrop ASCII music visualization" />
+    <meta property="og:image:alt" content="Omadrop MilkDrop collection" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
@@ -61,11 +148,11 @@ const scenes = [
           muted
           playsinline
           preload="metadata"
-          poster="/media/hero-poster.avif?v=20260904c"
+          poster="/media/collection-poster.jpg"
           aria-hidden="true"
         >
-          <source media="(max-width: 720px)" src="/media/hero-mobile.mp4?v=20260904c" type="video/mp4" />
-          <source src="/media/hero.mp4?v=20260904c" type="video/mp4" />
+          <source media="(max-width: 720px)" src="/media/collection.mp4" type="video/mp4" />
+          <source src="/media/collection.mp4" type="video/mp4" />
         </video>
         <div class="hero__shade"></div>
 
@@ -73,14 +160,14 @@ const scenes = [
           <a class="wordmark" href="#top" aria-label="Omadrop home">
             <span aria-hidden="true">⣿</span> omadrop
           </a>
-          <span class="status"><i></i> v0.3.0 available</span>
+          <span class="status"><i></i> v0.4.0 preview</span>
         </nav>
 
         <div class="hero__copy" id="top">
-          <p class="eyebrow">music visualized natively on linux</p>
+          <p class="eyebrow">music visuals for omarchy</p>
           <h1 id="hero-title">see the<br />music.</h1>
-          <p class="lede">Original feedback worlds, conducted by the song.</p>
-          <a class="button" href="#story">Watch it become alive <span aria-hidden="true">↓</span></a>
+          <p class="lede">21 MilkDrop visuals, adapted to your music.</p>
+          <a class="button" href="#story">Explore the collection <span aria-hidden="true">↓</span></a>
         </div>
 
         <p class="hero__note" aria-hidden="true">ALBUM ART / ASCII / AUDIO REACTIVE</p>
@@ -88,12 +175,12 @@ const scenes = [
       </section>
 
       <section class="manifesto" id="story" aria-labelledby="story-title">
-        <p class="section-id">01 / THE RECORD BECOMES THE WORLD</p>
-        <h2 id="story-title">Not an effect<br />laid over music.</h2>
+        <p class="section-id">01 / YOUR MUSIC, IN MOTION</p>
+        <h2 id="story-title">Glass, fluid,<br />fractals and light.</h2>
         <p class="manifesto__body">
-          Omadrop starts with the record in your player, breaks it into light,
-          then carries its color and structure into a living visual world.
-          Every kick, snare, and high-frequency detail gets a different job.
+          Omadrop brings together a curated MilkDrop collection and continuous
+          audio response adapted to each scene. Low, mid and high frequencies
+          shape the movement while the original artwork stays intact.
         </p>
       </section>
 
@@ -101,11 +188,11 @@ const scenes = [
         <div class="proof__intro">
           <p class="section-id">02 / WATCH OMADROP</p>
           <h2 id="proof-title">the record<br />becomes the world.</h2>
-          <p>Album art, dissolve, and the live visual response. Nothing covering the frame.</p>
+          <p>A recording of the release candidate reacting to music. <a href="/media/collection-attribution.txt">Music credits</a>.</p>
         </div>
         <button class="proof__stage" type="button" aria-label="Open Omadrop performance fullscreen">
-          <video autoplay muted loop playsinline preload="none" poster="/media/variety-poster.avif?v=20260904c" aria-hidden="true">
-            <source src="/media/variety.mp4?v=20260904c" type="video/mp4" />
+          <video autoplay muted loop playsinline preload="none" poster="/media/collection-poster.jpg" aria-hidden="true">
+            <source src="/media/collection.mp4" type="video/mp4" />
           </video>
           <span>view performance <b>↗</b></span>
         </button>
@@ -113,27 +200,26 @@ const scenes = [
 
       <dialog class="player" aria-label="Omadrop performance">
         <button class="player__close" type="button" aria-label="Close performance">close ×</button>
-        <video controls muted playsinline preload="metadata" poster="/media/variety-poster.avif?v=20260904c">
-          <source src="/media/variety.mp4?v=20260904c" type="video/mp4" />
+        <video controls muted playsinline preload="metadata" poster="/media/collection-poster.jpg">
+          <source src="/media/collection.mp4" type="video/mp4" />
         </video>
       </dialog>
 
       <section class="worlds" id="worlds" aria-labelledby="worlds-title">
         <div class="worlds__intro">
-          <p class="section-id">03 / THE NATIVE LIBRARY</p>
-          <h2 id="worlds-title">18 original scenes.<br />No generic pulse.</h2>
+          <p class="section-id">03 / THE COLLECTION</p>
+          <h2 id="worlds-title">21 curated scenes.<br />A new collection.</h2>
           <p>
-            Each scene has a fixed subject and its own motion grammar. Kicks,
-            snares, hats, harmony, and section changes act on specific forms.
-            Ordinary audio does not shake the whole frame.
+            Authored by MilkDrop artists, selected for variety, and adapted for
+            Omadrop. These are actual frames from the collection.
           </p>
         </div>
         <div class="worlds__grid">
           {scenes.map(([slug, name, family], index) => (
             <figure class="scene-card">
               <img
-                src={`/media/scenes/${slug}.avif`}
-                alt={`${name}, an original Omadrop music visualization`}
+                src={`/media/scenes/${slug}.jpg`}
+                alt={`${name}, a curated MilkDrop preset in Omadrop`}
                 width="960"
                 height="540"
                 loading="lazy"
@@ -154,11 +240,11 @@ const scenes = [
         </div>
         <div class="engine__content">
           <p class="section-id">04 / THE SIGNAL PATH</p>
-          <h2 id="engine-title">Separate signals.<br />One director.</h2>
+          <h2 id="engine-title">Your audio.<br />Local processing.</h2>
           <ol class="signal" aria-label="Omadrop signal path">
             <li><span>01</span>PipeWire output</li>
             <li><span>02</span>music analysis</li>
-            <li><span>03</span>18 native scenes</li>
+            <li><span>03</span>21 MilkDrop presets</li>
             <li><span>04</span>continuous / ASCII</li>
           </ol>
         </div>
@@ -168,8 +254,8 @@ const scenes = [
         <p class="section-id">BUILT FOR OMARCHY</p>
         <h2 id="close-title">your music.<br />your records.<br />your desktop, alive.</h2>
         <div class="shortcut"><kbd>SUPER</kbd><span>+</span><kbd>SHIFT</kbd><span>+</span><kbd>V</kbd></div>
-        <a class="button" href="https://github.com/btsouth/omadrop/releases/tag/v0.3.0">Get Omadrop v0.3.0 <span aria-hidden="true">↗</span></a>
-        <p class="close__status">Open source under MIT. Built for Omarchy and Arch Linux.</p>
+        <a class="button" href="https://github.com/btsouth/omadrop/releases">View releases <span aria-hidden="true">↗</span></a>
+        <p class="close__status"><a href="https://github.com/btsouth/omadrop/blob/master/THIRD_PARTY_NOTICES.md">Preset credits and licenses</a>. Omadrop code is MIT licensed. Built with projectM and work by MilkDrop artists.</p>
       </section>
     </main>
 

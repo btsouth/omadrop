@@ -1,0 +1,4 @@
+#!/bin/bash
+set -euo pipefail
+here=$(dirname "$(readlink -f "$0")")
+exec ffmpeg -v error -re -stream_loop -1 -i "$here/collection-music.ogg" -ar 44100 -ac 2 -f f32le -

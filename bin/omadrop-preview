@@ -1,12 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
-export OMADROP_ENGINE=native
-export OMADROP_NATIVE_SCENE=constellation-field
-export OMADROP_MUSICAL_PREVIEW=1
-export OMADROP_NATIVE_HOLD=1
+export OMADROP_ENGINE=projectm
+export OMADROP_MILKDROP_ORIGINALS=1
+export OMADROP_RUN_CURATED="$root/experiments/projectm-ascii/run-originals.sh"
+unset OMADROP_NATIVE_SCENE OMADROP_MUSICAL_PREVIEW OMADROP_NATIVE_HOLD
+unset OMADROP_COLLECTION_PREVIEW
 export OMADROP_ASCII=${OMADROP_ASCII:-0}
-export OMADROP_COVER_HOLD_SECONDS=0.25
-export OMADROP_COVER_DISSOLVE_SECONDS=0.65
+export OMADROP_COVER_HOLD_SECONDS=3.5
+export OMADROP_COVER_DISSOLVE_SECONDS=1.75
 export OMADROP_HIDE_FIRST_RUN_CONTROLS=1
 exec "$root/bin/omadrop" "$@"

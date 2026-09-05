@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euo pipefail
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+"$root/bin/build-milkdrop-runtime"
+cd "$root/experiments/projectm-ascii"
+for tool in gpu_probe scene_pack_audit scene_pack_author; do
+  output=${tool//_/-}
+  g++ -std=c++20 -O2 -Wall -Wextra "$tool.cpp" native_renderer.cpp -o "$output" \
+    $(pkg-config --cflags --libs sdl2 glew fftw3f) -lGL
+done
+g++ -std=c++20 -O2 -Wall -Wextra audio_match.cpp -o audio-match

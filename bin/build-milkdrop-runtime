@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+"$root/experiments/milkdrop-audio-pilot/build.sh"
+runtime="$root/cache/milkdrop-audio-pilot/runtime"
+mkdir -p "$root/lib" "$root/presets/pilot"
+library_stage=$(mktemp -d "$root/lib/.build.XXXXXX")
+cp -a "$runtime/lib/"libprojectM-4.so* "$library_stage/"
+for library in "$library_stage/"*; do mv -Tf "$library" "$root/lib/$(basename "$library")"; done
+rmdir "$library_stage"
+cp -a "$runtime/presets/pilot/." "$root/presets/pilot/"
+cp "$runtime/presets/pilot.txt" "$root/presets/pilot.txt"
+install -m755 "$runtime/experiments/projectm-ascii/projectm-audio-pilot" \
+  "$root/experiments/projectm-ascii/projectm-ascii-live.new"
+mv -f "$root/experiments/projectm-ascii/projectm-ascii-live.new" "$root/experiments/projectm-ascii/projectm-ascii-live"
+echo 'Omadrop collection runtime is ready.'

@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+revision=e0b0a967f0ffd7d332106c366668ed271718472b
+source_dir="$root/cache/projectm-upstream"
+if [[ ! -d "$source_dir/.git" ]]; then
+  mkdir -p "$root/cache"
+  git clone --branch v4.1.7 --depth 1 --recurse-submodules --shallow-submodules \
+    https://github.com/projectM-visualizer/projectm.git "$source_dir"
+fi
+[[ $(git -C "$source_dir" rev-parse HEAD) == "$revision" ]] || {
+  echo 'projectM source does not match the pinned revision' >&2; exit 1;
+}
+[[ -z $(git -C "$source_dir" status --porcelain) ]] || {
+  echo 'projectM upstream source has local changes; use a clean source cache' >&2; exit 1;
+}
+if git -C "$source_dir" submodule status --recursive | grep -Eq '^[+U-]'; then
+  echo 'projectM submodules do not match the pinned source' >&2; exit 1
+fi

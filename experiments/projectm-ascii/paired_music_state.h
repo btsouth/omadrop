@@ -12,10 +12,12 @@
 
 struct PairedMusicState {
     std::uint32_t magic = 0x4f4d4d46u;
-    std::uint32_t version = 5;
+    std::uint32_t version = 7;
     std::uint64_t serial = 0;
     float flowTime = 0.0f;
     MusicFrame frame;
+    std::array<float, 8> collectionControls{};
+    std::uint32_t collectionResponseEnabled = 1;
 };
 
 static_assert(std::is_trivially_copyable_v<MusicFrame>);
@@ -35,8 +37,8 @@ inline std::optional<PairedMusicState> decodePairedMusicState(
             return std::isfinite(value);
         });
     };
-    const std::array<float, 29> scalarValues{
-        state.flowTime,
+    const std::array<float, 30> scalarValues{
+        state.flowTime, state.frame.bassBody,
         state.frame.kick, state.frame.snare, state.frame.hat,
         state.frame.percussive, state.frame.harmonic,
         state.frame.spectralCentroid, state.frame.stereoWidth,
@@ -53,11 +55,15 @@ inline std::optional<PairedMusicState> decodePairedMusicState(
     };
     const auto arrangement = static_cast<std::uint8_t>(
         state.frame.arrangementRole);
-    if (state.magic != 0x4f4d4d46u || state.version != 5 || state.serial == 0
+    if (state.magic != 0x4f4d4d46u || state.version != 7 || state.serial == 0
         || !finite(state.frame.bandLevel) || !finite(state.frame.bandFlux)
+        || !finite(state.frame.harmonicShape)
         || !finite(state.frame.spectrumLevel)
         || !finite(state.frame.spectrumFlux) || !finite(state.frame.chroma)
         || !finite(scalarValues)
+        || state.collectionResponseEnabled > 1
+        || !std::all_of(state.collectionControls.begin(), state.collectionControls.end(),
+            [](float v) { return std::isfinite(v) && v >= 0 && v <= 1; })
         || !std::isfinite(state.frame.audioTimeSeconds)
         || state.flowTime < 0.0f || state.frame.audioTimeSeconds < 0.0
         || state.frame.presentationDelaySeconds < 0.0f

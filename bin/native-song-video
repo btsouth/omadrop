@@ -3,7 +3,7 @@ set -euo pipefail
 
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 replay="$root/experiments/projectm-ascii/native-song-replay"
-shaders="$root/shaders/native"
+shaders=${OMADROP_VIDEO_SHADERS:-"$root/shaders/native"}
 
 include_audio=1
 if (($# > 0)) && [[ $1 == --silent ]]; then

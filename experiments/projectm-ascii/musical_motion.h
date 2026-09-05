@@ -26,6 +26,8 @@ struct MusicalMotionFrame {
     std::array<float, 3> impact{};
     std::array<float, 6> bands{};
     std::array<float, 32> spectrum{};
+    std::array<float, 32> harmonicShape{};
+    float bassBody = 0.0f;
     float groove = 0.0f;
     float expansion = 0.0f;
 };
@@ -39,17 +41,24 @@ public:
     const MusicalMotionFrame& update(const MusicFrame& music, float seconds,
                                     float intensity = 1.0f) {
         const std::array<float, 3> hits{music.kick, music.snare, music.hat};
-        constexpr std::array<float, 3> response{85.0f, 115.0f, 160.0f};
+        // Visible gestures need time to travel. The former 85/115/160
+        // responses settled so quickly that dense percussion looked like jitter.
+        // Approximate step-to-90% times: 139 / 97 / 65 ms, with no overshoot.
+        constexpr std::array<float, 3> response{28.0f, 40.0f, 60.0f};
         for (std::size_t i = 0; i < hits.size(); ++i)
             frame_.impact[i] = impact_[i].update(
                 impactStrength(hits[i], intensity), response[i], seconds);
         for (std::size_t i = 0; i < frame_.bands.size(); ++i)
             frame_.bands[i] = bands_[i].update(
                 std::clamp(music.bandLevel[i], 0.0f, 4.0f),
-                32.0f + 6.0f * static_cast<float>(i), seconds);
+                26.0f + 4.0f * static_cast<float>(i), seconds);
         for (std::size_t i = 0; i < frame_.spectrum.size(); ++i)
             frame_.spectrum[i] = spectrum_[i].update(
-                std::clamp(music.spectrumLevel[i], 0.0f, 6.0f), 55.0f, seconds);
+                std::clamp(music.spectrumLevel[i], 0.0f, 6.0f), 28.0f, seconds);
+        for (std::size_t i=0;i<frame_.harmonicShape.size();++i)
+            frame_.harmonicShape[i]=harmonic_[i].update(
+                std::clamp(music.harmonicShape[i],0.0f,1.0f),24.0f,seconds);
+        frame_.bassBody=bassBody_.update(std::clamp(music.bassBody,0.0f,1.0f),28.0f,seconds);
         frame_.groove = groove_.update(music.clockConfidence
             * (music.beatPulse + 0.65f * music.downbeat
                - 0.45f * music.beatAnticipation), 85.0f, seconds);
@@ -62,6 +71,7 @@ private:
     std::array<MusicalSpring, 3> impact_;
     std::array<MusicalSpring, 6> bands_;
     std::array<MusicalSpring, 32> spectrum_;
-    MusicalSpring groove_, expansion_;
+    std::array<MusicalSpring,32> harmonic_;
+    MusicalSpring bassBody_, groove_, expansion_;
     MusicalMotionFrame frame_;
 };

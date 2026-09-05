@@ -7,14 +7,7 @@ g++ -std=c++20 -O2 -Wall -Wextra main.cpp -o projectm-ascii \
   $(pkg-config --cflags projectM-4 sdl2) \
   $(pkg-config --libs sdl2) -lprojectM-4 -lGL
 
-g++ -std=c++20 -O2 -Wall -Wextra live.cpp audio_output_session.cpp \
-  cover_presentation.cpp display_session.cpp live_assets.cpp live_compositor.cpp live_projectm.cpp \
-  live_settings.cpp mpris_poller.cpp track_session.cpp \
-  native_renderer.cpp paired_transport.cpp pipewire_capture.cpp \
-  scripted_scene_sequence.cpp status_overlay.cpp \
-  -o projectm-ascii-live \
-  $(pkg-config --cflags projectM-4 sdl2 glew libpng fftw3f json-c) \
-  $(pkg-config --libs sdl2 glew libpng fftw3f json-c) -lprojectM-4 -lGL
+"../../bin/build-milkdrop-runtime"
 
 g++ -std=c++20 -O2 -Wall -Wextra live_settings_test.cpp live_settings.cpp \
   -o live-settings-test
@@ -35,7 +28,7 @@ g++ -std=c++20 -O2 -Wall -Wextra mpris_poller_test.cpp mpris_poller.cpp \
   -o mpris-poller-test $(pkg-config --cflags --libs json-c)
 
 g++ -std=c++20 -O2 -Wall -Wextra track_session_test.cpp track_session.cpp \
-  mpris_poller.cpp -o track-session-test $(pkg-config --cflags --libs json-c)
+  display_session.cpp cover_presentation.cpp mpris_poller.cpp -o track-session-test $(pkg-config --cflags --libs json-c)
 
 g++ -std=c++20 -O2 -Wall -Wextra display_session_test.cpp display_session.cpp \
   -o display-session-test
@@ -88,8 +81,8 @@ g++ -std=c++20 -O2 -Wall -Wextra musical_motion_test.cpp \
 g++ -std=c++20 -O2 -Wall -Wextra signal_monitor_test.cpp \
   -o signal-monitor-test $(pkg-config --cflags --libs fftw3f)
 
-g++ -std=c++20 -O2 -Wall -Wextra live_compositor_test.cpp live_compositor.cpp \
-  -o live-compositor-test $(pkg-config --cflags --libs sdl2 glew) -lGL
+g++ -std=c++20 -O2 -Wall -Wextra live_compositor_test.cpp live_compositor.cpp live_projectm.cpp \
+  -o live-compositor-test $(pkg-config --cflags --libs sdl2 glew) -lprojectM-4 -lGL
 
 g++ -std=c++20 -O2 -Wall -Wextra status_overlay_test.cpp status_overlay.cpp \
   -o status-overlay-test $(pkg-config --cflags --libs sdl2 glew) -lGL
@@ -131,7 +124,7 @@ g++ -std=c++20 -O2 -Wall -Wextra native_transition_test.cpp \
   native_renderer.cpp live_compositor.cpp -o native-transition-test \
   $(pkg-config --cflags --libs sdl2 glew fftw3f) -lGL
 
-g++ -std=c++20 -O2 -Wall -Wextra native_song_replay.cpp native_renderer.cpp \
+g++ -std=c++20 -O2 -Wall -Wextra native_song_replay.cpp native_renderer.cpp live_compositor.cpp \
   -o native-song-replay $(pkg-config --cflags --libs sdl2 glew fftw3f) -lGL
 
 g++ -std=c++20 -O2 -Wall -Wextra scorecard_fixture.cpp \
@@ -142,3 +135,15 @@ g++ -std=c++20 -O2 -Wall -Wextra audio_match.cpp \
 
 g++ -std=c++20 -O2 -Wall -Wextra audio_replay.cpp \
   -o audio-feature-replay $(pkg-config --cflags --libs fftw3f)
+
+g++ -std=c++20 -O2 -Wall -Wextra musical_voice_test.cpp \
+  -o musical-voice-test $(pkg-config --cflags --libs fftw3f)
+
+g++ -std=c++20 -O2 -Wall -Wextra collection_playlist_test.cpp \
+  -o collection-playlist-test $(pkg-config --cflags --libs fftw3f)
+
+g++ -std=c++20 -O2 -Wall -Wextra collection_render_test.cpp native_renderer.cpp live_compositor.cpp \
+  -o collection-render-test $(pkg-config --cflags --libs sdl2 glew fftw3f) -lGL
+
+g++ -std=c++20 -O2 -Wall -Wextra collection_audio_test.cpp native_renderer.cpp \
+  -o collection-audio-test $(pkg-config --cflags --libs sdl2 glew fftw3f) -lGL

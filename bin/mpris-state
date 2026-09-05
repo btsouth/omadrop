@@ -64,8 +64,9 @@ jq -n -c \
   --arg identity "$identity" \
   --arg playback_status "${playback_status:-Stopped}" \
   --arg art_path "$art_path" \
+  --arg art_url "$art_url" \
   --argjson position_us "$position_us" \
   --argjson duration_us "$length_us" \
-  '{identity: $identity, playback_status: $playback_status, art_path: $art_path,
+  '{identity: $identity, playback_status: $playback_status, art_path: $art_path, art_url: $art_url,
     position_seconds: ($position_us / 1000000),
     duration_seconds: ($duration_us / 1000000)}'

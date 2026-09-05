@@ -56,12 +56,13 @@ inline std::optional<PairedDisplayState> decodePairedDisplayState(
         || state.serial == 0 || state.presetIndex >= presetCount
         || state.transitionMode < 0
         || (state.transitionMode > 3
-            && (state.transitionMode < 6 || state.transitionMode > 10))
+            && (state.transitionMode < 6 || state.transitionMode > 11))
         || (hardSync != 0 && hardSync != 1)) return std::nullopt;
     state.hardSync = hardSync == 1;
     int nativeScene = -1;
     if (stream >> nativeScene) {
         if (nativeScene < -1
+            || (state.transitionMode == 11 && nativeScene >= 0)
             || (nativeScene >= 0
                 && (nativeSceneCount == 0
                     || static_cast<std::size_t>(nativeScene) >= nativeSceneCount))) {

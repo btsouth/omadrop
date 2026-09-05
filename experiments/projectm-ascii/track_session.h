@@ -20,12 +20,14 @@ struct TrackSessionUpdate {
 class TrackPresentationState {
 public:
     TrackPresentationState(bool artworkDisabled, std::uint64_t startedAtMs,
-                           std::uint64_t startupArtworkWaitMs = 350);
+                           std::uint64_t startupArtworkWaitMs = 15000);
 
     TrackSessionUpdate advance(std::uint64_t nowMs);
     TrackSessionUpdate ingest(const MprisPollResult& poll,
                               std::uint64_t nowMs);
     void acceptArtwork(const std::string& path);
+    void finishStartupWithoutArtwork();
+    bool artworkAllowed() const { return !suppressStartupArtwork_; }
 
     bool artworkLookupComplete() const { return artworkLookupComplete_; }
     PlaybackClock& playbackClock() { return playbackClock_; }
@@ -35,9 +37,9 @@ private:
     PlaybackClock playbackClock_;
     std::string currentArtworkPath_;
     std::uint64_t startupArtworkDeadlineMs_ = 0;
+    bool suppressStartupArtwork_ = false;
     bool artworkDisabled_ = false;
     bool artworkLookupComplete_ = false;
-    bool suppressLateInitialArtwork_ = false;
 };
 
 class TrackSession {
@@ -51,7 +53,7 @@ public:
         presentation_.acceptArtwork(path);
     }
     void resume(std::uint64_t nowMs);
-    void stop() { poller_.stop(); }
+    void stop() { poller_.stop(); artworkPoller_.stop(); }
 
     bool artworkLookupComplete() const {
         return presentation_.artworkLookupComplete();
@@ -66,9 +68,14 @@ private:
                       TrackSessionUpdate incoming);
 
     MprisPoller poller_;
+    MprisPoller artworkPoller_;
     TrackPresentationState presentation_;
     std::uint64_t nextPollAtMs_ = 0;
     bool artworkDisabled_ = false;
     bool frequentPolling_ = false;
     bool metadataDisabled_ = false;
+    std::string artworkIdentity_;
+    std::string artworkUrl_;
+    std::string deliveredArtwork_;
+    std::uint64_t nextArtworkRetryAtMs_ = 0;
 };

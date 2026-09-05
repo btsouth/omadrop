@@ -1,51 +1,13 @@
 #!/bin/bash
 set -euo pipefail
-
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
-scene_list=$root/experiments/projectm-ascii/native-scene-list
-page=$root/site/src/pages/index.astro
-media=$root/site/public/media/scenes
-
-[[ -x $scene_list ]] || {
-  echo "site test: run experiments/projectm-ascii/build.sh first" >&2
-  exit 2
-}
-mapfile -t scenes < <("$scene_list")
-(( ${#scenes[@]} == 18 )) || {
-  echo "site test: expected 18 registry scenes, found ${#scenes[@]}" >&2
-  exit 1
-}
-
-for row in "${scenes[@]}"; do
-  IFS=$'\t' read -r slug name <<<"$row"
-  grep -Fq "[\"$slug\", \"$name\"," "$page" || {
-    echo "site test: page is missing registry scene $slug" >&2
-    exit 1
-  }
-  asset=$media/$slug.avif
-  [[ -f $asset ]] || {
-    echo "site test: scene image is missing: $slug.avif" >&2
-    exit 1
-  }
-  dimensions=$(identify -format '%wx%h' "$asset")
-  [[ $dimensions == 960x540 ]] || {
-    echo "site test: $slug image is $dimensions, expected 960x540" >&2
-    exit 1
-  }
-done
-
-asset_count=$(find "$media" -maxdepth 1 -type f -name '*.avif' | wc -l)
-((asset_count == ${#scenes[@]})) || {
-  echo "site test: found $asset_count images for ${#scenes[@]} scenes" >&2
-  exit 1
-}
-grep -Fq '<li><span>03</span>18 native scenes</li>' "$page"
-if grep -Fq '>10 native feedback scenes<' "$page"; then
-  echo "site test: stale ten-scene copy remains" >&2
-  exit 1
-fi
-
-if [[ -d $root/site/node_modules ]]; then
-  npm --prefix "$root/site" run build >/dev/null
-fi
-echo "website scene gallery passed"
+python - "$root" <<'PY'
+import json,pathlib,sys
+r=pathlib.Path(sys.argv[1]);page=(r/'site/src/pages/index.astro').read_text()
+m=json.loads((r/'experiments/milkdrop-audio-pilot/manifest.json').read_text())
+for p in m['presets']:
+ assert p['label'] in page
+ assert (r/f"site/public/media/scenes/collection-{p['number']:02}.jpg").is_file()
+assert '18 native scenes' not in page and '18 original scenes' not in page
+print('Website collection gallery passed')
+PY

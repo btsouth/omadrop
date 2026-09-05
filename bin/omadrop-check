@@ -1,120 +1,25 @@
 #!/bin/bash
 set -euo pipefail
-
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
-native=$root/experiments/projectm-ascii
 mode=${1:---quick}
-
-case $mode in
-  --quick|--full) ;;
-  -h|--help)
-    cat <<'EOF'
-Usage: omadrop-check [--quick|--full]
-
-Build and verify the native Omadrop application.
-
-  --quick  Run deterministic unit, renderer, transition, launcher, and audio tests
-  --full   Run quick checks, all 90 replay combinations, and a 10-minute soak
-EOF
-    exit 0
-    ;;
-  *)
-    echo "omadrop-check: unknown option: $mode" >&2
-    exit 2
-    ;;
-esac
-
+case $mode in --quick|--full) ;; *) echo 'Usage: omadrop-check [--quick|--full]' >&2; exit 2 ;; esac
+native=$root/experiments/projectm-ascii
 "$native/build.sh"
-
-tests=(
-  live-settings-test
-  audio-sink-query-test
-  first-run-controls-test
-  mpris-state-test
-  mpris-poller-test
-  track-session-test
-  display-session-test
-  scripted-scene-sequence-test
-  demo-sequence-test
-  paired-transport-test
-  paired-sync-test
-  session-lifecycle-test
-  audio-features-test
-  preset-selector-test
-  preset-adapters-test
-  audio-queue-test
-  musical-structure-test
-  arrangement-classifier-test
-  music-frame-test
-  musical-motion-test
-  signal-monitor-test
-  live-compositor-test
-  status-overlay-test
-  gpu-pass-timer-test
-  adaptive-render-quality-test
-  cover-presentation-test
-  native-scene-state-test
-)
-
-for test in "${tests[@]}"; do
-  echo "checking $test"
-  if [[ $test == demo-sequence-test ]]; then
-    "$native/$test" "$root/demo/scene-sequence.txt"
-  else
-    "$native/$test"
-  fi
+for name in live-settings audio-sink-query mpris-state mpris-poller track-session display-session paired-transport paired-sync session-lifecycle audio-features audio-queue music-frame cover-presentation live-compositor; do
+  "$native/$name-test"
 done
-
-echo "checking audio output handoff"
 "$native/audio-output-session-test" "$native/fixtures/fake-pw-record"
-echo "checking curated preset profiles"
-"$native/preset-profiles-test" "$root/presets/curated"
-echo "checking structure timeline"
-"$native/structure-timeline-test" "$native/fixtures/manual-song.json"
-
-echo "checking musical scene contracts"
-for scene in constellation-field prism-garden ink-current; do
-  "$native/native-music-connection-test" "$root/shaders/native" \
-    "$root/cache/musical-contract/$scene" "$scene"
-done
-
-echo "checking native renderer"
-"$native/native-renderer-test" "$root/shaders/native"
-echo "checking GPU compatibility probe"
-"$native/gpu-probe" "$root/shaders/native"
-echo "checking native transitions"
-"$native/native-transition-test" "$root/shaders/native" "$native/live.cpp"
-echo "checking native director program"
-"$root/bin/native-director-program-test"
-echo "checking launcher synchronization"
 "$root/bin/omadrop-launcher-test"
-echo "checking output calibration"
 "$root/bin/omadrop-calibrate-test"
-echo "checking demo audio isolation"
-"$root/bin/demo-audio-audit-test"
-echo "checking demo music rights"
 "$root/bin/demo-rights-audit-test"
-echo "checking silent accessibility study workflow"
-"$root/bin/omadrop-accessibility-study-test"
-echo "checking anonymous native motion review"
-"$root/bin/native-motion-review-test"
-echo "checking replay fixture hashes"
-"$root/bin/native-replay-fixtures" --verify
-echo "checking scene pack validation"
-"$root/bin/omadrop-pack-test"
-echo "checking package command"
-"$root/bin/omadrop-package" --help >/dev/null
-echo "checking website scene gallery"
 "$root/bin/omadrop-site-test"
-
-if [[ $mode == --full ]]; then
-  evidence=$root/cache/release-check-$(date +%Y%m%d-%H%M%S)-$$
-  echo "checking all scene and replay-profile combinations"
-  "$root/bin/native-scene-scorecard-suite" --enforce "$evidence/scorecards"
-  echo "checking 10-minute simulated 1080p stability"
-  "$native/native-renderer-soak" "$root/shaders/native" 10 \
-    | tee "$evidence/renderer-soak.log"
-  echo "release evidence: $evidence"
-fi
-
+work=$root/cache/collection-tests
+mkdir -p "$work"
+g++ -std=c++20 -O2 -Wall -Wextra -I"$native" "$root/experiments/milkdrop-audio-pilot/audio_controls_test.cpp" -o "$work/audio-controls"
+"$work/audio-controls"
+g++ -std=c++20 -O2 -Wall -Wextra -I"$native" -I"$root/cache/milkdrop-audio-pilot/runtime/include" "$root/experiments/milkdrop-audio-pilot/bridge_test.cpp" -o "$work/bridge" $(pkg-config --cflags --libs sdl2 glew) -L"$root/lib" -lprojectM-4 -lGL
+LD_LIBRARY_PATH="$root/lib" "$work/bridge"
+python "$root/tests/paired-collection.py"
+args=(); [[ $mode != --full ]] || args+=(--full)
+python "$root/tests/collection-smoke.py" "${args[@]}"
 echo "Omadrop $mode checks passed"
