@@ -1,11 +1,7 @@
 #version 330 core
 in vec2 uv;
 out vec4 color;
-#include "scene-uniforms.glsl"
-uniform vec3 impactMotion;
-uniform float bandMotion[6];
-uniform float spectrumMotion[32];
-uniform float renderSeconds;
+#include "musical-response.glsl"
 
 // Twisting silk sheets: large folds carry bass, the body carries harmony,
 // traveling creases carry snare, and fine ridges carry treble.

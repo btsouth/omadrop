@@ -72,6 +72,12 @@ echo "checking curated preset profiles"
 echo "checking structure timeline"
 "$native/structure-timeline-test" "$native/fixtures/manual-song.json"
 
+echo "checking musical scene contracts"
+for scene in constellation-field prism-garden ink-current; do
+  "$native/native-music-connection-test" "$root/shaders/native" \
+    "$root/cache/musical-contract/$scene" "$scene"
+done
+
 echo "checking native renderer"
 "$native/native-renderer-test" "$root/shaders/native"
 echo "checking GPU compatibility probe"

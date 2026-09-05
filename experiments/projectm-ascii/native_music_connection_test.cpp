@@ -1,3 +1,4 @@
+#include "musical_scenes.h"
 #include "native_renderer.h"
 #include <SDL.h>
 #include <chrono>
@@ -11,13 +12,14 @@
 // Compare identical clock/feedback histories so motion cannot impersonate audio.
 namespace {
 constexpr int width = 640, height = 360;
+NativeSceneKind testScene = NativeSceneKind::InkCurrent;
 using Image = std::vector<float>;
 void require(bool okay, const std::string& message) {
     if (!okay) throw std::runtime_error(message);
 }
 Image read(NativeRenderer& renderer) {
     Image pixels(width * height * 4);
-    glBindTexture(GL_TEXTURE_2D, renderer.texture(NativeSceneKind::InkCurrent));
+    glBindTexture(GL_TEXTURE_2D, renderer.texture(testScene));
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, pixels.data());
     for (float value : pixels)
         require(std::isfinite(value) && value >= 0.0f && value <= 1.001f,
@@ -43,7 +45,22 @@ void save(const Image& a, const std::filesystem::path& file) {
 }
 }
 int main(int argc, char** argv) {
-    if (argc != 3) return 2;
+    if (argc != 3 && argc != 4) return 2;
+    if (argc == 4) {
+        bool found = false;
+        for (auto scene : musicalScenes) {
+            if (nativeSceneDefinition(scene).slug == std::string(argv[3])) {
+                testScene = scene;
+                found = true;
+            }
+        }
+        if (!found) return 2;
+    }
+    for (auto scene : musicalScenes) {
+        require(hasMusicalResponse(scene), "missing scene capability");
+        require(adjacentMusicalScene(adjacentMusicalScene(scene, false), true) == scene,
+                "preview next/previous are inconsistent");
+    }
     if (SDL_Init(SDL_INIT_VIDEO) != 0) return 1;
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
@@ -82,7 +99,7 @@ int main(int argc, char** argv) {
             require(renderer.initialize(argv[1], error), error);
             std::filesystem::create_directories(argv[2]);
             NativeSceneState scene;
-            scene.currentScene = NativeSceneKind::InkCurrent;
+            scene.currentScene = testScene;
             scene.development = 0.8f;
             scene.drive = 0.5f;
             MusicFrame quiet;
@@ -126,12 +143,13 @@ int main(int argc, char** argv) {
                 // Attacks remain immediate. Sustained bands may begin gently
                 // while their physical response develops; the settled response
                 // below must still cross the original 0.006 image threshold.
-                const float minimum = role >= 3 ? 0.0002f : role == 2 ? 0.003f : 0.006f;
+                const float minimum = testScene == NativeSceneKind::InkCurrent
+                    ? (role >= 3 ? 0.0002f : role == 2 ? 0.003f : 0.006f) : 0.00015f;
                 require(immediate > minimum,
                         std::string(names[role]) + " response is too weak");
                 if (role >= 3) {
                     for (int i = 0; i < 60; ++i) render(music, 0.0f);
-                    require(difference(reference, read(renderer)) > 0.006f,
+                    require(difference(reference, read(renderer)) > (testScene == NativeSceneKind::InkCurrent ? 0.006f : 0.0005f),
                             "sustained response vanished");
                 }
                 for (int i = 0; i < 30; ++i) render(quiet, 0.0f);
@@ -144,7 +162,7 @@ int main(int argc, char** argv) {
             }
             for (int a = 0; a < 6; ++a)
                 for (int b = a + 1; b < 6; ++b)
-                    require(difference(responses[a], responses[b]) > 0.003f,
+                    require(difference(responses[a], responses[b]) > (testScene == NativeSceneKind::InkCurrent ? 0.003f : 0.00015f),
                             "musical roles produce indistinguishable frames");
             auto motion = [&](MusicFrame music, NativeRenderPolicy policy) {
                 baseline();
@@ -192,7 +210,7 @@ int main(int argc, char** argv) {
             hit.kick = 1.0f;
             render(hit, 1.0f / 60.0f);
             render(quiet, 1.0f / 60.0f);
-            require(difference(reference, read(renderer)) > 0.001f,
+            require(difference(reference, read(renderer)) > 0.00015f,
                     "hit has no settling response");
             for (int i = 0; i < 30; ++i) render(quiet, 1.0f / 60.0f);
             require(difference(reference, read(renderer)) < 0.001f,

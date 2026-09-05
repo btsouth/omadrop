@@ -2,7 +2,8 @@
 set -euo pipefail
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 export OMADROP_ENGINE=native
-export OMADROP_NATIVE_SCENE=ink-current
+export OMADROP_NATIVE_SCENE=constellation-field
+export OMADROP_MUSICAL_PREVIEW=1
 export OMADROP_NATIVE_HOLD=1
 export OMADROP_ASCII=${OMADROP_ASCII:-0}
 export OMADROP_COVER_HOLD_SECONDS=0.25

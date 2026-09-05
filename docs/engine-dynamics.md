@@ -6,6 +6,13 @@ engine requirement, not a request to add more scenes.
 
 ## Current listening rule: audible cause
 
+The user accepted the causal direction and requested transfer to other scenes.
+Constellation Field and Prism Garden now share the interface with Ink Current.
+See [musical-scene-authoring.md](musical-scene-authoring.md) for the input
+contract, authoring example, role assignments, registration, and validation.
+The focused preview cycles through those three scenes only. Older descriptions
+below that restrict the foundation to Ink Current are historical checkpoints.
+
 The user accepted a brief settling response after sounds stop. Sustained sounds
 should hold their visual state and change as the sound changes. No independent
 drift, predicted beat gestures, or movement merely because time passes.

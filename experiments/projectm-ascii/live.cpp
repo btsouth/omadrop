@@ -1,3 +1,4 @@
+#include "musical_scenes.h"
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
 #include <projectM-4/projectM.h>
@@ -1088,8 +1089,8 @@ int main(int argc, char** argv) {
             // Only rate-independent scenes opt in. Legacy feedback scenes
             // retain their authored 60 Hz evolution while they are migrated.
             const auto& state = nativeSceneDirector.state();
-            if (nativeEnabled && holdNativeScene && !state.transitioning
-                && state.currentScene == NativeSceneKind::InkCurrent) {
+            if (nativeEnabled && holdNativeScene && hasMusicalResponse(state.currentScene)
+                && (!state.transitioning || hasMusicalResponse(state.incomingScene))) {
                 SDL_DisplayMode mode{};
                 const int currentDisplay = SDL_GetWindowDisplayIndex(window);
                 if (currentDisplay >= 0 && SDL_GetCurrentDisplayMode(currentDisplay, &mode) == 0)
@@ -1997,8 +1998,15 @@ int main(int argc, char** argv) {
         if (nativeEnabled) {
             const bool manualSceneRequest
                 = !calibrationMode && (skipPreset || previousPreset);
-            if (skipPreset) nativeSceneDirector.requestNext();
-            if (previousPreset) nativeSceneDirector.requestPrevious();
+            if (manualSceneRequest && std::getenv("OMADROP_MUSICAL_PREVIEW")) {
+                const auto& state = nativeSceneDirector.state();
+                nativeSceneDirector.requestScene(adjacentMusicalScene(
+                    state.transitioning ? state.incomingScene : state.currentScene,
+                    previousPreset));
+            } else {
+                if (skipPreset) nativeSceneDirector.requestNext();
+                if (previousPreset) nativeSceneDirector.requestPrevious();
+            }
             const bool scriptedLeader
                 = scriptedSequence.active() && !pairedFollower;
             const bool coverPresentationComplete
