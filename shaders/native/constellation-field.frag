@@ -10,11 +10,19 @@ float sculpture(vec3 p) {
     p.yz = rotate2d(-0.46) * p.yz;
     p.xy = rotate2d(0.35) * p.xy;
     float a=atan(p.y,p.x), r=length(p.xy);
-    float radius=0.72 + body*0.10 + 0.075*cos(a*7.0);
+    // Opposing lobes bend in different directions instead of scaling the ring.
+    float lowRegion=0.5+0.5*sin(a-0.4);
+    float middleRegion=0.5+0.5*cos(a+0.7);
+    float localSpectrum=musicalDetail(0.08+0.82*(0.5+0.5*cos(a)));
+    float radius=0.72 + 0.075*cos(a*7.0)
+        +body*0.11*cos(a*2.0+0.4);
+    p.z-=motionScale*0.42*impactMotion.x*lowRegion*cos(a*3.0);
     float wav=sin(a*7.0 + p.z*2.0);
     vec2 q=vec2(r-radius,p.z);
-    q=rotate2d(a*3.5 + folds*0.20*sin(a*3.0))*q;
-    float thickness=0.28+0.038*wav+0.055*folds;
+    q=rotate2d(a*3.5 + folds*0.70*sin(a*3.0)*middleRegion
+        +motionScale*0.32*localSpectrum*cos(a*4.0))*q;
+    float thickness=0.28+0.038*wav+0.025*folds*cos(a*3.0)
+        +motionScale*0.045*(localSpectrum-0.45*musicalBand(1));
     // Smooth lobes produce a continuous silhouette with deep occluded folds.
     float ridges=0.009*sin(a*35.0+atan(q.y,q.x)*3.0);
     return (length(q*vec2(0.74,1.65))-thickness+ridges)*0.42;
@@ -25,8 +33,8 @@ vec3 normalAt(vec3 p) {
         +e.yxy*sculpture(p+e.yxy)+e.xxx*sculpture(p+e.xxx));
 }
 void main() {
-    body=motionScale*(musicalBand(0)+0.85*impactMotion.x);
-    folds=motionScale*(musicalBand(1)+0.6*impactMotion.y);
+    body=motionScale*musicalBand(0);
+    folds=motionScale*(musicalBand(1)+0.85*impactMotion.y);
     fine=musicalBand(2);
     vec2 p=(uv-0.5)*vec2(resolution.x/resolution.y,1.0);
     vec3 ro=vec3(0.0,0.15,3.7), rd=normalize(vec3(p*2.55,-3.0));

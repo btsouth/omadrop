@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+import importlib.machinery
+import importlib.util
+from pathlib import Path
+import numpy as np
+
+path = Path(__file__).resolve().with_name('omadrop-motion-review')
+loader = importlib.machinery.SourceFileLoader('motion_review', str(path))
+spec = importlib.util.spec_from_loader(loader.name, loader)
+review = importlib.util.module_from_spec(spec)
+loader.exec_module(review)
+y, x = np.mgrid[:review.HEIGHT, :review.WIDTH]
+x = x - (review.WIDTH-1)/2
+y = y - (review.HEIGHT-1)/2
+frame = 0.2 + 0.3*np.exp(-((x-16)**2+(y+4)**2)/160) + 0.2*np.exp(-((x+24)**2+(y-8)**2)/90)
+gy,gx = np.gradient(frame)
+radial = -(gx*x+gy*y)
+assert review.explain_change(frame,frame) == (0.0,0.0)
+score,scale = review.explain_change(frame,frame+radial*0.004)
+# Some radial variation also fits exposure; incremental variance need not be 1.
+assert score > 0.5 and abs(scale - 0.004) < 0.0001, (score,scale)
+for changed in (frame*1.1+0.01,frame+gx*0.1,frame+gy*0.1):
+ score,_ = review.explain_change(frame,changed)
+ assert score < 0.01, score
+rng=np.random.default_rng(7)
+audio=rng.random(120)
+visual=np.concatenate([np.zeros(3),audio[:-3]])
+lag=review.lag_match(audio,visual)
+assert lag['lag_ms']==100 and lag['correlation'] > 0.99,lag
+assert review.lag_match(np.zeros(120),visual) is None
+assert np.isfinite(review.normalized(np.zeros(5))).all()
+assert review.regional_change(frame,frame).sum()==0
+print('Radial scale, translation, exposure discrimination, lag sign, and static-image checks passed')

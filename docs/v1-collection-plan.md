@@ -16,6 +16,14 @@ its shape and changes with the sound. A hit may settle briefly, within roughly
 half a second. No drifting camera, predicted beat animation, automatic orbit,
 noise scroll, or continuous rotation to disguise weak art direction.
 
+## Latest diagnostic direction
+
+The user still finds the candidates repetitive, zoom-like or twitchy, and too
+restrained in places. Follow [motion-review.md](motion-review.md) for the new
+synchronized measurement workflow and controlled comparisons. No candidate
+has passed visual or listening acceptance. Prioritize diagnosing this before
+adding more themes.
+
 ## Execution order
 
 1. **Three visual candidates.** Replace the technical-demo art with a sculptural
