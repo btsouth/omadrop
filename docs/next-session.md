@@ -1,5 +1,11 @@
 # Next session handoff
 
+**Current product target:** [v1-collection-plan.md](v1-collection-plan.md) is
+the authoritative collection plan: 20 accepted high-quality themes for v1,
+50 longer term. Accepted count remains zero. The latest three visual
+candidates replace the rejected technical-demo art; they require listening
+and aesthetic acceptance.
+
 **Superseded aesthetic checkpoint:** the user rejected the live library as
 boring, stale, and insufficiently reactive after this handoff. Follow
 [music-connected-preview.md](music-connected-preview.md) for the current

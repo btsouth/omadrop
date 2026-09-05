@@ -1,5 +1,10 @@
 # Musical dynamics engine
 
+The current release scope and execution order are in
+[v1-collection-plan.md](v1-collection-plan.md). Causal response has preliminary
+user approval; the existing art does not. Twenty accepted themes are required
+for v1, with a longer-term target of fifty.
+
 The user can follow the prototype's music, but finds its motion insufficiently
 smooth and its musical behavior insufficiently differentiated. This is an
 engine requirement, not a request to add more scenes.

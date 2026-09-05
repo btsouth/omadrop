@@ -63,13 +63,16 @@ This interface is currently for built-in native scenes. Third-party scene pack
 API versioning and packaging still need a separate integration pass; existing
 packs do not automatically gain this contract.
 
-## Current migrated scenes
+## Current candidate scenes
+
+These replace the rejected technical-demo art. Stable shader IDs are retained;
+none has aesthetic or long-listening acceptance yet.
 
 | Scene | Bass | Snare / middle frequencies | Hats / high frequencies |
 | --- | --- | --- | --- |
-| Constellation Field | Larger amber anchors and impact rings | Blue bridges and their accents | Violet satellites and small cross highlights |
-| Prism Garden | Crystal bases and warm impact light | Crown height, spectral facets, seam accents | Small upper shards |
-| Ink Current | Broad rear folds | Middle folds and creases | Fine foreground detail |
+| Opal Bloom (`constellation-field`) | Sculptural body and warm lower light | Fold opening and seam highlights | Fine iridescent ridges |
+| Ember Atlas (`prism-garden`) | Terrain elevation and low glow | Strata and contour emphasis | Fine crest detail |
+| Chromatic Pleats (`ink-current`) | Broad lower pleats | Middle seams and folds | Fine foreground fibers |
 
 The shared contract tests role distinction, sustained response, recovery within
 half a second, held-input stillness, silence, immunity to inferred rhythm and
@@ -79,11 +82,14 @@ The original Ink thresholds remain intact. Strong-hit scaling is also covered
 by `musical-motion-test`. Existing reduced-motion cue-retention release failures
 are not waived by these tests.
 
-Preview: Super+Shift+V starts Constellation Field. N goes to Prism Garden, then
-Ink Current, then wraps. P reverses the sequence. No automatic scene changes.
+Preview: Super+Shift+V starts Opal Bloom. N goes to Ember Atlas, then
+Chromatic Pleats, then wraps. P reverses the sequence. No automatic scene changes.
 The normal launcher retains its full scene library.
 
-## Installed preview validation
+## Previous prototype validation
+
+The measurements below describe the earlier rejected art. See the current
+collection plan and batch evidence for the replacement candidates.
 
 All three musical scene contracts pass. Motion unit tests, paired transport,
 paired synchronization, and scene-state tests pass. The installed GPU probe

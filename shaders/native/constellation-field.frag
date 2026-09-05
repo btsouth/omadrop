@@ -3,56 +3,64 @@ in vec2 uv;
 out vec4 color;
 #include "musical-response.glsl"
 
-// Bass anchors, midrange bridges, treble satellites. All positions are fixed
-// functions of measured sound; no orbit continues while a note is held.
-vec2 node(int i) {
-    float f = float(i);
-    float a = f * 2.399963;
-    float r = 0.13 + 0.055 * sqrt(f);
-    vec2 home = vec2(cos(a)*r*1.85, sin(a)*r);
-    float bassRole = i % 3 == 0 ? 1.0 : 0.0;
-    return home * (1.0 + motionScale * bassRole *
-        (0.12 * musicalBand(0) + 0.10 * impactMotion.x));
+// Opal Bloom. Fixed camera and a solid folded torus. Low frequencies change
+// the body, middle frequencies open folds, high frequencies reveal ridges.
+float body, folds, fine;
+float sculpture(vec3 p) {
+    p.yz = rotate2d(-0.46) * p.yz;
+    p.xy = rotate2d(0.35) * p.xy;
+    float a=atan(p.y,p.x), r=length(p.xy);
+    float radius=0.72 + body*0.10 + 0.075*cos(a*7.0);
+    float wav=sin(a*7.0 + p.z*2.0);
+    vec2 q=vec2(r-radius,p.z);
+    q=rotate2d(a*3.5 + folds*0.20*sin(a*3.0))*q;
+    float thickness=0.28+0.038*wav+0.055*folds;
+    // Smooth lobes produce a continuous silhouette with deep occluded folds.
+    float ridges=0.009*sin(a*35.0+atan(q.y,q.x)*3.0);
+    return (length(q*vec2(0.74,1.65))-thickness+ridges)*0.42;
 }
-float segment(vec2 p, vec2 a, vec2 b) {
-    vec2 d = b-a;
-    return length(p-a-d*clamp(dot(p-a,d)/max(dot(d,d),0.0001),0.0,1.0));
+vec3 normalAt(vec3 p) {
+    vec2 e=vec2(0.002,-0.002);
+    return normalize(e.xyy*sculpture(p+e.xyy)+e.yyx*sculpture(p+e.yyx)
+        +e.yxy*sculpture(p+e.yxy)+e.xxx*sculpture(p+e.xxx));
 }
 void main() {
-    vec2 p = (uv-0.5)*vec2(resolution.x/resolution.y,1.0);
-    float mid = musicalBand(1), high = musicalBand(2);
-    vec3 blue = mix(vec3(0.04,0.45,1.0),palettePrimary(0.2),0.2);
-    vec3 gold = vec3(1.0,0.38,0.09);
-    vec3 violet = vec3(0.46,0.14,0.95);
-    vec3 c = vec3(0.001,0.002,0.007);
-    for(int i=0;i<14;++i) {
-        vec2 a=node(i), b=node((i+3)%14);
-        float d=segment(p,a,b);
-        float detail=musicalDetail(float(i)/13.0);
-        float width=0.0012+0.0018*mid+0.002*impactMotion.y*motionScale;
-        c += mix(blue,violet,float(i%3)/2.0)*exp(-d*180.0)*(0.04+0.12*mid);
-        c += blue*line(d,width)*(0.12+0.35*mid+0.9*snare*detail);
+    body=motionScale*(musicalBand(0)+0.85*impactMotion.x);
+    folds=motionScale*(musicalBand(1)+0.6*impactMotion.y);
+    fine=musicalBand(2);
+    vec2 p=(uv-0.5)*vec2(resolution.x/resolution.y,1.0);
+    vec3 ro=vec3(0.0,0.15,3.7), rd=normalize(vec3(p*2.55,-3.0));
+    vec3 c=mix(vec3(0.012,0.020,0.045),vec3(0.055,0.016,0.055),uv.y);
+    c+=vec3(0.035,0.06,0.13)*exp(-dot(p,p)*5.0);
+    float travel=0.0; bool hit=false;
+    for(int i=0;i<120;++i) {
+        float d=sculpture(ro+rd*travel);
+        if(d<0.0006) {hit=true;break;}
+        travel+=max(d,0.0004);
+        if(travel>6.0) break;
     }
-    for(int i=0;i<14;++i) {
-        vec2 q=p-node(i);
-        float role=float(i%3);
-        float bassRole=role==0.0?1.0:0.0;
-        float highRole=role==2.0?1.0:0.0;
-        float radius=0.015+0.009*bassRole+0.013*musicalBand(0)*bassRole
-            +motionScale*(0.017*impactMotion.x*bassRole+(0.008*high+0.005*impactMotion.z)*highRole);
-        float r=length(q), edge=fwidth(r)*1.2;
-        float mask=1.0-smoothstep(radius-edge,radius+edge,r);
-        vec2 xy=q/max(radius,0.001);
-        float z=sqrt(max(0.0,1.0-dot(xy,xy)));
-        float lit=max(0.0,dot(normalize(vec3(xy,z)),normalize(vec3(-0.5,0.65,1.0))));
-        vec3 dye=mix(blue,gold,bassRole);
-        dye=mix(dye,violet,highRole);
-        c += dye*exp(-r*38.0)*(0.06+0.18*kick*bassRole+0.65*high*highRole);
-        c = mix(c,dye*(0.12+0.8*lit)+vec3(0.6,0.82,1.0)*pow(lit,24.0)*0.8,mask);
-        c += gold*line(r-radius-0.012,0.0018)*kick*bassRole*0.9;
-        float crossLight=exp(-abs(q.x)*900.0-abs(q.y)*55.0)
-                       +exp(-abs(q.y)*900.0-abs(q.x)*55.0);
-        c += vec3(0.55,0.85,1.0)*crossLight*highRole*(0.12*high+0.85*hat);
+    if(hit) {
+        vec3 pos=ro+rd*travel, n=normalAt(pos);
+        float facing=max(0.0,dot(n,-rd));
+        vec3 l=normalize(vec3(-0.6,0.9,1.4)), l2=normalize(vec3(0.9,-0.4,0.6));
+        float diffuse=max(0.0,dot(n,l)), rim=pow(1.0-facing,2.6);
+        float angle=atan(pos.y,pos.x);
+        float interference=0.5+0.5*sin(facing*7.5+angle*2.0+pos.z*3.0);
+        vec3 pearl=mix(vec3(0.06,0.5,0.62),vec3(0.8,0.3,0.56),interference);
+        pearl=mix(pearl,vec3(0.94,0.77,0.46),pow(0.5+0.5*sin(angle*3.0+facing*6.0),5.0)*0.75);
+        float ao=clamp(sculpture(pos+n*0.14)/0.075,0.25,1.0);
+        float seam=pow(0.5+0.5*cos(angle*25.0+pos.z*23.0),18.0);
+        float microPhase=angle*125.0+pos.z*95.0;
+        float micro=(0.5+0.5*sin(microPhase))*(1.0-smoothstep(0.8,2.5,fwidth(microPhase)));
+        float spec=pow(max(0.0,dot(n,normalize(l-rd))),72.0);
+        float strip=pow(max(0.0,dot(n,normalize(l2-rd))),14.0);
+        c=pearl*(0.18+0.8*diffuse)*ao;
+        c+=vec3(0.8,0.92,1.0)*(spec*1.6+strip*0.30+rim*0.20);
+        c+=vec3(1.0,0.28,0.12)*kick*(0.15+0.3*rim)*smoothstep(-0.2,-0.9,pos.y);
+        c+=vec3(0.7,0.85,1.0)*snare*seam*0.60;
+        c+=vec3(0.25,0.82,1.0)*(0.12*fine+0.40*hat)*micro*(0.3+rim);
+        c+=pearl*fine*0.13;
     }
-    color=vec4(musicalFinish(c),1.0);
+    c*=1.0-0.3*smoothstep(0.35,1.2,length(p));
+    color=vec4(musicalFinish(c*1.35),1.0);
 }

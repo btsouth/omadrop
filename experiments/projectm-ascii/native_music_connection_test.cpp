@@ -192,6 +192,7 @@ int main(int argc, char** argv) {
             baseline();
             for (int i = 0; i < 120; ++i) render(music, 1.0f / 60.0f);
             const auto heldImage = read(renderer);
+            save(heldImage, std::filesystem::path(argv[2]) / "held.ppm");
             for (int i = 0; i < 120; ++i) {
                 music.beatPulse = i % 2;
                 music.downbeat = i % 3 == 0;

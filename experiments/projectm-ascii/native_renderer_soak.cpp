@@ -110,13 +110,19 @@ NativeSceneState sceneAt(std::size_t frame) {
 } // namespace
 
 int main(int argc, char** argv) {
-    if (argc < 2 || argc > 3) {
-        std::cerr << "usage: native-renderer-soak SHADER_DIRECTORY [MINUTES]\n";
+    if (argc < 2 || argc > 4) {
+        std::cerr << "usage: native-renderer-soak SHADER_DIRECTORY [MINUTES] [SCENE]\n";
         return 2;
     }
-    const int minutes = argc == 3 ? std::atoi(argv[2]) : 10;
+    const int minutes = argc >= 3 ? std::atoi(argv[2]) : 10;
     if (minutes < 1 || minutes > 240) {
         std::cerr << "native-renderer-soak: minutes must be between 1 and 240\n";
+        return 2;
+    }
+    NativeSceneKind selectedScene{};
+    const bool singleScene = argc == 4;
+    if (singleScene && !nativeSceneFromName(argv[3], selectedScene)) {
+        std::cerr << "native-renderer-soak: unknown scene\n";
         return 2;
     }
     const int width = environmentDimension("OMADROP_SOAK_WIDTH", 1920);
@@ -162,7 +168,12 @@ int main(int argc, char** argv) {
 
     for (std::size_t frame = 0; frame < totalFrames; ++frame) {
         const auto started = std::chrono::steady_clock::now();
-        if (!renderer.render(musicAt(frame), sceneAt(frame), width, height,
+        auto state = sceneAt(frame);
+        if (singleScene) {
+            state.currentScene = state.incomingScene = selectedScene;
+            state.transitioning = false;
+        }
+        if (!renderer.render(musicAt(frame), state, width, height,
                              albumColor, 0, 1.0f, 1.0f / 60.0f, error)) {
             std::cerr << error << '\n';
             return 1;
@@ -197,6 +208,7 @@ int main(int argc, char** argv) {
         ? peakResident - baselineResident : 0;
     constexpr std::size_t memoryGrowthLimit = 64u * 1024u * 1024u;
     std::cout << "renderer_soak simulated_minutes=" << minutes
+              << " scene=" << (singleScene ? argv[3] : "all")
               << " frames=" << totalFrames
               << " resolution=" << width << 'x' << height
               << " mean_ms=" << mean
