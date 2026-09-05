@@ -10,6 +10,7 @@ for name in live-settings audio-sink-query mpris-state mpris-poller track-sessio
 done
 "$native/audio-output-session-test" "$native/fixtures/fake-pw-record"
 "$root/bin/omadrop-launcher-test"
+"$root/tests/collection-launcher.sh"
 "$root/bin/omadrop-calibrate-test"
 "$root/bin/demo-rights-audit-test"
 "$root/bin/omadrop-site-test"

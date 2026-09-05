@@ -10,7 +10,14 @@ while (($#)); do
 done
 export LD_LIBRARY_PATH="$root/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export OMADROP_ENGINE=projectm OMADROP_MILKDROP_ORIGINALS=1
-export OMADROP_ASCII=${OMADROP_ASCII:-0}
+# Start new profiles in continuous mode, but honor saved and explicit choices.
+if [[ -z ${OMADROP_ASCII+x} ]]; then
+  config=${XDG_CONFIG_HOME:-$HOME/.config}/omadrop
+  if ! grep -Eq '^ascii=[01]$' "$config/preferences.conf" 2>/dev/null \
+      && [[ ! -f "$config/ascii-enabled" ]]; then
+    export OMADROP_ASCII=0
+  fi
+fi
 export OMADROP_HIDE_FIRST_RUN_CONTROLS=1
 export OMADROP_COVER_HOLD_SECONDS=3.5 OMADROP_COVER_DISSOLVE_SECONDS=1.75
 presets=()

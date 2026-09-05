@@ -10,7 +10,7 @@ The comparison toggle does not reset preset history or rewind camera movement.
 
 Scene changes and supported controls are shared across displays. Authored preset
 randomness can produce different details on each display; pixel-identical output
-is not promised. Continuous rendering is the collection's default.
+is not promised. Continuous rendering is the default for new profiles. Saved ASCII choices are retained.
 
 The older native renderer's favorite/hide and director controls are not supported
 by this collection. Existing native preferences are preserved. Brightness and
