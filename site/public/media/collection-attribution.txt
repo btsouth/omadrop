@@ -1,8 +1,5 @@
-Rights record: smilingcynic-beat-me
 Music: "beat me" by smilingcynic (Christopher Hawes)
 Source: https://ccmixter.org/files/smilingcynic/41102
 License: CC BY 3.0 Unported, https://creativecommons.org/licenses/by/3.0/
-Changes: first 24 seconds excerpted and transcoded to Ogg Vorbis for automated playback tests.
-The same excerpt may be synchronized to candidate demo footage.
-Original source SHA-256: 37e50379d9af0b43d586e429a122776b23f09f9412c5052e5e1237c3b127f5fa
-Fixture SHA-256: b00b50aaee36424ebece3d8577a514ffe82371165bc931047c37836733255a42
+Changes: excerpted, transcoded and synchronized to Omadrop visuals.
+Scene dwell is shortened for this 24-second showcase.
