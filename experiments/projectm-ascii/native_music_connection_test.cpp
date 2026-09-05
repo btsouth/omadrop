@@ -164,18 +164,39 @@ int main(int argc, char** argv) {
             music.harmonic = 0.6f;
             music.bandLevel.fill(0.65f);
             music.spectrumLevel.fill(0.65f);
-            // Silence has no inherited drive. A separate scene lifecycle is not
-            // part of this shader-level contract.
-            scene.drive = 0.0f;
+            // Holding the sound must hold the picture even while scene time
+            // and inferred rhythm advance. Only changing measurements may move it.
             const double silence = motion({}, {});
-            scene.drive = 0.5f;
-            const double active = motion(music, {});
-            const double reduced = motion(music, {.reducedMotion = true});
-            std::cout << "motion silence=" << silence << " music=" << active
-                      << " reduced=" << reduced << '\n';
-            require(silence < 0.002, "silence is not sufficiently settled");
-            require(active > silence * 3.0, "music does not develop the scene");
-            require(reduced < active * 0.75, "reduced motion is ineffective");
+            const double heldMotion = motion(music, {});
+            std::cout << "motion silence=" << silence << " held=" << heldMotion << '\n';
+            require(silence < 0.00001, "silence invents movement");
+            require(heldMotion < 0.00005, "held sound invents movement");
+            baseline();
+            for (int i = 0; i < 120; ++i) render(music, 1.0f / 60.0f);
+            const auto heldImage = read(renderer);
+            for (int i = 0; i < 120; ++i) {
+                music.beatPulse = i % 2;
+                music.downbeat = i % 3 == 0;
+                music.clockConfidence = 1.0f;
+                music.beatAnticipation = (i % 10) / 10.0f;
+                music.section = i % 2;
+                music.harmonicChange = i % 3 == 0;
+                renderer.synchronizeFlowTime(i * 10.0f);
+                render(music, 1.0f / 60.0f);
+            }
+            require(difference(heldImage, read(renderer)) < 0.00001f,
+                    "predicted rhythm or scene time moved the picture");
+            // A real hit moves the body, then settles within half a second.
+            baseline();
+            MusicFrame hit;
+            hit.kick = 1.0f;
+            render(hit, 1.0f / 60.0f);
+            render(quiet, 1.0f / 60.0f);
+            require(difference(reference, read(renderer)) > 0.001f,
+                    "hit has no settling response");
+            for (int i = 0; i < 30; ++i) render(quiet, 1.0f / 60.0f);
+            require(difference(reference, read(renderer)) < 0.001f,
+                    "hit did not settle within half a second");
             baseline();
             for (int i = 0; i < 20; ++i)
                 require(renderer.render(music, scene, 1920, 1080,

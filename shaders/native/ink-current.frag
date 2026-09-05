@@ -5,8 +5,6 @@ out vec4 color;
 uniform vec3 impactMotion;
 uniform float bandMotion[6];
 uniform float spectrumMotion[32];
-uniform float grooveMotion;
-uniform float musicalExpansion;
 uniform float renderSeconds;
 
 // Twisting silk sheets: large folds carry bass, the body carries harmony,
@@ -23,7 +21,8 @@ float spectral(float x) {
 void main() {
     vec2 aspect = vec2(resolution.x / max(1.0, resolution.y), 1.0);
     vec2 p = (uv - 0.5) * aspect;
-    float t = flowTime * 2.5;
+    // Fixed composition. Elapsed time alone must never move this scene.
+    const float t = 5.0;
     float movement = clamp(motionScale, 0.0, 1.0);
     float low = 1.0 - exp(-0.70 * (bandMotion[0] + bandMotion[1]));
     float mid = 1.0 - exp(-0.55 * (bandMotion[2] + bandMotion[3]));
@@ -31,7 +30,6 @@ void main() {
     float bassHit = min(kick, 1.25);
     float snareHit = min(snare, 1.25);
     float hatHit = min(hat, 1.25);
-    float breath = 0.17 * musicalExpansion;
     vec3 cool = mix(vec3(0.008, 0.38, 0.90), palettePrimary(0.2), 0.22);
     vec3 warm = mix(vec3(1.0, 0.16, 0.018), paletteAccent(0.2), 0.12);
     vec3 violet = mix(vec3(0.26, 0.018, 0.65), paletteSecondary(0.2), 0.16);
@@ -52,7 +50,7 @@ void main() {
         float middleWeight = 0.25 + 0.75 * exp(-18.0 * (depth - 0.5) * (depth - 0.5));
         float trebleWeight = 0.15 + 0.85 * depth;
         // Opposing displacements open a fold instead of scaling the whole image.
-        float center = 0.105 * x + (0.14 + breath) * sin(sweep)
+        float center = 0.105 * x + (0.14 + movement * 0.08 * low * bassWeight) * sin(sweep)
                      + 0.09 * sin(x * 1.7 + t * 0.28 - phase)
                      + (depth - 0.5) * 0.25;
         center += movement * lowZone * impactMotion.x * bassWeight * 0.24 * sin(sweep + 0.9);
@@ -62,12 +60,6 @@ void main() {
                 * sin(x * 17.0 - t * 2.1 + phase) * exp(-1.8 * x * x);
         center += movement * highZone * impactMotion.z * trebleWeight * 0.024
                 * sin(x * 67.0 + phase * 3.0);
-        // Groove opens a diagonal fold; phrase and harmonic changes alter its
-        // breadth. Confidence gates the inferred beat, never the actual attacks.
-        center += movement * 0.027 * grooveMotion
-                * sin(sweep - 0.6) * exp(-3.0 * x * x);
-        center += movement * 0.033 * (section + harmonicChange)
-                * cos(x * 2.0 + phase);
         float facing = sin(twist);
         float halfWidth = (0.028 + 0.067 * abs(facing))
                         * (0.85 + 0.42 * low + 0.20 * localBand);
@@ -105,7 +97,7 @@ void main() {
         sheet += vec3(0.55, 0.86, 1.0) * highZone * glints
                * (0.07 * high + 0.62 * hatHit) * rim;
         sheet += cool * bassHit * lowZone * 0.24 * arc;
-        sheet *= 0.86 + 0.14 * harmonic;
+        sheet *= 0.94;
         float shadow = exp(-90.0 * pow(p.y - center + halfWidth + 0.016, 2.0))
                      * taper * 0.16;
         result *= 1.0 - shadow;

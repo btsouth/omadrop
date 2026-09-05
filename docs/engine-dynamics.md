@@ -4,6 +4,32 @@ The user can follow the prototype's music, but finds its motion insufficiently
 smooth and its musical behavior insufficiently differentiated. This is an
 engine requirement, not a request to add more scenes.
 
+## Current listening rule: audible cause
+
+The user accepted a brief settling response after sounds stop. Sustained sounds
+should hold their visual state and change as the sound changes. No independent
+drift, predicted beat gestures, or movement merely because time passes.
+Role assignments may vary by scene but should remain understandable and
+consistent. The user's usual listening is mostly rap, with no reference song
+selected yet.
+
+Ink Current now has fixed composition phases and color placement. Measured
+frequency levels shape the folds; measured percussion estimates trigger their
+accents and damped displacement. Independent flow, inferred beat/anticipation,
+section-change gestures, and overall energy-driven breathing are removed from
+this preview. The earlier groove/energy architecture below remains available
+to the renderer but is not used by this scene.
+
+The updated GPU contract measures zero motion in silence and effectively zero
+motion for held audio measurements. Advancing scene time and changing inferred
+beat/section signals cannot alter the image. A kick leaves a brief settling
+response and recovers within 0.5 seconds; all six role-response checks pass.
+Evidence: `cache/causal-motion/contract.log`.
+
+These checks establish animation causality for supplied measurements. They do
+not establish that the analyzer correctly distinguishes instruments in mixed
+rap recordings. That remains the next listening and analysis validation task.
+
 ## Architecture
 
 Audio capture feeds fixed 60 Hz analysis. That analysis describes estimated
