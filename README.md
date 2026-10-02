@@ -11,7 +11,8 @@ choose a card, or press Play.
 
 - MilkDrop: 21 curated presets with added audio response,
   shuffled rotation with blended transitions, and an optional ASCII dot filter.
-- Omarchy: the 37 ttfx effects from the Omarchy screensaver, driven by your music.
+- Omarchy (early): the 37 ttfx effects from the Omarchy screensaver, driven by your
+  music. A bigger upgrade to this mode is planned for the next release.
 
 Audio is captured locally from PipeWire. Browse scenes and effects, hide ones
 you want to skip, and favorite Omarchy effects. MilkDrop cards include ASCII
