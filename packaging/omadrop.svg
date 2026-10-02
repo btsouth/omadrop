@@ -1,15 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Omadrop">
   <defs>
-    <linearGradient id="drop" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#7ce7ff"/>
-      <stop offset="1" stop-color="#2f7bff"/>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#17131f"/>
+      <stop offset="1" stop-color="#08070c"/>
     </linearGradient>
+    <linearGradient id="drop" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#ff5fd2"/>
+      <stop offset="0.5" stop-color="#8b5cff"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+    <clipPath id="body">
+      <path d="M64 18C64 18 30 56 30 80a34 34 0 0 0 68 0C98 56 64 18 64 18Z"/>
+    </clipPath>
   </defs>
-  <rect x="4" y="4" width="120" height="120" rx="28" fill="#10141c"/>
-  <path d="M64 20c0 0-32 38-32 60a32 32 0 0 0 64 0c0-22-32-60-32-60Z" fill="url(#drop)"/>
-  <g fill="#10141c">
-    <rect x="49" y="72" width="6" height="16" rx="3"/>
-    <rect x="61" y="62" width="6" height="26" rx="3"/>
-    <rect x="73" y="76" width="6" height="12" rx="3"/>
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#ground)"/>
+  <path d="M64 18C64 18 30 56 30 80a34 34 0 0 0 68 0C98 56 64 18 64 18Z" fill="url(#drop)"/>
+  <g clip-path="url(#body)" fill="none" stroke="#0b0910" stroke-linecap="round">
+    <circle cx="64" cy="84" r="9" stroke-width="5"/>
+    <circle cx="64" cy="84" r="20" stroke-width="4" opacity="0.75"/>
+    <circle cx="64" cy="84" r="31" stroke-width="3" opacity="0.5"/>
   </g>
 </svg>
