@@ -268,12 +268,23 @@ pub fn run_effect_music(
         out.write_all(&prep)?;
         pace.bytes += prep.len() as u64;
         let mut parts: Vec<IoSlice<'static>> = Vec::new();
+        // Paint the new effect's initial canvas even when the conductor grants
+        // no ticks yet, so a requested change clears the old effect at once.
+        e.render_here();
+        let mut frame = reuse(std::mem::take(&mut parts));
+        e.renderer().frame_parts(&move_to_top, &[], &mut frame);
+        pace.bytes += frame.iter().map(|p| p.len() as u64).sum::<u64>();
+        write_all_vectored(&mut frame)?;
+        parts = reuse(frame);
         'frames: loop {
             if let Some(stop) = e.requested_stop(tty_output) {
                 outcome = stop;
                 break;
             }
             if pace.finished() {
+                break;
+            }
+            if crate::music::controls::pending() {
                 break;
             }
             let ticks = music.advance(pace.now(), crate::music::MAX_TICKS_PER_FRAME);

@@ -62,10 +62,17 @@ while true; do
         $'\e')
           # Arrow and function keys arrive as ESC-prefixed sequences; a lone
           # Escape is followed by nothing, and only that ends playback.
-          if ! IFS= read -rsn8 -t 0.05; then
-            exit_screensaver
-          fi
+          sequence=
+          IFS= read -rsn2 -t 0.05 sequence || true
+          case $sequence in
+            '') exit_screensaver ;;
+            '[C') kill -USR1 "$music_pid" 2>/dev/null || true ;;
+            '[D') kill -USR2 "$music_pid" 2>/dev/null || true ;;
+            *) IFS= read -rsn8 -t 0.05 || true ;;
+          esac
           ;;
+        n|N) kill -USR1 "$music_pid" 2>/dev/null || true ;;
+        p|P) kill -USR2 "$music_pid" 2>/dev/null || true ;;
         q|Q) exit_screensaver ;;
         *) : ;;  # every other key is ignored
       esac

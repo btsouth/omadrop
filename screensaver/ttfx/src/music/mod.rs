@@ -20,6 +20,7 @@
 //! These are measurements of the signal (onsets in bands, loudness), not
 //! instrument or chorus recognition.
 
+pub mod controls;
 pub mod features;
 pub mod fft;
 pub mod rotation;

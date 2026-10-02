@@ -250,8 +250,13 @@ fn main() -> ExitCode {
 /// --music: random stock effects back to back, each on the music's clock.
 fn run_music(cli: &cli::Cli, input_data: &str) -> ExitCode {
     use ttfx::engine::effect::RunOutcome;
+    use ttfx::music::controls::{self, Change};
     use ttfx::music::source::{self, Source};
 
+    if let Err(e) = controls::install() {
+        ttfx::errln!("Error: cannot install music controls: {e}");
+        return ExitCode::from(1);
+    }
     let start = std::time::Instant::now();
     let spec = cli.music.as_deref().unwrap_or("live");
     let (source, delay_ms) = if spec == "live" {
@@ -353,6 +358,8 @@ fn run_music(cli: &cli::Cli, input_data: &str) -> ExitCode {
         })
         .collect();
     let mut rotation = ttfx::music::rotation::Rotation::new(candidates);
+    let mut playback = ttfx::music::rotation::Playback::default();
+    let mut change = Change::Next;
     let tty_output = std::io::stdout().is_terminal();
     ttfx::install_sigint_handler();
     if tty_output {
@@ -370,7 +377,7 @@ fn run_music(cli: &cli::Cli, input_data: &str) -> ExitCode {
             reload_preferences(&mut rotation, &mut warned_all_hidden);
         }
         let intensity = music.intensity() as f64;
-        let Some(name) = rotation.next(intensity, &mut rng) else {
+        let Some(name) = playback.select(&mut rotation, change, intensity, &mut rng) else {
             break;
         };
         // Stock settings, except that the two longest effects use their own
@@ -426,6 +433,7 @@ fn run_music(cli: &cli::Cli, input_data: &str) -> ExitCode {
                     && !pace.finished()
                     && !ttfx::interrupted()
                     && !ttfx::terminated()
+                    && !controls::pending()
                 {
                     music.advance(pace.now(), ttfx::music::MAX_TICKS_PER_FRAME);
                     if music.has_accent()
@@ -452,6 +460,7 @@ fn run_music(cli: &cli::Cli, input_data: &str) -> ExitCode {
                 return ExitCode::from(1);
             }
         }
+        change = controls::take().unwrap_or(Change::Next);
     }
     ExitCode::SUCCESS
 }

@@ -13,10 +13,44 @@
 
 use std::path::{Path, PathBuf};
 
+use super::controls::Change;
 use crate::utils::rng::Rng;
 
 /// How many recent selections to keep out of the bag across a round boundary.
 const AVOID: usize = 8;
+
+/// Playback history is separate from the shuffle bag: going back replays a
+/// selection without consuming another slot or changing round bookkeeping.
+#[derive(Default)]
+pub struct Playback {
+    current: Option<String>,
+    history: std::collections::VecDeque<String>,
+}
+
+impl Playback {
+    pub fn select(
+        &mut self,
+        rotation: &mut Rotation,
+        change: Change,
+        intensity: f64,
+        rng: &mut Rng,
+    ) -> Option<String> {
+        if change == Change::Previous && self.current.is_some() {
+            if let Some(previous) = self.history.pop_back() {
+                self.current = Some(previous);
+            }
+        } else {
+            let next = rotation.next(intensity, rng)?;
+            if let Some(current) = self.current.replace(next) {
+                self.history.push_back(current);
+                if self.history.len() > AVOID {
+                    self.history.pop_front();
+                }
+            }
+        }
+        self.current.clone()
+    }
+}
 
 /// Share a favorite gets in the weighted choice (not an extra slot).
 const FAVORITE_PRIORITY: f64 = 2.5;
@@ -310,6 +344,106 @@ mod tests {
 
     fn names(n: usize) -> Vec<String> {
         (0..n).map(|i| format!("e{i}")).collect()
+    }
+
+    #[test]
+    fn previous_without_history_restarts_current_without_consuming_a_slot() {
+        let mut r = Rotation::new(candidates(12));
+        let mut rng = Rng::seeded(7);
+        let mut playback = Playback::default();
+        let first = playback.select(&mut r, Change::Next, 0.5, &mut rng);
+        for _ in 0..3 {
+            assert_eq!(
+                playback.select(&mut r, Change::Previous, 0.5, &mut rng),
+                first
+            );
+        }
+        let mut seen: HashSet<String> = first.into_iter().collect();
+        for _ in 1..12 {
+            assert!(seen.insert(
+                playback
+                    .select(&mut r, Change::Next, 0.5, &mut rng)
+                    .unwrap()
+            ));
+        }
+        assert_eq!(seen.len(), 12);
+    }
+
+    #[test]
+    fn previous_walks_back_at_least_eight_effects_then_restarts_the_oldest() {
+        let mut r = Rotation::new(candidates(12));
+        let mut rng = Rng::seeded(17);
+        let mut playback = Playback::default();
+        let selected: Vec<_> = (0..12)
+            .map(|_| {
+                playback
+                    .select(&mut r, Change::Next, 0.5, &mut rng)
+                    .unwrap()
+            })
+            .collect();
+        for i in (3..11).rev() {
+            assert_eq!(
+                playback
+                    .select(&mut r, Change::Previous, 0.5, &mut rng)
+                    .as_ref(),
+                Some(&selected[i])
+            );
+        }
+        assert_eq!(
+            playback
+                .select(&mut r, Change::Previous, 0.5, &mut rng)
+                .as_ref(),
+            Some(&selected[3])
+        );
+    }
+
+    #[test]
+    fn skips_and_replays_preserve_seeded_shuffle_rounds() {
+        let mut r = Rotation::new(candidates(12));
+        let mut baseline = Rotation::new(candidates(12));
+        let mut rng = Rng::seeded(23);
+        let mut baseline_rng = Rng::seeded(23);
+        let mut playback = Playback::default();
+        let mut prior = None;
+        for _ in 0..4 {
+            let mut seen = HashSet::new();
+            for _ in 0..12 {
+                let current = playback
+                    .select(&mut r, Change::Next, 0.5, &mut rng)
+                    .unwrap();
+                assert_eq!(Some(current.clone()), baseline.next(0.5, &mut baseline_rng));
+                assert!(seen.insert(current.clone()));
+                if let Some(previous) = prior {
+                    assert_eq!(
+                        playback.select(&mut r, Change::Previous, 0.5, &mut rng),
+                        Some(previous)
+                    );
+                    // The next forward selection records what actually played.
+                    prior = playback.current.clone();
+                } else {
+                    prior = Some(current);
+                }
+            }
+            assert_eq!(seen.len(), 12);
+        }
+    }
+
+    #[test]
+    fn single_effect_can_be_skipped_and_replayed() {
+        let mut r = Rotation::new(candidates(1));
+        let mut rng = Rng::seeded(3);
+        let mut playback = Playback::default();
+        for change in [
+            Change::Previous,
+            Change::Next,
+            Change::Previous,
+            Change::Next,
+        ] {
+            assert_eq!(
+                playback.select(&mut r, change, 0.5, &mut rng).as_deref(),
+                Some("e0")
+            );
+        }
     }
 
     #[test]
