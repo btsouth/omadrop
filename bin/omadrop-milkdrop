@@ -1,0 +1,414 @@
+#!/bin/bash
+set -euo pipefail
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+runtime_dir=${XDG_RUNTIME_DIR:-/tmp}/omadrop
+state_home=${XDG_STATE_HOME:-$HOME/.local/state}
+pair_state=$runtime_dir/pair-state
+start_gate=$runtime_dir/start-gate
+hyprctl_command=${OMADROP_HYPRCTL:-hyprctl}
+crash_recorded=0
+config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+preferences_file=$config_home/omadrop/preferences.conf
+preferences_format=4
+
+load_display_mode() {
+  local saved
+  saved=$(awk -F= '$1 == "display" && ($2 == "all" || $2 == "single") {
+    value = $2
+  } END { print value }' "$preferences_file" 2>/dev/null || true)
+  printf '%s' "${saved:-all}"
+}
+
+save_display_mode() {
+  local mode=$1 saved_version temporary
+  if [[ -r $preferences_file ]]; then
+    saved_version=$(awk -F= '$1 == "version" { print $2; exit }' \
+      "$preferences_file")
+    if [[ $saved_version =~ ^[0-9]+$ ]] \
+      && ((saved_version > preferences_format)); then
+      return 1
+    fi
+  fi
+  mkdir -p "$(dirname "$preferences_file")"
+  temporary=$(mktemp "$(dirname "$preferences_file")/.preferences.XXXXXX")
+  if [[ -r $preferences_file ]]; then
+    awk -v mode="$mode" '$0 !~ /^display=/ { print } END {
+      print "display=" mode
+    }' "$preferences_file" >"$temporary"
+    chmod --reference="$preferences_file" "$temporary"
+  else
+    printf 'version=%s\ndisplay=%s\n' "$preferences_format" "$mode" \
+      >"$temporary"
+    chmod 600 "$temporary"
+  fi
+  mv "$temporary" "$preferences_file"
+}
+
+safe_report_value() {
+  local value=${1:-unknown}
+  value=${value//[^a-zA-Z0-9_.:+-]/_}
+  printf '%s' "${value:0:64}"
+}
+
+write_crash_report() {
+  local renderer_status=$1 exit_kind exit_value crash_dir temporary
+  ((crash_recorded == 0)) || return 0
+  [[ $state_home == /* ]] || return 0
+  if ((renderer_status >= 128)); then
+    exit_kind=signal
+    exit_value=$((renderer_status - 128))
+  else
+    exit_kind=code
+    exit_value=$renderer_status
+  fi
+  crash_dir=$state_home/omadrop
+  umask 077
+  mkdir -p "$crash_dir" || return 0
+  temporary=$(mktemp "$crash_dir/.last-crash.XXXXXX") || return 0
+  {
+    printf 'format=1\n'
+    printf 'version=%s\n' "$(<"$root/VERSION")"
+    printf 'recorded_at_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'renderer_exit_kind=%s\n' "$exit_kind"
+    printf 'renderer_exit_value=%s\n' "$exit_value"
+    printf 'display_count=%s\n' "${display_count:-0}"
+    printf 'monitor_mode=%s\n' "${monitor_mode:-unknown}"
+    printf 'fullscreen=%s\n' "${OMADROP_FULLSCREEN:-unknown}"
+    printf 'session_type=%s\n' "$(safe_report_value "${XDG_SESSION_TYPE:-unknown}")"
+    printf 'desktop=%s\n' "$(safe_report_value "${XDG_CURRENT_DESKTOP:-unknown}")"
+  } >"$temporary"
+  chmod 600 "$temporary"
+  mv "$temporary" "$crash_dir/last-crash.txt"
+  crash_recorded=1
+  echo "omadrop: renderer failed; private-safe report: $crash_dir/last-crash.txt" >&2
+}
+
+if [[ ${1:-} == pack ]]; then
+  shift
+  exec "$root/bin/omadrop-pack" "$@"
+fi
+
+if [[ ${1:-} == calibrate ]]; then
+  shift
+  exec "$root/bin/omadrop-calibrate" "$@"
+fi
+
+case ${1:-} in
+  --version)
+    printf 'Omadrop %s\n' "$(<"$root/VERSION")"
+    exit 0
+    ;;
+  --display-mode)
+    load_display_mode
+    printf '\n'
+    exit 0
+    ;;
+  -h|--help)
+    cat <<'EOF'
+Usage: omadrop [--single|--all] [--original]
+       omadrop [--display-mode|--toggle-secondary|--version]
+       omadrop calibrate
+       omadrop pack validate PACK_DIRECTORY
+       omadrop pack author PACK_DIRECTORY [SCENE_SLUG]
+       omadrop pack install PACK_DIRECTORY
+       omadrop pack list
+       omadrop pack remove PACK_ID [VERSION]
+
+  --single            Use one display and remember the choice
+  --all               Use every connected display and remember the choice
+  --display-mode      Print the saved all/single display choice
+  --stop              Close the whole session, forcing an unresponsive renderer
+  --toggle-secondary  Hide or restore the secondary Omadrop display
+  --version            Print the installed version
+  calibrate            Align visuals with the current audio output
+  pack validate        Validate a native scene pack without installing it
+  pack author          Preview and live-reload a scene pack
+  pack install         Validate and install a community scene pack
+  pack list            List installed community scene packs
+  pack remove          Remove one installed community scene pack
+EOF
+    exit 0
+    ;;
+esac
+
+if [[ ${1:-} == --toggle-secondary ]]; then
+  pid_file=$runtime_dir/display-1.pid
+  state_file=$runtime_dir/display-1.state
+  [[ -r $pid_file ]] || exit 0
+  pid=$(<"$pid_file")
+  kill -0 "$pid" 2>/dev/null || exit 0
+  client=$("$hyprctl_command" clients -j 2>/dev/null | jq -c --argjson pid "$pid" \
+    '.[] | select(.pid == $pid)' | head -n 1)
+  [[ -n $client ]] || exit 0
+  workspace_name=$(jq -r '.workspace.name' <<<"$client")
+  if [[ $workspace_name == special:omadrop-secondary-hidden ]]; then
+    [[ -r $state_file ]] || exit 0
+    read -r monitor workspace <"$state_file"
+    "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.move({ workspace = '$workspace', window = 'pid:$pid' }))" >/dev/null
+    "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.move({ monitor = '$monitor', window = 'pid:$pid' }))" >/dev/null
+    "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.fullscreen({ mode = 'fullscreen', action = 'set', window = 'pid:$pid' }))" >/dev/null
+  else
+    monitor_id=$(jq -r '.monitor' <<<"$client")
+    monitor=$("$hyprctl_command" monitors -j | jq -r --argjson id "$monitor_id" '.[] | select(.id == $id) | .name')
+    workspace=$(jq -r '.workspace.id' <<<"$client")
+    printf '%s %s\n' "$monitor" "$workspace" >"$state_file"
+    "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.move({ workspace = 'special:omadrop-secondary-hidden', window = 'pid:$pid' }))" >/dev/null
+  fi
+  exit 0
+fi
+
+monitor_mode=${OMADROP_MONITORS:-$(load_display_mode)}
+case ${1:-} in
+  --all)
+    monitor_mode=all
+    if [[ ${OMADROP_PERSIST_DISPLAY:-1} != 0 ]]; then
+      save_display_mode "$monitor_mode" \
+        || echo "omadrop: a newer preferences file was left unchanged" >&2
+    fi
+    shift
+    ;;
+  --single)
+    monitor_mode=single
+    if [[ ${OMADROP_PERSIST_DISPLAY:-1} != 0 ]]; then
+      save_display_mode "$monitor_mode" \
+        || echo "omadrop: a newer preferences file was left unchanged" >&2
+    fi
+    shift
+    ;;
+esac
+
+for argument in "$@"; do
+  case $argument in --original|--stop) ;; *) echo "omadrop: unknown option: $argument" >&2; exit 2 ;; esac
+done
+
+# Explicit recovery path while the projectM application replaces the QML
+# prototype. The normal Omarchy hotkey always exercises the unified renderer.
+if [[ ${OMADROP_LEGACY:-0} == 1 ]]; then
+  export QSG_RENDER_LOOP=${QSG_RENDER_LOOP:-threaded}
+  exec qs -p "$root/shell.qml" "$@"
+fi
+
+live=${OMADROP_LIVE_EXECUTABLE:-$root/experiments/projectm-ascii/projectm-ascii-live}
+runner=${OMADROP_RUN_CURATED:-$root/experiments/projectm-ascii/run-collection.sh}
+[[ -x $live ]] || {
+  echo "omadrop: unified renderer is not built; run ./experiments/projectm-ascii/build.sh" >&2
+  exit 1
+}
+
+# Match Quickshell's old singleton feel: the Omarchy hotkey is a true toggle.
+# Anchor the full executable path so this never catches an unrelated projectM
+# frontend or the pgrep command itself.
+terminate_renderers() {
+  (($#)) || return 0
+  local pid alive attempt
+  kill -TERM "$@" 2>/dev/null || true
+  for ((attempt = 0; attempt < 8; attempt++)); do
+    alive=0
+    for pid in "$@"; do
+      if kill -0 "$pid" 2>/dev/null; then alive=1; fi
+    done
+    ((alive == 0)) && return 0
+    sleep 0.05
+  done
+  kill -KILL "$@" 2>/dev/null || true
+}
+running=$(pgrep -f "^${live//./\\.}( |$)" || true)
+if [[ -n $running ]]; then
+  terminate_renderers $running
+  if [[ ${1:-} == --stop || ${OMADROP_REPLACE_RUNNING:-0} != 1 ]]; then
+    exit 0
+  fi
+  for ((attempt = 0; attempt < 100; attempt++)); do
+    renderer_alive=0
+    for pid in $running; do
+      if kill -0 "$pid" 2>/dev/null; then
+        renderer_alive=1
+        break
+      fi
+    done
+    ((renderer_alive == 0)) && break
+    sleep 0.05
+  done
+  if ((renderer_alive)); then
+    echo "omadrop: existing renderer did not stop" >&2
+    exit 1
+  fi
+fi
+[[ ${1:-} == --stop ]] && exit 0
+
+export OMADROP_FULLSCREEN=${OMADROP_FULLSCREEN:-1}
+export OMADROP_RANDOM_SEED=${OMADROP_RANDOM_SEED:-$(((RANDOM << 16) ^ RANDOM))}
+if [[ $monitor_mode == single ]]; then
+  export OMADROP_DISPLAY_INDEX=${OMADROP_DISPLAY_INDEX:-0}
+  display_count=1
+  if "$runner" "$@"; then
+    exit 0
+  else
+    renderer_status=$?
+  fi
+  if ((renderer_status != 130 && renderer_status != 143)); then
+    write_crash_report "$renderer_status"
+  fi
+  exit "$renderer_status"
+fi
+
+pids=()
+cleanup_runtime() {
+  rm -f "$runtime_dir"/display-*.pid "$runtime_dir"/display-*.state \
+    "$pair_state" "$pair_state.request" "$pair_state.music" \
+    "$start_gate" "$start_gate".*.ready
+}
+stop_renderers() {
+  terminate_renderers "${pids[@]}"
+  for pid in "${pids[@]}"; do
+    wait "$pid" 2>/dev/null || true
+  done
+  pids=()
+  cleanup_runtime
+}
+shutdown() {
+  stop_renderers
+  exit 0
+}
+trap shutdown TERM INT
+trap stop_renderers EXIT
+mkdir -p "$runtime_dir"
+
+read_monitors() {
+  mapfile -t monitor_names < <(
+    "$hyprctl_command" monitors -j 2>/dev/null \
+      | jq -r 'sort_by(.id)[].name' 2>/dev/null || true
+  )
+  display_count=${#monitor_names[@]}
+  if ((display_count == 0)); then
+    display_count=1
+    monitor_names=("")
+  fi
+  local IFS=$'\x1f'
+  topology_signature=${monitor_names[*]}
+}
+
+current_topology_signature() {
+  "$hyprctl_command" monitors -j 2>/dev/null \
+    | jq -er 'sort_by(.id) | map(.name) | select(length > 0) | join("\u001f")' \
+      2>/dev/null
+}
+
+launch_renderers() {
+  cleanup_runtime
+  for ((display_index = 0; display_index < display_count; display_index++)); do
+    if ((display_index == 0)); then
+      pair_role=leader
+    else
+      pair_role=follower
+    fi
+    OMADROP_DISPLAY_INDEX=$display_index OMADROP_FULLSCREEN=0 \
+      OMADROP_BORDERLESS=1 OMADROP_START_GATE=$start_gate \
+      OMADROP_PAIR_STATE=$pair_state OMADROP_PAIR_ROLE=$pair_role \
+      "$runner" "$@" &
+    pids+=("$!")
+    printf '%s\n' "$!" >"$runtime_dir/display-$display_index.pid"
+  done
+
+  # SDL's Wayland backend cannot choose a Hyprland output. Route each window by
+  # its exact PID after the album-art preload reveals it, then make it fullscreen.
+  if command -v "$hyprctl_command" >/dev/null && [[ -n ${monitor_names[0]} ]]; then
+    for ((display_index = 0; display_index < display_count; display_index++)); do
+      pid=${pids[$display_index]}
+      for ((attempt = 0; attempt < 160; attempt++)); do
+        [[ -e $start_gate.$display_index.ready ]] && break
+        kill -0 "$pid" 2>/dev/null || break
+        sleep 0.1
+      done
+      for ((attempt = 0; attempt < 80; attempt++)); do
+        if "$hyprctl_command" clients -j 2>/dev/null | jq -e --argjson pid "$pid" \
+          'any(.[]; .pid == $pid)' >/dev/null; then
+          break
+        fi
+        sleep 0.1
+      done
+      monitor=${monitor_names[$display_index]}
+      monitor_id=$("$hyprctl_command" monitors -j | jq -r --arg name "$monitor" '.[] | select(.name == $name) | .id')
+      confirmed=0
+      for ((attempt = 0; attempt < 30 && confirmed < 3; attempt++)); do
+        "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.move({ monitor = '$monitor', window = 'pid:$pid' }))" \
+          >/dev/null 2>&1 || true
+        if [[ $OMADROP_FULLSCREEN != 0 ]]; then
+          "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.fullscreen({ mode = 'fullscreen', action = 'set', window = 'pid:$pid' }))" \
+            >/dev/null 2>&1 || true
+        fi
+        if "$hyprctl_command" clients -j 2>/dev/null | jq -e --argjson pid "$pid" --argjson monitor "$monitor_id" \
+          --argjson fullscreen "$([[ $OMADROP_FULLSCREEN != 0 ]] && printf 2 || printf 0)" \
+          'any(.[]; .pid == $pid and .monitor == $monitor and .fullscreen == $fullscreen)' >/dev/null; then
+          ((confirmed += 1))
+        else
+          confirmed=0
+        fi
+        sleep 0.1
+      done
+    done
+  fi
+
+  # Every display has now completed artwork discovery, received a quiet first
+  # frame, and been placed. Reveal the pair on the same render beat.
+  if [[ -n ${OMADROP_RECORD_ARM_FILE:-} && -n ${OMADROP_RECORD_START_FILE:-} ]]; then
+    printf '%s\n' "$$" >"$OMADROP_RECORD_ARM_FILE"
+    for ((attempt = 0; attempt < 400; attempt++)); do
+      [[ -e $OMADROP_RECORD_START_FILE ]] && break
+      renderers_alive=1
+      for pid in "${pids[@]}"; do
+        if ! kill -0 "$pid" 2>/dev/null; then
+          renderers_alive=0
+          break
+        fi
+      done
+      ((renderers_alive)) || break
+      sleep 0.05
+    done
+    [[ -e $OMADROP_RECORD_START_FILE ]] || {
+      echo "omadrop: timed out waiting for the demo recorder" >&2
+      return 1
+    }
+  fi
+  touch "$start_gate"
+}
+
+read_monitors
+while :; do
+  launch_renderers "$@"
+
+  # Keep the pair aligned with the connected-output set. A topology change
+  # replaces the whole hidden pair so no stale or duplicated fullscreen window
+  # is left behind. Failed monitor queries are ignored as transient compositor
+  # errors.
+  while :; do
+    renderer_exited=0
+    renderer_status=0
+    for pid in "${pids[@]}"; do
+      if ! kill -0 "$pid" 2>/dev/null; then
+        renderer_exited=1
+        if wait "$pid"; then
+          renderer_status=0
+        else
+          renderer_status=$?
+        fi
+        break
+      fi
+    done
+    if ((renderer_exited)); then
+      if ((renderer_status != 0)); then
+        write_crash_report "$renderer_status"
+        exit "$renderer_status"
+      fi
+      exit 0
+    fi
+
+    current_signature=$(current_topology_signature || true)
+    if [[ -n $current_signature && $current_signature != "$topology_signature" ]]; then
+      stop_renderers
+      read_monitors
+      break
+    fi
+    sleep 0.5
+  done
+done
