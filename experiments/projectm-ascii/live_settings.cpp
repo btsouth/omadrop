@@ -216,6 +216,8 @@ LivePreferences loadLivePreferences() {
             }
         } else if (key == "ascii") {
             parseBool(value, preferences.asciiEnabled);
+        } else if (key == "captions") {
+            parseBool(value, preferences.captionsEnabled);
         } else if (key == "intensity") {
             parseFloat(value, preferences.intensity);
         } else if (key == "brightness") {
@@ -268,6 +270,7 @@ bool saveLivePreferences(const LivePreferences& supplied) {
     if (!output) return false;
     output << "version=" << preferences.version << '\n'
            << "ascii=" << (preferences.asciiEnabled ? 1 : 0) << '\n'
+           << "captions=" << (preferences.captionsEnabled ? 1 : 0) << '\n'
            << "intensity=" << preferences.intensity << '\n'
            << "brightness=" << preferences.brightness << '\n'
            << "motion=" << preferences.motion << '\n'

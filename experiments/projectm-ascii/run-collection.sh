@@ -20,6 +20,7 @@ while (($#)); do
 done
 
 export LD_LIBRARY_PATH="$root/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export OMADROP_COLLECTION_MANIFEST="$root/presets/collection-manifest.json"
 export OMADROP_ENGINE=projectm OMADROP_MILKDROP_ORIGINALS=1
 # Start new profiles in continuous mode, but honor saved and explicit choices.
 if [[ -z ${OMADROP_ASCII+x} ]]; then

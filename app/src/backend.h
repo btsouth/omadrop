@@ -24,6 +24,9 @@ class Backend : public QObject {
     Q_PROPERTY(QString display READ display NOTIFY stateChanged)
     Q_PROPERTY(QString error READ error NOTIFY stateChanged)
     Q_PROPERTY(QString status READ status NOTIFY stateChanged)
+    Q_PROPERTY(bool curtainVisible READ curtainVisible NOTIFY stateChanged)
+    Q_PROPERTY(bool captions READ captions NOTIFY stateChanged)
+    Q_PROPERTY(QString errorDetails READ errorDetails NOTIFY stateChanged)
     Q_PROPERTY(bool ascii READ ascii NOTIFY stateChanged)
     Q_PROPERTY(bool playing READ playing NOTIFY stateChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY stateChanged)
@@ -40,6 +43,9 @@ public:
     QString display() const { return m_display; }
     QString error() const { return m_error; }
     QString status() const { return m_status; }
+    bool curtainVisible() const { return m_curtainVisible; }
+    bool captions() const { return m_captions; }
+    QString errorDetails() const { return m_errorDetails; }
     bool ascii() const { return m_ascii; }
     bool playing() const { return m_playing; }
     bool busy() const { return m_busy; }
@@ -50,6 +56,7 @@ public:
 
     Q_INVOKABLE void setMode(const QString& mode);
     Q_INVOKABLE void setDisplay(const QString& display);
+    Q_INVOKABLE void setCaptions(bool captions);
     Q_INVOKABLE void setAscii(bool ascii);
     Q_INVOKABLE void play();
     Q_INVOKABLE void playScene(int number);
@@ -106,6 +113,10 @@ private:
     QString m_display;
     QString m_error;
     QString m_status;
+    bool m_captions = true;
+    bool m_curtainVisible = false;
+    QString m_errorDetails;
+    QTimer* m_curtainTimer = nullptr;
     bool m_ascii = false;
     bool m_playing = false;
     bool m_busy = false;

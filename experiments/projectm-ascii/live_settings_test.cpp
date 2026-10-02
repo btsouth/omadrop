@@ -27,6 +27,8 @@ int main() {
     assert(loadAsciiEnabled());
 
     LivePreferences preferences;
+    assert(preferences.captionsEnabled);
+    preferences.captionsEnabled = false;
     preferences.asciiEnabled = false;
     preferences.intensity = 1.35f;
     preferences.brightness = 0.72f;
@@ -45,6 +47,7 @@ int main() {
     const LivePreferences restored = loadLivePreferences();
     assert(restored.version == livePreferencesVersion);
     assert(!restored.asciiEnabled);
+    assert(!restored.captionsEnabled);
     assert(restored.intensity > 1.34f && restored.intensity < 1.36f);
     assert(restored.brightness > 0.71f && restored.brightness < 0.73f);
     assert(restored.motion > 0.39f && restored.motion < 0.41f);

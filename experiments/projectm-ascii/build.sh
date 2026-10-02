@@ -147,3 +147,6 @@ g++ -std=c++20 -O2 -Wall -Wextra collection_render_test.cpp native_renderer.cpp 
 
 g++ -std=c++20 -O2 -Wall -Wextra collection_audio_test.cpp native_renderer.cpp \
   -o collection-audio-test $(pkg-config --cflags --libs sdl2 glew fftw3f) -lGL
+
+g++ -std=c++20 -O2 -Wall -Wextra scene_caption_test.cpp status_overlay.cpp \
+  -o scene-caption-test $(pkg-config --cflags --libs glew) -lGL

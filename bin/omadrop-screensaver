@@ -148,16 +148,16 @@ while read -r m special; do
 
   case $terminal in
   *Alacritty*)
-    hypr_exec alacritty --class=org.omadrop.screensaver --config-file "$OMARCHY_PATH/default/alacritty/screensaver.toml" -e "${runner[@]}"
+    hypr_exec alacritty --title=Omadrop --class=org.omadrop.screensaver --config-file "$OMARCHY_PATH/default/alacritty/screensaver.toml" -e "${runner[@]}"
     ;;
   *ghostty*)
-    hypr_exec ghostty --class=org.omadrop.screensaver --config-file="$OMARCHY_PATH/default/ghostty/screensaver" --font-size=18 -e "${runner[@]}"
+    hypr_exec ghostty --title=Omadrop --class=org.omadrop.screensaver --config-file="$OMARCHY_PATH/default/ghostty/screensaver" --font-size=18 -e "${runner[@]}"
     ;;
   *foot*)
-    hypr_exec foot --app-id=org.omadrop.screensaver --config="$OMARCHY_PATH/default/foot/screensaver.ini" -e "${runner[@]}"
+    hypr_exec foot --title=Omadrop --app-id=org.omadrop.screensaver --config="$OMARCHY_PATH/default/foot/screensaver.ini" -e "${runner[@]}"
     ;;
   *kitty*)
-    hypr_exec kitty --class=org.omadrop.screensaver --override font_size=18 --override window_padding_width=0 -e "${runner[@]}"
+    hypr_exec kitty --title=Omadrop --class=org.omadrop.screensaver --override font_size=18 --override window_padding_width=0 -e "${runner[@]}"
     ;;
   esac
 

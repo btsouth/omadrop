@@ -153,6 +153,12 @@ Backend::Backend(QObject* parent) : QObject(parent) {
         m_queryTimeoutMs = queryTimeout;
     }
 
+    m_curtainTimer = new QTimer(this);
+    m_curtainTimer->setSingleShot(true);
+    connect(m_curtainTimer, &QTimer::timeout, this, [this] {
+        m_curtainVisible = false;
+        emit stateChanged();
+    });
     m_pollTimer = new QTimer(this);
     m_pollTimer->setInterval(m_pollIntervalMs);
     connect(m_pollTimer, &QTimer::timeout, this, &Backend::pollSession);
@@ -217,10 +223,43 @@ void Backend::setAscii(bool ascii) {
     emit stateChanged();
 }
 
+void Backend::setCaptions(bool captions) {
+    if (captions == m_captions) return;
+    const auto saved = readKeyValues(m_preferencesConf);
+    if (saved.value(QStringLiteral("version")).toUInt() > 4) {
+        setError(QStringLiteral("Could not save captions: the settings format is newer."));
+        return;
+    }
+    QDir().mkpath(QFileInfo(m_preferencesConf).absolutePath());
+    QStringList lines;
+    QFile input(m_preferencesConf);
+    if (input.exists() && !input.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        setError(QStringLiteral("Could not read captions settings."));
+        return;
+    }
+    if (input.isOpen()) {
+        for (const QString& line : QString::fromUtf8(input.readAll()).split('\n')) {
+            if (line.section('=', 0, 0).trimmed() != QLatin1String("captions") && !line.isEmpty())
+                lines.append(line);
+        }
+    }
+    if (!saved.contains(QStringLiteral("version"))) lines.prepend(QStringLiteral("version=4"));
+    lines.append(QStringLiteral("captions=%1").arg(captions ? 1 : 0));
+    QSaveFile file(m_preferencesConf);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)
+        || file.write((lines.join('\n') + '\n').toUtf8()) < 0 || !file.commit()) {
+        setError(QStringLiteral("Could not save captions settings."));
+        return;
+    }
+    m_captions = captions;
+    emit stateChanged();
+}
+
 void Backend::loadPreferences() {
     m_mode = !m_milkdropAvailable && m_omarchyAvailable
                  ? QStringLiteral("omarchy") : QStringLiteral("milkdrop");
-    m_display = QStringLiteral("all");
+    const bool firstRun = !QFileInfo::exists(m_productConf);
+    m_display = firstRun ? QStringLiteral("single") : QStringLiteral("all");
     m_ascii = false;
 
     const QMap<QString, QString> product = readKeyValues(m_productConf);
@@ -236,7 +275,7 @@ void Backend::loadPreferences() {
     const QMap<QString, QString> preferences = readKeyValues(m_preferencesConf);
     if (product.contains(QStringLiteral("display")) && validDisplay(product.value(QStringLiteral("display")))) {
         m_display = product.value(QStringLiteral("display"));
-    } else if (validDisplay(preferences.value(QStringLiteral("display")))) {
+    } else if (!firstRun && validDisplay(preferences.value(QStringLiteral("display")))) {
         m_display = preferences.value(QStringLiteral("display"));
     }
 
@@ -245,6 +284,7 @@ void Backend::loadPreferences() {
     } else if (preferences.contains(QStringLiteral("ascii"))) {
         m_ascii = parseBool(preferences.value(QStringLiteral("ascii")));
     }
+    m_captions = preferences.value(QStringLiteral("captions"), QStringLiteral("1")) != QLatin1String("0");
     const QString requestedMode = qEnvironmentVariable("OMADROP_UI_MODE");
     if (validMode(requestedMode)) {
         m_mode = requestedMode;
@@ -281,6 +321,17 @@ void Backend::setError(const QString& message) {
         return;
     }
     m_error = message;
+    m_errorDetails.clear();
+    if (!message.isEmpty()) {
+        const QString state = envOr("XDG_STATE_HOME", QDir::homePath() + QStringLiteral("/.local/state"));
+        QFile crash(state + QStringLiteral("/omadrop/last-crash.txt"));
+        if (crash.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            // Bound both the read and the disclosure to the end of the crash log.
+            if (crash.size() > 16384) crash.seek(crash.size() - 16384);
+            QStringList lines = QString::fromUtf8(crash.readAll()).trimmed().split('\n');
+            m_errorDetails = lines.mid(qMax<qsizetype>(0, lines.size() - 20)).join('\n');
+        }
+    }
     emit stateChanged();
 }
 
@@ -300,6 +351,8 @@ void Backend::beginSession(const QStringList& arguments, const QString& label) {
     m_sessionSeen = false;
     m_playing = false;
     m_busy = true;
+    m_curtainTimer->stop();
+    m_curtainVisible = true;
     m_pendingLabel = label;
     m_status = QStringLiteral("Starting…");
     emit stateChanged();
@@ -382,6 +435,8 @@ void Backend::stop() {
     }
     ++m_sessionGeneration;
     m_stopping = true;
+    m_curtainTimer->stop();
+    m_curtainVisible = false;
     markCancelled();
     m_playing = false;
     m_busy = true;
@@ -504,6 +559,7 @@ void Backend::launchController(const QStringList& arguments) {
     const quint64 generation = m_sessionGeneration;
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
     environment.insert(QStringLiteral("OMADROP_CANCEL_FILE"), m_cancelFile);
+    environment.insert(QStringLiteral("OMADROP_CAPTIONS"), m_captions ? QStringLiteral("1") : QStringLiteral("0"));
     process->setProcessEnvironment(environment);
     process->setChildProcessModifier([] { ::setsid(); });
     connect(process, &QProcess::started, this, [this, process, generation] {
@@ -537,9 +593,7 @@ void Backend::launchController(const QStringList& arguments) {
                 // playback has begun; intentional cancellation is excluded.
                 const bool failed = status == QProcess::CrashExit || exitCode != 0;
                 if (failed && generation == m_sessionGeneration && !m_stopping) {
-                    failStart(QStringLiteral("The %1 stopped unexpectedly (exit code %2).")
-                                  .arg(m_pendingLabel)
-                                  .arg(exitCode));
+                    failStart(QStringLiteral("The visuals stopped unexpectedly."));
                 }
             });
     process->start(m_controllerPath, arguments);
@@ -606,6 +660,7 @@ void Backend::handleClients(const QByteArray& payload) {
         if (!m_playing) {
             m_playing = true;
             m_busy = false;
+            m_curtainTimer->start(250);
             m_status = QStringLiteral("Playing");
             emit stateChanged();
         }

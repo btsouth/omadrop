@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Layouts
 
@@ -14,6 +15,76 @@ ApplicationWindow {
     maximumHeight: 720
     color: app.cBg
     visible: !backend.playing && !backend.busy
+
+    Window {
+        id: curtain
+        title: qsTr("Omadrop")
+        screen: app.screen
+        transientParent: null
+        flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+        modality: Qt.NonModal
+        visibility: backend.curtainVisible ? Window.FullScreen : Window.Hidden
+        color: "black"
+        Item {
+            anchors.fill: parent
+            opacity: backend.curtainVisible ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 150 } }
+            Column {
+                anchors.centerIn: parent
+                spacing: 24
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: qsTr("Omadrop")
+                    color: app.cText
+                    font.pixelSize: 48
+                    font.weight: Font.DemiBold
+                }
+                ProgressBar {
+                    width: 220
+                    height: 2
+                    indeterminate: true
+                    background: Rectangle { color: "#242424" }
+                    contentItem: Item {
+                        clip: true
+                        Rectangle {
+                            id: progressLine
+                            width: 64
+                            height: 2
+                            color: app.cText
+                            NumberAnimation on x {
+                                from: -64
+                                to: 220
+                                duration: 900
+                                loops: Animation.Infinite
+                                running: backend.curtainVisible
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    property string focusedKey: ""
+    property bool detailsOpen: false
+    readonly property int focusedIndex: {
+        for (var i = 0; i < app.visibleItems.length; ++i)
+            if (String(app.visibleItems[i].key) === app.focusedKey) return i
+        return -1
+    }
+    function moveCard(delta) {
+        if (!app.visibleItems.length) return
+        var next = app.focusedIndex < 0 ? 0
+                   : Math.max(0, Math.min(app.visibleItems.length - 1, app.focusedIndex + delta))
+        app.focusedKey = String(app.visibleItems[next].key)
+        grid.positionViewAtIndex(next, GridView.Contain)
+    }
+    function hideFocused() {
+        if (app.focusedIndex < 0) return
+        var item = app.visibleItems[app.focusedIndex]
+        if (item.scene) backend.toggleSceneHidden(item.number)
+        else backend.toggleHidden(String(item.key))
+    }
 
     readonly property color cBg: "#131110"
     readonly property color cPanel: "#1c1917"
@@ -162,7 +233,10 @@ ApplicationWindow {
     Shortcut {
         sequence: "Return"
         enabled: !app.typing
-        onActivated: if (app.playEnabled) backend.play()
+        onActivated: {
+            if (app.focusedIndex >= 0) app.openItem(app.visibleItems[app.focusedIndex])
+            else if (app.playEnabled) backend.play()
+        }
     }
     Shortcut {
         sequence: "Tab"
@@ -187,6 +261,19 @@ ApplicationWindow {
         enabled: !app.typing
         onActivated: Qt.quit()
     }
+
+    Shortcut { sequence: "Left"; enabled: !app.typing; onActivated: app.moveCard(-1) }
+    Shortcut { sequence: "Right"; enabled: !app.typing; onActivated: app.moveCard(1) }
+    Shortcut { sequence: "Up"; enabled: !app.typing; onActivated: app.moveCard(-4) }
+    Shortcut { sequence: "Down"; enabled: !app.typing; onActivated: app.moveCard(4) }
+    Shortcut { sequence: "Enter"; enabled: !app.typing; onActivated: {
+        if (app.focusedIndex >= 0) app.openItem(app.visibleItems[app.focusedIndex])
+    } }
+    Shortcut { sequence: "H"; enabled: !app.typing; onActivated: app.hideFocused() }
+    Shortcut { sequence: "F"; enabled: !app.typing; onActivated: {
+        if (app.omarchyMode && app.focusedIndex >= 0)
+            backend.toggleFavorite(String(app.visibleItems[app.focusedIndex].key))
+    } }
 
     MouseArea {
         anchors.fill: parent
@@ -328,6 +415,12 @@ ApplicationWindow {
                     verticalAlignment: Text.AlignVCenter
                 }
 
+                Button {
+                    visible: !!backend.errorDetails
+                    text: qsTr("Details")
+                    onClicked: app.detailsOpen = !app.detailsOpen
+                }
+
                 Rectangle {
                     Layout.preferredWidth: 28
                     Layout.preferredHeight: 28
@@ -348,6 +441,21 @@ ApplicationWindow {
                         onClicked: backend.clearError()
                     }
                 }
+            }
+        }
+
+        ScrollView {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 140
+            visible: app.hasError && app.detailsOpen && !!backend.errorDetails
+            clip: true
+            TextArea {
+                text: backend.errorDetails
+                readOnly: true
+                selectByMouse: true
+                wrapMode: TextEdit.Wrap
+                color: app.cErrorText
+                font.pixelSize: 11
             }
         }
 
@@ -489,6 +597,39 @@ ApplicationWindow {
                     }
 
                     RowLayout {
+                        visible: app.milkdropMode
+                        spacing: 8
+                        Layout.alignment: Qt.AlignVCenter
+                        Label {
+                            Layout.alignment: Qt.AlignVCenter
+                            text: qsTr("Captions")
+                            color: app.cTextMute
+                            font.pixelSize: 12
+                        }
+                        Rectangle {
+                            id: captionsToggle
+                            Layout.preferredWidth: 46
+                            Layout.preferredHeight: 26
+                            radius: 13
+                            color: backend.captions ? app.cAccent : app.cBorder
+                            Rectangle {
+                                width: 20; height: 20; radius: 10
+                                y: 3
+                                x: backend.captions ? captionsToggle.width - width - 3 : 3
+                                color: backend.captions ? "#ffffff" : app.cTextMute
+                                Behavior on x {
+                                    NumberAnimation { duration: 120; easing.type: Easing.InOutQuad }
+                                }
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: backend.setCaptions(!backend.captions)
+                            }
+                        }
+                    }
+
+                    RowLayout {
                         spacing: 8
                         Layout.alignment: Qt.AlignVCenter
                         Label {
@@ -565,8 +706,8 @@ ApplicationWindow {
                 anchors.margins: 6
                 radius: 12
                 color: cardHover.hovered ? app.cPanelHover : app.cCard
-                border.width: 1
-                border.color: cardHover.hovered ? app.cAccent : ((modelData && modelData.hidden) ? app.cBorderSoft : app.cBorder)
+                border.width: String(modelData.key) === app.focusedKey ? 2 : 1
+                border.color: String(modelData.key) === app.focusedKey ? app.cAccent : cardHover.hovered ? app.cAccent : ((modelData && modelData.hidden) ? app.cBorderSoft : app.cBorder)
                 opacity: (modelData && modelData.hidden) ? 0.55 : 1.0
                 clip: true
 
@@ -599,6 +740,8 @@ ApplicationWindow {
                             id: thumbImage
                             anchors.fill: parent
                             source: modelData && modelData.thumbnail ? String(modelData.thumbnail) : ""
+                            scale: cardHover.hovered ? 1.03 : 1
+                            Behavior on scale { NumberAnimation { duration: 120 } }
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                             visible: source != ""
@@ -611,6 +754,8 @@ ApplicationWindow {
                             source: (wanted || opacity > 0) && thumbImage.visible
                                     ? String(modelData.thumbnail).replace("/scenes/", "/scenes-ascii/").replace(".jpg", ".png")
                                     : ""
+                            scale: cardHover.hovered ? 1.03 : 1
+                            Behavior on scale { NumberAnimation { duration: 120 } }
                             fillMode: Image.PreserveAspectCrop
                             mipmap: true
                             opacity: wanted ? 1 : 0
@@ -619,9 +764,10 @@ ApplicationWindow {
 
                         Text {
                             anchors.centerIn: parent
-                            visible: !thumbImage.visible
+                            opacity: cardHover.hovered || !thumbImage.visible ? 1 : 0
+                            Behavior on opacity { NumberAnimation { duration: 120 } }
                             text: "▶"
-                            color: app.cTextMute
+                            color: app.cText
                             font.pixelSize: 22
                         }
 

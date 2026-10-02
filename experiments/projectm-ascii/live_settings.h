@@ -12,6 +12,7 @@ inline constexpr unsigned int livePreferencesVersion = 4;
 struct LivePreferences {
     unsigned int version = livePreferencesVersion;
     bool asciiEnabled = true;
+    bool captionsEnabled = true;
     float intensity = 1.0f;
     float brightness = 1.0f;
     float motion = 1.0f;

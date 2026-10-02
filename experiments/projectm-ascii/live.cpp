@@ -51,6 +51,9 @@
 #include "session_lifecycle.h"
 #include "structure_timeline.h"
 #include "status_overlay.h"
+#include "scene_caption.h"
+#include <json-c/json.h>
+#include <map>
 #include "visual_motifs.h"
 
 namespace {
@@ -98,7 +101,37 @@ int main(int argc, char** argv) {
         && std::string(std::getenv("OMADROP_NATIVE_HOLD")) == "1";
     const bool collectionPreview = std::getenv("OMADROP_COLLECTION_PREVIEW") != nullptr;
     const bool calibrationMode = std::getenv("OMADROP_CALIBRATION") != nullptr;
+    const bool collectionMode = std::getenv("OMADROP_COLLECTION_MANIFEST") != nullptr;
+    std::map<std::string, std::string> sceneLabels;
+    if (const char* manifest = std::getenv("OMADROP_COLLECTION_MANIFEST")) {
+        if (auto* document = json_object_from_file(manifest)) {
+            json_object* entries = nullptr;
+            if (json_object_object_get_ex(document, "presets", &entries)
+                && json_object_is_type(entries, json_type_array)) {
+                for (std::size_t i = 0; i < json_object_array_length(entries); ++i) {
+                    auto* entry = json_object_array_get_idx(entries, i);
+                    json_object *preset = nullptr, *label = nullptr;
+                    if (json_object_object_get_ex(entry, "preset", &preset)
+                        && json_object_object_get_ex(entry, "label", &label)
+                        && json_object_is_type(preset, json_type_string)
+                        && json_object_is_type(label, json_type_string)) {
+                        sceneLabels[json_object_get_string(preset)] = json_object_get_string(label);
+                    }
+                }
+            }
+            json_object_put(document);
+        }
+    }
+    auto sceneLabel = [&](const std::string& preset) {
+        const auto path = std::filesystem::path(preset);
+        const auto found = sceneLabels.find(path.filename().string());
+        return found != sceneLabels.end() && !found->second.empty()
+            ? found->second : path.stem().string();
+    };
     LivePreferences preferences = loadLivePreferences();
+    const bool captionsEnabled = std::getenv("OMADROP_CAPTIONS")
+        ? std::string(std::getenv("OMADROP_CAPTIONS")) != "0"
+        : preferences.captionsEnabled;
     bool asciiEnabled = std::getenv("OMADROP_ASCII")
         ? std::string(std::getenv("OMADROP_ASCII")) != "0"
         : preferences.asciiEnabled;
@@ -255,6 +288,8 @@ int main(int argc, char** argv) {
         std::cerr << "display compositor: " << compositorError << "\n";
         return 1;
     }
+    StatusOverlay captionOverlay;
+    SceneCaption sceneCaption;
     StatusOverlay statusOverlay;
     if (!statusOverlay.initialize(compositorError)) {
         std::cerr << "status overlay: " << compositorError << "\n";
@@ -306,6 +341,11 @@ int main(int argc, char** argv) {
         ? std::getenv("OMADROP_PAIR_ROLE") : "";
     const bool pairedLeader = !pairedStatePath.empty() && pairedRole == "leader";
     const bool pairedFollower = !pairedStatePath.empty() && pairedRole == "follower";
+    if (collectionMode && captionsEnabled && !pairedFollower
+        && !captionOverlay.initialize(compositorError)) {
+        std::cerr << "caption overlay: " << compositorError << "\n";
+        return 1;
+    }
     bool fullscreenEnabled
         = (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0
        || pairedLeader || pairedFollower;
@@ -379,6 +419,7 @@ int main(int argc, char** argv) {
     std::size_t presetIndex = std::getenv("OMADROP_START_PRESET")
         ? static_cast<std::size_t>(std::max(0, std::atoi(std::getenv("OMADROP_START_PRESET")))) % presets.size()
         : openingPreset(randomEngine);
+    std::size_t titlePresetIndex = static_cast<std::size_t>(-1);
     std::deque<std::size_t> recentPresets{presetIndex};
     std::vector<std::size_t> originalBag;
     std::optional<std::size_t> originalTrackPreset;
@@ -1988,6 +2029,25 @@ int main(int argc, char** argv) {
                 }
             }
         }
+        if (!nativeEnabled && titlePresetIndex != presetIndex) {
+            const std::string title = "Omadrop \xE2\x80\x94 " + sceneLabel(presets[presetIndex]);
+            SDL_SetWindowTitle(window, title.c_str());
+            titlePresetIndex = presetIndex;
+        }
+        if (collectionMode && !nativeEnabled && captionsEnabled && !pairedFollower) {
+            if (sceneCaption.update(presetIndex, presetTransitionActive,
+                                    coverFrame.complete, displaySession.windowShown()
+                                        && displaySession.startGateOpen())) {
+                captionOverlay.showCaption(sceneLabel(presets[presetIndex]),
+                    std::filesystem::path(presets[presetIndex]).stem().string(), now);
+            }
+            if (coverFrame.complete && !presetTransitionActive
+                && !captionOverlay.render(outputW, outputH, now, compositorError)) {
+                std::cerr << "caption overlay: " << compositorError << "\n";
+                running = false;
+                continue;
+            }
+        }
         if (!statusOverlay.render(outputW, outputH, now, compositorError)) {
             std::cerr << "status overlay: " << compositorError << "\n";
             running = false;
@@ -2048,6 +2108,7 @@ int main(int argc, char** argv) {
     projectm_destroy(engines[0]);
     projectm_destroy(engines[1]);
     compositor.shutdown();
+    captionOverlay.shutdown();
     statusOverlay.shutdown();
     glDeleteTextures(2, frameTextures.data());
     glDeleteTextures(1, &coverTexture);

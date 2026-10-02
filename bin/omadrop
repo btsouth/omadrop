@@ -11,6 +11,10 @@
 #
 # Every helper is a sibling in this installation's bin directory.
 set -euo pipefail
+# Preserve the controller's per-launch captions choice through both launchers.
+if [[ ${OMADROP_CAPTIONS:-} == 0 || ${OMADROP_CAPTIONS:-} == 1 ]]; then
+  export OMADROP_CAPTIONS
+fi
 
 original=("$@")
 here=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)

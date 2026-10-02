@@ -52,6 +52,10 @@ class BackendTest : public QObject {
 
 private slots:
     void init();
+    void curtainFailsWithStart();
+    void captionsRoundTrip();
+    void firstRunDisplayIgnoresLegacyDefault();
+    void errorDetailsLoadLastLines();
     void defaultsWithoutStoredPreferences();
     void loadsStoredPreferences();
     void selectionsPersistToProductConfOnly();
@@ -226,10 +230,65 @@ QVariantMap BackendTest::sceneByNumber(const Backend& backend, int number) const
     return {};
 }
 
+void BackendTest::curtainFailsWithStart() {
+    Backend backend;
+    backend.play();
+    QVERIFY(backend.curtainVisible());
+    QTRY_VERIFY_WITH_TIMEOUT(!backend.busy(), 3000);
+    QVERIFY(!backend.curtainVisible());
+    QVERIFY(!backend.playing());
+    QVERIFY(!backend.error().isEmpty());
+}
+
+void BackendTest::captionsRoundTrip() {
+    const QString preserved = QStringLiteral("version=4\nascii=1\nfavorite=paper-horizon\nmotion=0.65\n");
+    writeFile(m_preferencesConf, preserved);
+    Backend backend;
+    QVERIFY(backend.captions());
+    backend.setCaptions(false);
+    QCOMPARE(readFile(m_preferencesConf), preserved + QStringLiteral("captions=0\n"));
+    Backend restored;
+    QVERIFY(!restored.captions());
+    restored.setCaptions(true);
+    Backend enabled;
+    QVERIFY(enabled.captions());
+    makeExecutable(m_controller, QStringLiteral(
+        "#!/bin/sh\nprintf '%s %s\\n' \"$*\" \"$OMADROP_CAPTIONS\" >>\"$OMADROP_TEST_CONTROL_LOG\"\n"));
+    backend.play();
+    QTRY_VERIFY(readFile(m_controlLog).contains(QStringLiteral("--no-ascii 0"))
+                || readFile(m_controlLog).contains(QStringLiteral("--ascii 0")));
+}
+
+void BackendTest::firstRunDisplayIgnoresLegacyDefault() {
+    writeFile(m_preferencesConf, QStringLiteral("version=4\ndisplay=all\n"));
+    Backend firstRun;
+    QCOMPARE(firstRun.display(), QStringLiteral("single"));
+    firstRun.setDisplay(QStringLiteral("all"));
+    Backend returning;
+    QCOMPARE(returning.display(), QStringLiteral("all"));
+}
+
+void BackendTest::errorDetailsLoadLastLines() {
+    QString lines;
+    for (int i = 0; i < 30; ++i) lines += QStringLiteral("crash line %1\n").arg(i);
+    writeFile(qEnvironmentVariable("XDG_STATE_HOME") + "/omadrop/last-crash.txt", lines);
+    QFile::remove(m_controller);
+    Backend backend;
+    backend.play();
+    QVERIFY(!backend.error().isEmpty());
+    QVERIFY(backend.errorDetails().startsWith(QStringLiteral("crash line 10\n")));
+    QVERIFY(backend.errorDetails().endsWith(QStringLiteral("crash line 29")));
+    backend.clearError();
+    QVERIFY(backend.errorDetails().isEmpty());
+    QFile::remove(qEnvironmentVariable("XDG_STATE_HOME") + "/omadrop/last-crash.txt");
+    backend.play();
+    QVERIFY(backend.errorDetails().isEmpty());
+}
+
 void BackendTest::defaultsWithoutStoredPreferences() {
     Backend backend;
     QCOMPARE(backend.mode(), QStringLiteral("milkdrop"));
-    QCOMPARE(backend.display(), QStringLiteral("all"));
+    QCOMPARE(backend.display(), QStringLiteral("single"));
     QVERIFY(!backend.ascii());
     QVERIFY(!backend.playing());
     QVERIFY(!backend.busy());
@@ -271,11 +330,16 @@ void BackendTest::playMapsWhenSessionWindowAppears() {
     QSignalSpy show(&backend, &Backend::showControls);
 
     backend.play();
+    QVERIFY(backend.curtainVisible());
     QTRY_VERIFY(readFile(m_controlLog).contains(QStringLiteral("--mode milkdrop --single --ascii")));
     writeClients(QStringLiteral(
         "[{\"class\":\"org.omadrop.screensaver\",\"mapped\":true,\"pid\":999999}]"));
     QTRY_VERIFY(backend.playing());
     QVERIFY(!backend.busy());
+    QVERIFY(backend.curtainVisible());
+    QTest::qWait(150);
+    QVERIFY(backend.curtainVisible());
+    QTRY_VERIFY(!backend.curtainVisible());
     QVERIFY(readFile(m_controlLog).contains(QStringLiteral("--mode milkdrop --single --ascii")));
 
     writeClients(QStringLiteral("[]"));
@@ -490,7 +554,7 @@ void BackendTest::runtimeCrashReportsFailure() {
     QTRY_VERIFY(readFile(m_controlLog).contains(QStringLiteral("--mode")));
     writeClients(QStringLiteral("[{\"class\":\"org.omadrop.screensaver\",\"pid\":999999}]"));
     QTRY_VERIFY(backend.playing());
-    QTRY_VERIFY(backend.error().contains(QStringLiteral("exit code 17")));
+    QTRY_COMPARE(backend.error(), QStringLiteral("The visuals stopped unexpectedly."));
     QTRY_VERIFY(!backend.busy());
     QVERIFY(!backend.playing());
 }
@@ -527,7 +591,7 @@ void BackendTest::effectRefreshRerunsAfterConcurrentToggle() {
 void BackendTest::preferencesFailureIsVisible() {
     writeFile(m_configHome + "/omadrop", QStringLiteral("a file blocks the settings directory"));
     Backend backend;
-    backend.setDisplay(QStringLiteral("single"));
+    backend.setDisplay(QStringLiteral("all"));
     QVERIFY(backend.error().contains(QStringLiteral("settings")));
 }
 

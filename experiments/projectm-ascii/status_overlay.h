@@ -13,7 +13,7 @@ struct StatusBitmap {
     std::vector<unsigned char> rgba;
 };
 
-StatusBitmap rasterizeStatusLabel(std::string_view text);
+StatusBitmap rasterizeStatusLabel(std::string_view text, bool caption = false);
 
 class StatusOverlay {
 public:
@@ -25,6 +25,8 @@ public:
     bool initialize(std::string& error);
     void show(std::string_view text, std::uint64_t nowMilliseconds,
               std::uint64_t durationMilliseconds = 1800);
+    void showCaption(std::string_view label, std::string_view credit,
+                     std::uint64_t nowMilliseconds);
     bool render(int outputWidth, int outputHeight,
                 std::uint64_t nowMilliseconds, std::string& error);
     void shutdown();
@@ -40,4 +42,5 @@ private:
     std::uint64_t shownAt_ = 0;
     std::uint64_t duration_ = 1800;
     bool active_ = false;
+    bool caption_ = false;
 };

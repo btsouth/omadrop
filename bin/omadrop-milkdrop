@@ -1,5 +1,9 @@
 #!/bin/bash
 set -euo pipefail
+# Preserve the controller's per-launch captions choice through both launchers.
+if [[ ${OMADROP_CAPTIONS:-} == 0 || ${OMADROP_CAPTIONS:-} == 1 ]]; then
+  export OMADROP_CAPTIONS
+fi
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 runtime_dir=${XDG_RUNTIME_DIR:-/tmp}/omadrop
 state_home=${XDG_STATE_HOME:-$HOME/.local/state}

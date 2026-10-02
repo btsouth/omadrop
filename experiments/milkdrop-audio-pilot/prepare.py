@@ -261,7 +261,6 @@ s = s.replace('        if (!statusOverlay.render(outputW, outputH, now, composit
             // Normal rotation stays unobstructed. Only explicitly toggling comparison shows a label.
             if (pilotLabelIndex != static_cast<std::size_t>(-1) && pilotLabelEnabled != pilotEnabled)
                 statusOverlay.show(label, now, 2500);
-            SDL_SetWindowTitle(window, label.c_str());
             pilotLabelIndex = presetIndex;
             pilotLabelEnabled = pilotEnabled;
         }

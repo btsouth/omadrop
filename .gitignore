@@ -37,3 +37,6 @@ __pycache__/
 /site/dist/
 /site/node_modules/
 /site/media-source/
+experiments/projectm-ascii/scene-caption-test
+app/.build/
+app/tests/.build/

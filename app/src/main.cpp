@@ -2,6 +2,13 @@
 #include "theme.h"
 
 #include <QGuiApplication>
+#include <QCursor>
+#include <QQuickWindow>
+#include <QScreen>
+#include <QProcess>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QDir>
 #include <QFileInfo>
 #include <QLocalServer>
@@ -25,6 +32,26 @@ const char* kUsage =
     "immediately; --controls opens the native controls only. A second launch\n"
     "asks the running instance to stop its renderer and show the controls;\n"
     "--quit stops the session and the application.\n";
+
+QScreen* focusedScreen() {
+    QProcess query;
+    query.start(qEnvironmentVariable("OMADROP_HYPRCTL", QStringLiteral("hyprctl")),
+                {QStringLiteral("monitors"), QStringLiteral("-j")});
+    if (query.waitForFinished(500)) {
+        const auto monitors = QJsonDocument::fromJson(query.readAllStandardOutput()).array();
+        for (const auto& monitor : monitors) {
+            const auto info = monitor.toObject();
+            if (!info.value(QStringLiteral("focused")).toBool()) continue;
+            for (auto* screen : QGuiApplication::screens()) {
+                if (screen->name() == info.value(QStringLiteral("name")).toString()) return screen;
+            }
+        }
+    } else {
+        query.kill();
+        query.waitForFinished(100);
+    }
+    return QGuiApplication::screenAt(QCursor::pos());
+}
 
 QString serverName() {
     return QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation)
@@ -141,6 +168,9 @@ int main(int argc, char** argv) {
     }
 
     if (!controls) {
+        if (auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first())) {
+            if (auto* screen = focusedScreen()) window->setScreen(screen);
+        }
         backend.play();
     }
     return application.exec();
