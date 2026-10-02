@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# Omarchy's screensaver (omarchy-screensaver) with music: the same ttfx effects,
+# input and settings, but each effect runs on the clock of what is playing.
+
+here=$(dirname "$(readlink -f "$0")")
+ttfx_music=$here/ttfx-music
+# A controller may cancel a terminal while the compositor is still opening it.
+[[ -n ${OMADROP_CANCEL_FILE:-} && -e $OMADROP_CANCEL_FILE ]] && exit 0
+music_args=(--music "${OMADROP_MUSIC_SOURCE:-live}")
+if [[ -n ${OMADROP_EFFECT:-} ]]; then
+  music_args+=(--include-effects "$OMADROP_EFFECT" --music-ignore-preferences)
+fi
+
+screensaver_in_focus() {
+  hyprctl activewindow -j | jq -e '.class == "org.omadrop.screensaver"' >/dev/null 2>&1
+}
+
+exit_screensaver() {
+  trap '' SIGINT SIGTERM SIGHUP SIGQUIT
+  hyprctl eval 'hl.config({ cursor = { invisible = false } })' &>/dev/null || hyprctl keyword cursor:invisible false &>/dev/null || true
+  if [[ -n ${music_pid:-} ]]; then
+    kill -TERM "$music_pid" 2>/dev/null || true
+    wait "$music_pid" 2>/dev/null || true
+  fi
+  # Close this product's terminals; leave stock Omarchy and other ttfx alone.
+  pkill -f '[o]rg.omadrop.screensaver' 2>/dev/null || true
+  exit 0
+}
+
+# Exit the screensaver on signals and input from keyboard and mouse
+trap exit_screensaver SIGINT SIGTERM SIGHUP SIGQUIT
+
+printf '\033]11;rgb:00/00/00\007'  # Set background color to black
+
+hyprctl eval 'hl.config({ cursor = { invisible = true } })' &>/dev/null || hyprctl keyword cursor:invisible true &>/dev/null
+
+tty=$(tty 2>/dev/null)
+
+# ttfx measures the terminal once, at startup: wait for the fullscreen resize.
+wait_for_terminal_resize() {
+  local deadline=$((SECONDS + 2))
+  while ((SECONDS < deadline)) && [[ $(stty size 2>/dev/null) == "24 80" ]]; do
+    sleep 0.02
+  done
+}
+
+wait_for_terminal_resize
+
+# --music runs random effects back to back in one process, so the audio
+# analysis stays warm across effects; the loop only restarts it if it dies.
+while true; do
+  "$ttfx_music" -i ~/.config/omarchy/branding/screensaver.txt \
+    --frame-rate 120 --canvas-width 0 --canvas-height 0 --reuse-canvas --anchor-canvas c --anchor-text c \
+    --no-eol --no-restore-cursor "${music_args[@]}" &
+  music_pid=$!
+
+  while kill -0 "$music_pid" 2>/dev/null; do
+    if read -n1 -t 1 || ! screensaver_in_focus; then
+      exit_screensaver
+    fi
+  done
+  wait "$music_pid" 2>/dev/null || true
+  music_pid=
+  sleep 0.2
+done

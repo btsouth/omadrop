@@ -66,3 +66,9 @@ experiments/projectm-ascii/musical-voice-test
 
 /presets/pilot/
 /presets/pilot.txt
+
+# product builds
+experiments/screensaver-music/product/app/build/
+experiments/screensaver-music/ttfx/target/
+experiments/screensaver-music/build/
+experiments/screensaver-music/review/rotation-check/all-effects.csv

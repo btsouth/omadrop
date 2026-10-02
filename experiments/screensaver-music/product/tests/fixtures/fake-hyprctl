@@ -1,0 +1,21 @@
+#!/bin/bash
+# Test double for hyprctl. Serves a canned client list and records dispatches.
+case ${1:-} in
+  clients)
+    if [[ -n ${OMADROP_TEST_CLIENTS_SEQ:-} ]]; then
+      counter=${OMADROP_TEST_CLIENTS_SEQ}/count
+      index=$(( $(cat "$counter" 2>/dev/null || printf 0) + 1 ))
+      printf '%s\n' "$index" >"$counter"
+      files=("${OMADROP_TEST_CLIENTS_SEQ}"/[0-9]*)
+      last=${files[-1]##*/}
+      ((index > last)) && index=$last
+      cat "${OMADROP_TEST_CLIENTS_SEQ}/$index"
+    else
+      cat "${OMADROP_TEST_CLIENTS:-/dev/null}"
+    fi
+    ;;
+  monitors) printf '[{"name":"%s","specialWorkspace":{"name":""}}]\n' "${OMADROP_TEST_MONITOR:-MON1}" ;;
+  activewindow) printf '{}\n' ;;
+  eval|dispatch) printf '%s\n' "$*" >>"${OMADROP_TEST_HYPR_LOG:-/dev/null}" ;;
+  *) : ;;
+esac

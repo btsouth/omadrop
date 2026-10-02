@@ -1,0 +1,177 @@
+#!/bin/bash
+
+# Launch the Omarchy screensaver with music (omadrop-screensaver-run) in the default terminal, on every monitor, like omarchy-launch-screensaver.
+
+# Exit early if our screensaver is already running.
+pgrep -f '[o]rg.omadrop.screensaver' && exit 0
+
+here=$(dirname "$(readlink -f "$0")")
+run=$here/omadrop-screensaver-run
+ttfx_music=$here/ttfx-music
+
+config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+preferences_file=$config_home/omadrop/preferences.conf
+display_mode=
+effect=
+while (($#)); do
+  case $1 in
+    --single) display_mode=single ;;
+    --all) display_mode=all ;;
+    --effect)
+      (($# >= 2)) || { echo "omadrop-screensaver: --effect requires a name" >&2; exit 2; }
+      effect=$2
+      shift
+      ;;
+    -h|--help)
+      echo "Usage: omadrop-screensaver [--single|--all] [--effect NAME]"
+      exit 0
+      ;;
+    *) echo "omadrop-screensaver: unknown option: $1" >&2; exit 2 ;;
+  esac
+  shift
+done
+
+# Validate the effect against the installed ttfx before opening anything.
+if [[ -n $effect ]]; then
+  [[ -x $ttfx_music ]] || {
+    echo "omadrop-screensaver: cannot validate effect: $ttfx_music not found" >&2
+    exit 1
+  }
+  if ! "$ttfx_music" --help 2>/dev/null | awk '
+      /^Commands:/ { commands = 1; next }
+      commands && /^  / { print $1; next }
+      commands { exit }
+    ' | grep -vx help | grep -qx -- "$effect"; then
+    echo "omadrop-screensaver: unknown effect: $effect" >&2
+    exit 2
+  fi
+fi
+
+# The compositor exec does not inherit this launcher's environment, so the
+# effect travels with the command itself.
+runner=(env)
+[[ -n $effect ]] && runner+=("OMADROP_EFFECT=$effect")
+[[ -n ${OMADROP_CANCEL_FILE:-} ]] && runner+=("OMADROP_CANCEL_FILE=$OMADROP_CANCEL_FILE")
+runner+=("$run")
+
+load_display_mode() {
+  local saved
+  saved=$(awk -F= '$1 == "display" && ($2 == "all" || $2 == "single") {
+    value = $2
+  } END { print value }' "$preferences_file" 2>/dev/null || true)
+  printf '%s' "${saved:-all}"
+}
+
+save_display_mode() {
+  local mode=$1 saved_version temporary
+  if [[ -r $preferences_file ]]; then
+    saved_version=$(awk -F= '$1 == "version" { print $2; exit }' "$preferences_file")
+    if [[ $saved_version =~ ^[0-9]+$ ]] && ((saved_version > 4)); then
+      return 1
+    fi
+  fi
+  mkdir -p "$(dirname "$preferences_file")"
+  temporary=$(mktemp "$(dirname "$preferences_file")/.preferences.XXXXXX")
+  if [[ -r $preferences_file ]]; then
+    awk -v mode="$mode" '$0 !~ /^display=/ { print } END { print "display=" mode }' \
+      "$preferences_file" >"$temporary"
+    chmod --reference="$preferences_file" "$temporary"
+  else
+    printf 'version=4\ndisplay=%s\n' "$mode" >"$temporary"
+    chmod 600 "$temporary"
+  fi
+  mv "$temporary" "$preferences_file"
+}
+
+if [[ -n ${OMADROP_MONITORS:-} ]]; then
+  display_mode=${OMADROP_MONITORS}
+fi
+if [[ -n $display_mode ]]; then
+  if [[ ${OMADROP_PERSIST_DISPLAY:-1} != 0 ]]; then
+    save_display_mode "$display_mode" || true
+  fi
+else
+  display_mode=$(load_display_mode)
+fi
+
+focused=$(omarchy-hyprland-monitor-focused)
+terminal=$(xdg-terminal-exec --print-id)
+
+case $terminal in
+*Alacritty* | *ghostty* | *foot* | *kitty*) ;;
+*)
+  omarchy-notification-send -g ✋ "The music screensaver only runs in Alacritty, Foot, Ghostty, or Kitty"
+  exit 1
+  ;;
+esac
+
+hypr_focus_monitor() {
+  hyprctl dispatch "hl.dsp.focus({ monitor = \"$1\" })" >/dev/null 2>&1 || hyprctl dispatch focusmonitor "$1" >/dev/null
+}
+
+hypr_exec() {
+  local command
+  printf -v command '%q ' "$@"
+
+  hyprctl dispatch "hl.dsp.exec_cmd([[[workspace $workspace; float; fullscreen] $command]])" >/dev/null 2>&1 ||
+    hyprctl dispatch exec -- "[workspace $workspace; float; fullscreen]" bash -lc "$command" >/dev/null
+}
+
+SOCKET="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
+
+# Open Hyprland's event stream before spawning anything, so a terminal that maps
+# quickly can't emit its openwindow event before we are listening for it.
+exec {events}< <(socat -U - "UNIX-CONNECT:$SOCKET")
+
+# hypr_exec is async and a new window maps on whatever monitor is focused at that
+# moment. Block until this monitor's screensaver actually opens before moving
+# focus on -- otherwise slow-starting terminals all pile onto the last monitor.
+# The deadline is a safety net in case the window never appears.
+wait_for_screensaver_window() {
+  local line deadline=$((SECONDS + 5))
+  while ((SECONDS < deadline)) && IFS= read -r -t $((deadline - SECONDS)) -u "$events" line; do
+    [[ $line == openwindow\>\>*,org.omadrop.screensaver,* ]] && return 0
+  done
+}
+
+monitors=$(hyprctl monitors -j | jq -r '.[] | "\(.name) \(.specialWorkspace.name)"')
+if [[ $display_mode == single ]]; then
+  focused_only=$(awk -v monitor="$focused" '$1 == monitor' <<<"$monitors")
+  monitors=${focused_only:-$(head -n1 <<<"$monitors")}
+  [[ -n $monitors ]] || { echo "omadrop-screensaver: no monitor available" >&2; exit 1; }
+fi
+
+while read -r m special; do
+  hypr_focus_monitor "$m"
+  # Share a special workspace that is already showing, like the scratchpad, so it is still open afterwards.
+  workspace=${special:-special:screensaver-$m}
+
+  case $terminal in
+  *Alacritty*)
+    hypr_exec alacritty --class=org.omadrop.screensaver --config-file "$OMARCHY_PATH/default/alacritty/screensaver.toml" -e "${runner[@]}"
+    ;;
+  *ghostty*)
+    hypr_exec ghostty --class=org.omadrop.screensaver --config-file="$OMARCHY_PATH/default/ghostty/screensaver" --font-size=18 -e "${runner[@]}"
+    ;;
+  *foot*)
+    hypr_exec foot --app-id=org.omadrop.screensaver --config="$OMARCHY_PATH/default/foot/screensaver.ini" -e "${runner[@]}"
+    ;;
+  *kitty*)
+    hypr_exec kitty --class=org.omadrop.screensaver --override font_size=18 --override window_padding_width=0 -e "${runner[@]}"
+    ;;
+  esac
+
+  wait_for_screensaver_window
+done < <(printf '%s\n' "$monitors")
+
+hypr_focus_monitor "$focused"
+
+# Emptying a special workspace focuses its monitor, so the last screensaver to close would take focus
+# with it. Hand focus back to the monitor that had it once they are all gone.
+# The class goes through the environment, since in argv the screensaver's pgrep and pkill would match it.
+(
+  while hyprctl clients -j | SCREENSAVER=org.omadrop.screensaver jq -e 'any(.[]; .mapped and .class == env.SCREENSAVER)' >/dev/null; do
+    IFS= read -r -u "$events" line || exit
+  done
+  hypr_focus_monitor "$focused"
+) >/dev/null 2>&1 &

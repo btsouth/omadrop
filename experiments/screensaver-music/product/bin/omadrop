@@ -1,0 +1,361 @@
+#!/bin/bash
+# Unified Omadrop product launcher.
+#
+# One command, two modes:
+#   milkdrop  the accepted MilkDrop renderer (omadrop/bin/omadrop)
+#   omarchy   the music screensaver (omadrop-screensaver)
+#
+# The remembered mode lives in its own file so the C++ renderer's
+# preferences.conf, which it rewrites in full, is never touched.
+# ASCII is a per-launch MilkDrop display override, passed as OMADROP_ASCII.
+set -euo pipefail
+
+original=("$@")
+data_home=${XDG_DATA_HOME:-$HOME/.local/share}
+config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+mode_file=${OMADROP_MODE_FILE:-$config_home/omadrop/mode.conf}
+milkdrop_backend=${OMADROP_MILKDROP_BACKEND:-$data_home/omadrop/bin/omadrop}
+omarchy_backend=${OMADROP_OMARCHY_BACKEND:-$data_home/omadrop-screensaver/bin/omadrop-screensaver}
+milkdrop_root=$(dirname "$(dirname "$milkdrop_backend")")
+milkdrop_live=${OMADROP_MILKDROP_LIVE:-${OMADROP_LIVE_EXECUTABLE:-$milkdrop_root/experiments/projectm-ascii/projectm-ascii-live}}
+hyprctl_command=${OMADROP_HYPRCTL:-hyprctl}
+zenity_command=${OMADROP_ZENITY:-zenity}
+screensaver_class=${OMADROP_SCREENSAVER_CLASS:-org.omadrop.screensaver}
+effects_binary=${OMADROP_EFFECTS_BINARY:-$data_home/omadrop-screensaver/bin/ttfx-music}
+
+# The native app owns normal launches; explicit engine flags stay compatible.
+here=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
+native_ui=${OMADROP_NATIVE_UI:-$here/omadrop-ui}
+if [[ ! -x $omarchy_backend && -x /usr/share/omadrop-screensaver/bin/omadrop-screensaver ]]; then
+  omarchy_backend=/usr/share/omadrop-screensaver/bin/omadrop-screensaver
+fi
+if [[ ! -x $effects_binary && -x /usr/share/omadrop-screensaver/bin/ttfx-music ]]; then
+  effects_binary=/usr/share/omadrop-screensaver/bin/ttfx-music
+fi
+if [[ -x $native_ui ]]; then
+  export OMADROP_EFFECTS_BINARY=$effects_binary
+  export OMADROP_OMARCHY_BACKEND=$omarchy_backend OMADROP_MILKDROP_BACKEND=$milkdrop_backend
+  export OMADROP_CONTROLLER_BACKEND=$here/omadrop
+  export OMADROP_EFFECTS_HELPER=$here/omadrop-effects
+  case ${1:-} in
+    "") exec "$native_ui" ;;
+    --app) shift; exec "$native_ui" "$@" ;;
+    --controls|--choose) exec "$native_ui" --controls ;;
+    --effects) export OMADROP_UI_MODE=omarchy; exec "$native_ui" --controls ;;
+  esac
+fi
+
+die() { echo "omadrop: $*" >&2; exit 2; }
+
+require_backend() {
+  [[ -x $1 ]] || { echo "omadrop: backend not found or not executable: $1" >&2; exit 1; }
+}
+
+load_mode() {
+  local saved
+  saved=$(awk -F= '$1 == "mode" && ($2 == "milkdrop" || $2 == "omarchy") {
+    value = $2
+  } END { print value }' "$mode_file" 2>/dev/null || true)
+  printf '%s' "${saved:-milkdrop}"
+}
+
+save_mode() {
+  local mode=$1 directory temporary
+  directory=$(dirname "$mode_file")
+  mkdir -p "$directory"
+  temporary=$(mktemp "$directory/.mode.XXXXXX")
+  if [[ -r $mode_file ]]; then
+    awk -v mode="$mode" '$0 !~ /^mode=/ { print } END { print "mode=" mode }' \
+      "$mode_file" >"$temporary"
+    chmod --reference="$mode_file" "$temporary" 2>/dev/null || chmod 600 "$temporary"
+  else
+    printf 'mode=%s\n' "$mode" >"$temporary"
+    chmod 600 "$temporary"
+  fi
+  mv "$temporary" "$mode_file"
+}
+
+# Exact process identity: the accepted renderer's executable path, anchored.
+milkdrop_running() {
+  [[ -n $milkdrop_live ]] || return 1
+  pgrep -f "^${milkdrop_live//./\\.}( |$)" >/dev/null 2>&1
+}
+
+# Our screensaver is identified by its own Hyprland class, never the stock one.
+screensaver_pids() {
+  "$hyprctl_command" clients -j 2>/dev/null | jq -r --arg class "$screensaver_class" \
+    '.[] | select(.class == $class) | .pid' 2>/dev/null || true
+}
+
+omarchy_running() {
+  [[ -n $(screensaver_pids) ]]
+}
+
+stop_omarchy() {
+  local pid attempt
+  while read -r pid; do
+    [[ -n $pid ]] || continue
+    "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.close({ window = 'pid:$pid' }))" \
+      >/dev/null 2>&1 || true
+    kill -TERM "$pid" 2>/dev/null || true
+  done < <(screensaver_pids)
+  for ((attempt = 0; attempt < 20; attempt++)); do
+    [[ -z $(screensaver_pids) ]] && break
+    sleep 0.05
+  done
+}
+
+stop_milkdrop() {
+  [[ -x $milkdrop_backend ]] || return 0
+  "$milkdrop_backend" --stop >/dev/null 2>&1 || true
+}
+
+stop_all() {
+  stop_omarchy
+  stop_milkdrop
+}
+
+choose_mode() {
+  local current=$1 milkdrop_row=FALSE omarchy_row=FALSE
+  [[ $current == milkdrop ]] && milkdrop_row=TRUE
+  [[ $current == omarchy ]] && omarchy_row=TRUE
+  "$zenity_command" --list --radiolist --title="Omadrop Modes" \
+    --text="Choose the Omadrop mode to launch, or browse the effects." \
+    --print-column=2 --column=Use --column=Mode --column=Description \
+    "$milkdrop_row" milkdrop "MilkDrop audio visualizer" \
+    "$omarchy_row" omarchy "Omarchy screensaver with music" \
+    FALSE effects "Browse effects, favorites and rotation"
+}
+
+choose_ascii() {
+  "$zenity_command" --list --radiolist --title="MilkDrop display" \
+    --text="Choose the MilkDrop display for this launch." \
+    --print-column=2 --column=Use --column=Display --column=Description \
+    FALSE ascii "ASCII characters" \
+    FALSE continuous "Continuous MilkDrop" \
+    TRUE current "Keep the saved choice"
+}
+
+# Effect slugs are the real ttfx subcommands, validated from the installed
+# ttfx-music --help before anything is stopped or remembered, so a typo never
+# disturbs the running session.
+effect_names() {
+  [[ -x $effects_binary ]] || return 1
+  "$effects_binary" --help 2>/dev/null | awk '
+    /^Commands:/ { commands = 1; next }
+    commands && /^  / { print $1; next }
+    commands { exit }
+  ' | grep -vx 'help'
+}
+
+valid_effect() {
+  effect_names | grep -qx -- "$1"
+}
+
+run_effects_browser() {
+  command -v "$zenity_command" >/dev/null 2>&1 \
+    || { echo "omadrop: zenity is required to browse effects" >&2; exit 1; }
+  local here helper
+  here=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
+  helper=${OMADROP_EFFECTS_HELPER:-$here/omadrop-effects}
+  [[ -f $helper ]] || die "effects helper not found: $helper"
+  export OMADROP_EFFECTS_BINARY=$effects_binary
+  export OMADROP_PRODUCT_COMMAND=${OMADROP_PRODUCT_COMMAND:-$here/omadrop}
+  export OMADROP_ZENITY=$zenity_command
+  export OMADROP_HYPRCTL=$hyprctl_command
+  exec python3 "$helper"
+}
+
+# Legacy invocations forward verbatim to the accepted MilkDrop backend.
+case ${1:-} in
+  --version|--display-mode|--toggle-secondary|calibrate|pack)
+    require_backend "$milkdrop_backend"
+    exec "$milkdrop_backend" "${original[@]}"
+    ;;
+esac
+
+if [[ ${1:-} == -h || ${1:-} == --help ]]; then
+  cat <<'EOF'
+Usage: omadrop [--mode milkdrop|omarchy] [--single|--all]
+       omadrop --controls
+       omadrop --choose
+       omadrop --effects
+       omadrop --effect NAME
+       omadrop --preview-effect NAME
+       omadrop [--ascii|--no-ascii] [--mode milkdrop]
+       omadrop [--current-mode|--stop|--version]
+
+Choose a mode with --choose or --mode. The normal shortcut toggles the
+remembered mode (MilkDrop on first use). Omarchy keeps its authored characters.
+MilkDrop controls, calibration and pack commands remain available.
+
+--effects opens the effect browser: preview, favorite and hide the Omarchy
+screensaver effects, manage the lists in bulk, or start a rotation.
+--effect NAME launches one Omarchy effect and remembers Omarchy mode.
+--preview-effect NAME plays one effect on one display without changing the
+remembered mode or display choice.
+EOF
+  exit 0
+fi
+
+mode_arg=
+choose=0
+current=0
+stop=0
+effects=0
+effect=
+preview_effect=
+ascii_override=
+ascii_set=0
+display_args=()
+passthrough=()
+
+while (($#)); do
+  case $1 in
+    --mode)
+      (($# >= 2)) || die "--mode requires milkdrop or omarchy"
+      case $2 in
+        milkdrop|omarchy) mode_arg=$2 ;;
+        *) die "--mode requires milkdrop or omarchy" ;;
+      esac
+      shift 2
+      ;;
+    --choose) choose=1; shift ;;
+    --effects) effects=1; shift ;;
+    --effect)
+      (($# >= 2)) || die "--effect requires an effect name"
+      effect=$2
+      shift 2
+      ;;
+    --preview-effect)
+      (($# >= 2)) || die "--preview-effect requires an effect name"
+      preview_effect=$2
+      shift 2
+      ;;
+    --current-mode) current=1; shift ;;
+    --ascii) ascii_override=1; ascii_set=1; shift ;;
+    --no-ascii) ascii_override=0; ascii_set=1; shift ;;
+    --single|--all) display_args+=("$1"); shift ;;
+    --stop) stop=1; shift ;;
+    --original) passthrough+=(--original); shift ;;
+    *) die "unknown option: $1" ;;
+  esac
+done
+
+# A preview has one purpose; reject ambiguous options before side effects.
+if [[ -n $preview_effect ]] && { [[ -n $effect || -n $mode_arg ]] ||
+    ((choose || effects || current || stop || ascii_set)) ||
+    ((${#display_args[@]} || ${#passthrough[@]})); }; then
+  die "--preview-effect must be used on its own"
+fi
+if [[ -n $effect ]] && ((choose || effects || current || stop)); then
+  die "--effect cannot be combined with a chooser, browser, query or stop"
+fi
+
+# Validate the requested effect before anything is stopped or remembered.
+if [[ -n $effect || -n $preview_effect ]]; then
+  if [[ -n $mode_arg && $mode_arg != omarchy ]]; then
+    die "--effect and --preview-effect help the Omarchy mode only"
+  fi
+  [[ -x $effects_binary ]] \
+    || die "cannot validate effects: effects binary not found: $effects_binary"
+  valid_effect "${effect:-$preview_effect}" \
+    || die "unknown effect: ${effect:-$preview_effect}"
+fi
+
+if ((stop)); then
+  stop_all
+  exit 0
+fi
+
+if ((current)); then
+  printf '%s\n' "$(load_mode)"
+  exit 0
+fi
+
+if ((effects)); then
+  run_effects_browser
+fi
+
+# A preview plays one effect on one display and leaves the remembered mode and
+# display choice alone, so the browser can come back to where it was.
+if [[ -n $preview_effect ]]; then
+  require_backend "$omarchy_backend"
+  export OMADROP_PERSIST_DISPLAY=0 OMADROP_MONITORS=single
+  stop_all
+  exec "$omarchy_backend" --single --effect "$preview_effect"
+fi
+
+if [[ -n $effect ]]; then
+  mode_arg=omarchy
+fi
+
+if ((choose)); then
+  command -v "$zenity_command" >/dev/null 2>&1 \
+    || { echo "omadrop: zenity is required for --choose" >&2; exit 1; }
+  selected=$(choose_mode "$(load_mode)") || exit 0
+  chosen_mode=${selected%%$'\n'*}
+  case $chosen_mode in
+    milkdrop|omarchy) mode_arg=$chosen_mode ;;
+    effects) run_effects_browser ;;
+    *) exit 0 ;;
+  esac
+  if [[ $chosen_mode == milkdrop ]]; then
+    selected=$(choose_ascii) || exit 0
+    case ${selected%%$'\n'*} in
+      ascii) ascii_override=1; ascii_set=1 ;;
+      continuous) ascii_override=0; ascii_set=1 ;;
+      *) ascii_set=0 ;;
+    esac
+  fi
+fi
+
+launch_requested=0
+[[ -n $mode_arg ]] && launch_requested=1
+((choose)) && launch_requested=1
+((${#display_args[@]})) && launch_requested=1
+((${#passthrough[@]})) && launch_requested=1
+((ascii_set)) && launch_requested=1
+
+target_mode=${mode_arg:-$(load_mode)}
+if ((ascii_set)) && [[ $target_mode == omarchy ]]; then
+  die "--ascii/--no-ascii apply to MilkDrop mode only"
+fi
+
+if [[ $target_mode == omarchy && ${#passthrough[@]} -gt 0 ]]; then
+  die "--original applies to MilkDrop mode only"
+fi
+case $target_mode in
+  milkdrop) require_backend "$milkdrop_backend" ;;
+  omarchy) require_backend "$omarchy_backend" ;;
+esac
+
+# Bare invocation is the Omarchy hotkey: a toggle. It only stops when one of
+# our sessions is already up, otherwise it launches the remembered mode.
+if ((launch_requested == 0)); then
+  if milkdrop_running || omarchy_running; then
+    stop_all
+    exit 0
+  fi
+fi
+
+[[ -n $mode_arg ]] && save_mode "$mode_arg"
+
+stop_all
+
+case $target_mode in
+  milkdrop)
+    require_backend "$milkdrop_backend"
+    ((ascii_set)) && export OMADROP_ASCII=$ascii_override
+    exec "$milkdrop_backend" "${display_args[@]}" "${passthrough[@]}"
+    ;;
+  omarchy)
+    require_backend "$omarchy_backend"
+    if [[ -n $effect ]]; then
+      exec "$omarchy_backend" "${display_args[@]}" --effect "$effect"
+    else
+      exec "$omarchy_backend" "${display_args[@]}"
+    fi
+    ;;
+  *) die "unknown mode: $target_mode" ;;
+esac

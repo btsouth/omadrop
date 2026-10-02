@@ -1,0 +1,407 @@
+#!/bin/bash
+# Mock integration tests for the unified Omadrop product launcher. Runs
+# entirely with fake backends, hyprctl and zenity; no GUI and no real session.
+set -euo pipefail
+
+here=$(cd "$(dirname "$0")" && pwd)
+product=$(dirname "$here")
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/omadrop-product-test.XXXXXX")
+renderer_pid=
+cleanup() {
+  if [[ -n $renderer_pid ]]; then
+    kill -TERM "$renderer_pid" 2>/dev/null || true
+    wait "$renderer_pid" 2>/dev/null || true
+  fi
+  rm -rf -- "$scratch"
+}
+trap cleanup EXIT
+
+export HOME=$scratch/home
+export XDG_DATA_HOME=$scratch/home/.local/share
+export XDG_CONFIG_HOME=$scratch/home/.config
+export OMADROP_TEST_BACKEND_LOG=$scratch/backend.log
+export OMADROP_HYPRCTL=$here/fixtures/fake-hyprctl
+export OMADROP_TEST_HYPR_LOG=$scratch/hypr.log
+export OMADROP_TEST_CLIENTS=$scratch/clients.json
+export OMADROP_ZENITY=$here/fixtures/fake-zenity
+export OMADROP_TEST_ZENITY_DIR=$scratch/zenity
+export OMADROP_MILKDROP_LIVE=$scratch/fake-live
+
+mkdir -p "$XDG_DATA_HOME/omadrop/bin" "$XDG_DATA_HOME/omadrop-screensaver/bin" \
+  "$HOME/.local/bin" "$scratch/zenity"
+install -m755 "$here/fixtures/fake-backend" "$XDG_DATA_HOME/omadrop/bin/omadrop"
+install -m755 "$here/fixtures/fake-backend" "$XDG_DATA_HOME/omadrop-screensaver/bin/omadrop-screensaver"
+install -m755 "$here/fixtures/fake-ttfx" "$scratch/ttfx-music"
+export OMADROP_EFFECTS_BINARY=$scratch/ttfx-music
+
+mode_file=$XDG_CONFIG_HOME/omadrop/mode.conf
+preferences_file=$XDG_CONFIG_HOME/omadrop/preferences.conf
+effects_conf=$XDG_CONFIG_HOME/omadrop/effects.conf
+launcher=$product/bin/omadrop
+effects_helper=$product/bin/omadrop-effects
+
+reset_logs() { : >"$OMADROP_TEST_BACKEND_LOG"; : >"$OMADROP_TEST_HYPR_LOG"; : >"$OMADROP_TEST_CLIENTS"; }
+reset_zenity() {
+  rm -f "$OMADROP_TEST_ZENITY_DIR"/answer.* "$OMADROP_TEST_ZENITY_DIR"/status.*
+  : >"$OMADROP_TEST_ZENITY_DIR/count"
+}
+fail() { echo "product test: $*" >&2; exit 1; }
+screensaver_running() {
+  printf '[{"class":"org.omadrop.screensaver","pid":99999999},{"class":"org.omarchy.screensaver","pid":99999998}]\n' \
+    >"$OMADROP_TEST_CLIENTS"
+}
+start_renderer() {
+  bash -c 'exec -a "$1" sleep 30' _ "$OMADROP_MILKDROP_LIVE" &
+  renderer_pid=$!
+  local attempt
+  for ((attempt = 0; attempt < 100; attempt++)); do
+    pgrep -f "^${OMADROP_MILKDROP_LIVE//./\\.}( |$)" >/dev/null && return 0
+    sleep 0.02
+  done
+  fail "could not start a fake renderer"
+}
+stop_renderer() {
+  kill -TERM "$renderer_pid" 2>/dev/null || true
+  wait "$renderer_pid" 2>/dev/null || true
+  renderer_pid=
+}
+
+reset_logs
+rm -f "$mode_file"
+
+# First launch defaults to MilkDrop and does not create state.
+"$launcher"
+grep -q '^backend=omadrop$' "$OMADROP_TEST_BACKEND_LOG" || fail "default mode is not MilkDrop"
+grep -q '^ascii=unset$' "$OMADROP_TEST_BACKEND_LOG" || fail "default launch set OMADROP_ASCII"
+grep -q '^args=$' "$OMADROP_TEST_BACKEND_LOG" || fail "default launch forwarded arguments"
+[[ ! -e $mode_file ]] || fail "bare launch wrote state"
+
+# Selecting a mode remembers it and launches that backend.
+reset_logs
+"$launcher" --mode omarchy
+grep -q '^backend=omadrop-screensaver$' "$OMADROP_TEST_BACKEND_LOG" || fail "omarchy mode launched the wrong backend"
+grep -qx 'mode=omarchy' "$mode_file" || fail "mode was not remembered"
+[[ $("$launcher" --current-mode) == omarchy ]] || fail "--current-mode printed wrong mode"
+[[ $("$launcher" --mode milkdrop && "$launcher" --current-mode) == milkdrop ]] || fail "milkdrop mode was not remembered"
+
+# Invalid mode arguments fail before state or process changes.
+reset_logs
+printf 'mode=omarchy\n' >"$mode_file"
+if "$launcher" --mode; then fail "--mode with no value succeeded"; else (($? == 2)) || fail "--mode wrong status"; fi
+if "$launcher" --mode bogus; then fail "--mode bogus succeeded"; else (($? == 2)) || fail "--mode bogus wrong status"; fi
+grep -qx 'mode=omarchy' "$mode_file" || fail "invalid --mode changed state"
+[[ ! -s $OMADROP_TEST_BACKEND_LOG ]] || fail "invalid --mode launched a backend"
+
+# ASCII override is per-launch for MilkDrop and an error for Omarchy.
+if "$launcher" --ascii; then fail "--ascii succeeded in omarchy mode"; else (($? == 2)) || fail "--ascii wrong status"; fi
+[[ ! -s $OMADROP_TEST_BACKEND_LOG ]] || fail "--ascii in omarchy mode launched a backend"
+reset_logs
+"$launcher" --mode milkdrop --ascii
+grep -q '^backend=omadrop$' "$OMADROP_TEST_BACKEND_LOG" || fail "--ascii did not launch MilkDrop"
+grep -q '^ascii=1$' "$OMADROP_TEST_BACKEND_LOG" || fail "--ascii did not export OMADROP_ASCII=1"
+reset_logs
+"$launcher" --no-ascii
+grep -q '^ascii=0$' "$OMADROP_TEST_BACKEND_LOG" || fail "--no-ascii did not export OMADROP_ASCII=0"
+
+# Visual chooser: records the selected mode and applies the ASCII choice.
+reset_logs
+printf '0\n' >"$OMADROP_TEST_ZENITY_DIR/count"
+printf 'milkdrop\nMilkDrop audio visualizer\n' >"$OMADROP_TEST_ZENITY_DIR/answer.1"
+printf 'continuous\nContinuous MilkDrop\n' >"$OMADROP_TEST_ZENITY_DIR/answer.2"
+"$launcher" --choose
+grep -qx 'mode=milkdrop' "$mode_file" || fail "--choose did not remember the mode"
+grep -q '^ascii=0$' "$OMADROP_TEST_BACKEND_LOG" || fail "--choose ignored the ASCII selection"
+
+# Cancelling the chooser has no state or process effect.
+reset_logs
+before=$(<"$mode_file")
+printf '0\n' >"$OMADROP_TEST_ZENITY_DIR/count"
+printf '1\n' >"$OMADROP_TEST_ZENITY_DIR/status.1"
+"$launcher" --choose
+[[ $(<"$mode_file") == "$before" ]] || fail "cancel changed state"
+[[ ! -s $OMADROP_TEST_BACKEND_LOG ]] || fail "cancel launched a backend"
+rm -f "$OMADROP_TEST_ZENITY_DIR/status.1"
+
+# Legacy invocations forward to the accepted MilkDrop backend.
+reset_logs
+[[ $("$launcher" --version) == 'fake omadrop' ]] || fail "--version was not forwarded"
+"$launcher" calibrate --dry-run
+grep -q '^args=calibrate --dry-run$' "$OMADROP_TEST_BACKEND_LOG" || fail "calibrate was not forwarded"
+"$launcher" pack list
+grep -q '^args=pack list$' "$OMADROP_TEST_BACKEND_LOG" || fail "pack was not forwarded"
+if "$launcher" --bogus; then fail "unknown option succeeded"; else (($? == 2)) || fail "unknown option wrong status"; fi
+
+# Display flags follow the remembered mode.
+reset_logs
+printf 'mode=omarchy\n' >"$mode_file"
+"$launcher" --all
+grep -q '^backend=omadrop-screensaver$' "$OMADROP_TEST_BACKEND_LOG" || fail "--all did not use omarchy"
+grep -q '^args=--all$' "$OMADROP_TEST_BACKEND_LOG" || fail "--all not forwarded to omarchy"
+reset_logs
+printf 'mode=milkdrop\n' >"$mode_file"
+"$launcher" --single
+grep -q '^args=--single$' "$OMADROP_TEST_BACKEND_LOG" || fail "--single not forwarded to MilkDrop"
+
+# --stop closes only our screensaver windows and never the stock class.
+reset_logs
+screensaver_running
+"$launcher" --stop
+grep -q 'window.close' "$OMADROP_TEST_HYPR_LOG" || fail "--stop did not close our screensaver"
+grep -q 'pid:99999999' "$OMADROP_TEST_HYPR_LOG" || fail "--stop did not target our pid"
+if grep -q 'pid:99999998' "$OMADROP_TEST_HYPR_LOG"; then fail "--stop touched the stock screensaver"; fi
+grep -q '^args=--stop$' "$OMADROP_TEST_BACKEND_LOG" || fail "--stop did not stop the renderer"
+
+# --stop also stops a running renderer, and a bare call toggles it off.
+reset_logs
+printf 'mode=milkdrop\n' >"$mode_file"
+start_renderer
+"$launcher" --stop
+grep -q '^args=--stop$' "$OMADROP_TEST_BACKEND_LOG" || fail "--stop did not stop the running renderer"
+stop_renderer
+reset_logs
+start_renderer
+"$launcher"
+grep -q '^args=--stop$' "$OMADROP_TEST_BACKEND_LOG" || fail "bare toggle did not stop the running renderer"
+if grep -q '^args=$' "$OMADROP_TEST_BACKEND_LOG"; then fail "bare toggle launched a second session"; fi
+stop_renderer
+
+# Switching modes stops the other mode's session first.
+reset_logs
+screensaver_running
+printf 'mode=omarchy\n' >"$mode_file"
+"$launcher" --mode milkdrop
+grep -q 'window.close' "$OMADROP_TEST_HYPR_LOG" || fail "switch did not stop the omarchy session"
+grep -q '^backend=omadrop$' "$OMADROP_TEST_BACKEND_LOG" || fail "switch did not launch MilkDrop"
+grep -qx 'mode=milkdrop' "$mode_file" || fail "switch did not remember the mode"
+
+# Installer: symlinks the wrapper, backs the prior command up once, and writes
+# a desktop entry. Alternate HOME/XDG keep it off the real account.
+printf '#!/bin/sh\nexit 0\n' >"$HOME/.local/bin/omadrop"
+chmod +x "$HOME/.local/bin/omadrop"
+"$product/install.sh" >/dev/null
+install_root=$XDG_DATA_HOME/omadrop-product
+[[ -L $HOME/.local/bin/omadrop ]] || fail "installer did not symlink omadrop"
+[[ $(readlink -m "$HOME/.local/bin/omadrop") == "$install_root/bin/omadrop" ]] || fail "installer symlink points elsewhere"
+[[ -f $HOME/.local/bin/omadrop.before-product ]] || fail "installer did not back up the prior command"
+"$product/install.sh" >/dev/null
+[[ $(grep -c . "$HOME/.local/bin/omadrop.before-product") -gt 0 ]] || fail "backup was lost on reinstall"
+if [[ -x $product/app/build/omadrop-ui ]]; then
+  grep -q '^Name=Omadrop$' "$XDG_DATA_HOME/applications/omadrop.desktop" || fail "native desktop entry missing"
+  [[ -x $install_root/bin/omadrop-ui ]] || fail "native controller was not staged"
+  [[ ! -e $XDG_DATA_HOME/applications/omadrop-modes.desktop && ! -e $XDG_DATA_HOME/applications/omadrop-effects.desktop ]] || fail "duplicate launcher entries remain"
+else
+  grep -q -- '--choose' "$XDG_DATA_HOME/applications/omadrop-modes.desktop" || fail "desktop entry missing --choose"
+  grep -q -- '--effects' "$XDG_DATA_HOME/applications/omadrop-effects.desktop" || fail "Effects desktop entry missing --effects"
+fi
+[[ -x $install_root/bin/omadrop ]] || fail "wrapper was not staged"
+[[ -x $install_root/bin/omadrop-effects ]] || fail "effects helper was not staged"
+
+set +e
+OMADROP_MILKDROP_BACKEND=$scratch/missing "$product/install.sh" \
+  >"$scratch/install-fail.log" 2>&1
+install_status=$?
+set -e
+((install_status == 1)) || fail "installer did not fail on a missing backend"
+grep -q 'backend missing' "$scratch/install-fail.log" || fail "installer failure was unclear"
+
+# Failed launch validation must leave the selected mode and current session alone.
+reset_logs
+printf 'mode=omarchy\n' >"$mode_file"
+if OMADROP_MILKDROP_BACKEND=$scratch/missing "$launcher" --mode milkdrop; then
+  fail "missing backend launch succeeded"
+fi
+grep -qx 'mode=omarchy' "$mode_file" || fail "missing backend changed the mode"
+[[ ! -s $OMADROP_TEST_BACKEND_LOG && ! -s $OMADROP_TEST_HYPR_LOG ]] \
+  || fail "missing backend stopped the current session"
+if "$launcher" --original; then fail "--original was ignored in Omarchy mode"; fi
+
+# Cancel the second chooser, after choosing MilkDrop; the mode still stays put.
+printf '0\n' >"$OMADROP_TEST_ZENITY_DIR/count"
+printf '1\n' >"$OMADROP_TEST_ZENITY_DIR/status.2"
+"$launcher" --choose
+grep -qx 'mode=omarchy' "$mode_file" || fail "display cancellation changed mode"
+[[ ! -s $OMADROP_TEST_BACKEND_LOG && ! -s $OMADROP_TEST_HYPR_LOG ]] \
+  || fail "display cancellation stopped the current session"
+
+# --- Effects helper: discovery and noninteractive prefs ---------------------
+
+# Discovery reads ttfx-music --help only; it must not create state.
+[[ $("$effects_helper" --list | cut -f1 | paste -sd, -) == beams,matrix,rain,swarm ]] \
+  || fail "--list did not discover the effects"
+[[ ! -e $effects_conf ]] || fail "--list created state"
+
+# Favorites and hidden write a versioned, 600 file.
+"$effects_helper" --favorite beams >/dev/null
+grep -qx 'version=1' "$effects_conf" || fail "effects.conf has no version"
+grep -qx 'favorites=beams' "$effects_conf" || fail "--favorite did not write"
+[[ $(stat -c '%a' "$effects_conf") == 600 ]] || fail "effects.conf is not mode 600"
+"$effects_helper" --hide swarm >/dev/null
+grep -qx 'hidden=swarm' "$effects_conf" || fail "--hide did not write"
+[[ $("$effects_helper" --list | grep '^beams' | cut -f3) == favorite ]] \
+  || fail "--list did not report the favorite"
+"$effects_helper" --favorite beams >/dev/null
+grep -qx 'favorites=' "$effects_conf" || fail "--favorite did not toggle off"
+
+# Unknown effects and the last hidden effect are refused without a write.
+printf 'version=1\nfavorites=beams\nhidden=beams,matrix,rain\n' >"$effects_conf"
+chmod 600 "$effects_conf"
+if "$effects_helper" --hide swarm 2>/dev/null; then fail "hid every effect"; fi
+grep -qx 'hidden=beams,matrix,rain' "$effects_conf" || fail "all-hidden changed state"
+if "$effects_helper" --favorite bogus 2>/dev/null; then fail "unknown effect accepted"; fi
+grep -qx 'favorites=beams' "$effects_conf" || fail "unknown effect changed state"
+
+# A future version fails without clobbering the file.
+printf 'version=2\nfavorites=NULL\nhidden=\n' >"$effects_conf"
+if "$effects_helper" --favorite beams 2>/dev/null; then fail "future version accepted"; fi
+grep -qx 'favorites=NULL' "$effects_conf" || fail "future version was clobbered"
+rm -f "$effects_conf"
+
+# Cancelling the browser leaves the prefs alone.
+reset_zenity
+printf '1\n' >"$OMADROP_TEST_ZENITY_DIR/status.1"
+"$effects_helper"
+[[ ! -e $effects_conf ]] || fail "browser cancel wrote state"
+
+# Browser preview waits for our window to appear then disappear, calling the
+# product wrapper, and writes nothing.
+preview_log=$scratch/preview-product.log
+cat >"$scratch/fake-product" <<EOF
+#!/bin/sh
+printf '%s\n' "\$*" >>"$preview_log"
+EOF
+chmod +x "$scratch/fake-product"
+seq_dir=$scratch/clients-seq
+mkdir -p "$seq_dir"
+printf '[{"class":"org.omadrop.screensaver","mapped":true,"pid":99999999}]\n' >"$seq_dir/1"
+printf '[]\n' >"$seq_dir/2"
+reset_zenity
+printf 'browse\n' >"$OMADROP_TEST_ZENITY_DIR/answer.1"
+printf 'beams\n' >"$OMADROP_TEST_ZENITY_DIR/answer.2"
+printf 'preview\n' >"$OMADROP_TEST_ZENITY_DIR/answer.3"
+printf '1\n' >"$OMADROP_TEST_ZENITY_DIR/status.4"
+printf '1\n' >"$OMADROP_TEST_ZENITY_DIR/status.5"
+OMADROP_PRODUCT_COMMAND=$scratch/fake-product \
+OMADROP_HYPRCTL=$here/fixtures/fake-hyprctl \
+OMADROP_TEST_CLIENTS_SEQ=$seq_dir \
+  "$effects_helper"
+grep -q -- '--preview-effect beams' "$preview_log" \
+  || fail "preview did not call the product wrapper"
+[[ ! -e $effects_conf ]] || fail "preview wrote settings"
+
+# The stock Omarchy screensaver is never mistaken for our preview: with only
+# the stock class present, the preview times out, shows an error and returns.
+stock_dir=$scratch/stock-seq
+mkdir -p "$stock_dir"
+printf '[{"class":"org.omarchy.screensaver","mapped":true,"pid":99999998}]\n' >"$stock_dir/1"
+printf '[]\n' >"$stock_dir/2"
+reset_zenity
+printf 'browse\n' >"$OMADROP_TEST_ZENITY_DIR/answer.1"
+printf 'beams\n' >"$OMADROP_TEST_ZENITY_DIR/answer.2"
+printf 'preview\n' >"$OMADROP_TEST_ZENITY_DIR/answer.3"
+printf '1\n' >"$OMADROP_TEST_ZENITY_DIR/status.5"
+printf '1\n' >"$OMADROP_TEST_ZENITY_DIR/status.6"
+OMADROP_PRODUCT_COMMAND=$scratch/fake-product \
+OMADROP_HYPRCTL=$here/fixtures/fake-hyprctl \
+OMADROP_TEST_CLIENTS_SEQ=$stock_dir \
+OMADROP_PREVIEW_APPEAR_TIMEOUT=0.3 \
+  "$effects_helper"
+[[ $(cat "$OMADROP_TEST_ZENITY_DIR/count") == 6 ]] \
+  || fail "the stock screensaver was mistaken for the preview"
+
+# --- Product launcher: --effect and --preview-effect ------------------------
+
+reset_logs
+printf 'mode=milkdrop\n' >"$mode_file"
+"$launcher" --effect beams
+grep -q '^backend=omadrop-screensaver$' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "--effect did not launch the Omarchy backend"
+grep -q '^args=--effect beams$' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "--effect was not forwarded to the backend"
+grep -qx 'mode=omarchy' "$mode_file" || fail "--effect did not remember Omarchy"
+
+# Invalid selections fail before any state or session change.
+reset_logs
+printf 'mode=omarchy\n' >"$mode_file"
+if "$launcher" --effect bogus; then fail "--effect bogus succeeded"; else (($? == 2)) || fail "--effect bogus status"; fi
+if "$launcher" --effect beams --mode milkdrop; then fail "--effect with --mode milkdrop succeeded"; else (($? == 2)) || fail; fi
+if "$launcher" --preview-effect beams --mode omarchy; then fail "--preview-effect with --mode succeeded"; else (($? == 2)) || fail; fi
+grep -qx 'mode=omarchy' "$mode_file" || fail "invalid effect changed the mode"
+[[ ! -s $OMADROP_TEST_BACKEND_LOG && ! -s $OMADROP_TEST_HYPR_LOG ]] \
+  || fail "invalid effect ran side effects"
+
+# Ambiguous previews fail before touching processes or preferences.
+reset_logs
+for flags in '--effect beams' '--all' '--ascii' '--choose' '--effects' '--stop'; do
+  if "$launcher" --preview-effect beams $flags 2>/dev/null; then
+    fail "ambiguous preview accepted: $flags"
+  fi
+done
+[[ ! -s $OMADROP_TEST_BACKEND_LOG && ! -s $OMADROP_TEST_HYPR_LOG ]] || fail "ambiguous preview had side effects"
+
+# Preview plays one effect on one display without writing mode or display.
+reset_logs
+printf 'mode=milkdrop\n' >"$mode_file"
+printf 'version=4\ndisplay=all\n' >"$preferences_file"
+"$launcher" --preview-effect beams
+grep -q '^backend=omadrop-screensaver$' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "preview did not use the Omarchy backend"
+grep -q '^args=--single --effect beams$' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "preview did not request a single-display effect"
+grep -q '^persist=0$' "$OMADROP_TEST_BACKEND_LOG" || fail "preview would persist the display"
+grep -qx 'mode=milkdrop' "$mode_file" || fail "preview changed the remembered mode"
+grep -qx 'display=all' "$preferences_file" || fail "preview changed the display choice"
+[[ ! -s $OMADROP_TEST_HYPR_LOG ]] || fail "preview stopped a running session"
+
+# A preview replaces our current screensaver, leaving the stock class alone.
+reset_logs
+screensaver_running
+"$launcher" --preview-effect beams
+grep -q "pid:99999999" "$OMADROP_TEST_HYPR_LOG" || fail "preview did not stop our screensaver"
+if grep -q "pid:99999998" "$OMADROP_TEST_HYPR_LOG"; then fail "preview stopped stock screensaver"; fi
+reset_logs
+
+# The mode chooser offers the effect browser; choosing it never launches a mode.
+reset_logs
+printf 'mode=milkdrop\n' >"$mode_file"
+reset_zenity
+printf 'effects\nBrowse effects\n' >"$OMADROP_TEST_ZENITY_DIR/answer.1"
+printf '1\n' >"$OMADROP_TEST_ZENITY_DIR/status.2"
+"$launcher" --choose
+grep -qx 'mode=milkdrop' "$mode_file" || fail "--choose effects changed the mode"
+[[ ! -s $OMADROP_TEST_BACKEND_LOG ]] || fail "--choose effects launched a backend"
+
+# --- Screensaver launcher: --effect through the compositor exec -------------
+
+saver_src=$(dirname "$product")/bin/omadrop-screensaver
+saver_dir=$scratch/saver
+stub_dir=$scratch/stubs
+mkdir -p "$saver_dir" "$stub_dir"
+cp "$saver_src" "$saver_dir/omadrop-screensaver"
+install -m755 "$here/fixtures/fake-ttfx" "$saver_dir/ttfx-music"
+ln -sfn "$here/fixtures/fake-hyprctl" "$stub_dir/hyprctl"
+printf '#!/bin/sh\necho MON1\n' >"$stub_dir/omarchy-hyprland-monitor-focused"
+printf '#!/bin/sh\necho ghostty\n' >"$stub_dir/xdg-terminal-exec"
+printf '#!/bin/sh\nexit 0\n' >"$stub_dir/socat"
+printf '#!/bin/sh\nexit 1\n' >"$stub_dir/pgrep"
+chmod +x "$stub_dir/omarchy-hyprland-monitor-focused" "$stub_dir/xdg-terminal-exec" \
+  "$stub_dir/socat" "$stub_dir/pgrep"
+
+: >"$scratch/saver-hypr.log"
+PATH="$stub_dir:$PATH" OMADROP_TEST_HYPR_LOG=$scratch/saver-hypr.log \
+  "$saver_dir/omadrop-screensaver" --effect beams
+grep -q 'OMADROP_EFFECT=beams' "$scratch/saver-hypr.log" \
+  || fail "--effect was not injected into the compositor exec"
+grep -q 'omadrop-screensaver-run' "$scratch/saver-hypr.log" \
+  || fail "the runner was not launched with the effect"
+
+invalid_log=$scratch/saver-invalid-hypr.log
+: >"$invalid_log"
+if PATH="$stub_dir:$PATH" OMADROP_TEST_HYPR_LOG=$invalid_log \
+    "$saver_dir/omadrop-screensaver" --effect bogus 2>/dev/null; then
+  fail "the screensaver launcher accepted an unknown effect"
+else
+  (($? == 2)) || fail "the screensaver launcher used the wrong status"
+fi
+[[ ! -s $invalid_log ]] || fail "an invalid effect opened a session"
+
+echo "product launcher: all checks passed"

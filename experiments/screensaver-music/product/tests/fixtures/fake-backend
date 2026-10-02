@@ -1,0 +1,16 @@
+#!/bin/bash
+# Test double for the MilkDrop / Omarchy backends. Records how the product
+# launcher invoked it and exits with a configurable status.
+name=$(basename "$0")
+log=${OMADROP_TEST_BACKEND_LOG:-/dev/null}
+{
+  printf 'backend=%s\n' "$name"
+  printf 'ascii=%s\n' "${OMADROP_ASCII-unset}"
+  printf 'persist=%s\n' "${OMADROP_PERSIST_DISPLAY-unset}"
+  printf 'effect-env=%s\n' "${OMADROP_EFFECT-unset}"
+  printf 'args=%s\n' "$*"
+} >>"$log"
+if [[ ${1:-} == --version ]]; then
+  printf 'fake %s\n' "$name"
+fi
+exit "${OMADROP_TEST_BACKEND_STATUS:-0}"

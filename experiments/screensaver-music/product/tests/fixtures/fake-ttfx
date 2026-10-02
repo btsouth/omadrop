@@ -1,0 +1,22 @@
+#!/bin/bash
+# Test double for the installed ttfx-music binary. Only --help is meaningful:
+# it lists a few effects in the same shape the real clap help does.
+if [[ ${1:-} == --help ]]; then
+  cat <<'EOF'
+Terminal text effects (Rust port of terminaltexteffects)
+
+Usage: ttfx-music [OPTIONS] [COMMAND]
+
+Commands:
+  beams            Create beams which travel over the canvas illuminating the characters behind them
+  matrix           Matrix digital rain effect
+  rain             Rain characters from the top of the canvas
+  swarm            Characters are grouped into swarms and move around the terminal
+  help             Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help
+          Print help
+EOF
+fi
+exit 0

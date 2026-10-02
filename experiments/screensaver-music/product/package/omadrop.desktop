@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Omadrop
+GenericName=Music visuals
+Comment=Music-reactive visuals in any app, plus the Omarchy music screensaver
+Exec=omadrop
+Icon=omadrop
+Terminal=false
+Categories=AudioVideo;
+Keywords=music;visualizer;visuals;screensaver;
