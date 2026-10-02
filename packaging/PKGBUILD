@@ -15,7 +15,7 @@ license=('MIT' 'LGPL-2.1-or-later' 'custom')
 depends=(
   'qt6-base' 'qt6-declarative' 'python' 'jq' 'socat' 'ghostty'
   'sdl2-compat' 'glew' 'libpng' 'fftw' 'json-c' 'libpulse' 'mesa'
-  'pipewire-audio' 'imagemagick' 'curl' 'glib2'
+  'pipewire-audio' 'imagemagick' 'curl' 'glib2' 'xorg-xwayland'
 )
 makedepends=(
   'git' 'python' 'rust' 'cmake' 'ninja' 'pkgconf'
