@@ -358,7 +358,10 @@ void Backend::playScene(int number) {
     }
     QStringList arguments;
     arguments << QStringLiteral("--mode") << QStringLiteral("milkdrop")
-              << QStringLiteral("--scene") << QString::number(number);
+              << QStringLiteral("--scene") << QString::number(number)
+              << (m_display == QLatin1String("single") ? QStringLiteral("--single")
+                                                       : QStringLiteral("--all"))
+              << (m_ascii ? QStringLiteral("--ascii") : QStringLiteral("--no-ascii"));
     m_previewing = false;
     beginSession(arguments, QStringLiteral("renderer"));
 }

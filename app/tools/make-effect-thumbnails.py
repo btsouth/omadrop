@@ -18,27 +18,32 @@ REPO = Path(__file__).resolve().parents[2]
 DEMO_DIR = REPO / "screensaver/ttfx/tools/demo"
 OUT_DIR = REPO / "app/assets/effects"
 
-COLS = 96
-ROWS = 27
+# The screensaver animates the Omarchy logo, so the thumbnails do too.
+LOGO = Path(os.environ.get("OMADROP_THUMBNAIL_TEXT", "/usr/share/omarchy/logo.txt"))
+_lines = LOGO.read_text().rstrip("\n").splitlines()
+ROWS = len(_lines) + 6
+COLS = max(max(len(line) for line in _lines) + 8, ROWS * 32 // 9)
 WIDTH = 480
 HEIGHT = 270
 CELL_W = WIDTH / COLS
 CELL_H = HEIGHT / ROWS
-FONT_SIZE = 9
-BG = (18, 18, 26)  # #12121a, the same ground make_gif.py uses
+FONT_SIZE = max(4, int(CELL_H * 0.85))
+BG = (0, 0, 0)  # the screensaver runs on black
 QUALITY = 80
 
-# A seven-letter word gives errorcorrect too few pairs to swap with its stock
-# 10% error rate, so the dump comes out empty; ask for more.
-EXTRA_ARGS = {"errorcorrect": ["--error-pairs", "0.5"]}
+EXTRA_ARGS: dict[str, list[str]] = {}
 
 # make_gif.py reads these at import time to size its parity dump.
 os.environ.setdefault("TTFX_DEMO_COLS", str(COLS))
 os.environ.setdefault("TTFX_DEMO_ROWS", str(ROWS))
+os.environ.setdefault("TTFX_DEMO_TEXT_FILE", str(LOGO))
 sys.path.insert(0, str(DEMO_DIR))
 
 import make_gif  # noqa: E402
 from PIL import Image, ImageDraw, ImageFont  # noqa: E402
+
+if os.environ.get("OMADROP_TTFX"):
+    make_gif.BIN = Path(os.environ["OMADROP_TTFX"])
 
 
 def effect_names() -> list[str]:
@@ -92,6 +97,7 @@ def representative_frame(frames: list[str]) -> str:
 
 def load_font() -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     for candidate in (
+        "/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
         "/usr/share/fonts/dejavu/DejaVuSansMono.ttf",
     ):

@@ -92,7 +92,8 @@ ApplicationWindow {
         out.sort(function(a, b) {
             if (a.hidden !== b.hidden) return a.hidden ? 1 : -1
             if (a.favorite !== b.favorite) return a.favorite ? -1 : 1
-            return 0
+            if (a.number !== b.number) return a.number - b.number
+            return a.name.localeCompare(b.name)
         })
         return out
     }
@@ -376,7 +377,7 @@ ApplicationWindow {
                 anchors.fill: parent
                 clip: true
                 cellWidth: width / 4
-                cellHeight: 214
+                cellHeight: 194
                 model: app.visibleItems
                 delegate: cardDelegate
                 boundsBehavior: Flickable.StopAtBounds
@@ -570,6 +571,9 @@ ApplicationWindow {
                 clip: true
 
                 HoverHandler { id: cardHover }
+                ToolTip.visible: cardHover.hovered && !!(modelData && modelData.description)
+                ToolTip.delay: 700
+                ToolTip.text: modelData && modelData.description ? String(modelData.description) : ""
 
                 MouseArea {
                     anchors.fill: parent
@@ -679,13 +683,6 @@ ApplicationWindow {
                         elide: Text.ElideRight
                     }
 
-                    Label {
-                        Layout.fillWidth: true
-                        text: modelData && modelData.description ? String(modelData.description) : ""
-                        color: app.cTextDim
-                        font.pixelSize: 12
-                        elide: Text.ElideRight
-                    }
                 }
             }
         }
