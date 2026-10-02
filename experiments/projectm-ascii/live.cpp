@@ -2080,8 +2080,18 @@ int main(int argc, char** argv) {
             if (sceneCaption.update(presetIndex, presetTransitionActive,
                                     coverFrame.complete, displaySession.windowShown()
                                         && displaySession.startGateOpen())) {
-                captionOverlay.showCaption(sceneLabel(presets[presetIndex]),
-                    std::filesystem::path(presets[presetIndex]).stem().string(), now);
+                const std::string label = sceneLabel(presets[presetIndex]);
+                std::vector<unsigned char> captionPixels;
+                int captionWidth = 0;
+                int captionHeight = 0;
+                if (loadPngPixels((projectRoot / "presets" / "captions" / (label + ".png")).string(),
+                                  captionPixels, captionWidth, captionHeight)) {
+                    captionOverlay.showCaptionPixels(captionPixels.data(), captionWidth,
+                                                     captionHeight, now);
+                } else {
+                    captionOverlay.showCaption(label,
+                        std::filesystem::path(presets[presetIndex]).stem().string(), now);
+                }
             }
             if (coverFrame.complete && !presetTransitionActive
                 && !captionOverlay.render(outputW, outputH, now, compositorError)) {

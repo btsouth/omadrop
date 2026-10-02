@@ -247,6 +247,12 @@ ApplicationWindow {
     }
 
     ColumnLayout {
+        id: content
+        // Dim while visuals are starting; fade in when the controls return.
+        opacity: backend.curtainVisible ? 0.35 : (app.visible ? 1 : 0)
+        scale: backend.curtainVisible ? 0.985 : 1
+        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutQuad } }
+        Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutQuad } }
         anchors.fill: parent
         anchors.margins: 26
         spacing: 14

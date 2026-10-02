@@ -91,6 +91,7 @@ stage_from_repo() {
   cp -a "$root/presets/pilot/." "$dest/presets/pilot/"
   install -Dm644 "$root/presets/pilot.txt" "$dest/presets/pilot.txt"
   cp -a "$root/presets/textures" "$dest/presets/"
+  cp -a "$root/presets/captions" "$dest/presets/"
   cp -a "$root/presets/milkdrop-originals" "$dest/presets/"
   install -Dm644 "$root/experiments/milkdrop-audio-pilot/manifest.json" \
     "$dest/presets/collection-manifest.json"

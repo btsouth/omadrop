@@ -8,6 +8,23 @@
 #include <string>
 #include <vector>
 
+bool loadPngPixels(const std::string& filename, std::vector<unsigned char>& pixels,
+                   int& width, int& height) {
+    png_image image{};
+    image.version = PNG_IMAGE_VERSION;
+    if (!png_image_begin_read_from_file(&image, filename.c_str())) return false;
+    image.format = PNG_FORMAT_RGBA;
+    pixels.resize(PNG_IMAGE_SIZE(image));
+    if (!png_image_finish_read(&image, nullptr, pixels.data(), 0, nullptr)) {
+        png_image_free(&image);
+        return false;
+    }
+    width = static_cast<int>(image.width);
+    height = static_cast<int>(image.height);
+    png_image_free(&image);
+    return true;
+}
+
 bool loadPngTexture(const std::string& filename, GLuint texture, float& aspect) {
     png_image image{};
     image.version = PNG_IMAGE_VERSION;

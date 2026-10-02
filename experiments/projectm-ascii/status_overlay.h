@@ -27,6 +27,9 @@ public:
               std::uint64_t durationMilliseconds = 1800);
     void showCaption(std::string_view label, std::string_view credit,
                      std::uint64_t nowMilliseconds);
+    // Pre-rendered caption artwork, drawn at half its pixel size on a 1080p output.
+    void showCaptionPixels(const unsigned char* rgba, int width, int height,
+                           std::uint64_t nowMilliseconds);
     bool render(int outputWidth, int outputHeight,
                 std::uint64_t nowMilliseconds, std::string& error);
     void shutdown();
@@ -43,4 +46,5 @@ private:
     std::uint64_t duration_ = 1800;
     bool active_ = false;
     bool caption_ = false;
+    bool captionImage_ = false;
 };

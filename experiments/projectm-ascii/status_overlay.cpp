@@ -262,6 +262,24 @@ void StatusOverlay::showCaption(std::string_view label, std::string_view credit,
     show(std::string(label) + "\n" + std::string(credit), nowMilliseconds, 4200);
 }
 
+void StatusOverlay::showCaptionPixels(const unsigned char* rgba, int width, int height,
+                                      std::uint64_t nowMilliseconds) {
+    if (!texture_ || !rgba || width <= 0 || height <= 0) return;
+    caption_ = true;
+    captionImage_ = true;
+    width_ = width / 2;
+    height_ = height / 2;
+    glBindTexture(GL_TEXTURE_2D, texture_);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    shownAt_ = nowMilliseconds;
+    duration_ = 4200;
+    active_ = true;
+}
+
 bool StatusOverlay::render(int outputWidth, int outputHeight,
                            std::uint64_t nowMilliseconds,
                            std::string& error) {
@@ -276,7 +294,8 @@ bool StatusOverlay::render(int outputWidth, int outputHeight,
     const std::uint64_t fadeStart = duration_ - fadeDuration;
     const float opacity = caption_ ? SceneCaption::opacity(age) : age <= fadeStart
         ? 1.0f : 1.0f - (age - fadeStart) / static_cast<float>(fadeDuration);
-    const float scale = caption_ ? std::min(1.0f, (outputWidth - 48.0f) / width_) : 1.0f;
+    const float scale = !caption_ ? 1.0f
+        : std::min(captionImage_ ? outputHeight / 1080.0f : 1.0f, (outputWidth - 48.0f) / width_);
     const float left = caption_ ? 24.0f / outputWidth : 0.5f - width_ / (2.0f * outputWidth);
     const float bottom = std::max(24.0f, outputHeight * 0.035f) / outputHeight;
     const float right = left + width_ * scale / static_cast<float>(outputWidth);
