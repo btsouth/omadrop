@@ -1097,8 +1097,6 @@ int main(int argc, char** argv) {
                                                : "followed default sink ")
                           << sink
                           << ", sync delay " << syncDelayMs << " ms\n";
-                statusOverlay.show(restartedCapture
-                    ? "AUDIO CAPTURE: RESUMED" : "AUDIO OUTPUT: FOLLOWED", now);
             }
         }
         if (automaticQuitAt > 0 && now >= automaticQuitAt) closeRequested = true;

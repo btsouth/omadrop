@@ -9,7 +9,7 @@ Music visuals for Omarchy: 21 MilkDrop scenes and 37 terminal effects in one app
 Open Omadrop to a compact control panel with a thumbnail grid. Pick a mode,
 choose a card, or press Play.
 
-- MilkDrop: 21 curated presets with added audio response, an album art opening,
+- MilkDrop: 21 curated presets with added audio response,
   shuffled rotation with blended transitions, and an optional ASCII dot filter.
 - Omarchy: the 37 ttfx effects from the Omarchy screensaver, driven by your music.
 
@@ -51,13 +51,13 @@ another scene, effect, or mode.
 | Key | MilkDrop | Omarchy |
 | --- | --- | --- |
 | Esc | Return to controls | Return to controls |
-| N / P | Next / previous scene | Currently ignored |
+| N / P | Next / previous scene | Next / previous effect |
 | A | Toggle ASCII | No equivalent |
 | O | Toggle added audio response | No equivalent |
 | [ / ] | Adjust audio timing by 10 ms | Uses saved timing |
 | F11 | Toggle fullscreen | Fullscreen terminal |
 
-See [controls](docs/controls.md) for the current Omarchy key limitation and
+See [controls](docs/controls.md) for the full key list and
 command-line options. Multi-monitor playback and Bluetooth output timing are
 supported; please [report issues](https://github.com/btsouth/omadrop/issues).
 

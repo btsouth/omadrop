@@ -9,6 +9,9 @@
 - Shorter MilkDrop scene holds of 14 to 20 seconds and scene captions.
 - One Arch package containing the controls and both backends.
 - Esc returns to controls from both playback modes.
+- Next and previous effect in Omarchy mode with N, P and the arrow keys.
+- No album art cover; Play reaches fullscreen visuals in about a second.
+- Controls follow the full Omarchy theme and fade when it changes.
 
 ## Unreleased
 

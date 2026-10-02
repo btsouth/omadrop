@@ -11,17 +11,14 @@ every enabled effect still gets a turn each round. A hidden effect can be previe
 | Key | MilkDrop | Omarchy |
 | --- | --- | --- |
 | Esc | Return to controls | Return to controls |
-| N / P | Next / previous scene | Currently ignored by the launcher |
+| N / P, Right / Left | Next / previous scene (N / P) | Next / previous effect |
 | A | Toggle ASCII dot filter | No equivalent |
 | O | Toggle Omadrop's added audio response | No equivalent |
 | [ / ] | Move saved audio timing earlier / later by 10 ms | Uses saved output timing |
 | F11 | Toggle fullscreen | Uses the terminal's fullscreen window |
 | Q | No playback shortcut | Return to controls |
 
-Omarchy's current launcher handles Esc and Q. It does not yet pass N/P to ttfx;
-return to the controls and pick an effect to change it manually. Losing focus
-also ends Omarchy playback. Direct command-line backend launches end playback
-without opening a controller.
+In Omarchy mode Esc and Q return to the controls, N or Right moves to the next effect, and P or Left goes back. Other keys are ignored.
 
 In the controls, `/` focuses search. Esc closes the controls; Q also closes them
 when you are not typing. The user installer adds Super + Shift + V to open

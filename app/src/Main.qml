@@ -14,59 +14,8 @@ ApplicationWindow {
     maximumWidth: 1120
     maximumHeight: 720
     color: app.cBg
-    visible: !backend.playing && !backend.busy
-
-    Window {
-        id: curtain
-        title: qsTr("Omadrop")
-        screen: app.screen
-        transientParent: null
-        flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
-        modality: Qt.NonModal
-        visibility: backend.curtainVisible || curtainContent.opacity > 0 ? Window.FullScreen : Window.Hidden
-        color: "transparent"
-        Rectangle {
-            id: curtainContent
-            color: "black"
-            anchors.fill: parent
-            opacity: backend.curtainVisible ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Column {
-                anchors.centerIn: parent
-                spacing: 24
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: qsTr("Omadrop")
-                    color: "#f2f2f2"
-                    font.pixelSize: 48
-                    font.weight: Font.DemiBold
-                }
-                ProgressBar {
-                    width: 220
-                    height: 2
-                    indeterminate: true
-                    background: Rectangle { color: "#242424" }
-                    contentItem: Item {
-                        clip: true
-                        Rectangle {
-                            id: progressLine
-                            width: 64
-                            height: 2
-                            color: app.cText
-                            NumberAnimation on x {
-                                from: -64
-                                to: 220
-                                duration: 900
-                                loops: Animation.Infinite
-                                running: backend.curtainVisible
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
+    // Stay up until the renderer window is mapped, so there is never a bare desktop.
+    visible: backend.curtainVisible || (!backend.playing && !backend.busy)
     property string focusedKey: ""
     property bool detailsOpen: false
     readonly property int focusedIndex: {
