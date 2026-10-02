@@ -1,37 +1,62 @@
-# Release engineering
+# Releasing
 
-The 0.4 candidate promotes the revision 6 collection to the normal launcher.
-`bin/build-install-runtime` builds the application and installed tools.
-`bin/omadrop-check` additionally builds and runs the relevant regression tests.
-`bin/omadrop-native-check` retains the older native-engine audit separately.
+These steps are for the maintainer. Housekeeping and CI do not publish anything.
+Use the same devbox checkout and caches for the validation loop.
 
-projectM is fetched at an exact revision with its pinned eval submodule, then
-patched in a separate build directory. The source cache must be clean. Generated
-presets and binaries are build outputs; the generator checks original hashes.
-The original equations and audio mappings remain unchanged from revision 6.
+1. Set `VERSION`, `pkgver` in both `packaging/PKGBUILD` and
+   `packaging/PKGBUILD.release`, and the changelog to the release version.
+   Reset `pkgrel=1` for a new upstream version. Update README and site content;
+   add the controls screenshot at `docs/media/controls.png`.
+2. Run the checks in [building](building.md), including:
 
-Run `bin/omadrop-check --full` before packaging. Check paired windows, output
-switching and live artwork on the intended desktop as well. Raw pacing logs
-report p95, p99, maximum, and counts over 33.3/100 ms. Rendering tests establish
-function and timing, not artistic approval or end-to-end synchronization.
+   ```sh
+   bash packaging/test-in-arch.sh
+   ```
 
-`bin/omadrop-package --candidate` creates a source archive from a clean commit
-without requiring a public release tag. It rebuilds the extracted source into
-isolated paths, exercises the installed collection, verifies an upgrade retains
-settings, and uninstalls. Stable packages require an exact version tag.
+   Confirm `ARCH PACKAGE OK` and the `.pkg.tar.zst` in `dist/`. Check playback,
+   Esc, Bluetooth timing and multiple displays in an isolated desktop session.
+   Review preset and media credits and unresolved distribution terms.
+3. Review the complete diff and release notes, commit the release changes, and
+   tag that exact commit. For 0.5.0:
 
-The installer assembles the runtime before replacing the previous version.
-Previous runtimes are retained beside the install root as `omadrop.previous.*`.
-Settings and cached covers are separate. To roll back, close Omadrop, move the
-current installation aside and restore the previous directory to the same path.
-Keep the main command symlinks pointing at that path.
+   ```sh
+   git tag -a v0.5.0 -m 'Omadrop 0.5.0'
+   git push origin HEAD
+   git push origin v0.5.0
+   ```
 
-Publication checklist:
+4. Verify the release recipe against the published tag, as a regular user on
+   Arch. `pacman-contrib` provides `updpkgsums`:
 
-- Complete candidate validation and inspect the exact release text and demo.
-- Resolve the selected presets' and textures' distribution basis; attribution
-  notices do not establish individual permissions.
-- Keep source revisions, modification recipe and dependency licenses with the
-  release. Presets and textures are not licensed under Omadrop's MIT license.
-- Replace the preview website label only when that version is actually available.
-- Publish only after approval. The current candidate is not a public release.
+   ```sh
+   release_build=$(mktemp -d)
+   cp packaging/PKGBUILD.release "$release_build/PKGBUILD"
+   cd "$release_build"
+   updpkgsums
+   makepkg -si
+   makepkg --printsrcinfo > .SRCINFO
+   ```
+
+   The source URL is
+   `https://github.com/btsouth/omadrop/archive/v$pkgver.tar.gz`. Record the tag
+   archive's SHA-256 before AUR submission; keep `SKIP` only for pinned Git
+   sources. Confirm the installed app reports the intended version. Use this
+   build's `.pkg.tar.zst` as the release asset so it matches the public tag.
+5. Generate checksums beside the package:
+
+   ```sh
+   sha256sum omadrop-*.pkg.tar.zst > SHA256SUMS
+   sha256sum -c SHA256SUMS
+   ```
+
+   Create a GitHub release for `v0.5.0`, using the reviewed changelog entry,
+   and attach the `.pkg.tar.zst` and `SHA256SUMS`. Verify both downloads and
+   their checksums. Include the install command `sudo pacman -U omadrop-*.pkg.tar.zst`.
+6. For the AUR, copy the verified release `PKGBUILD` and `.SRCINFO` into the
+   `omadrop` AUR checkout. Review them, commit, and push there. Check the live
+   AUR source URL and version. A package-only fix increments `pkgrel`, rather
+   than changing the upstream tag.
+
+The package includes dependency licenses and the projectM modification recipe
+is in the tagged source. Website deployment is a separate maintainer action;
+check release links before deploying updated content.

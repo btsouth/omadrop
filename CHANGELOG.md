@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0
+
+- One app with controls first and a compact thumbnail browser.
+- Omarchy mode with all 37 music-driven ttfx terminal effects.
+- Hide scenes and effects, favorite effects, and pick a scene to start playback.
+- ASCII previews for the 21 curated MilkDrop scenes.
+- Shorter MilkDrop scene holds of 14 to 20 seconds and scene captions.
+- One Arch package containing the controls and both backends.
+- Esc returns to controls from both playback modes.
+
 ## Unreleased
 
 - Rebuild Centrifuge as an asymmetric physical rotor with six fixed sample

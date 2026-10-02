@@ -1,22 +1,22 @@
-# Packaging
+# Arch package
 
-Arch package recipe for the Omadrop one-root install.
-
-- `PKGBUILD` — `omadrop`, built entirely from source into `/usr/lib/omadrop`
-  with `/usr/bin/omadrop` symlinked into PATH, one desktop entry and icon, and
-  licenses under `/usr/share/licenses/omadrop`.
-- `makepkg.sh` — snapshots the checkout (working tree) as the package source
-  and runs `makepkg`. projectM v4.1.7 and its `projectm-eval` submodule are
-  pinned in the PKGBUILD source list.
-- `test-in-arch.sh` — builds and installs the package in a clean
-  `archlinux:latest` container via Docker, smoke-checks the installed layout,
-  then removes it. Prints `ARCH PACKAGE OK`.
-
-`makepkg.sh` needs no network for the build itself: projectM is fetched by
-makepkg from the pinned sources and Rust crates are fetched in `prepare()` with
-`cargo fetch --locked`; `build()` then runs offline.
+`PKGBUILD` builds from a local source snapshot made by `makepkg.sh`.
+`PKGBUILD.release` uses the GitHub tag archive instead. Both build the patched
+projectM library, MilkDrop renderer, ttfx-music and Qt controls from source.
 
 ```sh
-packaging/makepkg.sh          # makepkg -f in packaging/
-packaging/test-in-arch.sh     # full Docker build + install check
+packaging/makepkg.sh -si
+packaging/test-in-arch.sh
 ```
+
+The package installs one runtime in `/usr/lib/omadrop`, one command in
+`/usr/bin`, a desktop entry and icon, and licenses in
+`/usr/share/licenses/omadrop`. It does not change Hyprland bindings.
+
+`makepkg.sh` includes local edits in its source archive. projectM and
+projectm-eval are pinned Git sources. Cargo dependencies are fetched in
+`prepare()`; `build()` then runs offline. The Docker check builds and installs
+in a clean Arch container, runs smoke checks, removes the package, copies it to
+`dist/`, and ends with `ARCH PACKAGE OK`.
+
+See [building](../docs/building.md) and [releasing](../docs/releasing.md).

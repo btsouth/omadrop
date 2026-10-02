@@ -2,8 +2,8 @@
 #
 # Builds Omadrop entirely from source: patched projectM 4.1.7 (with the pinned
 # projectm-eval submodule), the MilkDrop collection renderer, ttfx-music and the
-# Qt controller. Use packaging/makepkg.sh from a local checkout to stage the
-# source archive; makepkg fetches the pinned projectM sources.
+# Qt controller. This release recipe fetches the tagged GitHub source archive.
+# Replace the archive checksum with updpkgsums before submitting to the AUR.
 pkgname=omadrop
 pkgver=0.5.0
 pkgrel=1
@@ -31,7 +31,7 @@ optdepends=(
 )
 
 source=(
-  "omadrop-$pkgver.tar.gz"
+  "omadrop-$pkgver.tar.gz::https://github.com/btsouth/omadrop/archive/v$pkgver.tar.gz"
   "projectm::git+https://github.com/projectM-visualizer/projectm.git#commit=e0b0a967f0ffd7d332106c366668ed271718472b"
   "projectm-eval::git+https://github.com/projectM-visualizer/projectm-eval.git#commit=da885dcdf33620ef26aa04cac9e215378b80252e"
 )

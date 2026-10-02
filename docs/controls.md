@@ -1,18 +1,48 @@
 # Controls
 
-`omadrop` toggles the visualizer. `--single` and `--all` select and remember the
-display mode. `--original` starts without the added audio response; it can follow
-the display option. `omadrop calibrate` retains output-specific timing settings.
+Run `omadrop` or open Omadrop from the launcher. The controls show MilkDrop and
+Omarchy, display selection, thumbnails, and the MilkDrop ASCII option. Press
+Play for a rotation or click a card to start at that scene or preview that effect.
+Hide cards to exclude them from rotation. Omarchy favorites receive priority;
+every enabled effect still gets a turn each round. A hidden effect can be previewed.
 
-N/P change presets. O blends added response off or on. A toggles ASCII. F11 toggles
-fullscreen. Escape closes the session. Brackets change audio delay by 10 ms.
-The comparison toggle does not reset preset history or rewind camera movement.
+## During playback
 
-Scene changes and supported controls are shared across displays. Authored preset
-randomness can produce different details on each display; pixel-identical output
-is not promised. Continuous rendering is the default for new profiles. Saved ASCII choices are retained.
+| Key | MilkDrop | Omarchy |
+| --- | --- | --- |
+| Esc | Return to controls | Return to controls |
+| N / P | Next / previous scene | Currently ignored by the launcher |
+| A | Toggle ASCII dot filter | No equivalent |
+| O | Toggle Omadrop's added audio response | No equivalent |
+| [ / ] | Move saved audio timing earlier / later by 10 ms | Uses saved output timing |
+| F11 | Toggle fullscreen | Uses the terminal's fullscreen window |
+| Q | No playback shortcut | Return to controls |
 
-The older native renderer's favorite/hide and director controls are not supported
-by this collection. Existing native preferences are preserved. Brightness and
-accessibility options inherited from the compositor are not an assertion of
-medical safety or tested accessibility for these presets.
+Omarchy's current launcher handles Esc and Q. It does not yet pass N/P to ttfx;
+return to the controls and pick an effect to change it manually. Losing focus
+also ends Omarchy playback. Direct command-line backend launches end playback
+without opening a controller.
+
+In the controls, `/` focuses search. Esc closes the controls; Q also closes them
+when you are not typing. The user installer adds Super + Shift + V to open
+Omadrop and Super + Alt + V to toggle a secondary display when the shortcuts
+are available. Package installs do not add Hyprland shortcuts.
+
+## Commands
+
+```sh
+omadrop --controls               # open controls
+omadrop --effects                # open controls in Omarchy mode
+omadrop --mode milkdrop          # start MilkDrop directly
+omadrop --mode omarchy           # start Omarchy directly
+omadrop --scene 6                # start MilkDrop at scene 6 (1..21)
+omadrop --preview-effect beams   # preview one effect
+omadrop --single                 # remember one display
+omadrop --all                    # remember all displays
+omadrop --stop                   # stop playback
+omadrop calibrate                # adjust timing for the current audio output
+```
+
+Supported MilkDrop controls are shared across displays. Preset randomness can
+produce different visual details on each display. Bluetooth timing and multiple
+displays are supported; report issues with your output and display setup.

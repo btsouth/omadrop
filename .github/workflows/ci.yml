@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  fast-checks:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install test dependencies
+        run: pacman -Syu --noconfirm --needed base-devel git python jq qt6-base qt6-declarative rust
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Shell syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          for name in subprocess.check_output(['git', 'ls-files'], text=True).splitlines():
+              path = Path(name)
+              first = path.read_bytes().split(b'\n', 1)[0]
+              if first in (b'#!/bin/bash', b'#!/usr/bin/env bash', b'#!/bin/sh'):
+                  subprocess.run(['bash', '-n', name], check=True)
+          PY
+      - name: Product tests
+        run: |
+          bash tests/product/product-test
+          python3 tests/product/preferences-test.py
+      - name: Controller tests
+        working-directory: app
+        run: bash tests/run-tests.sh
+      - name: ttfx tests
+        working-directory: screensaver/ttfx
+        run: cargo test --locked

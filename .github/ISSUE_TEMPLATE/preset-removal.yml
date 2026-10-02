@@ -1,0 +1,24 @@
+name: Preset or asset removal request
+description: Request a credit correction or removal of your work.
+body:
+  - type: input
+    id: asset
+    attributes:
+      label: Preset or asset
+      description: Display name, filename or link to the work in Omadrop.
+    validations:
+      required: true
+  - type: textarea
+    id: rights
+    attributes:
+      label: Your connection to the work
+      description: Identify the creator or rights holder you represent and link to a source where possible. Do not post private documents.
+    validations:
+      required: true
+  - type: textarea
+    id: request
+    attributes:
+      label: Requested change
+      description: Removal, corrected attribution or another change.
+    validations:
+      required: true

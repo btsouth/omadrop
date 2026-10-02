@@ -154,7 +154,7 @@ h1 { font-size: clamp(58px, 9.5vw, 148px); }
 
 .close { display: flex; min-height: 100svh; flex-direction: column; justify-content: center; padding: clamp(70px, 10vw, 150px) clamp(22px, 7vw, 112px); border-top: 1px solid var(--line); background: radial-gradient(circle at 76% 48%, rgb(168 255 120 / 8%), transparent 26%); }
 .close h2 { max-width: 1200px; font-size: clamp(48px, 7vw, 112px); }
-.shortcut { display: flex; gap: 10px; align-items: center; margin-top: 70px; color: var(--muted); font-size: 10px; }
+.install-command { max-width: 100%; overflow-x: auto; margin: 26px 0 0; padding: 16px; border: 1px solid var(--line); color: var(--acid); font-size: clamp(12px, 1.4vw, 18px); }
 kbd { padding: 8px 10px; border: 1px solid var(--line); color: var(--paper); font: inherit; }
 .close .button { align-self: flex-start; margin-top: 34px; }
 .close__status { margin: 26px 0 0; color: var(--muted); font-size: 11px; }

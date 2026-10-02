@@ -1,101 +1,83 @@
 # Omadrop
 
-Music visuals for Omarchy, with 21 curated MilkDrop presets and audio response
-adapted to each scene. Album artwork opens the show, then dissolves into glass,
-fluid surfaces, fractals, particles and light.
+Music visuals for Omarchy: 21 MilkDrop scenes and 37 terminal effects in one app.
 
-![Liquid Ice in Omadrop](site/public/media/scenes/collection-06.jpg)
-
-This checkout is the **0.4.0 release candidate**. The published release remains
-[v0.3.0](https://github.com/btsouth/omadrop/releases/tag/v0.3.0).
+![Omadrop controls and thumbnail browser](docs/media/controls.png)
 
 ## What it does
 
-- Captures the audio playing through PipeWire, locally.
-- Adds continuous low, mid, high and timbral response to authored MilkDrop visuals.
-- Shows available MPRIS album artwork for 3.5 seconds, then dissolves into a scene.
-- Rotates through the collection with shuffled selection and blended transitions.
-- Supports one or multiple displays, with shared scene changes and controls.
-- Remembers display choice and audio timing for each output device.
+Open Omadrop to a compact control panel with a thumbnail grid. Pick a mode,
+choose a card, or press Play.
 
-The visuals use projectM 4.1.7 with a small Omadrop audio-input extension. Original
-preset shaders, PCM response and feedback remain. Frequency bands are not
-isolated instruments. Preset loading can still cause occasional short stalls.
+- MilkDrop: 21 curated presets with added audio response, an album art opening,
+  shuffled rotation with blended transitions, and an optional ASCII dot filter.
+- Omarchy: the 37 ttfx effects from the Omarchy screensaver, driven by your music.
+
+Audio is captured locally from PipeWire. Browse scenes and effects, hide ones
+you want to skip, and favorite Omarchy effects. MilkDrop cards include ASCII
+previews. Esc returns from playback to the controls.
 
 ## Install
 
-Build from this checkout:
+Download the Arch package from the [release page](https://github.com/btsouth/omadrop/releases), then:
+
+```sh
+sudo pacman -U omadrop-*.pkg.tar.zst
+```
+
+To build an Arch package from source:
+
+```sh
+packaging/makepkg.sh -si
+```
+
+Or build and install for your user:
 
 ```sh
 ./install.sh
 ```
 
-The installer adds Arch dependencies, builds pinned projectM source, ttfx-music
-and the Qt controller, stages the complete runtime, and installs it under
-`~/.local/share/omadrop`. It adds one `omadrop` command under `~/.local/bin` and
-one desktop entry and icon. An existing installation is preserved in a sibling
-`omadrop.previous.*` directory; an older `omadrop-product` or
-`omadrop-screensaver` directory is left alone, with only the command and desktop
-entry repointed. `~/.config/omadrop` is never touched. Close Omadrop before
-updating.
-
-Use `--no-deps` to manage dependencies yourself or `--no-bindings` to leave
-keyboard shortcuts alone. Install an already staged root with `--prebuilt DIR`.
-Build requirements include GCC, Git, Python, CMake, Ninja, pkgconf, Rust/Cargo
-and the Qt6 base and declarative packages, plus SDL2, GLEW, libpng, FFTW, json-c
-and mesa. Runtime helpers include PipeWire, PulseAudio utilities, ImageMagick,
-GLib, curl and jq.
+The package installs to `/usr/lib/omadrop`. The user installer builds the same
+app under `~/.local/share/omadrop`, with a command in `~/.local/bin` and a desktop
+entry. Close Omadrop before updating. See [building](docs/building.md) for
+options and checks. Remove a user installation with `./uninstall.sh`.
 
 ## Use
 
-```sh
-omadrop                 # launch, or close an already running instance
-omadrop --controls      # open the controls
-omadrop --mode milkdrop # start the MilkDrop collection
-omadrop --mode omarchy  # start the music screensaver
-omadrop --scene N       # start MilkDrop on collection scene N (1..21)
-omadrop --single        # use one display and remember it
-omadrop --all           # use all displays and remember it
-omadrop --single --original  # start with added audio response disabled
-omadrop --preview-effect beams  # preview one screensaver effect
-omadrop --stop          # stop the running visuals
-omadrop calibrate       # adjust timing for the current audio output
-```
+Open Omadrop from the launcher or run `omadrop`. Select MilkDrop or Omarchy,
+then press Play or click a card. Esc returns to the controls so you can choose
+another scene, effect, or mode.
 
-| Key | Action |
-| --- | --- |
-| Super + Shift + V | Toggle Omadrop |
-| Super + Alt + V | Toggle the secondary display |
-| N / P | Next / previous preset |
-| O | Toggle Omadrop's added audio response |
-| A | Toggle ASCII rendering |
-| [ / ] | Move audio timing by 10 ms |
-| F11 | Toggle fullscreen |
-| Esc | Close |
+| Key | MilkDrop | Omarchy |
+| --- | --- | --- |
+| Esc | Return to controls | Return to controls |
+| N / P | Next / previous scene | Currently ignored |
+| A | Toggle ASCII | No equivalent |
+| O | Toggle added audio response | No equivalent |
+| [ / ] | Adjust audio timing by 10 ms | Uses saved timing |
+| F11 | Toggle fullscreen | Fullscreen terminal |
 
-The native scene editor and its scene packs remain available through
-`omadrop pack`. Native favorites, hidden scenes and director profiles do not
-apply to the MilkDrop collection. See [controls](docs/controls.md).
+See [controls](docs/controls.md) for the current Omarchy key limitation and
+command-line options. Multi-monitor playback and Bluetooth output timing are
+supported; please [report issues](https://github.com/btsouth/omadrop/issues).
 
-## Check and remove
+## Requirements
 
-```sh
-omadrop-doctor
-./bin/omadrop-check
-./bin/omadrop-check --full
-./uninstall.sh
-```
+Omarchy on Arch Linux with Hyprland, PipeWire audio, an OpenGL 3.3 capable GPU,
+Qt 6, and a supported terminal for Omarchy mode (Ghostty by default). Album art
+needs a player that exposes MPRIS artwork. The package installs its dependencies;
+the source installer can install build dependencies through Arch's package manager.
 
-The full check loads all 21 presets and exercises a longer rotation. Installation
-and package checks use isolated paths. Development details are in
-[release engineering](docs/releasing.md).
+## Credits and licensing
 
-## Credits
+Omadrop code is [MIT licensed](LICENSE). MilkDrop presets keep their authors'
+rights, including work by Geiss, Martin, Flexi, and their collaborators. projectM,
+projectm-eval, hlslparser, the texture pack, ttfx, TerminalTextEffects, Qt, and
+media credits are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-The collection preserves work by the original MilkDrop artists, including Geiss,
-Martin, Flexi and their collaborators. Omadrop adds curation, desktop integration
-and audio adaptations. [All presets and notices](THIRD_PARTY_NOTICES.md).
+Rights holders can request a correction or removal through
+[GitHub issues](https://github.com/btsouth/omadrop/issues/new/choose).
 
-Omadrop code is MIT licensed. projectM is LGPL licensed. Presets and textures
-retain their original authorship and rights; they are not covered by Omadrop's
-MIT license. projectM is an independent project.
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development checks and bug reports.

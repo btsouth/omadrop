@@ -19,4 +19,4 @@ all 21 presets with real music and checks paired display controls.
 
 `build.sh`, `install.sh` and `run.sh` retain the separate experimental launcher.
 For the public application's build/install and supported controls, use the root
-README and `docs/releasing.md`.
+README and `docs/building.md`.

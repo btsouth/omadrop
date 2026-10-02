@@ -1,0 +1,22 @@
+name: Bug report
+description: Something went wrong in Omadrop.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include steps to reproduce and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup
+      description: Omadrop version, Omarchy version, GPU, audio output and display count. Say which mode was running and how you installed it.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs or screenshots
+      description: Attach relevant evidence if available. Remove private information first.
