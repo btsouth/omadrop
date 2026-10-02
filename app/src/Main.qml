@@ -37,7 +37,7 @@ ApplicationWindow {
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: qsTr("Omadrop")
-                    color: app.cText
+                    color: "#f2f2f2"
                     font.pixelSize: 48
                     font.weight: Font.DemiBold
                 }
@@ -88,22 +88,38 @@ ApplicationWindow {
         else backend.toggleHidden(String(item.key))
     }
 
-    readonly property color cBg: "#131110"
-    readonly property color cPanel: "#1c1917"
-    readonly property color cPanelHover: "#23201d"
-    readonly property color cCard: "#1f1c19"
-    readonly property color cBorder: "#2e2a25"
-    readonly property color cBorderSoft: "#262220"
-    readonly property color cText: "#f4efe7"
-    readonly property color cTextDim: "#aaa29a"
-    readonly property color cTextMute: "#7b746c"
-    readonly property color cWarn: "#e08a7d"
-    readonly property color cErrorBg: "#2a1a17"
-    readonly property color cErrorBorder: "#6e352d"
-    readonly property color cErrorText: "#f0b4a9"
-    readonly property color cAccent: (typeof theme !== "undefined" && theme && theme.accent
-                                      && String(theme.accent).length > 0)
-                                     ? String(theme.accent) : "#f2a65a"
+    // Everything is derived from the live Omarchy theme and fades on a switch.
+    property color tBg: theme.background
+    property color tFg: theme.foreground
+    property color tAccent: theme.accent
+    property color tRed: theme.red
+    Behavior on tBg { ColorAnimation { duration: 260; easing.type: Easing.InOutQuad } }
+    Behavior on tFg { ColorAnimation { duration: 260; easing.type: Easing.InOutQuad } }
+    Behavior on tAccent { ColorAnimation { duration: 260; easing.type: Easing.InOutQuad } }
+    Behavior on tRed { ColorAnimation { duration: 260; easing.type: Easing.InOutQuad } }
+
+    function mix(from, to, amount) {
+        return Qt.rgba(from.r + (to.r - from.r) * amount, from.g + (to.g - from.g) * amount,
+                       from.b + (to.b - from.b) * amount, 1)
+    }
+
+    readonly property color cBg: app.tBg
+    readonly property color cPanel: app.mix(app.tBg, app.tFg, 0.045)
+    readonly property color cPanelHover: app.mix(app.tBg, app.tFg, 0.09)
+    readonly property color cCard: app.mix(app.tBg, app.tFg, 0.065)
+    readonly property color cBorder: app.mix(app.tBg, app.tFg, 0.15)
+    readonly property color cBorderSoft: app.mix(app.tBg, app.tFg, 0.10)
+    readonly property color cText: app.tFg
+    readonly property color cTextDim: app.mix(app.tFg, app.tBg, 0.32)
+    readonly property color cTextMute: app.mix(app.tFg, app.tBg, 0.52)
+    readonly property color cWarn: app.tRed
+    readonly property color cErrorBg: app.mix(app.tBg, app.tRed, 0.14)
+    readonly property color cErrorBorder: app.mix(app.tBg, app.tRed, 0.45)
+    readonly property color cErrorText: app.mix(app.tRed, app.tFg, 0.35)
+    readonly property color cAccent: app.tAccent
+    // Text drawn on an accent fill.
+    readonly property color cOnAccent: (0.2126 * app.tAccent.r + 0.7152 * app.tAccent.g
+                                        + 0.0722 * app.tAccent.b) > 0.55 ? "#141414" : "#ffffff"
 
     function accentAlpha(a) {
         var c = app.cAccent
@@ -426,7 +442,7 @@ ApplicationWindow {
                     Layout.preferredWidth: 28
                     Layout.preferredHeight: 28
                     radius: 8
-                    color: errCloseHover.hovered ? "#3a231f" : "transparent"
+                    color: errCloseHover.hovered ? app.cErrorBorder : "transparent"
                     border.width: 1
                     border.color: app.cErrorBorder
                     Text {
@@ -531,13 +547,13 @@ ApplicationWindow {
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: "▶"
-                            color: app.playEnabled ? "#1a1512" : app.cTextMute
+                            color: app.playEnabled ? app.cOnAccent : app.cTextMute
                             font.pixelSize: 15
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: qsTr("Play")
-                            color: app.playEnabled ? "#1a1512" : app.cTextMute
+                            color: app.playEnabled ? app.cOnAccent : app.cTextMute
                             font.pixelSize: 16
                             font.weight: Font.DemiBold
                         }
@@ -584,7 +600,7 @@ ApplicationWindow {
                                 width: 20; height: 20; radius: 10
                                 y: 3
                                 x: backend.ascii ? asciiToggle.width - width - 3 : 3
-                                color: backend.ascii ? "#ffffff" : app.cTextMute
+                                color: backend.ascii ? app.cOnAccent : app.cTextMute
                                 Behavior on x {
                                     NumberAnimation { duration: 120; easing.type: Easing.InOutQuad }
                                 }
@@ -617,7 +633,7 @@ ApplicationWindow {
                                 width: 20; height: 20; radius: 10
                                 y: 3
                                 x: backend.captions ? captionsToggle.width - width - 3 : 3
-                                color: backend.captions ? "#ffffff" : app.cTextMute
+                                color: backend.captions ? app.cOnAccent : app.cTextMute
                                 Behavior on x {
                                     NumberAnimation { duration: 120; easing.type: Easing.InOutQuad }
                                 }

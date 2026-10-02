@@ -7,6 +7,9 @@
 
 namespace {
 const QString kFallbackAccent = QStringLiteral("#a7d8cf");
+const QString kFallbackBackground = QStringLiteral("#131110");
+const QString kFallbackForeground = QStringLiteral("#f4efe7");
+const QString kFallbackRed = QStringLiteral("#e08a7d");
 
 bool isHexColor(const QString& value) {
     static const QRegularExpression pattern(QStringLiteral("^#[0-9a-fA-F]{6}$"));
@@ -25,7 +28,10 @@ QString stateHome() {
 Theme::Theme(QObject* parent)
     : QObject(parent),
       m_colorsPath(stateHome() + QStringLiteral("/omarchy/current/theme/colors.toml")),
-      m_accent(kFallbackAccent) {
+      m_accent(kFallbackAccent),
+      m_background(kFallbackBackground),
+      m_foreground(kFallbackForeground),
+      m_red(kFallbackRed) {
     connect(&m_watcher, &QFileSystemWatcher::fileChanged, this, &Theme::reload);
     connect(&m_watcher, &QFileSystemWatcher::directoryChanged, this, &Theme::reload);
     watch();
@@ -53,6 +59,9 @@ void Theme::reload() {
     // A replaced colors.toml drops the old watch; re-add before reading.
     watch();
     QString accent = kFallbackAccent;
+    QString background = kFallbackBackground;
+    QString foreground = kFallbackForeground;
+    QString red = kFallbackRed;
     QFile file(m_colorsPath);
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         while (!file.atEnd()) {
@@ -61,20 +70,26 @@ void Theme::reload() {
             if (separator <= 0) {
                 continue;
             }
-            if (line.left(separator).trimmed() != QLatin1String("accent")) {
-                continue;
-            }
+            const QString key = line.left(separator).trimmed();
             QString value = line.mid(separator + 1).trimmed();
             value.remove(QLatin1Char('"'));
             value.remove(QLatin1Char('\''));
-            if (isHexColor(value)) {
-                accent = value.toLower();
+            if (!isHexColor(value)) {
+                continue;
             }
-            break;
+            value = value.toLower();
+            if (key == QLatin1String("accent")) accent = value;
+            else if (key == QLatin1String("background")) background = value;
+            else if (key == QLatin1String("foreground")) foreground = value;
+            else if (key == QLatin1String("red")) red = value;
         }
     }
-    if (accent != m_accent) {
+    if (accent != m_accent || background != m_background || foreground != m_foreground
+        || red != m_red) {
         m_accent = accent;
+        m_background = background;
+        m_foreground = foreground;
+        m_red = red;
         emit accentChanged();
     }
 }
