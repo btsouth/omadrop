@@ -1,9 +1,0 @@
-#!/bin/bash
-# Test double for zenity. Emits a scripted answer per call, so a two-step
-# chooser (mode, then MilkDrop display) can be driven independently.
-directory=${OMADROP_TEST_ZENITY_DIR:?OMADROP_TEST_ZENITY_DIR must be set}
-count_file=$directory/count
-index=$(( $(cat "$count_file" 2>/dev/null || printf 0) + 1 ))
-printf '%s\n' "$index" >"$count_file"
-[[ -r $directory/answer.$index ]] && cat "$directory/answer.$index"
-exit "$(cat "$directory/status.$index" 2>/dev/null || printf 0)"

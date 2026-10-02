@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
-"""Browse, preview and curate the Omadrop music-screensaver effects.
+"""Curate the Omadrop music-screensaver effects.
 
 The effects are the 37 real ttfx effects the screensaver ships. This helper
 discovers them from the installed ``ttfx-music --help`` (it never launches the
-renderer), keeps favorites and hidden effects in
-``$XDG_CONFIG_HOME/omadrop/effects.conf``, and drives a zenity browser that can
-preview an effect, favorite or hide it, manage the lists in bulk, or start a
-rotation.
+renderer) and keeps favorites and hidden effects in
+``$XDG_CONFIG_HOME/omadrop/effects.conf``.
 
-Noninteractive operations, used by tests and scripts:
+Noninteractive operations, used by the Qt app and scripts:
 
     omadrop-effects --list              # slug, friendly name, status per line
     omadrop-effects --favorite NAME     # toggle favorite
@@ -18,28 +16,29 @@ Only standard library modules are used.
 """
 
 import fcntl
-import json
 import os
 import subprocess
 import sys
 import tempfile
-import time
-
-SCREENSAVER_CLASS = "org.omadrop.screensaver"
-POLL_SECONDS = 0.15
 
 
-def _env_float(name, default):
-    raw = os.environ.get(name)
-    if raw is None or raw == "":
-        return float(default)
-    try:
-        return float(raw)
-    except ValueError:
-        return float(default)
+def config_home():
+    home = os.environ.get("XDG_CONFIG_HOME")
+    if home:
+        return home
+    return os.path.join(os.path.expanduser("~"), ".config")
 
 
-APPEAR_TIMEOUT = _env_float("OMADROP_PREVIEW_APPEAR_TIMEOUT", 8.0)
+def prefs_path():
+    return os.path.join(config_home(), "omadrop", "effects.conf")
+
+
+def effects_binary():
+    if os.environ.get("OMADROP_EFFECTS_BINARY"):
+        return os.environ["OMADROP_EFFECTS_BINARY"]
+    here = os.path.dirname(os.path.realpath(__file__))
+    return os.path.join(here, "ttfx-music")
+
 
 # Friendly names for the shipped effects. Anything not listed falls back to a
 # capitalized slug, so a future effect still appears without a code change.
@@ -88,41 +87,6 @@ class PrefsError(Exception):
     """effects.conf is missing or unsupported; nothing is written."""
 
 
-# ------------------------------------------------------------------ config
-
-
-def config_home():
-    home = os.environ.get("XDG_CONFIG_HOME")
-    if home:
-        return home
-    return os.path.join(os.path.expanduser("~"), ".config")
-
-
-def prefs_path():
-    return os.path.join(config_home(), "omadrop", "effects.conf")
-
-
-def effects_binary():
-    if os.environ.get("OMADROP_EFFECTS_BINARY"):
-        return os.environ["OMADROP_EFFECTS_BINARY"]
-    data_home = os.environ.get("XDG_DATA_HOME") or os.path.join(
-        os.path.expanduser("~"), ".local", "share"
-    )
-    return os.path.join(data_home, "omadrop-screensaver", "bin", "ttfx-music")
-
-
-def product_command():
-    return os.environ.get("OMADROP_PRODUCT_COMMAND") or "omadrop"
-
-
-def zenity_command():
-    return os.environ.get("OMADROP_ZENITY") or "zenity"
-
-
-def hyprctl_command():
-    return os.environ.get("OMADROP_HYPRCTL") or "hyprctl"
-
-
 # ------------------------------------------------------------------ errors
 
 
@@ -137,12 +101,11 @@ def die(message):
 
 def usage():
     print(
-        "Usage: omadrop-effects [--browser]\n"
-        "       omadrop-effects --list\n"
+        "Usage: omadrop-effects --list\n"
         "       omadrop-effects --favorite NAME\n"
         "       omadrop-effects --hide NAME\n"
         "\n"
-        "Browse, preview and curate the music-screensaver effects."
+        "List, favorite and hide the music-screensaver effects."
     )
 
 
@@ -324,221 +287,6 @@ def status_of(slug, prefs):
     return ", ".join(tags) if tags else "enabled"
 
 
-# ------------------------------------------------------------------ zenity
-
-
-def choose_list(title, text, columns, rows, print_column):
-    args = [zenity_command(), "--list", "--title=" + title, "--text=" + text]
-    for column in columns:
-        args.append("--column=" + column)
-    args.append("--print-column=%d" % print_column)
-    if columns[print_column - 1] in ("Slug", "Action"):
-        args.append("--hide-column=%d" % print_column)
-    for row in rows:
-        args.extend(row)
-    result = subprocess.run(args, capture_output=True, text=True)
-    if result.returncode != 0:
-        return None
-    selected = result.stdout.strip()
-    return selected or None
-
-
-def choose_checklist(title, text, items, preset):
-    args = [zenity_command(), "--list", "--checklist", "--title=" + title,
-            "--text=" + text, "--column=Use", "--column=Effect",
-            "--column=Slug", "--print-column=3", "--hide-column=3"]
-    for slug, name in items:
-        args.append("TRUE" if slug in preset else "FALSE")
-        args.append(name)
-        args.append(slug)
-    result = subprocess.run(args, capture_output=True, text=True)
-    if result.returncode != 0:
-        return None
-    return [line.strip() for line in result.stdout.replace("|", "\n").splitlines() if line.strip()]
-
-
-def show_error(text):
-    subprocess.run(
-        [zenity_command(), "--error", "--title=Omadrop Effects", "--text=" + text],
-        check=False,
-    )
-
-
-# ------------------------------------------------------------------ preview
-
-
-def client_present():
-    try:
-        result = subprocess.run(
-            [hyprctl_command(), "clients", "-j"], capture_output=True, text=True
-        )
-    except OSError:
-        return False
-    if result.returncode != 0:
-        return False
-    try:
-        clients = json.loads(result.stdout or "[]")
-    except ValueError:
-        return False
-    return any(
-        client.get("class") == SCREENSAVER_CLASS
-        and client.get("mapped", True)
-        for client in clients
-    )
-
-
-def preview(slug):
-    try:
-        result = subprocess.run([product_command(), "--preview-effect", slug], check=False)
-        if result.returncode != 0:
-            show_error("Could not start the preview of %s." % slug)
-            return
-    except OSError as exc:
-        show_error("Could not start the preview of %s: %s" % (slug, exc))
-        return
-    deadline = time.monotonic() + APPEAR_TIMEOUT
-    while time.monotonic() < deadline:
-        if client_present():
-            break
-        time.sleep(POLL_SECONDS)
-    else:
-        show_error("The preview of %s did not start." % slug)
-        return
-    while True:
-        if not client_present():
-            return
-        time.sleep(POLL_SECONDS)
-
-
-# ------------------------------------------------------------------ browser
-
-
-def browse_effects(effects, prefs):
-    while True:
-        rows = [
-            [friendly, status_of(slug, prefs), slug, description]
-            for slug, friendly, description in effects
-        ]
-        selected = choose_list(
-            "Omadrop Effects",
-            "Choose an effect to preview, favorite or hide.",
-            ["Effect", "Status", "Slug", "Description"],
-            rows,
-            3,
-        )
-        if selected is None:
-            return
-        slug = selected.strip()
-        if slug not in {effect[0] for effect in effects}:
-            continue
-        action = choose_list(
-            "Effect: " + dict((e[0], e[1]) for e in effects)[slug],
-            "Choose what to do with this effect.",
-            ["Action", "Choice", "Description"],
-            [
-                ["preview", "Preview", "Play now; press any key to return. This closes the current Omadrop session."],
-                [
-                    "favorite",
-                    "Remove favorite" if slug in prefs.favorites else "Favorite",
-                    "Give this effect priority in a rotation",
-                ],
-                [
-                    "hidden",
-                    "Unhide" if slug in prefs.hidden else "Hide",
-                    "Skip this effect in a rotation",
-                ],
-                ["back", "Back", "Return to the effect list"],
-            ],
-            1,
-        )
-        if action is None:
-            continue
-        action = action.strip()
-        if action == "preview":
-            preview(slug)
-        elif action == "favorite":
-            toggle_favorite(prefs, slug)
-            write_prefs(prefs)
-        elif action == "hidden":
-            try:
-                toggle_hidden(prefs, slug, len(effects))
-            except PrefsError as exc:
-                show_error(str(exc))
-            else:
-                write_prefs(prefs)
-        elif action == "back":
-            continue
-        # Anything else (including cancel) returns to the effect list.
-
-
-def manage_favorites(effects, prefs):
-    selected = choose_checklist(
-        "Favorite effects",
-        "Checked effects get priority in a rotation. Every visible effect still "
-        "gets one turn per round.",
-        [(slug, friendly) for slug, friendly, _ in effects],
-        set(prefs.favorites),
-    )
-    if selected is None:
-        return
-    known = {slug for slug, _, _ in effects}
-    prefs.favorites = [slug for slug in selected if slug in known]
-    write_prefs(prefs)
-
-
-def manage_hidden(effects, prefs):
-    selected = choose_checklist(
-        "Hidden effects",
-        "Checked effects are skipped in a rotation. At least one effect stays "
-        "visible.",
-        [(slug, friendly) for slug, friendly, _ in effects],
-        set(prefs.hidden),
-    )
-    if selected is None:
-        return
-    known = {slug for slug, _, _ in effects}
-    chosen = [slug for slug in selected if slug in known]
-    if effects and len(chosen) >= len(effects):
-        show_error("At least one effect must stay visible.")
-        return
-    prefs.hidden = chosen
-    write_prefs(prefs)
-
-
-def start_rotation():
-    subprocess.run([product_command(), "--mode", "omarchy"], check=False)
-
-
-def browser(effects, prefs):
-    while True:
-        choice = choose_list(
-            "Omadrop Effects",
-            "Browse all %d effects. %d enabled, %d favorites. Changes apply on the next effect." % (len(effects), len(effects) - len(prefs.hidden), len(prefs.favorites)),
-            ["Action", "Choice", "Description"],
-            [
-                ["browse", "Browse effects", "Preview, favorite or hide an effect"],
-                ["favorites", "Favorites", "Give your favorites priority"],
-                ["hidden", "Hidden", "Choose effects to skip in a rotation"],
-                ["rotation", "Start rotation", "Play the music screensaver"],
-            ],
-            1,
-        )
-        if choice is None:
-            return
-        choice = choice.strip()
-        if choice == "browse":
-            browse_effects(effects, prefs)
-        elif choice == "favorites":
-            manage_favorites(effects, prefs)
-        elif choice == "hidden":
-            manage_hidden(effects, prefs)
-        elif choice == "rotation":
-            start_rotation()
-            return
-        else:
-            return
-
-
 # ------------------------------------------------------------------ main
 
 
@@ -584,8 +332,9 @@ def noninteractive(effects, prefs, valid, args):
 
 def main(argv):
     args = argv[1:]
-    if args and args[0] == "--browser":
-        args = args[1:]
+    if not args:
+        usage()
+        return 2
     effects = discover()
     valid = {slug for slug, _, _ in effects}
     try:
@@ -594,13 +343,10 @@ def main(argv):
         err(str(exc))
         return 1
     handled = noninteractive(effects, prefs, valid, args)
-    if handled is not None:
-        return handled
-    try:
-        return browser(effects, prefs)
-    except (PrefsError, OSError) as exc:
-        show_error(str(exc))
-        return 1
+    if handled is None:
+        usage()
+        return 2
+    return handled
 
 
 if __name__ == "__main__":

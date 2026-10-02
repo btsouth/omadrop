@@ -37,21 +37,21 @@ processes=$scratch/processes.log
 hypr_log=$scratch/hypr.log
 touch "$events" "$processes" "$hypr_log"
 
-[[ $("$root/bin/omadrop" --display-mode) == all ]]
+[[ $("$root/bin/omadrop-milkdrop" --display-mode) == all ]]
 OMADROP_PERSIST_DISPLAY=0 \
 OMADROP_LIVE_EXECUTABLE=/usr/bin/true \
 OMADROP_RUN_CURATED=/usr/bin/true \
-  "$root/bin/omadrop" --single
-[[ $("$root/bin/omadrop" --display-mode) == all ]]
+  "$root/bin/omadrop-milkdrop" --single
+[[ $("$root/bin/omadrop-milkdrop" --display-mode) == all ]]
 OMADROP_LIVE_EXECUTABLE=/usr/bin/true \
 OMADROP_RUN_CURATED=/usr/bin/true \
-  "$root/bin/omadrop" --single
-[[ $("$root/bin/omadrop" --display-mode) == single ]]
+  "$root/bin/omadrop-milkdrop" --single
+[[ $("$root/bin/omadrop-milkdrop" --display-mode) == single ]]
 grep -q '^display=single$' "$XDG_CONFIG_HOME/omadrop/preferences.conf"
 OMADROP_LIVE_EXECUTABLE=/usr/bin/true \
 OMADROP_RUN_CURATED=/usr/bin/true \
-  "$root/bin/omadrop" --all
-[[ $("$root/bin/omadrop" --display-mode) == all ]]
+  "$root/bin/omadrop-milkdrop" --all
+[[ $("$root/bin/omadrop-milkdrop" --display-mode) == all ]]
 if (( $(grep -c '^display=' "$XDG_CONFIG_HOME/omadrop/preferences.conf") != 1 )); then
   echo "launcher test: display preference was duplicated" >&2
   exit 1
@@ -61,7 +61,7 @@ printf 'version=999\ndisplay=single\n' \
   >"$XDG_CONFIG_HOME/omadrop/preferences.conf"
 OMADROP_LIVE_EXECUTABLE=/usr/bin/true \
 OMADROP_RUN_CURATED=/usr/bin/true \
-  "$root/bin/omadrop" --all 2>"$scratch/future-preferences.log"
+  "$root/bin/omadrop-milkdrop" --all 2>"$scratch/future-preferences.log"
 grep -q '^version=999$' "$XDG_CONFIG_HOME/omadrop/preferences.conf"
 grep -q '^display=single$' "$XDG_CONFIG_HOME/omadrop/preferences.conf"
 grep -q 'newer preferences file was left unchanged' \
@@ -76,7 +76,7 @@ OMADROP_TEST_EVENT_LOG=$events \
 OMADROP_TEST_PROCESS_FILE=$processes \
 OMADROP_TEST_HYPR_LOG=$hypr_log \
 OMADROP_FULLSCREEN=1 \
-  "$root/bin/omadrop" --all
+  "$root/bin/omadrop-milkdrop" --all
 
 for index in 0 1; do
   grep -q "^ready $index$" "$events"
@@ -125,7 +125,7 @@ OMADROP_TEST_HYPR_LOG=$hotplug_hypr_log \
 OMADROP_TEST_MONITOR_FILE=$hotplug_monitors \
 OMADROP_TEST_RENDERER_STAY=1 \
 OMADROP_FULLSCREEN=1 \
-  "$root/bin/omadrop" --all &
+  "$root/bin/omadrop-milkdrop" --all &
 launcher_pid=$!
 
 wait_for_count '^revealed ' 2 "$hotplug_events" 'initial pair reveal'
@@ -177,7 +177,7 @@ OMADROP_RUN_CURATED=$fake_live \
 OMADROP_TEST_EVENT_LOG=$replace_events \
 OMADROP_TEST_PROCESS_FILE=$replace_processes \
 OMADROP_TEST_HYPR_LOG=$replace_hypr_log \
-  "$root/bin/omadrop" --all
+  "$root/bin/omadrop-milkdrop" --all
 if kill -0 "$existing_renderer" 2>/dev/null; then
   echo "launcher test: calibration replacement retained the old renderer" >&2
   exit 1
@@ -204,7 +204,7 @@ OMADROP_TEST_PROCESS_FILE=$crash_processes \
 OMADROP_TEST_HYPR_LOG=$crash_hypr_log \
 OMADROP_TEST_RENDERER_EXIT=7 \
 OMADROP_FULLSCREEN=1 \
-  "$root/bin/omadrop" --all >"$crash/output.log" 2>&1
+  "$root/bin/omadrop-milkdrop" --all >"$crash/output.log" 2>&1
 crash_status=$?
 set -e
 ((crash_status == 7))
@@ -231,7 +231,7 @@ XDG_RUNTIME_DIR=$single_crash/runtime \
 XDG_STATE_HOME=$single_crash/state \
 OMADROP_LIVE_EXECUTABLE=/usr/bin/false \
 OMADROP_RUN_CURATED=/usr/bin/false \
-  "$root/bin/omadrop" --single >"$single_crash/output.log" 2>&1
+  "$root/bin/omadrop-milkdrop" --single >"$single_crash/output.log" 2>&1
 single_status=$?
 set -e
 ((single_status == 1))
@@ -247,7 +247,7 @@ for ((attempt = 0; attempt < 100; attempt++)); do
   sleep 0.01
 done
 stop_started=$(date +%s%N)
-OMADROP_LIVE_EXECUTABLE=$fake_live "$root/bin/omadrop" --stop
+OMADROP_LIVE_EXECUTABLE=$fake_live "$root/bin/omadrop-milkdrop" --stop
 wait "$existing_renderer" 2>/dev/null || true
 existing_renderer=
 stop_elapsed=$(( $(date +%s%N) - stop_started ))

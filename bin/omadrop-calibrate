@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
-launcher=${OMADROP_CALIBRATE_LAUNCHER:-$root/bin/omadrop}
+launcher=${OMADROP_CALIBRATE_LAUNCHER:-$root/bin/omadrop-milkdrop}
 ffmpeg_command=${OMADROP_CALIBRATE_FFMPEG:-ffmpeg}
 player_command=${OMADROP_CALIBRATE_PLAYER:-pw-play}
 audio_seconds=${OMADROP_CALIBRATE_AUDIO_SECONDS:-30}

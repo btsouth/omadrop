@@ -116,6 +116,7 @@ Usage: omadrop [--single|--all] [--original]
 
   --single            Use one display and remember the choice
   --all               Use every connected display and remember the choice
+  --scene N           Start on collection scene number N (1..21)
   --display-mode      Print the saved all/single display choice
   --stop              Close the whole session, forcing an unresponsive renderer
   --toggle-secondary  Hide or restore the secondary Omadrop display
@@ -177,9 +178,20 @@ case ${1:-} in
     ;;
 esac
 
-for argument in "$@"; do
-  case $argument in --original|--stop) ;; *) echo "omadrop: unknown option: $argument" >&2; exit 2 ;; esac
+runner_args=()
+while (($#)); do
+  case $1 in
+    --original|--stop) runner_args+=("$1"); shift ;;
+    --scene)
+      (($# >= 2)) || { echo "omadrop: --scene requires a scene number" >&2; exit 2; }
+      [[ $2 =~ ^[1-9][0-9]*$ ]] || { echo "omadrop: --scene requires a scene number" >&2; exit 2; }
+      runner_args+=(--scene "$2")
+      shift 2
+      ;;
+    *) echo "omadrop: unknown option: $1" >&2; exit 2 ;;
+  esac
 done
+set -- "${runner_args[@]}"
 
 # Explicit recovery path while the projectM application replaces the QML
 # prototype. The normal Omarchy hotkey always exercises the unified renderer.

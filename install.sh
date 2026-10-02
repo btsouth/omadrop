@@ -1,21 +1,40 @@
 #!/bin/bash
+# Build and install Omadrop for the current user.
+#
+# One product, one root: the MilkDrop collection and the Omarchy music
+# screensaver, driven by the single public `omadrop` command.
 set -euo pipefail
 
 root=$(dirname "$(readlink -f "$0")")
-install_root=${OMADROP_INSTALL_ROOT:-${XDG_DATA_HOME:-$HOME/.local/share}/omadrop}
-bin_dir=${OMADROP_BIN_DIR:-$HOME/.local/bin}
+data_home=${XDG_DATA_HOME:-$HOME/.local/share}
 config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+install_root=${OMADROP_INSTALL_ROOT:-$data_home/omadrop}
+bin_dir=${OMADROP_BIN_DIR:-$HOME/.local/bin}
 install_dependencies=1
 install_bindings=1
+prebuilt=
+stage_dir=
+
+bin_scripts=(
+  omadrop omadrop-milkdrop omadrop-effects omadrop-screensaver omadrop-screensaver-run
+  mpris-state mpris-art art-fetch art-prep omadrop-doctor omadrop-close-window
+  omadrop-calibrate omadrop-pack omadrop-demo omadrop-demo-record omadrop-preview
+  demo-audio-audit demo-rights-audit
+)
+projectm_scripts=(run-collection.sh run-originals.sh run-curated.sh)
+projectm_tools=(gpu-probe scene-pack-audit scene-pack-author audio-match)
 
 usage() {
   cat <<'EOF'
-Usage: ./install.sh [--no-deps] [--no-bindings]
+Usage: ./install.sh [--no-deps] [--no-bindings] [--prebuilt DIR] [--stage DIR]
 
-Build and install Omadrop for the current user.
+Build and install Omadrop for the current user: the MilkDrop collection and the
+Omarchy music screensaver, driven by the single `omadrop` command.
 
-  --no-deps      Do not install missing Arch packages
-  --no-bindings  Do not add Omarchy keyboard shortcuts
+  --no-deps       Do not install missing Arch packages
+  --no-bindings   Do not add Omarchy keyboard shortcuts
+  --prebuilt DIR  Install an already staged root instead of building
+  --stage DIR     Build and copy the root layout into DIR without installing
 EOF
 }
 
@@ -23,6 +42,18 @@ while (($#)); do
   case $1 in
     --no-deps) install_dependencies=0 ;;
     --no-bindings) install_bindings=0 ;;
+    --prebuilt)
+      (($# >= 2)) || { echo "install: --prebuilt requires a directory" >&2; exit 2; }
+      prebuilt=$2
+      shift
+      ;;
+    --stage)
+      (($# >= 2)) || { echo "install: --stage requires a directory" >&2; exit 2; }
+      stage_dir=$2
+      install_dependencies=0
+      install_bindings=0
+      shift
+      ;;
     -h|--help) usage; exit 0 ;;
     *) echo "install: unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -33,6 +64,76 @@ done
   echo "install: XDG and installation paths must be absolute" >&2
   exit 1
 }
+
+build_all() {
+  "$root/bin/build-install-runtime"
+  ( cd "$root/screensaver/ttfx" && cargo build --release --locked )
+  ( mkdir -p "$root/app/build" && cd "$root/app/build" \
+      && qmake6 ../omadrop-ui.pro && make -j"$(nproc)" )
+}
+
+stage_from_repo() {
+  local dest=$1 name file
+  install -d "$dest/bin" "$dest/lib" "$dest/experiments/projectm-ascii" \
+    "$dest/presets/pilot" "$dest/shaders/native" "$dest/scene-api/1" "$dest/licenses"
+  for name in "${bin_scripts[@]}"; do
+    install -Dm755 "$root/bin/$name" "$dest/bin/$name"
+  done
+  install -Dm755 "$root/screensaver/ttfx/target/release/ttfx" "$dest/bin/ttfx-music"
+  install -Dm755 "$root/app/build/omadrop-ui" "$dest/bin/omadrop-ui"
+  cp -a "$root"/lib/libprojectM-4.so* "$dest/lib/"
+  for name in "${projectm_scripts[@]}" "${projectm_tools[@]}"; do
+    install -Dm755 "$root/experiments/projectm-ascii/$name" \
+      "$dest/experiments/projectm-ascii/$name"
+  done
+  install -Dm755 "$root/experiments/projectm-ascii/projectm-ascii-live" \
+    "$dest/experiments/projectm-ascii/projectm-ascii-live"
+  cp -a "$root/presets/pilot/." "$dest/presets/pilot/"
+  install -Dm644 "$root/presets/pilot.txt" "$dest/presets/pilot.txt"
+  cp -a "$root/presets/textures" "$dest/presets/"
+  cp -a "$root/presets/milkdrop-originals" "$dest/presets/"
+  install -Dm644 "$root/experiments/milkdrop-audio-pilot/manifest.json" \
+    "$dest/presets/collection-manifest.json"
+  for file in "$root"/shaders/native/*.vert "$root"/shaders/native/*.glsl \
+      "$root"/shaders/native/*.frag; do
+    [[ -e $file ]] || continue
+    install -Dm644 "$file" "$dest/shaders/native/$(basename "$file")"
+  done
+  for file in "$root"/scene-api/1/*.vert "$root"/scene-api/1/*.glsl; do
+    [[ -e $file ]] || continue
+    install -Dm644 "$file" "$dest/scene-api/1/$(basename "$file")"
+  done
+  install -Dm644 "$root/LICENSE" "$dest/licenses/LICENSE"
+  install -Dm644 "$root/THIRD_PARTY_NOTICES.md" "$dest/licenses/THIRD_PARTY_NOTICES.md"
+  install -Dm644 "$root/screensaver/ttfx/LICENSE" "$dest/licenses/ttfx-LICENSE"
+  install -Dm644 "$root/screensaver/ttfx/NOTICE" "$dest/licenses/ttfx-NOTICE"
+  for file in "$root"/third-party/projectm/*; do
+    install -Dm644 "$file" "$dest/licenses/projectm-$(basename "$file")"
+  done
+  install -Dm644 "$root/VERSION" "$dest/VERSION"
+}
+
+stage_prebuilt() {
+  local source=$1 dest=$2
+  [[ -d $source ]] || { echo "install: --prebuilt directory not found: $source" >&2; exit 1; }
+  [[ -x $source/bin/omadrop-milkdrop ]] || {
+    echo "install: --prebuilt is not a staged Omadrop root: $source" >&2; exit 1;
+  }
+  cp -a "$source/." "$dest/"
+}
+
+if [[ -n $stage_dir ]]; then
+  [[ $stage_dir == /* ]] || { echo "install: --stage path must be absolute" >&2; exit 1; }
+  mkdir -p "$stage_dir"
+  if [[ -n $prebuilt ]]; then
+    stage_prebuilt "$prebuilt" "$stage_dir"
+  else
+    build_all
+    stage_from_repo "$stage_dir"
+  fi
+  echo "Staged Omadrop in $stage_dir"
+  exit 0
+fi
 
 [[ $install_root != / && $install_root != "$HOME" && $install_root != "$root" && ! -L $install_root ]] || {
   echo 'install: unsafe installation root' >&2; exit 1;
@@ -46,20 +147,11 @@ fi
 if pgrep -f "^${install_root//./\\.}/experiments/projectm-ascii/projectm-ascii-live( |$)" >/dev/null; then
   echo 'install: close Omadrop before updating' >&2; exit 1
 fi
-commands=(omadrop omadrop-preview omadrop-close-window omadrop-demo omadrop-demo-record omadrop-doctor)
-for command in "${commands[@]}"; do
-  path=$bin_dir/$command
-  if [[ -e $path || -L $path ]]; then
-    [[ -L $path && $(readlink -m "$path") == "$install_root/"* ]] || {
-      echo "install: refusing to replace unrelated command $path" >&2; exit 1;
-    }
-  fi
-done
 
 dependencies=(
-  gcc pkgconf cmake ninja git python glslang libprojectm sdl2-compat glew libpng fftw
+  gcc pkgconf cmake ninja git python glslang sdl2-compat glew libpng fftw
   json-c pipewire-audio libpulse imagemagick curl glib2 jq
-  ffmpeg gpu-screen-recorder
+  ffmpeg gpu-screen-recorder rust qt6-base qt6-declarative
 )
 if ((install_dependencies)); then
   if command -v omarchy >/dev/null; then
@@ -72,7 +164,7 @@ if ((install_dependencies)); then
   fi
 fi
 
-"$root/bin/build-install-runtime"
+[[ -n $prebuilt ]] || build_all
 
 # Assemble the complete runtime beside the target, then promote it.
 final_root=$install_root
@@ -88,11 +180,9 @@ cleanup_install() {
     if ((promoted)); then
       rm -rf -- "$final_root"
       [[ -z $backup_root ]] || mv -- "$backup_root" "$final_root"
-      for command in "${commands[@]}"; do
-        if [[ -L $bin_dir/$command && $(readlink -m "$bin_dir/$command") == "$final_root/"* && ! -e $bin_dir/$command ]]; then
-          unlink "$bin_dir/$command"
-        fi
-      done
+      if [[ -L $bin_dir/omadrop && $(readlink -m "$bin_dir/omadrop") == "$final_root/"* && ! -e $bin_dir/omadrop ]]; then
+        unlink "$bin_dir/omadrop"
+      fi
     fi
     [[ ! -d $staging_root ]] || rm -rf -- "$staging_root"
   fi
@@ -100,96 +190,15 @@ cleanup_install() {
 }
 trap cleanup_install EXIT
 
-install -Dm755 "$root/bin/omadrop" "$install_root/bin/omadrop"
-install -Dm755 "$root/bin/omadrop-preview" "$install_root/bin/omadrop-preview"
-install -Dm755 "$root/bin/omadrop-close-window" "$install_root/bin/omadrop-close-window"
-install -Dm755 "$root/bin/omadrop-calibrate" "$install_root/bin/omadrop-calibrate"
-install -Dm755 "$root/bin/omadrop-demo" "$install_root/bin/omadrop-demo"
-install -Dm755 "$root/bin/omadrop-demo-record" "$install_root/bin/omadrop-demo-record"
-install -Dm755 "$root/bin/demo-audio-audit" "$install_root/bin/demo-audio-audit"
-install -Dm755 "$root/bin/demo-rights-audit" "$install_root/bin/demo-rights-audit"
-install -Dm755 "$root/bin/omadrop-doctor" "$install_root/bin/omadrop-doctor"
-install -Dm755 "$root/bin/omadrop-pack" "$install_root/bin/omadrop-pack"
-install -Dm755 "$root/bin/mpris-art" "$install_root/bin/mpris-art"
-install -Dm755 "$root/bin/mpris-state" "$install_root/bin/mpris-state"
-install -Dm755 "$root/bin/art-fetch" "$install_root/bin/art-fetch"
-install -Dm755 "$root/bin/art-prep" "$install_root/bin/art-prep"
-install -Dm755 "$root/experiments/projectm-ascii/projectm-ascii-live" \
-  "$install_root/experiments/projectm-ascii/projectm-ascii-live"
-install -Dm755 "$root/experiments/projectm-ascii/audio-match" \
-  "$install_root/experiments/projectm-ascii/audio-match"
-install -Dm755 "$root/experiments/projectm-ascii/scene-pack-audit" \
-  "$install_root/experiments/projectm-ascii/scene-pack-audit"
-install -Dm755 "$root/experiments/projectm-ascii/scene-pack-author" \
-  "$install_root/experiments/projectm-ascii/scene-pack-author"
-install -Dm755 "$root/experiments/projectm-ascii/gpu-probe" \
-  "$install_root/experiments/projectm-ascii/gpu-probe"
-install -Dm755 "$root/experiments/projectm-ascii/run-curated.sh" \
-  "$install_root/experiments/projectm-ascii/run-curated.sh"
-for shader in "$root"/shaders/native/*.{vert,glsl,frag}; do
-  install -Dm644 "$shader" "$install_root/shaders/native/$(basename "$shader")"
-done
-for api_file in "$root"/scene-api/1/*.{vert,glsl}; do
-  install -Dm644 "$api_file" \
-    "$install_root/scene-api/1/$(basename "$api_file")"
-done
-install -Dm755 "$root/experiments/projectm-ascii/run-originals.sh"   "$install_root/experiments/projectm-ascii/run-originals.sh"
-install -d "$install_root/third-party/projectm"
-cp -a "$root/third-party/projectm/." "$install_root/third-party/projectm/"
-install -d "$install_root/lib" "$install_root/presets/milkdrop-originals" "$install_root/presets/textures"
-cp -a "$root"/lib/libprojectM-4.so* "$install_root/lib/"
-cp -a "$root/presets/milkdrop-originals/." "$install_root/presets/milkdrop-originals/"
-cp -a "$root/presets/textures/." "$install_root/presets/textures/"
-install -d "$install_root/presets/pilot"
-cp -a "$root/presets/pilot/." "$install_root/presets/pilot/"
-install -Dm644 "$root/presets/pilot.txt" "$install_root/presets/pilot.txt"
-install -Dm755 "$root/experiments/projectm-ascii/run-collection.sh" "$install_root/experiments/projectm-ascii/run-collection.sh"
-install -Dm644 "$root/experiments/milkdrop-audio-pilot/manifest.json" "$install_root/presets/collection-manifest.json"
-install -d "$install_root/presets/curated"
-rm -f "$install_root/presets/curated/A New Definition for Milk - AdamFX - Laser Show in a Crystalstorm  ft Orb n Martin Inside the Forge of Isengard.milk"
-rm -f "$install_root/presets/curated/shifter - lattice (eclipse) Phat + EoS more color mix_v2.milk"
-rm -f "$install_root/presets/curated/Aderrasi - Contortion (Escher's Tunnel Mix).milk"
-rm -f "$install_root/presets/curated/Aderrasi - Halls Of Centrifuge.milk"
-rm -f "$install_root/presets/curated/EoS + Phat - cubetrace - v2.milk"
-rm -f "$install_root/presets/curated/Geiss - Myriad Mosaics.milk"
-rm -f "$install_root/presets/curated/Martin - wire dance.milk"
-rm -f "$install_root/presets/curated/Phat+fiShbRaiN+EoS_Mandala_Chasers_remix.milk"
-rm -f "$install_root/presets/curated/The NG + Geiss + Flexi - The Waterfowl In The Rain.milk"
-rm -f "$install_root/presets/curated/shifter - mandala.milk"
-install -m644 "$root"/presets/curated/*.milk "$install_root/presets/curated/"
-install -Dm644 "$root/presets/classic/Aderrasi - Contortion (Escher's Tunnel Mix).milk" \
-  "$install_root/presets/classic/Aderrasi - Contortion (Escher's Tunnel Mix).milk"
-install -Dm644 "$root/presets/classic/Aderrasi - Halls Of Centrifuge.milk" \
-  "$install_root/presets/classic/Aderrasi - Halls Of Centrifuge.milk"
-install -Dm644 "$root/presets/classic/Martin - wire dance.milk" \
-  "$install_root/presets/classic/Martin - wire dance.milk"
-install -Dm755 "$root/uninstall.sh" "$install_root/uninstall.sh"
-install -Dm644 "$root/README.md" "$install_root/README.md"
-install -Dm644 "$root/CHANGELOG.md" "$install_root/CHANGELOG.md"
-install -Dm644 "$root/LICENSE" "$install_root/LICENSE"
-install -Dm644 "$root/docs/legacy-preset-notices.md" "$install_root/docs/legacy-preset-notices.md"
-install -Dm644 "$root/THIRD_PARTY_NOTICES.md" "$install_root/THIRD_PARTY_NOTICES.md"
-install -Dm644 "$root/VERSION" "$install_root/VERSION"
-install -Dm644 "$root/docs/controls.md" "$install_root/docs/controls.md"
-install -Dm644 "$root/docs/troubleshooting.md" \
-  "$install_root/docs/troubleshooting.md"
-install -Dm644 "$root/docs/scene-packs.md" "$install_root/docs/scene-packs.md"
-install -Dm644 "$root/docs/scene-pack-v1.schema.json" \
-  "$install_root/docs/scene-pack-v1.schema.json"
-install -Dm644 "$root/docs/scene-pack-v2.schema.json" \
-  "$install_root/docs/scene-pack-v2.schema.json"
-install -Dm644 "$root/docs/demo-music.md" "$install_root/docs/demo-music.md"
-install -Dm644 "$root/docs/accessibility-testing.md" \
-  "$install_root/docs/accessibility-testing.md"
-install -Dm644 "$root/docs/real-song-audit.md" \
-  "$install_root/docs/real-song-audit.md"
-install -Dm644 "$root/demo/music-rights.json" \
-  "$install_root/demo/music-rights.json"
-install -Dm644 "$root/demo/scene-sequence.txt" \
-  "$install_root/demo/scene-sequence.txt"
-install -Dm644 "$root/site/public/og.png" \
-  "$install_root/site/public/og.png"
+if [[ -n $prebuilt ]]; then
+  stage_prebuilt "$prebuilt" "$install_root"
+else
+  stage_from_repo "$install_root"
+fi
+
 # Stage checks run before any installed file is replaced.
+[[ -x $install_root/bin/omadrop-ui ]] || { echo 'install: the Qt controller was not built' >&2; exit 1; }
+[[ -x $install_root/bin/ttfx-music ]] || { echo 'install: ttfx-music was not built' >&2; exit 1; }
 [[ -x $install_root/experiments/projectm-ascii/projectm-ascii-live ]]
 [[ $(wc -l < "$install_root/presets/pilot.txt") == 21 ]]
 if [[ -e $final_root ]]; then
@@ -203,17 +212,47 @@ if ! mv -- "$staging_root" "$final_root"; then
 fi
 promoted=1
 install_root=$final_root
-mkdir -p "$bin_dir"
-ln -sfn "$install_root/bin/omadrop" "$bin_dir/omadrop"
-ln -sfn "$install_root/bin/omadrop-preview" "$bin_dir/omadrop-preview"
-ln -sfn "$install_root/bin/omadrop-close-window" "$bin_dir/omadrop-close-window"
-ln -sfn "$install_root/bin/omadrop-demo" "$bin_dir/omadrop-demo"
-ln -sfn "$install_root/bin/omadrop-demo-record" "$bin_dir/omadrop-demo-record"
-ln -sfn "$install_root/bin/omadrop-doctor" "$bin_dir/omadrop-doctor"
+
+# One command symlink. A foreign `omadrop` file is backed up exactly once; an
+# older Omadrop symlink (including the legacy product root) is repointed.
+install_command() {
+  local name link target backup
+  mkdir -p "$bin_dir"
+  for name in omadrop-preview omadrop-close-window omadrop-demo omadrop-demo-record omadrop-doctor; do
+    link=$bin_dir/$name
+    [[ -L $link ]] || continue
+    target=$(readlink -m "$link")
+    case $target in
+      "$final_root"/*|"$data_home/omadrop-product"/*|"$data_home/omadrop-screensaver"/*) unlink "$link" ;;
+    esac
+  done
+  if [[ -e $bin_dir/omadrop && ! -L $bin_dir/omadrop ]]; then
+    backup=$bin_dir/omadrop.before-omadrop
+    if [[ ! -e $backup && ! -L $backup ]]; then
+      mv -- "$bin_dir/omadrop" "$backup"
+    fi
+  fi
+  ln -sfn "$install_root/bin/omadrop" "$bin_dir/omadrop"
+}
+install_command
+
+install_desktop() {
+  local entry path
+  mkdir -p "$data_home/applications" "$data_home/icons/hicolor/scalable/apps"
+  install -Dm644 "$root/packaging/omadrop.desktop" "$data_home/applications/omadrop.desktop"
+  install -Dm644 "$root/packaging/omadrop.svg" "$data_home/icons/hicolor/scalable/apps/omadrop.svg"
+  # Retire the earlier two-launcher product entries; this install owns one.
+  for entry in omadrop-modes.desktop omadrop-effects.desktop; do
+    path=$data_home/applications/$entry
+    [[ -f $path ]] || continue
+    grep -Eq '^(Exec|TryExec)=.*omadrop' "$path" && rm -f -- "$path"
+  done
+}
+install_desktop
 
 install_omarchy_bindings() {
   local bindings=$config_home/hypr/bindings.lua
-  local keybindings shift_binding alt_binding backup temporary escaped_command
+  local keybindings shift_binding alt_binding backup temporary escaped_command escaped_close
   keybindings=$(omarchy menu keybindings --print 2>/dev/null || true)
   shift_binding=$(grep -E '^SUPER SHIFT \+ V[[:space:]]' <<<"$keybindings" | head -n 1 || true)
   alt_binding=$(grep -E '^SUPER ALT \+ V[[:space:]]' <<<"$keybindings" | head -n 1 || true)
@@ -240,6 +279,8 @@ install_omarchy_bindings() {
   ' "$bindings" > "$temporary"
   escaped_command=${bin_dir//\\/\\\\}
   escaped_command=${escaped_command//\"/\\\"}
+  escaped_close=${install_root//\\/\\\\}
+  escaped_close=${escaped_close//\"/\\\"}
   cat >> "$temporary" <<EOF
 
 -- omadrop:bindings:start
@@ -247,7 +288,7 @@ hl.unbind("SUPER + SHIFT + V")
 hl.unbind("SUPER + W")
 hl.unbind("SUPER + ALT + V")
 o.bind("SUPER + SHIFT + V", "Omadrop", "$escaped_command/omadrop")
-o.bind("SUPER + W", "Close window", "$escaped_command/omadrop-close-window")
+o.bind("SUPER + W", "Close window", "$escaped_close/bin/omadrop-close-window")
 o.bind("SUPER + ALT + V", "Toggle Omadrop secondary display", "$escaped_command/omadrop --toggle-secondary")
 o.window("projectm-ascii-live", { idle_inhibit = "always" })
 -- omadrop:bindings:end

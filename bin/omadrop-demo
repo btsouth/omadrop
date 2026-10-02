@@ -24,4 +24,4 @@ export OMADROP_PERSIST_DISPLAY=0
 export OMADROP_REVIEW_DWELL_MS=${OMADROP_DEMO_DWELL_MS:-2500}
 export OMADROP_AUTO_QUIT_MS=${OMADROP_DEMO_DURATION_MS:-60000}
 if [[ ${OMADROP_NATIVE_SEQUENCE_ONCE:-1} == 0 ]]; then unset OMADROP_AUTO_QUIT_MS; fi
-exec "$root/bin/omadrop" "$@"
+exec "$root/bin/omadrop-milkdrop" "$@"

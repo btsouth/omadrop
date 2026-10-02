@@ -10,4 +10,4 @@ export OMADROP_ASCII=${OMADROP_ASCII:-0}
 export OMADROP_COVER_HOLD_SECONDS=3.5
 export OMADROP_COVER_DISSOLVE_SECONDS=1.75
 export OMADROP_HIDE_FIRST_RUN_CONTROLS=1
-exec "$root/bin/omadrop" "$@"
+exec "$root/bin/omadrop-milkdrop" "$@"

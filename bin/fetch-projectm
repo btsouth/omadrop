@@ -3,6 +3,23 @@ set -euo pipefail
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 revision=e0b0a967f0ffd7d332106c366668ed271718472b
 source_dir="$root/cache/projectm-upstream"
+
+# A packaging build stages the pinned projectM source (including the
+# projectm-eval submodule) itself, so it is copied in rather than cloned.
+override=${OMADROP_PROJECTM_SOURCE:-}
+if [[ -n $override ]]; then
+  [[ -d $override ]] || { echo "fetch-projectm: source not found: $override" >&2; exit 1; }
+  mkdir -p "$root/cache"
+  rm -rf "$source_dir"
+  cp -a "$override" "$source_dir"
+  if [[ -d $source_dir/.git ]]; then
+    [[ $(git -C "$source_dir" rev-parse HEAD) == "$revision" ]] || {
+      echo 'projectM source does not match the pinned revision' >&2; exit 1;
+    }
+  fi
+  exit 0
+fi
+
 if [[ ! -d "$source_dir/.git" ]]; then
   mkdir -p "$root/cache"
   git clone --branch v4.1.7 --depth 1 --recurse-submodules --shallow-submodules \

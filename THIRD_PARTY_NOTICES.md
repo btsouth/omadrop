@@ -68,3 +68,10 @@ review item; this candidate does not establish permission from each author.
 The older classic collection and its Reactive Tunnel, Reactive Orbit and
 Reactive Wire adaptations retain the notices in
 [legacy preset credits](docs/legacy-preset-notices.md).
+
+## Terminal text effects (ttfx)
+
+The music screensaver is driven by ttfx-music, a Rust port of
+[terminaltexteffects](https://github.com/ChrisBuilds/terminaltexteffects) by
+ChrisBuilds. ttfx is MIT licensed; its LICENSE and NOTICE ship alongside this
+notice as `screensaver/ttfx/LICENSE` and `screensaver/ttfx/NOTICE`.

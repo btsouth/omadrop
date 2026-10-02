@@ -15,15 +15,18 @@ Changing modes closes the current renderer and starts the selected one.
 
 ## Build and install
 
-See [app/README.md](app/README.md) for the native Qt build and tests. After the
-native binary is built, `./install.sh` installs one Omadrop desktop entry and
-command over an existing two-mode installation. It backs up the previous command
-and retires the old Modes and Effects launcher entries.
+The repo root is the product. `./install.sh` builds the pinned projectM runtime,
+the MilkDrop collection renderer, ttfx-music and the Qt controller, then stages
+the complete root under `~/.local/share/omadrop`. One `omadrop` command is
+symlinked into `~/.local/bin`, with one desktop entry and icon. `--prebuilt DIR`
+installs an already staged root, `--no-deps` and `--no-bindings` keep the
+installer off the package manager and keyboard shortcuts. `./uninstall.sh`
+removes it and preserves settings.
 
-See [package/README.md](package/README.md) for the relocatable preview bundle and
-Arch package recipe. The bundle includes Omarchy effects and can discover an
-existing MilkDrop installation. MilkDrop presets, textures, and private audio
-are not included.
+The Qt controller builds on the devbox with qmake6 and make from `app/build`; see
+[app/README.md](../app/README.md). The Arch package is defined by
+`packaging/PKGBUILD` and built from source with `packaging/makepkg.sh`;
+`packaging/test-in-arch.sh` proves it in a clean `archlinux` container.
 
 ## Commands
 
@@ -31,23 +34,26 @@ are not included.
 omadrop                          # start visuals; repeated launch shows controls
 omadrop --controls               # open controls
 omadrop --effects                # open controls in Omarchy mode
-omadrop --app --quit             # stop visuals and quit the controller
 omadrop --mode milkdrop          # direct renderer launch
 omadrop --mode omarchy           # direct renderer launch
+omadrop --mode milkdrop --scene N  # start on collection scene N (1..21)
 omadrop --preview-effect beams   # preview a specific effect
 omadrop --stop                   # stop renderer windows
 ```
 
-The dispatcher and `omadrop-effects` retain their noninteractive commands for
-compatibility. The native app uses those helpers without opening Zenity dialogs.
-All runtime paths honor XDG directories. Native mode, display, and ASCII choices
-are saved in `omadrop/product.conf`; effect preferences are locked, atomically
-merged in `omadrop/effects.conf`. No rejected native scene is offered.
+The dispatcher and `omadrop-effects` keep their noninteractive commands:
+`omadrop-effects --list`, `--favorite NAME` and `--hide NAME`. The native app
+drives those helpers directly. Hidden MilkDrop scenes come from
+`omadrop/scenes.conf`; hidden screensaver effects from `omadrop/effects.conf`.
+Native mode, display and ASCII choices are saved in `omadrop/product.conf`; the
+effect preference file is locked and atomically merged. All runtime paths honor
+XDG directories, and every helper resolves its siblings from its own location.
 
 ## Verification
 
-`bash tests/product-test` checks dispatcher and installer behavior with mocks.
-`python3 tests/preferences-test.py` checks concurrent effect preference edits.
-The native controller has additional process, launch, failure, and cancellation
-regressions under `app/tests`. Run builds and full suites on the devbox. GUI
-checks belong in omabox; actual audio and output latency require hardware.
+`bash tests/product/product-test` checks the dispatcher, scene selection and
+installer behavior with mocks. `python3 tests/product/preferences-test.py`
+checks concurrent effect preference edits. `packaging/test-in-arch.sh` builds and
+smoke-tests the Arch package in Docker and prints `ARCH PACKAGE OK`. The native
+controller has additional process, launch, failure and cancellation regressions
+under `app/tests`. Run builds and full suites on the devbox.

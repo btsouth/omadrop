@@ -1,54 +1,71 @@
 # Maintainer: Omadrop contributors
 #
-# Local, prepared bundle. Run `python3 build-bundle.py --output .` first so the
-# tarball sits next to this file, then `makepkg`. The archive is the source;
-# nothing is downloaded.
-#
-# This packages a prebuilt Arch / Omarchy x86_64 bundle. It is not portable to
-# arbitrary Linux distributions. The accepted MilkDrop backend is detected at
-# runtime and is never packaged.
+# Builds Omadrop entirely from source: patched projectM 4.1.7 (with the pinned
+# projectm-eval submodule), the MilkDrop collection renderer, ttfx-music and the
+# Qt controller. Use packaging/makepkg.sh from a local checkout, which stages
+# the source archive and the pinned projectM sources.
 pkgname=omadrop
-pkgver=0.5.0preview1
+pkgver=0.5.0rc1
 pkgrel=1
-pkgdesc="Music-reactive visuals in any app and the Omarchy music screensaver"
+pkgdesc="Music-reactive MilkDrop visuals and the Omarchy music screensaver"
 arch=('x86_64')
-license=('MIT')
-depends=('qt6-base' 'qt6-declarative' 'python' 'pipewire' 'jq' 'socat' 'ghostty')
-source=("omadrop-0.5.0-preview.1.tar.gz")
-sha256sums=('SKIP')
+url="https://github.com/btsouth/omadrop"
+license=('MIT' 'LGPL-2.1-or-later' 'custom')
+
+depends=(
+  'qt6-base' 'qt6-declarative' 'python' 'jq' 'socat' 'ghostty'
+  'sdl2-compat' 'glew' 'libpng' 'fftw' 'json-c' 'libpulse' 'mesa'
+  'pipewire-audio' 'imagemagick' 'curl' 'glib2'
+)
+makedepends=(
+  'git' 'python' 'rust' 'cmake' 'ninja' 'pkgconf'
+  'qt6-base' 'qt6-declarative'
+  'sdl2-compat' 'glew' 'libpng' 'fftw' 'json-c' 'mesa'
+)
+optdepends=(
+  'alacritty: terminal for the Omarchy music screensaver'
+  'kitty: terminal for the Omarchy music screensaver'
+  'foot: terminal for the Omarchy music screensaver'
+  'ffmpeg: output calibration and demo recording'
+  'gpu-screen-recorder: demo recording'
+)
+
+source=(
+  "omadrop-$pkgver.tar.gz"
+  "projectm::git+https://github.com/projectM-visualizer/projectm.git#commit=e0b0a967f0ffd7d332106c366668ed271718472b"
+  "projectm-eval::git+https://github.com/projectM-visualizer/projectm-eval.git#commit=da885dcdf33620ef26aa04cac9e215378b80252e"
+)
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+prepare() {
+  export CARGO_HOME="$srcdir/cargo-home"
+  # projectM builds its vendor/projectm-eval submodule in-tree; the source list
+  # pins it, so place it before configure. build() runs offline after this.
+  rm -rf "$srcdir/projectm/vendor/projectm-eval"
+  cp -a "$srcdir/projectm-eval" "$srcdir/projectm/vendor/projectm-eval"
+  cargo fetch --locked \
+    --manifest-path "$srcdir/omadrop-$pkgver/screensaver/ttfx/Cargo.toml"
+}
+
+build() {
+  export CARGO_HOME="$srcdir/cargo-home"
+  export CARGO_NET_OFFLINE=true
+  OMADROP_PROJECTM_SOURCE="$srcdir/projectm" \
+    "$srcdir/omadrop-$pkgver/install.sh" --stage "$srcdir/root"
+}
 
 package() {
-  local bundle="$srcdir/omadrop-0.5.0-preview.1"
-
-  install -d "$pkgdir/usr/share/omadrop-product/bin"
-  install -Dm755 "$bundle/share/omadrop-product/bin/omadrop" \
-    "$pkgdir/usr/share/omadrop-product/bin/omadrop"
-  install -Dm755 "$bundle/share/omadrop-product/bin/omadrop-effects" \
-    "$pkgdir/usr/share/omadrop-product/bin/omadrop-effects"
-  install -Dm755 "$bundle/share/omadrop-product/bin/omadrop-ui" \
-    "$pkgdir/usr/share/omadrop-product/bin/omadrop-ui"
-
-  install -d "$pkgdir/usr/share/omadrop-screensaver/bin"
-  install -Dm755 "$bundle/share/omadrop-screensaver/bin/omadrop-screensaver" \
-    "$pkgdir/usr/share/omadrop-screensaver/bin/omadrop-screensaver"
-  install -Dm755 "$bundle/share/omadrop-screensaver/bin/omadrop-screensaver-run" \
-    "$pkgdir/usr/share/omadrop-screensaver/bin/omadrop-screensaver-run"
-  install -Dm755 "$bundle/share/omadrop-screensaver/bin/ttfx-music" \
-    "$pkgdir/usr/share/omadrop-screensaver/bin/ttfx-music"
-
-  install -Dm644 "$bundle/share/applications/omadrop.desktop" \
+  install -d "$pkgdir/usr/lib/omadrop" "$pkgdir/usr/bin" \
+    "$pkgdir/usr/share/applications" \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps" \
+    "$pkgdir/usr/share/licenses/omadrop"
+  cp -a "$srcdir/root/." "$pkgdir/usr/lib/omadrop/"
+  ln -s /usr/lib/omadrop/bin/omadrop "$pkgdir/usr/bin/omadrop"
+  install -Dm644 "$srcdir/omadrop-$pkgver/packaging/omadrop.desktop" \
     "$pkgdir/usr/share/applications/omadrop.desktop"
-  install -Dm644 "$bundle/share/icons/hicolor/scalable/apps/omadrop.svg" \
+  install -Dm644 "$srcdir/omadrop-$pkgver/packaging/omadrop.svg" \
     "$pkgdir/usr/share/icons/hicolor/scalable/apps/omadrop.svg"
-  install -Dm644 "$bundle/README.md" "$pkgdir/usr/share/doc/omadrop/README.md"
-
-  install -Dm644 "$bundle/share/licenses/omadrop/LICENSE" \
-    "$pkgdir/usr/share/licenses/omadrop/LICENSE"
-  install -Dm644 "$bundle/share/licenses/omadrop/ttfx-LICENSE" \
-    "$pkgdir/usr/share/licenses/omadrop/ttfx-LICENSE"
-  install -Dm644 "$bundle/share/licenses/omadrop/ttfx-NOTICE" \
-    "$pkgdir/usr/share/licenses/omadrop/ttfx-NOTICE"
-
-  install -d "$pkgdir/usr/bin"
-  ln -s /usr/share/omadrop-product/bin/omadrop "$pkgdir/usr/bin/omadrop"
+  for file in "$srcdir/root/licenses/"*; do
+    install -Dm644 "$file" "$pkgdir/usr/share/licenses/omadrop/$(basename "$file")"
+  done
 }

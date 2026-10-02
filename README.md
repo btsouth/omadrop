@@ -30,23 +30,35 @@ Build from this checkout:
 ./install.sh
 ```
 
-The installer adds Arch dependencies, builds pinned projectM source, stages the
-complete runtime, and installs it under `~/.local/share/omadrop`. An existing
-installation is preserved in a sibling `omadrop.previous.*` directory. Close
-Omadrop before updating. Settings and cached artwork stay in place.
+The installer adds Arch dependencies, builds pinned projectM source, ttfx-music
+and the Qt controller, stages the complete runtime, and installs it under
+`~/.local/share/omadrop`. It adds one `omadrop` command under `~/.local/bin` and
+one desktop entry and icon. An existing installation is preserved in a sibling
+`omadrop.previous.*` directory; an older `omadrop-product` or
+`omadrop-screensaver` directory is left alone, with only the command and desktop
+entry repointed. `~/.config/omadrop` is never touched. Close Omadrop before
+updating.
 
 Use `--no-deps` to manage dependencies yourself or `--no-bindings` to leave
-keyboard shortcuts alone. Build requirements include GCC, Git, Python, CMake,
-Ninja, pkgconf, SDL2, GLEW, libpng, FFTW, json-c and libprojectm. Runtime helpers
-include PipeWire, PulseAudio utilities, ImageMagick, GLib, curl and jq.
+keyboard shortcuts alone. Install an already staged root with `--prebuilt DIR`.
+Build requirements include GCC, Git, Python, CMake, Ninja, pkgconf, Rust/Cargo
+and the Qt6 base and declarative packages, plus SDL2, GLEW, libpng, FFTW, json-c
+and mesa. Runtime helpers include PipeWire, PulseAudio utilities, ImageMagick,
+GLib, curl and jq.
 
 ## Use
 
 ```sh
 omadrop                 # launch, or close an already running instance
+omadrop --controls      # open the controls
+omadrop --mode milkdrop # start the MilkDrop collection
+omadrop --mode omarchy  # start the music screensaver
+omadrop --scene N       # start MilkDrop on collection scene N (1..21)
 omadrop --single        # use one display and remember it
 omadrop --all           # use all displays and remember it
 omadrop --single --original  # start with added audio response disabled
+omadrop --preview-effect beams  # preview one screensaver effect
+omadrop --stop          # stop the running visuals
 omadrop calibrate       # adjust timing for the current audio output
 ```
 
@@ -71,7 +83,7 @@ apply to the MilkDrop collection. See [controls](docs/controls.md).
 omadrop-doctor
 ./bin/omadrop-check
 ./bin/omadrop-check --full
-~/.local/share/omadrop/uninstall.sh
+./uninstall.sh
 ```
 
 The full check loads all 21 presets and exercises a longer rotation. Installation

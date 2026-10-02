@@ -9,7 +9,7 @@ this is the engineering log and the roadmap.
 ## Current implementation snapshot
 
 The production path is now `experiments/projectm-ascii/projectm-ascii-live`,
-an SDL/OpenGL application using libprojectM. `bin/omadrop` launches it on every
+an SDL/OpenGL application using libprojectM. `bin/omadrop-milkdrop` launches it on every
 connected Hyprland monitor by default and treats those windows as one paired
 session. Quickshell remains only as the explicit `OMADROP_LEGACY=1` recovery
 path.
@@ -355,7 +355,7 @@ mapped yet. Always wait:
 - **`hideSource: true` stops a `Canvas` from painting.** A plain `Item` (the
   glyph atlas `Grid`) is unaffected.
 - **`QSG_RENDER_LOOP` defaults to a ~63fps cap** regardless of workload.
-  `threaded` unlocks the display refresh (131fps+ measured). `bin/omadrop`
+  `threaded` unlocks the display refresh (131fps+ measured). `bin/omadrop-milkdrop`
   sets it.
 - **Bake shaders with GLSL ES targets.** Qt asks for 320/310/300/100es here;
   baking only `150,440` gives "No GLSL shader code found" and a black screen.

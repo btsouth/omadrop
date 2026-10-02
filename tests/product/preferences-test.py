@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
-"""Targeted regressions for actual Zenity output and preference safety."""
+"""Targeted regressions for effects.conf preference safety."""
 import os
 import runpy
 import tempfile
 from unittest.mock import patch
-from types import SimpleNamespace
 
-helper = runpy.run_path(os.path.join(os.path.dirname(__file__), '../bin/omadrop-effects'))
+helper = runpy.run_path(os.path.join(os.path.dirname(__file__), '../../bin/omadrop-effects'))
 with tempfile.TemporaryDirectory() as config:
     with patch.dict(os.environ, {'XDG_CONFIG_HOME': config}):
-        choose = helper['choose_checklist']
-        with patch('subprocess.run', return_value=SimpleNamespace(returncode=0, stdout='beams|fireworks\n')):
-            assert choose('Favorites', '', [('beams', 'Beams'), ('fireworks', 'Fireworks')], set()) == ['beams', 'fireworks']
         prefs = helper['Prefs'](['beams', 'fireworks'], ['burn'], ['# preserved', 'future-key=value'])
         helper['write_prefs'](prefs)
         loaded = helper['read_prefs']({'beams', 'fireworks', 'burn'})
@@ -21,9 +17,6 @@ with tempfile.TemporaryDirectory() as config:
         before = open(path).read()
         assert '# preserved' in before and 'future-key=value' in before
         assert helper['noninteractive']([], prefs, {'beams'}, ['--favorite', 'beams', '--bogus']) == 2
-        assert open(path).read() == before
-        with patch('subprocess.run', return_value=SimpleNamespace(returncode=1, stdout='beams')):
-            assert choose('Favorites', '', [], set()) is None
         assert open(path).read() == before
         valid = {'beams', 'fireworks', 'burn', 'swarm'}
         with open(path, 'w') as output:
@@ -61,6 +54,6 @@ with tempfile.TemporaryDirectory() as config:
         except helper['PrefsError']:
             pass
         else:
-            raise AssertionError('clobbered future version after a dialog opened')
+            raise AssertionError('clobbered future version after a concurrent edit')
         assert open(path).read() == 'version=2\nfavorites=newer-format\n'
-print('preferences: Zenity separators, cancel, concurrent edits, unknown keys, atomic permissions, invalid CLI and future-version protection passed')
+print('preferences: concurrent edits, unknown keys, atomic permissions, invalid CLI and future-version protection passed')

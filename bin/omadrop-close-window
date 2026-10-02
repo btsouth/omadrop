@@ -3,6 +3,6 @@ set -euo pipefail
 root=$(dirname "$(dirname "$(readlink -f "$0")")")
 hypr=${OMADROP_HYPRCTL:-hyprctl}
 if "$hypr" activewindow -j | jq -e '.class == "projectm-ascii-live"' >/dev/null; then
-  exec "$root/bin/omadrop" --stop
+  exec "$root/bin/omadrop-milkdrop" --stop
 fi
 exec "$hypr" eval 'hl.dispatch(hl.dsp.window.close())'
