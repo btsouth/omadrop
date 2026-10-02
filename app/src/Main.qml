@@ -568,7 +568,7 @@ ApplicationWindow {
                         Layout.alignment: Qt.AlignVCenter
                         Label {
                             Layout.alignment: Qt.AlignVCenter
-                            text: qsTr("Captions")
+                            text: qsTr("Scene names")
                             color: app.cTextMute
                             font.pixelSize: 12
                         }
