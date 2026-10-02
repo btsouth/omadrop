@@ -2,6 +2,11 @@
 
 # Launch the Omarchy screensaver with music (omadrop-screensaver-run) in the default terminal, on every monitor, like omarchy-launch-screensaver.
 
+if [[ ${OMADROP_TIMING:-0} == 1 ]]; then
+  export OMADROP_TIMING_ORIGIN_MS=${OMADROP_TIMING_ORIGIN_MS:-$(date +%s%3N)}
+  printf 'timing\t%s\tlauncher start\n' "$(( $(date +%s%3N) - OMADROP_TIMING_ORIGIN_MS ))" >&2
+fi
+
 # Exit early if our screensaver is already running.
 pgrep -f '[o]rg.omadrop.screensaver' && exit 0
 
@@ -50,6 +55,9 @@ fi
 # The compositor exec does not inherit this launcher's environment, so the
 # effect travels with the command itself.
 runner=(env)
+if [[ ${OMADROP_TIMING:-0} == 1 ]]; then
+  runner+=("OMADROP_TIMING=1" "OMADROP_TIMING_ORIGIN_MS=$OMADROP_TIMING_ORIGIN_MS")
+fi
 [[ -n $effect ]] && runner+=("OMADROP_EFFECT=$effect")
 [[ -n ${OMADROP_CANCEL_FILE:-} ]] && runner+=("OMADROP_CANCEL_FILE=$OMADROP_CANCEL_FILE")
 runner+=("$run")
@@ -113,8 +121,8 @@ hypr_exec() {
   local command
   printf -v command '%q ' "$@"
 
-  hyprctl dispatch "hl.dsp.exec_cmd([[[workspace $workspace; float; fullscreen] $command]])" >/dev/null 2>&1 ||
-    hyprctl dispatch exec -- "[workspace $workspace; float; fullscreen]" bash -lc "$command" >/dev/null
+  hyprctl dispatch "hl.dsp.exec_cmd([[[monitor $m; workspace $workspace; float; fullscreen] $command]])" >/dev/null 2>&1 ||
+    hyprctl dispatch exec -- "[monitor $m; workspace $workspace; float; fullscreen]" bash -lc "$command" >/dev/null
 }
 
 SOCKET="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
@@ -123,10 +131,8 @@ SOCKET="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
 # quickly can't emit its openwindow event before we are listening for it.
 exec {events}< <(socat -U - "UNIX-CONNECT:$SOCKET")
 
-# hypr_exec is async and a new window maps on whatever monitor is focused at that
-# moment. Block until this monitor's screensaver actually opens before moving
-# focus on -- otherwise slow-starting terminals all pile onto the last monitor.
-# The deadline is a safety net in case the window never appears.
+# Explicit monitor rules place terminals without serial focus-and-map waits.
+# Wait only for mapping events before restoring the user's focused monitor.
 wait_for_screensaver_window() {
   local line deadline=$((SECONDS + 5))
   while ((SECONDS < deadline)) && IFS= read -r -t $((deadline - SECONDS)) -u "$events" line; do
@@ -141,8 +147,9 @@ if [[ $display_mode == single ]]; then
   [[ -n $monitors ]] || { echo "omadrop-screensaver: no monitor available" >&2; exit 1; }
 fi
 
+window_count=0
 while read -r m special; do
-  hypr_focus_monitor "$m"
+  ((window_count += 1))
   # Share a special workspace that is already showing, like the scratchpad, so it is still open afterwards.
   workspace=${special:-special:screensaver-$m}
 
@@ -161,9 +168,11 @@ while read -r m special; do
     ;;
   esac
 
-  wait_for_screensaver_window
 done < <(printf '%s\n' "$monitors")
 
+for ((index = 0; index < window_count; index++)); do
+  wait_for_screensaver_window || break
+done
 hypr_focus_monitor "$focused"
 
 # Emptying a special workspace focuses its monitor, so the last screensaver to close would take focus

@@ -126,36 +126,35 @@ int main() {
         }
         assert(sawA && sawB && receivedB);
     }
-    // Startup regression: a slow cover must be the first visible content.
+    // Collection startup and track changes never invoke the artwork helper.
     write("track", "a");
-    write("art-fetch", "#!/bin/sh\nsleep 1\nprintf '/tmp/%s.png\\n' \"$1\"\n", true);
+    write("art-fetch", "#!/bin/sh\ntouch \"$(dirname \"$0\")/art-called\"\nsleep 1\n", true);
     {
-        TrackSession session(fixture/"mpris-state",false,false,0);
-        DisplaySession display({});
-        CoverPresentation cover(3.5f,1.75f);
-        const auto began=std::chrono::steady_clock::now();
-        bool shown=false;
-        while(std::chrono::steady_clock::now()-began<std::chrono::seconds(3)) {
-            const auto ms=std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::steady_clock::now()-began).count();
-            auto value=session.update(ms);
-            if(value.artworkCandidate) {
-                session.acceptArtwork(*value.artworkCandidate);
-                cover.show(ms);
+        TrackSession session(fixture/"mpris-state", true, false, 0);
+        DisplaySession display({.immediateReveal = true});
+        assert(session.artworkLookupComplete());
+        display.prepareFirstFrame(true);
+        assert(display.afterFramePresented(0, true, true));
+        assert(display.visibility(0) == 1.0f);
+        const auto began = std::chrono::steady_clock::now();
+        bool sawA = false, sawB = false, switched = false;
+        while (std::chrono::steady_clock::now() - began < std::chrono::seconds(2)) {
+            const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - began).count();
+            if (ms >= 400 && !switched) { write("track", "b"); switched = true; }
+            const auto value = session.update(ms);
+            assert(!value.artworkCandidate);
+            assert(!value.startupArtworkTimedOut);
+            if (value.state && value.state->identity == "a") sawA = true;
+            if (value.state && value.state->identity == "b") {
+                sawB = true;
+                assert(value.playback && value.playback->trackChanged);
+                break;
             }
-            if(display.afterFramePresented(ms,session.artworkLookupComplete(),true)) {
-                assert(ms>=1000);
-                assert(cover.hasArtwork()); // No visual-first frame is allowed.
-                cover.restart(ms);
-                assert(cover.frame(ms+3499).coverMix==1.0f);
-                assert(cover.frame(ms+4375).coverMix>0.49f);
-                assert(cover.frame(ms+5250).complete);
-                shown=true;break;
-            }
-            assert(!display.windowShown());
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
-        assert(shown);
+        assert(sawA && sawB);
+        assert(!std::filesystem::exists(fixture/"art-called"));
     }
     TrackPresentationState noCover(false,0);
     noCover.ingest(result("no-cover","",0),50);

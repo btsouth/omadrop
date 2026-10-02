@@ -10,6 +10,7 @@
 #include <QVariantList>
 
 class QTimer;
+class QLocalSocket;
 
 // Native Omadrop product controller.
 //
@@ -102,6 +103,8 @@ private:
     void markCancelled();
     void runStopPass(bool finalPass);
     void finishStop();
+    void sessionExited();
+    void connectEvents();
     void finishEffectsRefresh();
     void boundProcess(QProcess* process, int timeoutMs);
     int countSessionWindows(const QJsonArray& clients) const;
@@ -116,7 +119,6 @@ private:
     bool m_captions = true;
     bool m_curtainVisible = false;
     QString m_errorDetails;
-    QTimer* m_curtainTimer = nullptr;
     bool m_ascii = false;
     bool m_playing = false;
     bool m_busy = false;
@@ -144,11 +146,15 @@ private:
     bool m_previewing = false;
     QString m_pendingLabel;
     int m_startupTimeoutMs = 12000;
-    int m_pollIntervalMs = 300;
+    int m_pollIntervalMs = 50;
     QTimer* m_pollTimer = nullptr;
     QTimer* m_startupTimer = nullptr;
     QPointer<QProcess> m_hyprProcess;
     QPointer<QProcess> m_launchProcess;
+    QLocalSocket* m_events = nullptr;
+    QByteArray m_eventBuffer;
+    QSet<QByteArray> m_windowAddresses;
+    bool m_pollPending = false;
     QPointer<QProcess> m_stopProcess;
     quint64 m_sessionGeneration = 0;
     bool m_stopping = false;

@@ -3,7 +3,7 @@ set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$root"
 "$root/bin/fetch-projectm"
-python experiments/milkdrop-audio-pilot/prepare.py
+python3 experiments/milkdrop-audio-pilot/prepare.py
 pilot="$root/cache/milkdrop-audio-pilot"
 cmake -S "$pilot/projectm" -B "$pilot/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DENABLE_SYSTEM_PROJECTM_EVAL=OFF -DENABLE_PLAYLIST=OFF -DCMAKE_INSTALL_PREFIX="$pilot/runtime" > "$pilot/configure.log" 2>&1
@@ -26,4 +26,4 @@ cp -a "$root/bin/mpris-state" "$root/bin/art-fetch" "$pilot/runtime/bin/"
 mkdir -p "$pilot/runtime/presets/pilot"
 cp -a "$pilot/presets/." "$pilot/runtime/presets/pilot/"
 printf 'Built %s\n' "$pilot/runtime/experiments/projectm-ascii/projectm-audio-pilot"
-python -c 'import json, pathlib; p=pathlib.Path("../../experiments/milkdrop-audio-pilot/manifest.json"); pathlib.Path("../../cache/milkdrop-audio-pilot/runtime/presets/pilot.txt").write_text("".join(x["preset"]+"\n" for x in json.loads(p.read_text())["presets"]))'
+python3 -c 'import json, pathlib; p=pathlib.Path("../../experiments/milkdrop-audio-pilot/manifest.json"); pathlib.Path("../../cache/milkdrop-audio-pilot/runtime/presets/pilot.txt").write_text("".join(x["preset"]+"\n" for x in json.loads(p.read_text())["presets"]))'

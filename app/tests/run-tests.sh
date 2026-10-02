@@ -7,7 +7,6 @@ here=$(cd "$(dirname "$0")" && pwd)
 build=${OMADROP_TEST_BUILD_DIR:-"$here/.build"}
 qmake=${QMAKE:-qmake6}
 
-rm -rf "$build"
 mkdir -p "$build"
 cd "$build"
 "$qmake" "$here/tests.pro" >/dev/null

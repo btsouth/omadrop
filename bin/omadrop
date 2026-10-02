@@ -11,6 +11,10 @@
 #
 # Every helper is a sibling in this installation's bin directory.
 set -euo pipefail
+if [[ ${OMADROP_TIMING:-0} == 1 ]]; then
+  export OMADROP_TIMING_ORIGIN_MS=${OMADROP_TIMING_ORIGIN_MS:-$(date +%s%3N)}
+  printf 'timing\t%s\tdispatcher start\n' "$(( $(date +%s%3N) - OMADROP_TIMING_ORIGIN_MS ))" >&2
+fi
 # Preserve the controller's per-launch captions choice through both launchers.
 if [[ ${OMADROP_CAPTIONS:-} == 0 || ${OMADROP_CAPTIONS:-} == 1 ]]; then
   export OMADROP_CAPTIONS
@@ -36,7 +40,8 @@ if [[ -x $native_ui ]]; then
   export OMADROP_CONTROLLER_BACKEND=$here/omadrop
   export OMADROP_EFFECTS_HELPER=$here/omadrop-effects
   case ${1:-} in
-    "") exec "$native_ui" ;;
+    "") exec "$native_ui" --controls ;;
+    --play) shift; exec "$native_ui" --play "$@" ;;
     --app) shift; exec "$native_ui" "$@" ;;
     --controls) exec "$native_ui" --controls ;;
     --effects) export OMADROP_UI_MODE=omarchy; exec "$native_ui" --controls ;;
@@ -97,9 +102,9 @@ stop_omarchy() {
       >/dev/null 2>&1 || true
     kill -TERM "$pid" 2>/dev/null || true
   done < <(screensaver_pids)
-  for ((attempt = 0; attempt < 20; attempt++)); do
+  for ((attempt = 0; attempt < 50; attempt++)); do
     [[ -z $(screensaver_pids) ]] && break
-    sleep 0.05
+    sleep 0.02
   done
 }
 
@@ -139,7 +144,8 @@ esac
 
 if [[ ${1:-} == -h || ${1:-} == --help ]]; then
   cat <<'EOF'
-Usage: omadrop [--mode milkdrop|omarchy] [--single|--all]
+Usage: omadrop [--controls|--play]
+       omadrop [--mode milkdrop|omarchy] [--single|--all]
        omadrop --mode milkdrop --scene N
        omadrop --controls
        omadrop --effects
@@ -148,8 +154,9 @@ Usage: omadrop [--mode milkdrop|omarchy] [--single|--all]
        omadrop [--ascii|--no-ascii] [--mode milkdrop]
        omadrop [--current-mode|--stop|--version]
 
-Choose a mode with --mode. The normal shortcut toggles the
-remembered mode (MilkDrop on first use). Omarchy keeps its authored characters.
+Opening Omadrop shows controls. Opening it while visuals play stops them
+and returns to controls. --play starts the remembered mode directly.
+Choose a mode with --mode. Omarchy keeps its authored characters.
 MilkDrop controls, calibration and pack commands remain available.
 
 --scene N starts the MilkDrop collection on scene number N (1..21), honoring
@@ -167,6 +174,7 @@ fi
 mode_arg=
 current=0
 stop=0
+play=0
 effect=
 preview_effect=
 scene=
@@ -203,6 +211,7 @@ while (($#)); do
       preview_effect=$2
       shift 2
       ;;
+    --play) play=1; shift ;;
     --current-mode) current=1; shift ;;
     --ascii) ascii_override=1; ascii_set=1; shift ;;
     --no-ascii) ascii_override=0; ascii_set=1; shift ;;
@@ -215,7 +224,7 @@ done
 
 # A preview has one purpose; reject ambiguous options before side effects.
 if [[ -n $preview_effect ]] && { [[ -n $effect || -n $mode_arg ]] ||
-    ((current || stop || ascii_set || scene_set)) ||
+    ((current || stop || play || ascii_set || scene_set)) ||
     ((${#display_args[@]} || ${#passthrough[@]})); }; then
   die "--preview-effect must be used on its own"
 fi
@@ -257,7 +266,7 @@ if [[ -n $effect ]]; then
   mode_arg=omarchy
 fi
 
-launch_requested=0
+launch_requested=$play
 [[ -n $mode_arg ]] && launch_requested=1
 ((${#display_args[@]})) && launch_requested=1
 ((${#passthrough[@]})) && launch_requested=1
@@ -280,13 +289,14 @@ case $target_mode in
   omarchy) require_backend "$omarchy_backend" ;;
 esac
 
-# Bare invocation is the Omarchy hotkey: a toggle. It only stops when one of
-# our sessions is already up, otherwise it launches the remembered mode.
+# Installations without the native UI still never start playback implicitly.
 if ((launch_requested == 0)); then
   if milkdrop_running || omarchy_running; then
     stop_all
     exit 0
   fi
+  echo "omadrop: controls are unavailable; build or install omadrop-ui" >&2
+  exit 1
 fi
 
 [[ -n $mode_arg ]] && save_mode "$mode_arg"

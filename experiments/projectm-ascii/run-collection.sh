@@ -31,7 +31,6 @@ if [[ -z ${OMADROP_ASCII+x} ]]; then
   fi
 fi
 export OMADROP_HIDE_FIRST_RUN_CONTROLS=1
-export OMADROP_COVER_HOLD_SECONDS=3.5 OMADROP_COVER_DISSOLVE_SECONDS=1.75
 
 names=()
 while IFS= read -r name; do
@@ -107,4 +106,8 @@ if ((scene_set)); then
   export OMADROP_START_PRESET=$start_index
 fi
 
+if [[ ${OMADROP_TIMING:-0} == 1 ]]; then
+  export OMADROP_TIMING_ORIGIN_MS=${OMADROP_TIMING_ORIGIN_MS:-$(date +%s%3N)}
+  printf 'timing\t%s\trenderer exec\n' "$(( $(date +%s%3N) - OMADROP_TIMING_ORIGIN_MS ))" >&2
+fi
 exec "${OMADROP_LIVE_EXECUTABLE:-$root/experiments/projectm-ascii/projectm-ascii-live}" "${presets[@]}"

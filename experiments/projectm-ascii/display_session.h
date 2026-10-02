@@ -8,6 +8,7 @@ struct DisplaySessionConfig {
     std::filesystem::path readyPath;
     std::filesystem::path recordStopPath;
     int displayIndex = 0;
+    bool immediateReveal = false;
 };
 
 class DisplaySession {
@@ -15,6 +16,8 @@ public:
     explicit DisplaySession(DisplaySessionConfig config);
 
     bool pollStartGate(std::uint64_t nowMs);
+    void prepareFirstFrame(bool pairedFrameReady);
+    bool framePrepared() const { return framePrepared_; }
     bool afterFramePresented(std::uint64_t nowMs,
                              bool presentationReady,
                              bool pairedFrameReady);
@@ -41,4 +44,5 @@ private:
     bool windowShown_ = false;
     bool closing_ = false;
     bool recordingCompleteSignaled_ = false;
+    bool framePrepared_ = false;
 };

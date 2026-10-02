@@ -15,8 +15,11 @@
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <QVariantMap>
+#include <QLocalServer>
+#include <QLocalSocket>
 
 #include "../src/backend.h"
+#include "../src/startup_request.h"
 
 namespace {
 void makeExecutable(const QString& path, const QString& contents) {
@@ -57,6 +60,11 @@ private slots:
     void firstRunDisplayIgnoresLegacyDefault();
     void errorDetailsLoadLastLines();
     void defaultsWithoutStoredPreferences();
+    void startupRequests();
+    void rendererExitReturnsImmediately();
+    void compositorEventsDetectWindows();
+    void rendererIdentityDetectsMappedWindow();
+    void alphabeticalGrids();
     void loadsStoredPreferences();
     void selectionsPersistToProductConfOnly();
     void playMapsWhenSessionWindowAppears();
@@ -194,6 +202,7 @@ void BackendTest::init() {
     qputenv("OMADROP_STARTUP_TIMEOUT_MS", "500");
     qputenv("OMADROP_QUERY_TIMEOUT_MS", "1000");
     qunsetenv("OMADROP_UI_MODE");
+    qunsetenv("OMADROP_HYPR_EVENT_SOCKET");
     qunsetenv("OMADROP_MILKDROP_BACKEND");
     qunsetenv("OMADROP_OMARCHY_BACKEND");
     qputenv("OMADROP_TEST_CONTROL_LOG", m_controlLog.toUtf8());
@@ -294,6 +303,116 @@ void BackendTest::defaultsWithoutStoredPreferences() {
     QVERIFY(!backend.busy());
 }
 
+void BackendTest::startupRequests() {
+    StartupRequest request;
+    QVERIFY(!request.play);
+    QVERIFY(request.accept(QStringLiteral("--play")));
+    QVERIFY(request.play);
+    QVERIFY(request.accept(QStringLiteral("--controls")));
+    QVERIFY(!request.play);
+    QVERIFY(!request.accept(QStringLiteral("--bogus")));
+}
+
+void BackendTest::rendererExitReturnsImmediately() {
+    // Hold the launcher until the test signals normal renderer completion.
+    const QString exitFile = m_dir.path() + "/exit";
+    qputenv("OMADROP_TEST_EXIT_FILE", exitFile.toUtf8());
+    makeExecutable(m_controller, QStringLiteral(
+        "#!/bin/sh\n"
+        "printf '%s\\n' \"$*\" >>\"$OMADROP_TEST_CONTROL_LOG\"\n"
+        "[ \"$1\" = --stop ] && exit 0\n"
+        "while [ ! -e \"$OMADROP_TEST_EXIT_FILE\" ]; do sleep 0.01; done\n"));
+    Backend backend;
+    backend.play();
+    QTRY_VERIFY(readFile(m_controlLog).contains(QStringLiteral("--mode")));
+    writeClients(QStringLiteral("[{\"class\":\"org.omadrop.screensaver\",\"pid\":999999}]"));
+    QTRY_VERIFY(backend.playing());
+    QSignalSpy show(&backend, &Backend::showControls);
+    QElapsedTimer elapsed;
+    elapsed.start();
+    writeFile(exitFile, QStringLiteral("done"));
+    QTRY_COMPARE_WITH_TIMEOUT(show.count(), 1, 250);
+    QVERIFY(elapsed.elapsed() < 300);
+    QVERIFY(!backend.busy());
+    QVERIFY(!backend.playing());
+    QVERIFY(!readFile(m_controlLog).contains(QStringLiteral("--stop")));
+}
+
+void BackendTest::compositorEventsDetectWindows() {
+    QLocalServer server;
+    const QString socketPath = m_dir.path() + "/events.sock";
+    QVERIFY(server.listen(socketPath));
+    qputenv("OMADROP_HYPR_EVENT_SOCKET", socketPath.toUtf8());
+    qputenv("OMADROP_POLL_INTERVAL_MS", "1000");
+    Backend backend;
+    backend.setMode(QStringLiteral("omarchy"));
+    backend.play();
+    QTRY_VERIFY(server.hasPendingConnections());
+    auto* socket = server.nextPendingConnection();
+    QTRY_VERIFY(readFile(m_controlLog).contains(QStringLiteral("--mode")));
+    QTest::qWait(60); // Let the initial empty snapshot settle.
+    writeClients(QStringLiteral("[{\"class\":\"org.omadrop.screensaver\",\"pid\":999999,\"address\":\"0xabc\"}]"));
+    socket->write("openwindow>>abc,1,org.omadrop.screensaver,Omadrop\n");
+    socket->flush();
+    QTRY_VERIFY_WITH_TIMEOUT(backend.playing(), 250);
+    QVERIFY(!backend.curtainVisible());
+    QSignalSpy show(&backend, &Backend::showControls);
+    socket->write("closewindow>>unrelated\n");
+    socket->flush();
+    QTest::qWait(20);
+    QVERIFY(backend.playing());
+    QElapsedTimer elapsed;
+    elapsed.start();
+    socket->write("closewindow>>abc\n");
+    socket->flush();
+    QTRY_VERIFY_WITH_TIMEOUT(show.count() > 0, 250);
+    QVERIFY(elapsed.elapsed() < 300);
+    QVERIFY(!backend.playing());
+    QTRY_VERIFY(!backend.busy());
+}
+
+void BackendTest::alphabeticalGrids() {
+    writeFile(m_manifest, QStringLiteral(R"({"presets":[
+        {"number":1,"label":"zebra"},{"number":2,"label":"Apple"},
+        {"number":3,"label":"banana"},{"number":4,"label":"Apricot"}]})"));
+    writeFile(m_scenesConf, QStringLiteral("version=1\nhidden=4\n"));
+    makeExecutable(m_helper, QStringLiteral(
+        "#!/bin/sh\nprintf 'z\\tzebra\\tenabled\\nb\\tbanana\\tfavorite\\n"
+        "c\\tCherry\\tfavorite\\na\\tApple\\tenabled\\nx\\tApricot\\tfavorite, hidden\\n'\n"));
+    Backend backend;
+    QCOMPARE(backend.scenes().at(0).toMap().value("number").toInt(), 2);
+    QCOMPARE(backend.scenes().at(1).toMap().value("number").toInt(), 3);
+    QCOMPARE(backend.scenes().at(2).toMap().value("number").toInt(), 1);
+    QCOMPARE(backend.scenes().at(3).toMap().value("number").toInt(), 4);
+    backend.toggleSceneHidden(4);
+    QCOMPARE(backend.scenes().at(1).toMap().value("number").toInt(), 4);
+    QTRY_COMPARE(backend.effects().size(), 5);
+    QStringList names;
+    for (const auto& effect : backend.effects()) names << effect.toMap().value("name").toString();
+    QCOMPARE(names, QStringList({"banana", "Cherry", "Apple", "zebra", "Apricot"}));
+}
+
+void BackendTest::rendererIdentityDetectsMappedWindow() {
+    qputenv("OMADROP_MILKDROP_LIVE", "/bin/sleep");
+    QProcess renderer;
+    renderer.start(QStringLiteral("/bin/sleep"), {QStringLiteral("30")});
+    QVERIFY(renderer.waitForStarted());
+    Backend backend;
+    backend.play();
+    QTRY_VERIFY(readFile(m_controlLog).contains(QStringLiteral("--mode")));
+    const QString client = QStringLiteral(
+        "[{\"class\":\"org.omadrop.milkdrop\",\"pid\":%1,\"mapped\":%2}]");
+    writeClients(client.arg(renderer.processId()).arg(QStringLiteral("false")));
+    QTest::qWait(60);
+    QVERIFY(!backend.playing());
+    writeClients(client.arg(renderer.processId()).arg(QStringLiteral("true")));
+    QTRY_VERIFY(backend.playing());
+    renderer.terminate();
+    QVERIFY(renderer.waitForFinished());
+    writeClients(QStringLiteral("[]"));
+    QTRY_VERIFY(!backend.playing());
+}
+
 void BackendTest::loadsStoredPreferences() {
     writeFile(m_preferencesConf, QStringLiteral("version=4\nascii=1\ndisplay=single\n"));
     writeFile(m_modeConf, QStringLiteral("mode=omarchy\n"));
@@ -336,10 +455,7 @@ void BackendTest::playMapsWhenSessionWindowAppears() {
         "[{\"class\":\"org.omadrop.screensaver\",\"mapped\":true,\"pid\":999999}]"));
     QTRY_VERIFY(backend.playing());
     QVERIFY(!backend.busy());
-    QVERIFY(backend.curtainVisible());
-    QTest::qWait(150);
-    QVERIFY(backend.curtainVisible());
-    QTRY_VERIFY(!backend.curtainVisible());
+    QVERIFY(!backend.curtainVisible());
     QVERIFY(readFile(m_controlLog).contains(QStringLiteral("--mode milkdrop --single --ascii")));
 
     writeClients(QStringLiteral("[]"));
@@ -459,7 +575,7 @@ void BackendTest::startupDeadlineWithBrokenQuery() {
     QSignalSpy show(&backend, &Backend::showControls);
     backend.play();
     QTRY_VERIFY_WITH_TIMEOUT(show.count() >= 1, 4000);
-    QVERIFY(!backend.busy());
+    QTRY_VERIFY_WITH_TIMEOUT(!backend.busy(), 4000);
     QVERIFY(!backend.playing());
     QVERIFY(backend.error().contains(QStringLiteral("did not start")));
 }

@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <sys/stat.h>
 
 class PairedTransport {
 public:
@@ -14,7 +15,7 @@ public:
     bool enabled() const;
     bool publishDisplay(const PairedDisplayState& state) const;
     bool publishMusic(const PairedMusicState& state) const;
-    std::string readDisplay() const;
+    const std::string& readDisplay() const;
     std::string readMusic() const;
     bool publishRequest(const std::string& request) const;
     std::optional<std::string> consumeRequest() const;
@@ -31,4 +32,7 @@ private:
     std::filesystem::path statePath_;
     std::filesystem::path musicPath_;
     std::filesystem::path requestPath_;
+    mutable std::string displaySnapshot_;
+    mutable struct stat displayStat_{};
+    mutable bool displayCached_ = false;
 };

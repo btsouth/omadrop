@@ -65,6 +65,16 @@ void requestStop(int) {
     stopRequested = 1;
 }
 
+void logTiming(const char* stage) {
+    const char* enabled = std::getenv("OMADROP_TIMING");
+    const char* origin = std::getenv("OMADROP_TIMING_ORIGIN_MS");
+    if (!enabled || std::string_view(enabled) != "1" || !origin) return;
+    const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    std::cerr << "timing\t" << now - std::strtoll(origin, nullptr, 10)
+              << "\t" << stage << '\n';
+}
+
 
 
 } // namespace
@@ -226,6 +236,7 @@ int main(int argc, char** argv) {
     signal(SIGTERM, requestStop);
     signal(SIGINT, requestStop);
     SDL_SetHint(SDL_HINT_SCREENSAVER_INHIBIT_ACTIVITY_NAME, "Visualizing music");
+    SDL_setenv("SDL_VIDEO_WAYLAND_WMCLASS", "org.omadrop.milkdrop", 1);
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         std::cerr << "SDL init failed: " << SDL_GetError() << "\n";
         return 1;
@@ -242,10 +253,24 @@ int main(int argc, char** argv) {
         fullscreen && std::string(fullscreen) != "0") {
         windowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
     }
-    int displayIndex = 0;
-    if (const char* requestedDisplay = std::getenv("OMADROP_DISPLAY_INDEX")) {
-        displayIndex = std::clamp(std::atoi(requestedDisplay), 0,
-                                  std::max(0, SDL_GetNumVideoDisplays() - 1));
+    const int sessionDisplayIndex = std::getenv("OMADROP_DISPLAY_INDEX")
+        ? std::max(0, std::atoi(std::getenv("OMADROP_DISPLAY_INDEX"))) : 0;
+    int displayIndex = std::clamp(sessionDisplayIndex, 0,
+                                std::max(0, SDL_GetNumVideoDisplays() - 1));
+    if (const char* output = std::getenv("OMADROP_DISPLAY_NAME"); output && *output) {
+        bool found = false;
+        for (int index = 0; index < SDL_GetNumVideoDisplays(); ++index) {
+            const char* name = SDL_GetDisplayName(index);
+            if (name && std::string_view(name) == output) {
+                displayIndex = index;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            std::cerr << "display: requested output disappeared: " << output << '\n';
+            return 1;
+        }
     }
     const int windowPosition = SDL_WINDOWPOS_CENTERED_DISPLAY(displayIndex);
     SDL_Window* window = SDL_CreateWindow("Omadrop",
@@ -260,6 +285,7 @@ int main(int argc, char** argv) {
         std::cerr << "OpenGL context failed: " << SDL_GetError() << "\n";
         return 1;
     }
+    logTiming("GL context ready");
     // Wayland still composites without tearing. One pacing authority avoids
     // combining an incommensurate 60 Hz sleep with 144/165 Hz swap waits.
     SDL_GL_SetSwapInterval(originals || (nativeEnabled && (holdNativeScene || collectionPreview)) ? 0 : 1);
@@ -456,6 +482,7 @@ int main(int argc, char** argv) {
     std::optional<std::size_t> pendingTimelinePreset;
     if (!nativeEnabled
         && !loadPresetAtVisualTempo(engines[activeEngine], presets[presetIndex], false)) return 1;
+    logTiming("first preset loaded");
     std::cerr << "preset: " << presets[presetIndex] << "\n";
     publishPairedState(presetIndex, 0, 0, true);
     if (pairedLeader || pairedFollower) {
@@ -582,13 +609,14 @@ int main(int argc, char** argv) {
         .startGatePath = startGatePath,
         .readyPath = readyPath,
         .recordStopPath = recordStopPath,
-        .displayIndex = displayIndex,
+        .displayIndex = sessionDisplayIndex,
+        .immediateReveal = collectionMode,
     });
     uint64_t calibrationStatusAt = 0;
     FirstRunControls firstRunControls(firstRunControlsEligible);
-    const std::string forcedCoverPath = std::getenv("OMADROP_COVER_PATH")
+    const std::string forcedCoverPath = !collectionMode && std::getenv("OMADROP_COVER_PATH")
         ? std::getenv("OMADROP_COVER_PATH") : "";
-    const bool disableArt = std::getenv("OMADROP_DISABLE_ART") != nullptr
+    const bool disableArt = collectionMode || std::getenv("OMADROP_DISABLE_ART") != nullptr
                          || !forcedCoverPath.empty();
     const bool disableMpris = std::getenv("OMADROP_DISABLE_MPRIS") != nullptr;
     TrackSession trackSession(
@@ -736,6 +764,8 @@ int main(int argc, char** argv) {
     std::vector<float> pacingSamples;
     auto nextFrame = FrameClock::now() + frameInterval;
     SessionResumeDetector resumeDetector;
+    bool windowConfigured = false;
+    bool firstFramePresented = false;
     resumeDetector.observe(bootTimeMilliseconds(), SDL_GetTicks64());
     while (running) {
         const auto frameStarted = FrameClock::now();
@@ -744,6 +774,20 @@ int main(int argc, char** argv) {
         const float frameSeconds = std::clamp(rawFrameSeconds, 0.0f, 0.1f);
         previousFrameTime = frameStarted;
         const uint64_t now = SDL_GetTicks64();
+        if (collectionMode && !windowConfigured && displaySession.framePrepared()) {
+            displaySession.pollStartGate(now);
+            if (stopRequested) break;
+            if (!displaySession.startGateOpen()) {
+                // The first scene is prepared; only the paired reveal remains.
+                SDL_Delay(20);
+                continue;
+            }
+            // Wayland configures the fullscreen surface here, before a buffer
+            // is committed. Render again at the configured drawable size.
+            if (!std::getenv("OMADROP_TEST_HIDDEN")) SDL_ShowWindow(window);
+            SDL_PumpEvents();
+            windowConfigured = true;
+        }
         if (now >= nextRatePollAt) {
             nextRatePollAt = now + 250;
             double desiredRate = 60.0;
@@ -1079,7 +1123,7 @@ int main(int argc, char** argv) {
                 featureBus.resetAnalysis();
                 structureTracker.reset();
                 musicFrameBuilder.reset();
-                if (!collectionPreview) nativeSceneDirector.resetForTrack();
+                if (!collectionMode && !collectionPreview) nativeSceneDirector.resetForTrack();
                 visualMotifs.reset();
                 structureClockLocked = false;
                 pendingTimelinePreset.reset();
@@ -1087,7 +1131,7 @@ int main(int argc, char** argv) {
                 timelineMismatchReported = false;
             }
             if (trackUpdate.clearArtwork) coverPresentation.clear();
-            if (observation.trackChanged && !pairedFollower && originals) {
+            if (!collectionMode && observation.trackChanged && !pairedFollower && originals) {
                 originalTrackPreset = chooseAutomaticPreset(PresetEnergy::Medium);
                 originalArtworkDeadline = now + 13000;
                 if (state.artUrl.empty()) {
@@ -1096,7 +1140,7 @@ int main(int argc, char** argv) {
                 }
                 std::cerr << "track: " << state.identity << "\n";
             }
-            if (observation.trackChanged && !pairedFollower && !originals) {
+            if (!collectionMode && observation.trackChanged && !pairedFollower && !originals) {
                 collectionTrackScenePending = collectionPreview;
                 if (collectionPreview && state.artUrl.empty()) {
                     nativeSceneDirector.requestScene(collectionPlaylist.next(nativeSceneDirector, randomEngine));
@@ -1124,7 +1168,7 @@ int main(int argc, char** argv) {
                 std::cerr << "track: " << state.identity << "\n";
             }
         }
-        if (trackUpdate.artworkCandidate
+        if (!collectionMode && trackUpdate.artworkCandidate
             && loadPngTexture(*trackUpdate.artworkCandidate, coverTexture, coverAspect)) {
             trackSession.acceptArtwork(*trackUpdate.artworkCandidate);
             albumColor = loadPaletteColor(*trackUpdate.artworkCandidate);
@@ -2053,7 +2097,7 @@ int main(int argc, char** argv) {
             running = false;
             continue;
         }
-        if (!displaySession.startGateOpen()) {
+        if (!collectionMode && !displaySession.startGateOpen()) {
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
         }
@@ -2072,10 +2116,19 @@ int main(int argc, char** argv) {
             times << reviewFrame - 1 << "\t" << now << "\t" << coverBlend
                   << "\t" << presetIndex << "\t" << presetBlend << "\n";
         }
+        if (collectionMode && !windowConfigured) {
+            displaySession.prepareFirstFrame(!pairedFollower || reportedPairedMusic);
+            if (!displaySession.framePrepared()) SDL_Delay(20);
+            continue;
+        }
         SDL_GL_SwapWindow(window);
+        if (!firstFramePresented) {
+            firstFramePresented = true;
+            logTiming("first frame presented");
+        }
         if (displaySession.afterFramePresented(
                 now,
-                coverPresentation.hasArtwork()
+                collectionMode || coverPresentation.hasArtwork()
                     || trackSession.artworkLookupComplete(),
                 !nativeEnabled || !pairedFollower || reportedPairedMusic)) {
             // Direct launches also start the hold at reveal, not decoding.
@@ -2083,7 +2136,13 @@ int main(int argc, char** argv) {
             std::cerr << "presentation: opening "
                       << (coverPresentation.hasArtwork() ? "cover" : "scene")
                       << " at " << now << " ms\n";
-            if (!std::getenv("OMADROP_TEST_HIDDEN")) SDL_ShowWindow(window);
+            if (!collectionMode && !std::getenv("OMADROP_TEST_HIDDEN")) SDL_ShowWindow(window);
+            logTiming("window shown");
+            if (collectionMode && !reviewDwell) {
+                const auto presentedAt = SDL_GetTicks64();
+                transitionWindowAt = presentedAt + (originals ? 14000 : 9000);
+                transitionDeadlineAt = presentedAt + (originals ? 18000 : 13000);
+            }
             SDL_DisableScreenSaver();
             std::cerr << "idle: inhibition requested while Omadrop is visible\n";
             firstRunControls.onWindowShown(

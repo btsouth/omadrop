@@ -59,8 +59,24 @@ bool PairedTransport::publishMusic(const PairedMusicState& state) const {
     return writeAtomic(musicPath_, encodePairedMusicState(state), true);
 }
 
-std::string PairedTransport::readDisplay() const {
-    return read(statePath_, false);
+const std::string& PairedTransport::readDisplay() const {
+    struct stat current{};
+    if (statePath_.empty() || stat(statePath_.c_str(), &current) != 0) {
+        displayCached_ = false;
+        displaySnapshot_.clear();
+        return displaySnapshot_;
+    }
+    // Display snapshots change only on scenes and controls. Keep checking each
+    // frame, but avoid opening, allocating and reading unchanged files.
+    if (!displayCached_ || current.st_ino != displayStat_.st_ino
+        || current.st_dev != displayStat_.st_dev || current.st_size != displayStat_.st_size
+        || current.st_mtim.tv_sec != displayStat_.st_mtim.tv_sec
+        || current.st_mtim.tv_nsec != displayStat_.st_mtim.tv_nsec) {
+        displaySnapshot_ = read(statePath_, false);
+        displayStat_ = current;
+        displayCached_ = !displaySnapshot_.empty();
+    }
+    return displaySnapshot_;
 }
 
 std::string PairedTransport::readMusic() const {

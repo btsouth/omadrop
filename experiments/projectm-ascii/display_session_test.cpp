@@ -84,6 +84,20 @@ int main() {
     assert(!paired.closeComplete(1919));
     assert(paired.closeComplete(1920));
 
+    const auto sceneGate = pairedDirectory / "scene-gate";
+    DisplaySession scene({.startGatePath = sceneGate, .immediateReveal = true});
+    scene.prepareFirstFrame(false);
+    assert(!scene.framePrepared());
+    scene.prepareFirstFrame(true);
+    assert(scene.framePrepared());
+    assert(std::filesystem::exists(sceneGate.string() + ".0.ready"));
+    assert(!scene.windowShown());
+    assert(!scene.afterFramePresented(100, true, true));
+    std::ofstream(sceneGate) << "go\n";
+    assert(scene.pollStartGate(120));
+    assert(scene.afterFramePresented(120, true, true));
+    assert(scene.visibility(120) == 1.0f);
+
     std::filesystem::remove_all(directDirectory);
     std::filesystem::remove_all(pairedDirectory);
     std::cout << "display session passed\n";

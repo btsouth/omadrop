@@ -88,12 +88,9 @@ for index in 0 1; do
   ((ready < first_reveal))
 done
 
-while read -r pid index; do
-  monitor=DP-1
-  ((index == 0)) || monitor=HDMI-A-1
-  grep -Fq "monitor = '$monitor', window = 'pid:$pid'" "$hypr_log"
-  grep -Fq "mode = 'fullscreen', action = 'set', window = 'pid:$pid'" "$hypr_log"
-done <"$processes"
+grep -q '^placement 0 DP-1 1$' "$events"
+grep -q '^placement 1 HDMI-A-1 1$' "$events"
+[[ ! -s $hypr_log ]]
 
 runtime=$scratch/runtime/omadrop
 [[ ! -e $runtime/pair-state ]]
@@ -140,7 +137,7 @@ if (( $(grep -c '^ready 1$' "$hotplug_events") != 1 )); then
   exit 1
 fi
 replacement_pid=$(awk '$2 == 0 { pid = $1 } END { print pid }' "$hotplug_processes")
-grep -Fq "monitor = 'DP-1', window = 'pid:$replacement_pid'" "$hotplug_hypr_log"
+grep -q '^placement 0 DP-1 1$' "$hotplug_events"
 
 kill -TERM "$launcher_pid"
 wait "$launcher_pid"

@@ -47,6 +47,8 @@ int main() {
     assert(first->flashLimitMode == 1);
     assert(first->colorVisionSafeMode == 1);
     assert(!displayFollower.consume(follower.readDisplay(), 8, 10));
+    const auto* snapshotData = follower.readDisplay().data();
+    assert(follower.readDisplay().data() == snapshotData);
 
     assert(leader.publishDisplay({
         .serial = 2,
@@ -75,6 +77,10 @@ int main() {
     assert(second->motionPercent == 35 && second->highContrastMode == 1);
     assert(second->flashLimitMode == 0);
     assert(second->colorVisionSafeMode == 0);
+    std::filesystem::remove(leader.statePath());
+    assert(follower.readDisplay().empty());
+    assert(leader.publishDisplay(*second));
+    assert(!follower.readDisplay().empty());
 
     // Original-preset dissolves must reach the other monitor too.
     auto originalState=*second;

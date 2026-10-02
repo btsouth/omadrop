@@ -68,8 +68,23 @@ stop_renderer() {
 reset_logs
 rm -f "$mode_file"
 
-# First launch defaults to MilkDrop and does not create state.
+# Native launches show controls, and --play explicitly requests playback.
+install -m755 "$here/fixtures/fake-backend" "$install_root/bin/omadrop-ui"
 "$launcher"
+grep -q '^backend=omadrop-ui$' "$OMADROP_TEST_BACKEND_LOG" || fail "default launch did not open native controls"
+grep -q '^args=--controls$' "$OMADROP_TEST_BACKEND_LOG" || fail "bare launch did not request controls"
+[[ ! -e $mode_file ]] || fail "bare launch wrote state"
+reset_logs
+"$launcher" --play
+grep -q '^args=--play$' "$OMADROP_TEST_BACKEND_LOG" || fail "native --play did not request playback"
+rm "$install_root/bin/omadrop-ui"
+reset_logs
+if "$launcher"; then fail "bare launch without controls succeeded"; fi
+[[ ! -s $OMADROP_TEST_BACKEND_LOG ]] || fail "bare launch without controls started playback"
+
+# Without a native UI, --play starts the remembered MilkDrop backend.
+reset_logs
+"$launcher" --play
 grep -q '^backend=omadrop-milkdrop$' "$OMADROP_TEST_BACKEND_LOG" || fail "default mode is not MilkDrop"
 grep -q '^ascii=unset$' "$OMADROP_TEST_BACKEND_LOG" || fail "default launch set OMADROP_ASCII"
 grep -q '^args=$' "$OMADROP_TEST_BACKEND_LOG" || fail "default launch forwarded arguments"

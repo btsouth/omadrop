@@ -23,9 +23,11 @@ ApplicationWindow {
         transientParent: null
         flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
         modality: Qt.NonModal
-        visibility: backend.curtainVisible ? Window.FullScreen : Window.Hidden
-        color: "black"
-        Item {
+        visibility: backend.curtainVisible || curtainContent.opacity > 0 ? Window.FullScreen : Window.Hidden
+        color: "transparent"
+        Rectangle {
+            id: curtainContent
+            color: "black"
             anchors.fill: parent
             opacity: backend.curtainVisible ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 150 } }
@@ -163,8 +165,7 @@ ApplicationWindow {
         out.sort(function(a, b) {
             if (a.hidden !== b.hidden) return a.hidden ? 1 : -1
             if (a.favorite !== b.favorite) return a.favorite ? -1 : 1
-            if (a.number !== b.number) return a.number - b.number
-            return a.name.localeCompare(b.name)
+            return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
         })
         return out
     }

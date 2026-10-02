@@ -1,5 +1,9 @@
 #!/bin/bash
 set -euo pipefail
+if [[ ${OMADROP_TIMING:-0} == 1 ]]; then
+  export OMADROP_TIMING_ORIGIN_MS=${OMADROP_TIMING_ORIGIN_MS:-$(date +%s%3N)}
+  printf 'timing\t%s\tlauncher start\n' "$(( $(date +%s%3N) - OMADROP_TIMING_ORIGIN_MS ))" >&2
+fi
 # Preserve the controller's per-launch captions choice through both launchers.
 if [[ ${OMADROP_CAPTIONS:-} == 0 || ${OMADROP_CAPTIONS:-} == 1 ]]; then
   export OMADROP_CAPTIONS
@@ -218,13 +222,13 @@ terminate_renderers() {
   (($#)) || return 0
   local pid alive attempt
   kill -TERM "$@" 2>/dev/null || true
-  for ((attempt = 0; attempt < 8; attempt++)); do
+  for ((attempt = 0; attempt < 20; attempt++)); do
     alive=0
     for pid in "$@"; do
       if kill -0 "$pid" 2>/dev/null; then alive=1; fi
     done
     ((alive == 0)) && return 0
-    sleep 0.05
+    sleep 0.02
   done
   kill -KILL "$@" 2>/dev/null || true
 }
@@ -234,7 +238,7 @@ if [[ -n $running ]]; then
   if [[ ${1:-} == --stop || ${OMADROP_REPLACE_RUNNING:-0} != 1 ]]; then
     exit 0
   fi
-  for ((attempt = 0; attempt < 100; attempt++)); do
+  for ((attempt = 0; attempt < 250; attempt++)); do
     renderer_alive=0
     for pid in $running; do
       if kill -0 "$pid" 2>/dev/null; then
@@ -243,7 +247,7 @@ if [[ -n $running ]]; then
       fi
     done
     ((renderer_alive == 0)) && break
-    sleep 0.05
+    sleep 0.02
   done
   if ((renderer_alive)); then
     echo "omadrop: existing renderer did not stop" >&2
@@ -318,58 +322,37 @@ launch_renderers() {
     else
       pair_role=follower
     fi
-    OMADROP_DISPLAY_INDEX=$display_index OMADROP_FULLSCREEN=0 \
-      OMADROP_BORDERLESS=1 OMADROP_START_GATE=$start_gate \
-      OMADROP_PAIR_STATE=$pair_state OMADROP_PAIR_ROLE=$pair_role \
-      "$runner" "$@" &
+    session_environment=("OMADROP_DISPLAY_INDEX=$display_index"
+      "OMADROP_DISPLAY_NAME=${monitor_names[$display_index]}"
+      "OMADROP_FULLSCREEN=$OMADROP_FULLSCREEN" "OMADROP_BORDERLESS=1")
+    if ((display_count > 1)) || [[ -n ${OMADROP_RECORD_ARM_FILE:-} ]]; then
+      session_environment+=("OMADROP_START_GATE=$start_gate")
+    fi
+    if ((display_count > 1)); then
+      session_environment+=("OMADROP_PAIR_STATE=$pair_state" "OMADROP_PAIR_ROLE=$pair_role")
+    fi
+    env "${session_environment[@]}" "$runner" "$@" &
     pids+=("$!")
     printf '%s\n' "$!" >"$runtime_dir/display-$display_index.pid"
   done
 
-  # SDL's Wayland backend cannot choose a Hyprland output. Route each window by
-  # its exact PID after the album-art preload reveals it, then make it fullscreen.
-  if command -v "$hyprctl_command" >/dev/null && [[ -n ${monitor_names[0]} ]]; then
+  # Each renderer requests fullscreen on its named SDL output. Prepare the
+  # first scene while hidden; there is no mapped placement or black frame.
+  if ((display_count > 1)) || [[ -n ${OMADROP_RECORD_ARM_FILE:-} ]]; then
     for ((display_index = 0; display_index < display_count; display_index++)); do
       pid=${pids[$display_index]}
-      for ((attempt = 0; attempt < 160; attempt++)); do
+      for ((attempt = 0; attempt < 800; attempt++)); do
         [[ -e $start_gate.$display_index.ready ]] && break
         kill -0 "$pid" 2>/dev/null || break
-        sleep 0.1
+        sleep 0.02
       done
-      for ((attempt = 0; attempt < 80; attempt++)); do
-        if "$hyprctl_command" clients -j 2>/dev/null | jq -e --argjson pid "$pid" \
-          'any(.[]; .pid == $pid)' >/dev/null; then
-          break
-        fi
-        sleep 0.1
-      done
-      monitor=${monitor_names[$display_index]}
-      monitor_id=$("$hyprctl_command" monitors -j | jq -r --arg name "$monitor" '.[] | select(.name == $name) | .id')
-      confirmed=0
-      for ((attempt = 0; attempt < 30 && confirmed < 3; attempt++)); do
-        "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.move({ monitor = '$monitor', window = 'pid:$pid' }))" \
-          >/dev/null 2>&1 || true
-        if [[ $OMADROP_FULLSCREEN != 0 ]]; then
-          "$hyprctl_command" eval "hl.dispatch(hl.dsp.window.fullscreen({ mode = 'fullscreen', action = 'set', window = 'pid:$pid' }))" \
-            >/dev/null 2>&1 || true
-        fi
-        if "$hyprctl_command" clients -j 2>/dev/null | jq -e --argjson pid "$pid" --argjson monitor "$monitor_id" \
-          --argjson fullscreen "$([[ $OMADROP_FULLSCREEN != 0 ]] && printf 2 || printf 0)" \
-          'any(.[]; .pid == $pid and .monitor == $monitor and .fullscreen == $fullscreen)' >/dev/null; then
-          ((confirmed += 1))
-        else
-          confirmed=0
-        fi
-        sleep 0.1
-      done
+      [[ -e $start_gate.$display_index.ready ]] || return 1
     done
   fi
 
-  # Every display has now completed artwork discovery, received a quiet first
-  # frame, and been placed. Reveal the pair on the same render beat.
   if [[ -n ${OMADROP_RECORD_ARM_FILE:-} && -n ${OMADROP_RECORD_START_FILE:-} ]]; then
     printf '%s\n' "$$" >"$OMADROP_RECORD_ARM_FILE"
-    for ((attempt = 0; attempt < 400; attempt++)); do
+    for ((attempt = 0; attempt < 1000; attempt++)); do
       [[ -e $OMADROP_RECORD_START_FILE ]] && break
       renderers_alive=1
       for pid in "${pids[@]}"; do
@@ -379,19 +362,48 @@ launch_renderers() {
         fi
       done
       ((renderers_alive)) || break
-      sleep 0.05
+      sleep 0.02
     done
     [[ -e $OMADROP_RECORD_START_FILE ]] || {
       echo "omadrop: timed out waiting for the demo recorder" >&2
       return 1
     }
   fi
-  touch "$start_gate"
+  if ((display_count > 1)) || [[ -n ${OMADROP_RECORD_ARM_FILE:-} ]]; then
+    touch "$start_gate"
+  fi
+
+  # Confirm each mapped output once. Native fullscreen placement happens before
+  # the first buffer; dispatching a move here would expose an incorrect frame.
+  if command -v "$hyprctl_command" >/dev/null && [[ -n ${monitor_names[0]} ]]; then
+    for ((display_index = 0; display_index < display_count; display_index++)); do
+      pid=${pids[$display_index]}
+      monitor=${monitor_names[$display_index]}
+      monitor_id=$("$hyprctl_command" monitors -j | jq -r --arg name "$monitor" '.[] | select(.name == $name) | .id')
+      # An output can disappear as the pair maps. Let the topology loop replace
+      # the session rather than passing an empty ID to the confirmation query.
+      [[ $monitor_id =~ ^[0-9]+$ ]] || break
+      for ((attempt = 0; attempt < 400; attempt++)); do
+        if "$hyprctl_command" clients -j 2>/dev/null | jq -e --argjson pid "$pid" --argjson monitor "$monitor_id" \
+          --argjson fullscreen "$([[ $OMADROP_FULLSCREEN != 0 ]] && printf 2 || printf 0)" \
+          'any(.[]; .pid == $pid and .monitor == $monitor and .fullscreen == $fullscreen)' >/dev/null; then
+          break
+        fi
+        kill -0 "$pid" 2>/dev/null || break
+        sleep 0.02
+      done
+      if ((attempt == 400)); then
+        echo "omadrop: renderer did not map on $monitor" >&2
+        return 1
+      fi
+    done
+  fi
 }
 
 read_monitors
 while :; do
   launch_renderers "$@"
+  next_topology_poll=$((SECONDS + 1))
 
   # Keep the pair aligned with the connected-output set. A topology change
   # replaces the whole hidden pair so no stale or duplicated fullscreen window
@@ -419,12 +431,15 @@ while :; do
       exit 0
     fi
 
-    current_signature=$(current_topology_signature || true)
-    if [[ -n $current_signature && $current_signature != "$topology_signature" ]]; then
-      stop_renderers
-      read_monitors
-      break
+    if ((SECONDS >= next_topology_poll)); then
+      next_topology_poll=$((SECONDS + 1))
+      current_signature=$(current_topology_signature || true)
+      if [[ -n $current_signature && $current_signature != "$topology_signature" ]]; then
+        stop_renderers
+        read_monitors
+        break
+      fi
     fi
-    sleep 0.5
+    sleep 0.02
   done
 done

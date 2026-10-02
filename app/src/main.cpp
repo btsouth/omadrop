@@ -1,5 +1,6 @@
 #include "backend.h"
 #include "theme.h"
+#include "startup_request.h"
 
 #include <QGuiApplication>
 #include <QCursor>
@@ -26,10 +27,10 @@
 
 namespace {
 const char* kUsage =
-    "Usage: omadrop-ui [--controls] [--quit]\n"
+    "Usage: omadrop-ui [--controls|--play] [--quit]\n"
     "\n"
-    "Native Omadrop product controller. Without arguments the visuals start\n"
-    "immediately; --controls opens the native controls only. A second launch\n"
+    "Native Omadrop product controller. Without arguments the controls open.\n"
+    "--play starts the remembered mode directly. A second normal launch\n"
     "asks the running instance to stop its renderer and show the controls;\n"
     "--quit stops the session and the application.\n";
 
@@ -65,14 +66,11 @@ int main(int argc, char** argv) {
     QGuiApplication::setOrganizationName(QStringLiteral("omadrop"));
     QGuiApplication::setDesktopFileName(QStringLiteral("omadrop"));
 
-    bool controls = false;
-    bool quit = false;
+    StartupRequest request;
     for (int index = 1; index < argc; ++index) {
         const QString argument = QString::fromLocal8Bit(argv[index]);
-        if (argument == QLatin1String("--controls")) {
-            controls = true;
-        } else if (argument == QLatin1String("--quit")) {
-            quit = true;
+        if (request.accept(argument)) {
+            continue;
         } else if (argument == QLatin1String("-h") || argument == QLatin1String("--help")) {
             fputs(kUsage, stdout);
             return 0;
@@ -82,6 +80,10 @@ int main(int argc, char** argv) {
             return 2;
         }
     }
+
+    // A controls-only launch may sit open for hours before Play. Its dispatcher
+    // origin belongs only to an immediate --play request.
+    if (!request.play) qunsetenv("OMADROP_TIMING_ORIGIN_MS");
 
     if (qEnvironmentVariableIsEmpty("QT_QUICK_CONTROLS_STYLE")) {
         QQuickStyle::setStyle(qEnvironmentVariable("OMADROP_UI_STYLE", QStringLiteral("Basic")));
@@ -106,9 +108,10 @@ int main(int argc, char** argv) {
             }
         }
         if (connected) {
-            QByteArray command = quit ? QByteArray("quit\n") : QByteArray("controls\n");
+            QByteArray command = request.quit ? QByteArray("quit\n")
+                : request.play ? QByteArray("play\n") : QByteArray("controls\n");
             const QString requestedMode = qEnvironmentVariable("OMADROP_UI_MODE");
-            if (!quit && (requestedMode == QLatin1String("omarchy") || requestedMode == QLatin1String("milkdrop"))) {
+            if (!request.quit && !request.play && (requestedMode == QLatin1String("omarchy") || requestedMode == QLatin1String("milkdrop"))) {
                 command = QByteArray("controls ") + requestedMode.toUtf8() + '\n';
             }
             socket.write(command);
@@ -129,13 +132,13 @@ int main(int argc, char** argv) {
 
     Backend backend;
     Theme theme;
-    bool quitRequested = quit;
+    bool quitRequested = request.quit;
     QObject::connect(&backend, &Backend::stopCompleted, &application, [&] {
         if (quitRequested) QCoreApplication::quit();
     });
     QObject::connect(&application, &QCoreApplication::aboutToQuit, &backend, &Backend::shutdown);
 
-    if (quit) {
+    if (request.quit) {
         QTimer::singleShot(0, &backend, &Backend::stop);
         return application.exec();
     }
@@ -145,6 +148,10 @@ int main(int argc, char** argv) {
             auto receive = [&, socket] {
                 if (!socket->canReadLine()) return;
                 const QString command = QString::fromUtf8(socket->readLine()).trimmed();
+                if (command == QLatin1String("play")) {
+                    backend.play();
+                    return;
+                }
                 if (command == QLatin1String("quit")) {
                     quitRequested = true;
                 } else if (command.startsWith(QLatin1String("controls "))) {
@@ -167,7 +174,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (!controls) {
+    if (request.play) {
         if (auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first())) {
             if (auto* screen = focusedScreen()) window->setScreen(screen);
         }

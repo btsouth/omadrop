@@ -45,6 +45,7 @@ bool DisplaySession::afterFramePresented(std::uint64_t nowMs,
                                          bool presentationReady,
                                          bool pairedFrameReady) {
     if (windowShown_ || !presentationReady || !pairedFrameReady) return false;
+    if (config_.immediateReveal && !startGateOpen_) return false;
     writeMarker(displayReadyPath_);
     writeMarker(config_.readyPath);
     if (config_.startGatePath.empty()) {
@@ -53,6 +54,12 @@ bool DisplaySession::afterFramePresented(std::uint64_t nowMs,
     }
     windowShown_ = true;
     return true;
+}
+
+void DisplaySession::prepareFirstFrame(bool pairedFrameReady) {
+    if (framePrepared_ || !pairedFrameReady) return;
+    framePrepared_ = true;
+    writeMarker(displayReadyPath_);
 }
 
 void DisplaySession::requestClose(std::uint64_t nowMs) {
@@ -73,7 +80,7 @@ void DisplaySession::signalRecordingComplete() {
 }
 
 float DisplaySession::visibility(std::uint64_t nowMs) const {
-    const float entrance = startGateOpen_ && revealStarted_
+    const float entrance = config_.immediateReveal ? 1.0f : startGateOpen_ && revealStarted_
         ? eased((nowMs >= revealStartedAtMs_
             ? nowMs - revealStartedAtMs_ : 0u) / 480.0f)
         : 0.0f;

@@ -153,13 +153,16 @@ public:
     std::optional<PairedDisplayState> consume(const std::string& input,
                                               std::size_t presetCount,
                                               std::size_t nativeSceneCount = 0) {
+        if (input == lastInput_) return std::nullopt;
         const auto state = decodePairedDisplayState(
             input, presetCount, nativeSceneCount);
         if (!state || state->serial <= lastSerial_) return std::nullopt;
         lastSerial_ = state->serial;
+        lastInput_ = input;
         return state;
     }
 
 private:
     std::uint64_t lastSerial_ = 0;
+    std::string lastInput_;
 };

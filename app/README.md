@@ -1,7 +1,7 @@
 # Omadrop desktop controller
 
-Normal launch starts visuals immediately. Esc returns from MilkDrop; any key
-returns from Omarchy. Reopening Omadrop brings up the existing control view.
+Normal launch opens controls. `omadrop --play` starts the remembered mode. Esc
+returns from either mode. Reopening Omadrop stops visuals and shows controls.
 The control window combines modes, display settings, ASCII, effect search,
 favorites/hiding and selected previews. Space starts playback; Q quits; ? helps.
 

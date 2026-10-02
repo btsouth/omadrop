@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMap>
+#include <QLocalSocket>
 #include <QProcessEnvironment>
 #include <QSaveFile>
 #include <QStandardPaths>
@@ -153,12 +154,6 @@ Backend::Backend(QObject* parent) : QObject(parent) {
         m_queryTimeoutMs = queryTimeout;
     }
 
-    m_curtainTimer = new QTimer(this);
-    m_curtainTimer->setSingleShot(true);
-    connect(m_curtainTimer, &QTimer::timeout, this, [this] {
-        m_curtainVisible = false;
-        emit stateChanged();
-    });
     m_pollTimer = new QTimer(this);
     m_pollTimer->setInterval(m_pollIntervalMs);
     connect(m_pollTimer, &QTimer::timeout, this, &Backend::pollSession);
@@ -351,7 +346,6 @@ void Backend::beginSession(const QStringList& arguments, const QString& label) {
     m_sessionSeen = false;
     m_playing = false;
     m_busy = true;
-    m_curtainTimer->stop();
     m_curtainVisible = true;
     m_pendingLabel = label;
     m_status = QStringLiteral("Starting…");
@@ -364,6 +358,8 @@ void Backend::beginSession(const QStringList& arguments, const QString& label) {
     m_cleanupNeeded = true;
     m_startupTimer->start(m_startupTimeoutMs);
     m_preexistingPids.clear();
+    m_windowAddresses.clear();
+    connectEvents();
     const quint64 generation = m_sessionGeneration;
     auto* snapshot = new QProcess(this);
     m_hyprProcess = snapshot;
@@ -435,7 +431,6 @@ void Backend::stop() {
     }
     ++m_sessionGeneration;
     m_stopping = true;
-    m_curtainTimer->stop();
     m_curtainVisible = false;
     markCancelled();
     m_playing = false;
@@ -445,6 +440,7 @@ void Backend::stop() {
     stopPolling();
     cancelLaunch();
     emit stateChanged();
+    emit showControls();
     // Cancel the dispatcher before sweeping mapped windows. Compositor exec
     // requests already submitted may map later, so run a second bounded sweep.
     runStopPass(false);
@@ -553,6 +549,52 @@ void Backend::finishStop() {
     emit stopCompleted();
 }
 
+void Backend::sessionExited() {
+    ++m_sessionGeneration;
+    markCancelled();
+    stopPolling();
+    m_curtainVisible = false;
+    m_playing = false;
+    m_sessionSeen = false;
+    m_cleanupNeeded = false;
+    finishStop();
+}
+
+void Backend::connectEvents() {
+    if (m_events) m_events->deleteLater();
+    m_eventBuffer.clear();
+    m_events = new QLocalSocket(this);
+    connect(m_events, &QLocalSocket::connected, this, [this] {
+        if (m_playing) m_pollTimer->setInterval(1000);
+    });
+    connect(m_events, &QLocalSocket::disconnected, this, [this] {
+        m_pollTimer->setInterval(m_pollIntervalMs);
+    });
+    connect(m_events, &QLocalSocket::readyRead, this, [this] {
+        m_eventBuffer += m_events->readAll();
+        int end;
+        while ((end = m_eventBuffer.indexOf('\n')) >= 0) {
+            const QByteArray line = m_eventBuffer.left(end);
+            m_eventBuffer.remove(0, end + 1);
+            if (line.startsWith("closewindow>>")) {
+                const QByteArray address = line.mid(13);
+                if (m_playing && m_windowAddresses.contains(address)) {
+                    // The window is already gone. Restore controls before any
+                    // asynchronous cleanup of siblings or queued launches.
+                    stop();
+                }
+            } else if (line.startsWith("openwindow>>")) {
+                m_pollPending = true;
+                pollSession();
+            }
+        }
+    });
+    const QString path = envOr("OMADROP_HYPR_EVENT_SOCKET",
+        qEnvironmentVariable("XDG_RUNTIME_DIR") + QStringLiteral("/hypr/")
+        + qEnvironmentVariable("HYPRLAND_INSTANCE_SIGNATURE") + QStringLiteral("/.socket2.sock"));
+    m_events->connectToServer(path, QIODevice::ReadOnly);
+}
+
 void Backend::launchController(const QStringList& arguments) {
     QProcess* process = new QProcess(this);
     m_launchProcess = process;
@@ -561,6 +603,12 @@ void Backend::launchController(const QStringList& arguments) {
     environment.insert(QStringLiteral("OMADROP_CANCEL_FILE"), m_cancelFile);
     environment.insert(QStringLiteral("OMADROP_CAPTIONS"), m_captions ? QStringLiteral("1") : QStringLiteral("0"));
     process->setProcessEnvironment(environment);
+    // Preserve an immediate --play dispatcher origin once. Later Play requests
+    // begin a fresh measurement in their own dispatcher.
+    qunsetenv("OMADROP_TIMING_ORIGIN_MS");
+    if (qEnvironmentVariable("OMADROP_TIMING") == QLatin1String("1")) {
+        process->setProcessChannelMode(QProcess::ForwardedErrorChannel);
+    }
     process->setChildProcessModifier([] { ::setsid(); });
     connect(process, &QProcess::started, this, [this, process, generation] {
         if (generation != m_sessionGeneration || m_stopping) {
@@ -588,12 +636,16 @@ void Backend::launchController(const QStringList& arguments) {
                     m_launchProcess = nullptr;
                 }
                 process->deleteLater();
-                // The dispatcher often exits 0 before a window maps; that is not
-                // playback completion. A hard failure is also an error after
-                // playback has begun; intentional cancellation is excluded.
+                // Omarchy submits compositor exec requests and can exit before
+                // mapping. MilkDrop owns its renderer until it exits.
                 const bool failed = status == QProcess::CrashExit || exitCode != 0;
-                if (failed && generation == m_sessionGeneration && !m_stopping) {
-                    failStart(QStringLiteral("The visuals stopped unexpectedly."));
+                if (generation == m_sessionGeneration && !m_stopping) {
+                    if (failed && (!m_sessionSeen || m_mode == QLatin1String("omarchy"))) {
+                        failStart(QStringLiteral("The visuals stopped unexpectedly."));
+                    } else if (m_sessionSeen && m_mode == QLatin1String("milkdrop")) {
+                        if (failed) setError(QStringLiteral("The visuals stopped unexpectedly."));
+                        sessionExited();
+                    }
                 }
             });
     process->start(m_controllerPath, arguments);
@@ -607,6 +659,8 @@ void Backend::startPolling() {
 void Backend::stopPolling() {
     m_pollTimer->stop();
     m_startupTimer->stop();
+    m_pollPending = false;
+    if (m_events) m_events->abort();
     if (m_hyprProcess) {
         const qint64 pid = m_hyprProcess->processId();
         if (pid > 0) ::kill(-pid, SIGKILL);
@@ -619,6 +673,7 @@ void Backend::pollSession() {
     if (m_hyprProcess) {
         return;
     }
+    m_pollPending = false;
     QProcess* process = new QProcess(this);
     m_hyprProcess = process;
     const quint64 generation = m_sessionGeneration;
@@ -631,6 +686,7 @@ void Backend::pollSession() {
             return;
         }
         handleClients(payload);
+        if (m_pollPending && !m_stopping) pollSession();
     });
     boundProcess(process, m_queryTimeoutMs);
     process->start(m_hyprctl, {QStringLiteral("clients"), QStringLiteral("-j")});
@@ -655,12 +711,22 @@ void Backend::handleClients(const QByteArray& payload) {
 
     const int mapped = countSessionWindows(clients);
     if (mapped > 0) {
+        m_windowAddresses.clear();
+        for (const QJsonValue& value : clients) {
+            if (countSessionWindows(QJsonArray{value}) > 0) {
+                QByteArray address = value.toObject().value(QStringLiteral("address")).toString().toUtf8();
+                if (address.startsWith("0x")) address.remove(0, 2);
+                if (!address.isEmpty()) m_windowAddresses.insert(address);
+            }
+        }
         m_sessionSeen = true;
         m_startupTimer->stop();
+        m_pollTimer->setInterval(m_events && m_events->state() == QLocalSocket::ConnectedState
+            ? 1000 : m_pollIntervalMs);
         if (!m_playing) {
             m_playing = true;
             m_busy = false;
-            m_curtainTimer->start(250);
+            m_curtainVisible = false;
             m_status = QStringLiteral("Playing");
             emit stateChanged();
         }
@@ -668,8 +734,8 @@ void Backend::handleClients(const QByteArray& payload) {
     }
 
     if (m_playing) {
-        // Cancel further launches as well as the visible session.
-        stop();
+        if (!m_launchProcess) sessionExited();
+        else stop();
         return;
     }
 }
@@ -812,6 +878,12 @@ void Backend::buildEffects(const QByteArray& listing, const QByteArray& help) {
                       QFile::exists(thumbnail) ? QStringLiteral("qrc") + thumbnail : QString());
         effects.append(effect);
     }
+    std::stable_sort(effects.begin(), effects.end(), [](const QVariant& left, const QVariant& right) {
+        const auto a = left.toMap(), b = right.toMap();
+        if (a.value("hidden").toBool() != b.value("hidden").toBool()) return !a.value("hidden").toBool();
+        if (a.value("favorite").toBool() != b.value("favorite").toBool()) return a.value("favorite").toBool();
+        return QString::compare(a.value("name").toString(), b.value("name").toString(), Qt::CaseInsensitive) < 0;
+    });
     m_effects = effects;
     if (effects.isEmpty()) setError(QStringLiteral("The effects helper returned no usable effects."));
     emit effectsChanged();
@@ -980,6 +1052,11 @@ void Backend::loadScenes() {
             scenes.append(scene);
         }
     }
+    std::stable_sort(scenes.begin(), scenes.end(), [](const QVariant& left, const QVariant& right) {
+        const auto a = left.toMap(), b = right.toMap();
+        if (a.value("hidden").toBool() != b.value("hidden").toBool()) return !a.value("hidden").toBool();
+        return QString::compare(a.value("label").toString(), b.value("label").toString(), Qt::CaseInsensitive) < 0;
+    });
     m_scenes = scenes;
     emit scenesChanged();
 }
@@ -998,12 +1075,5 @@ void Backend::toggleSceneHidden(int number) {
         return;
     }
     m_hiddenScenes = hidden;
-    for (int index = 0; index < m_scenes.size(); ++index) {
-        QVariantMap scene = m_scenes.at(index).toMap();
-        if (scene.value(QStringLiteral("number")).toInt() == number) {
-            scene.insert(QStringLiteral("hidden"), hidden.contains(number));
-            m_scenes[index] = scene;
-        }
-    }
-    emit scenesChanged();
+    loadScenes();
 }
