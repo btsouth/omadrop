@@ -882,7 +882,18 @@ int main(int argc, char** argv) {
         bool pairedControlsChanged = false;
         std::string pairedControlRequest;
         SDL_Event event;
+        // Hide the pointer over the visuals unless it has moved recently.
+        static std::uint64_t pointerMovedAt = 0;
+        static bool pointerVisible = true;
+        if (pointerVisible && now >= pointerMovedAt + 1500) {
+            SDL_ShowCursor(SDL_DISABLE);
+            pointerVisible = false;
+        }
         while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_MOUSEMOTION) {
+                pointerMovedAt = now;
+                if (!pointerVisible) { SDL_ShowCursor(SDL_ENABLE); pointerVisible = true; }
+            }
             const bool calibrationDelayKey = calibrationMode
                 && event.type == SDL_KEYDOWN
                 && (event.key.keysym.sym == SDLK_LEFTBRACKET
