@@ -30,6 +30,7 @@ class Backend : public QObject {
     Q_PROPERTY(bool milkdropAvailable READ milkdropAvailable NOTIFY stateChanged)
     Q_PROPERTY(bool omarchyAvailable READ omarchyAvailable NOTIFY stateChanged)
     Q_PROPERTY(QVariantList effects READ effects NOTIFY effectsChanged)
+    Q_PROPERTY(QVariantList scenes READ scenes NOTIFY scenesChanged)
 
 public:
     explicit Backend(QObject* parent = nullptr);
@@ -45,15 +46,18 @@ public:
     bool milkdropAvailable() const { return m_milkdropAvailable; }
     bool omarchyAvailable() const { return m_omarchyAvailable; }
     QVariantList effects() const { return m_effects; }
+    QVariantList scenes() const { return m_scenes; }
 
     Q_INVOKABLE void setMode(const QString& mode);
     Q_INVOKABLE void setDisplay(const QString& display);
     Q_INVOKABLE void setAscii(bool ascii);
     Q_INVOKABLE void play();
+    Q_INVOKABLE void playScene(int number);
     Q_INVOKABLE void preview(const QString& slug);
     Q_INVOKABLE void stop();
     Q_INVOKABLE void toggleFavorite(const QString& slug);
     Q_INVOKABLE void toggleHidden(const QString& slug);
+    Q_INVOKABLE void toggleSceneHidden(int number);
     Q_INVOKABLE void clearError();
 
     // Application-quit teardown: stop the session and wait a bounded time so no
@@ -64,15 +68,22 @@ signals:
     void showControls();
     void stateChanged();
     void effectsChanged();
+    void scenesChanged();
     void stopCompleted();
 
 private:
     void loadPreferences();
     void persistPreferences();
+    void loadScenes();
     void refreshEffects();
     void fetchEffectDescriptions();
     void buildEffects(const QByteArray& listing, const QByteArray& help);
     void runEffectToggle(const QStringList& arguments);
+
+    QString sceneManifestPath() const;
+    QString scenesConfPath() const;
+    QSet<int> readHiddenScenes() const;
+    bool writeHiddenScenes(const QSet<int>& hidden);
 
     void beginSession(const QStringList& arguments, const QString& label);
     void launchController(const QStringList& arguments);
@@ -101,17 +112,21 @@ private:
     bool m_milkdropAvailable = false;
     bool m_omarchyAvailable = false;
     QVariantList m_effects;
+    QVariantList m_scenes;
 
     // Resolved paths.
+    QString m_root;
     QString m_controllerPath;
     QString m_effectsHelper;
     QString m_effectsBinary;
     QString m_rendererPath;
+    QString m_omarchyBackend;
     QString m_hyprctl;
     QString m_screensaverClass;
     QString m_productConf;
     QString m_modeConf;
     QString m_preferencesConf;
+    QSet<int> m_hiddenScenes;
 
     // Session lifecycle.
     bool m_sessionSeen = false;

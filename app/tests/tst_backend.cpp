@@ -75,10 +75,17 @@ private slots:
     void effectFailuresAreVisible();
     void effectRefreshRerunsAfterConcurrentToggle();
     void preferencesFailureIsVisible();
+    void scenesLoadFromManifest();
+    void scenesReadHiddenConf();
+    void scenesConfGarbledIsIgnored();
+    void toggleSceneHiddenWritesConf();
+    void playSceneDispatchesSceneArgument();
+    void pathDefaultsRelativeToAppDir();
 
 private:
     void writeClients(const QString& json);
     QVariantMap effectBySlug(const Backend& backend, const QString& slug) const;
+    QVariantMap sceneByNumber(const Backend& backend, int number) const;
 
     QTemporaryDir m_dir;
     QString m_controller;
@@ -93,6 +100,8 @@ private:
     QString m_productConf;
     QString m_preferencesConf;
     QString m_modeConf;
+    QString m_scenesConf;
+    QString m_manifest;
 };
 
 void BackendTest::init() {
@@ -112,6 +121,8 @@ void BackendTest::init() {
     m_productConf = m_configHome + "/omadrop/product.conf";
     m_preferencesConf = m_configHome + "/omadrop/preferences.conf";
     m_modeConf = m_configHome + "/omadrop/mode.conf";
+    m_scenesConf = m_configHome + "/omadrop/scenes.conf";
+    m_manifest = root + "/manifest.json";
 
     makeExecutable(m_controller,
                    "#!/bin/sh\n"
@@ -174,6 +185,7 @@ void BackendTest::init() {
     qputenv("OMADROP_EFFECTS_HELPER", m_helper.toUtf8());
     qputenv("OMADROP_EFFECTS_BINARY", m_ttfx.toUtf8());
     qputenv("OMADROP_MILKDROP_LIVE", (root + "/no-such-renderer").toUtf8());
+    qputenv("OMADROP_COLLECTION_MANIFEST", m_manifest.toUtf8());
     qputenv("OMADROP_POLL_INTERVAL_MS", "40");
     qputenv("OMADROP_STARTUP_TIMEOUT_MS", "500");
     qputenv("OMADROP_QUERY_TIMEOUT_MS", "1000");
@@ -199,6 +211,16 @@ QVariantMap BackendTest::effectBySlug(const Backend& backend, const QString& slu
         const QVariantMap effect = value.toMap();
         if (effect.value(QStringLiteral("slug")).toString() == slug) {
             return effect;
+        }
+    }
+    return {};
+}
+
+QVariantMap BackendTest::sceneByNumber(const Backend& backend, int number) const {
+    for (const QVariant& value : backend.scenes()) {
+        const QVariantMap scene = value.toMap();
+        if (scene.value(QStringLiteral("number")).toInt() == number) {
+            return scene;
         }
     }
     return {};
@@ -507,6 +529,85 @@ void BackendTest::preferencesFailureIsVisible() {
     Backend backend;
     backend.setDisplay(QStringLiteral("single"));
     QVERIFY(backend.error().contains(QStringLiteral("settings")));
+}
+
+namespace {
+const char* kManifest = R"({
+  "presets": [
+    {"number": 1, "label": "Cloud Cubes", "appearance": "Reflective cubes"},
+    {"number": 2, "label": "Fractal Caves", "appearance": "Fractal landscape"},
+    {"number": 3, "label": "Ice Wave", "appearance": "Blue wave"}
+  ]
+})";
+} // namespace
+
+void BackendTest::scenesLoadFromManifest() {
+    writeFile(m_manifest, QString::fromUtf8(kManifest));
+    Backend backend;
+    QCOMPARE(backend.scenes().size(), 3);
+    const QVariantMap first = backend.scenes().at(0).toMap();
+    QCOMPARE(first.value(QStringLiteral("number")).toInt(), 1);
+    QCOMPARE(first.value(QStringLiteral("label")).toString(), QStringLiteral("Cloud Cubes"));
+    QCOMPARE(first.value(QStringLiteral("description")).toString(), QStringLiteral("Reflective cubes"));
+    QVERIFY(!first.value(QStringLiteral("hidden")).toBool());
+    QCOMPARE(first.value(QStringLiteral("thumbnail")).toString(),
+             QStringLiteral("qrc:/assets/scenes/collection-01.jpg"));
+    QCOMPARE(backend.scenes().at(2).toMap().value(QStringLiteral("thumbnail")).toString(),
+             QStringLiteral("qrc:/assets/scenes/collection-03.jpg"));
+}
+
+void BackendTest::scenesReadHiddenConf() {
+    writeFile(m_manifest, QString::fromUtf8(kManifest));
+    writeFile(m_scenesConf, QStringLiteral("version=1\nhidden=2,3\n"));
+    Backend backend;
+    QCOMPARE(backend.scenes().size(), 3);
+    QVERIFY(!sceneByNumber(backend, 1).value(QStringLiteral("hidden")).toBool());
+    QVERIFY(sceneByNumber(backend, 2).value(QStringLiteral("hidden")).toBool());
+    QVERIFY(sceneByNumber(backend, 3).value(QStringLiteral("hidden")).toBool());
+}
+
+void BackendTest::scenesConfGarbledIsIgnored() {
+    writeFile(m_manifest, QString::fromUtf8(kManifest));
+    writeFile(m_scenesConf, QStringLiteral("this is not a conf\nversion = nope\nhidden = 1\n"));
+    Backend backend;
+    QCOMPARE(backend.scenes().size(), 3);
+    for (const QVariant& value : backend.scenes()) {
+        QVERIFY(!value.toMap().value(QStringLiteral("hidden")).toBool());
+    }
+    // A garbled file is replaced with a well-formed one on the next write.
+    backend.toggleSceneHidden(2);
+    QVERIFY(sceneByNumber(backend, 2).value(QStringLiteral("hidden")).toBool());
+    QCOMPARE(readFile(m_scenesConf), QStringLiteral("version=1\nhidden=2\n"));
+}
+
+void BackendTest::toggleSceneHiddenWritesConf() {
+    writeFile(m_manifest, QString::fromUtf8(kManifest));
+    Backend backend;
+    QSignalSpy scenes(&backend, &Backend::scenesChanged);
+    backend.toggleSceneHidden(3);
+    QVERIFY(sceneByNumber(backend, 3).value(QStringLiteral("hidden")).toBool());
+    QVERIFY(scenes.count() >= 1);
+    QCOMPARE(readFile(m_scenesConf), QStringLiteral("version=1\nhidden=3\n"));
+
+    backend.toggleSceneHidden(3);
+    QVERIFY(!sceneByNumber(backend, 3).value(QStringLiteral("hidden")).toBool());
+    QCOMPARE(readFile(m_scenesConf), QStringLiteral("version=1\nhidden=\n"));
+}
+
+void BackendTest::playSceneDispatchesSceneArgument() {
+    Backend backend;
+    backend.playScene(7);
+    QTRY_VERIFY(readFile(m_controlLog).contains(QStringLiteral("--mode milkdrop --scene 7")));
+}
+
+void BackendTest::pathDefaultsRelativeToAppDir() {
+    qunsetenv("OMADROP_EFFECTS_HELPER");
+    Backend backend;
+    const QString expected = QCoreApplication::applicationDirPath()
+                             + QStringLiteral("/omadrop-effects");
+    QVERIFY2(backend.error().contains(expected),
+             qPrintable(QStringLiteral("error %1 does not mention %2")
+                            .arg(backend.error(), expected)));
 }
 
 QTEST_GUILESS_MAIN(BackendTest)

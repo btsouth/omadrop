@@ -56,7 +56,22 @@ while true; do
   music_pid=$!
 
   while kill -0 "$music_pid" 2>/dev/null; do
-    if read -n1 -t 1 || ! screensaver_in_focus; then
+    key=
+    if IFS= read -rsn1 -t 1 key; then
+      case $key in
+        $'\e')
+          # Arrow and function keys arrive as ESC-prefixed sequences; a lone
+          # Escape is followed by nothing, and only that ends playback.
+          if ! IFS= read -rsn8 -t 0.05; then
+            exit_screensaver
+          fi
+          ;;
+        q|Q) exit_screensaver ;;
+        *) : ;;  # every other key is ignored
+      esac
+    fi
+    # A one second read timeout doubles as the focus-loss poll.
+    if ! screensaver_in_focus; then
       exit_screensaver
     fi
   done

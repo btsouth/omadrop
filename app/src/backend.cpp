@@ -19,6 +19,8 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include <algorithm>
+
 namespace {
 // Runs a callback exactly once, whether the process finished or failed to
 // start, so a missing helper binary still resolves a state instead of hanging.
@@ -50,10 +52,6 @@ void onProcessSettled(QProcess* process, QObject* context, Callback callback) {
 QString envOr(const char* name, const QString& fallback) {
     const QString value = qEnvironmentVariable(name);
     return value.isEmpty() ? fallback : value;
-}
-
-QString dataHome() {
-    return envOr("XDG_DATA_HOME", QDir::homePath() + QStringLiteral("/.local/share"));
 }
 
 QString configHome() {
@@ -119,15 +117,18 @@ QString canonical(const QString& path) {
 
 Backend::Backend(QObject* parent) : QObject(parent) {
     const QString appDir = QCoreApplication::applicationDirPath();
-    const QString data = dataHome();
     const QString config = configHome();
+
+    // omadrop-ui is installed in <root>/bin next to the other product
+    // binaries; <root> is its parent and also holds presets/ and experiments/.
+    m_root = QFileInfo(appDir).dir().absolutePath();
 
     m_controllerPath = envOr("OMADROP_CONTROLLER_BACKEND", appDir + QStringLiteral("/omadrop"));
     m_effectsHelper = envOr("OMADROP_EFFECTS_HELPER", appDir + QStringLiteral("/omadrop-effects"));
-    m_effectsBinary = envOr("OMADROP_EFFECTS_BINARY",
-                           data + QStringLiteral("/omadrop-screensaver/bin/ttfx-music"));
+    m_effectsBinary = envOr("OMADROP_EFFECTS_BINARY", appDir + QStringLiteral("/ttfx-music"));
     m_rendererPath = envOr("OMADROP_MILKDROP_LIVE",
-                           data + QStringLiteral("/omadrop/experiments/projectm-ascii/projectm-ascii-live"));
+                           m_root + QStringLiteral("/experiments/projectm-ascii/projectm-ascii-live"));
+    m_omarchyBackend = envOr("OMADROP_OMARCHY_BACKEND", appDir + QStringLiteral("/omadrop-screensaver"));
     m_hyprctl = envOr("OMADROP_HYPRCTL", QStringLiteral("hyprctl"));
     m_screensaverClass = envOr("OMADROP_SCREENSAVER_CLASS", QStringLiteral("org.omadrop.screensaver"));
 
@@ -135,13 +136,8 @@ Backend::Backend(QObject* parent) : QObject(parent) {
     m_modeConf = config + QStringLiteral("/omadrop/mode.conf");
     m_preferencesConf = config + QStringLiteral("/omadrop/preferences.conf");
 
-    const QString milkdropBackend = envOr("OMADROP_MILKDROP_BACKEND",
-                                          data + QStringLiteral("/omadrop/bin/omadrop"));
-    const QString omarchyBackend = envOr("OMADROP_OMARCHY_BACKEND",
-                                         data + QStringLiteral("/omadrop-screensaver/bin/omadrop-screensaver"));
-    const bool controller = QFileInfo(m_controllerPath).isExecutable();
-    m_milkdropAvailable = controller && QFileInfo(milkdropBackend).isExecutable();
-    m_omarchyAvailable = controller && QFileInfo(omarchyBackend).isExecutable();
+    m_milkdropAvailable = QFileInfo(m_rendererPath).isExecutable();
+    m_omarchyAvailable = QFileInfo(m_omarchyBackend).isExecutable();
 
     bool ok = false;
     const int pollInterval = qEnvironmentVariableIntValue("OMADROP_POLL_INTERVAL_MS", &ok);
@@ -170,6 +166,8 @@ Backend::Backend(QObject* parent) : QObject(parent) {
     });
 
     loadPreferences();
+    m_hiddenScenes = readHiddenScenes();
+    loadScenes();
     m_status = QStringLiteral("Ready");
     refreshEffects();
 }
@@ -348,6 +346,19 @@ void Backend::play() {
     if (m_mode == QLatin1String("milkdrop")) {
         arguments << (m_ascii ? QStringLiteral("--ascii") : QStringLiteral("--no-ascii"));
     }
+    m_previewing = false;
+    beginSession(arguments, QStringLiteral("renderer"));
+}
+
+void Backend::playScene(int number) {
+    clearError();
+    if (number <= 0) {
+        failStart(QStringLiteral("No scene was selected to play."));
+        return;
+    }
+    QStringList arguments;
+    arguments << QStringLiteral("--mode") << QStringLiteral("milkdrop")
+              << QStringLiteral("--scene") << QString::number(number);
     m_previewing = false;
     beginSession(arguments, QStringLiteral("renderer"));
 }
@@ -738,6 +749,9 @@ void Backend::buildEffects(const QByteArray& listing, const QByteArray& help) {
         effect.insert(QStringLiteral("description"), description);
         effect.insert(QStringLiteral("favorite"), status.contains(QLatin1String("favorite")));
         effect.insert(QStringLiteral("hidden"), status.contains(QLatin1String("hidden")));
+        const QString thumbnail = QStringLiteral(":/assets/effects/%1.jpg").arg(slug);
+        effect.insert(QStringLiteral("thumbnail"),
+                      QFile::exists(thumbnail) ? QStringLiteral("qrc") + thumbnail : QString());
         effects.append(effect);
     }
     m_effects = effects;
@@ -795,4 +809,143 @@ void Backend::runEffectToggle(const QStringList& arguments) {
     });
     boundProcess(process, m_queryTimeoutMs);
     process->start(m_effectsHelper, arguments);
+}
+
+QString Backend::sceneManifestPath() const {
+    const QString override = qEnvironmentVariable("OMADROP_COLLECTION_MANIFEST");
+    if (!override.isEmpty()) {
+        return override;
+    }
+    const QString installed = m_root + QStringLiteral("/presets/collection-manifest.json");
+    if (QFileInfo::exists(installed)) {
+        return installed;
+    }
+    return m_root + QStringLiteral("/experiments/milkdrop-audio-pilot/manifest.json");
+}
+
+QString Backend::scenesConfPath() const {
+    return configHome() + QStringLiteral("/omadrop/scenes.conf");
+}
+
+QSet<int> Backend::readHiddenScenes() const {
+    QSet<int> hidden;
+    QFile file(scenesConfPath());
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return hidden;
+    }
+    QString hiddenValue;
+    bool versionSeen = false;
+    bool versionOk = false;
+    while (!file.atEnd()) {
+        const QString line = QString::fromUtf8(file.readLine()).trimmed();
+        if (line.isEmpty() || line.startsWith(QLatin1Char('#'))) {
+            continue;
+        }
+        const int separator = line.indexOf(QLatin1Char('='));
+        if (separator <= 0) {
+            continue;
+        }
+        const QString key = line.left(separator).trimmed();
+        const QString value = line.mid(separator + 1).trimmed();
+        if (key == QLatin1String("version")) {
+            versionSeen = true;
+            versionOk = value == QLatin1String("1");
+        } else if (key == QLatin1String("hidden")) {
+            hiddenValue = value;
+        }
+    }
+    if (!versionSeen || !versionOk) {
+        return hidden;
+    }
+    for (const QString& part : hiddenValue.split(QLatin1Char(','))) {
+        bool ok = false;
+        const int number = part.trimmed().toInt(&ok);
+        if (ok && number > 0) {
+            hidden.insert(number);
+        }
+    }
+    return hidden;
+}
+
+bool Backend::writeHiddenScenes(const QSet<int>& hidden) {
+    const QString path = scenesConfPath();
+    const QString directory = QFileInfo(path).absolutePath();
+    if (!QDir().mkpath(directory)) {
+        setError(QStringLiteral("Could not create the settings directory: %1").arg(directory));
+        return false;
+    }
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        setError(QStringLiteral("Could not save hidden scenes: %1").arg(file.errorString()));
+        return false;
+    }
+    QList<int> numbers = hidden.values();
+    std::sort(numbers.begin(), numbers.end());
+    QStringList parts;
+    for (int number : numbers) {
+        parts << QString::number(number);
+    }
+    QTextStream stream(&file);
+    stream << "version=1\n"
+           << "hidden=" << parts.join(QLatin1Char(',')) << '\n';
+    stream.flush();
+    if (!file.commit()) {
+        setError(QStringLiteral("Could not save hidden scenes: %1").arg(file.errorString()));
+        return false;
+    }
+    return true;
+}
+
+void Backend::loadScenes() {
+    QVariantList scenes;
+    QFile file(sceneManifestPath());
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+        const QJsonArray presets = document.object().value(QStringLiteral("presets")).toArray();
+        for (const QJsonValue& value : presets) {
+            const QJsonObject preset = value.toObject();
+            const int number = preset.value(QStringLiteral("number")).toInt();
+            if (number <= 0) {
+                continue;
+            }
+            const QString label = preset.value(QStringLiteral("label")).toString().trimmed();
+            QVariantMap scene;
+            scene.insert(QStringLiteral("number"), number);
+            scene.insert(QStringLiteral("label"),
+                         label.isEmpty() ? QStringLiteral("Scene %1").arg(number) : label);
+            scene.insert(QStringLiteral("description"),
+                         preset.value(QStringLiteral("appearance")).toString().trimmed());
+            scene.insert(QStringLiteral("hidden"), m_hiddenScenes.contains(number));
+            scene.insert(QStringLiteral("thumbnail"),
+                         QStringLiteral("qrc:/assets/scenes/collection-%1.jpg")
+                             .arg(number, 2, 10, QLatin1Char('0')));
+            scenes.append(scene);
+        }
+    }
+    m_scenes = scenes;
+    emit scenesChanged();
+}
+
+void Backend::toggleSceneHidden(int number) {
+    if (number <= 0) {
+        return;
+    }
+    QSet<int> hidden = readHiddenScenes();
+    if (hidden.contains(number)) {
+        hidden.remove(number);
+    } else {
+        hidden.insert(number);
+    }
+    if (!writeHiddenScenes(hidden)) {
+        return;
+    }
+    m_hiddenScenes = hidden;
+    for (int index = 0; index < m_scenes.size(); ++index) {
+        QVariantMap scene = m_scenes.at(index).toMap();
+        if (scene.value(QStringLiteral("number")).toInt() == number) {
+            scene.insert(QStringLiteral("hidden"), hidden.contains(number));
+            m_scenes[index] = scene;
+        }
+    }
+    emit scenesChanged();
 }
