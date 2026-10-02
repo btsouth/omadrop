@@ -604,6 +604,19 @@ ApplicationWindow {
                             visible: source != ""
                         }
 
+                        // The MilkDrop ASCII filter, shown on the scenes it will apply to.
+                        Image {
+                            anchors.fill: parent
+                            readonly property bool wanted: backend.ascii && !!(modelData && modelData.scene)
+                            source: (wanted || opacity > 0) && thumbImage.visible
+                                    ? String(modelData.thumbnail).replace("/scenes/", "/scenes-ascii/").replace(".jpg", ".png")
+                                    : ""
+                            fillMode: Image.PreserveAspectCrop
+                            mipmap: true
+                            opacity: wanted ? 1 : 0
+                            Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.InOutQuad } }
+                        }
+
                         Text {
                             anchors.centerIn: parent
                             visible: !thumbImage.visible

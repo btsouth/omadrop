@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
     // Originals have no Omadrop audio deformation or invented visual profile.
     const PresetProfile originalProfile{"", VisualFamily::OrganicTendrils,
         BridgeGroup::Organic, PresetDirection::Oscillate, PresetEnergy::Medium,
-        24000, 36000, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f};
+        14000, 20000, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f};
     auto profileForPreset = [&](std::string_view path) -> const PresetProfile& {
         return originals ? originalProfile : ::profileForPreset(path);
     };
@@ -420,8 +420,8 @@ int main(int argc, char** argv) {
     if (pairedLeader || pairedFollower) {
         std::cerr << "paired display: " << pairedRole << "\n";
     }
-    uint64_t transitionWindowAt = SDL_GetTicks64() + (originals ? 24000 : 9000);
-    uint64_t transitionDeadlineAt = SDL_GetTicks64() + (originals ? 30000 : 13000);
+    uint64_t transitionWindowAt = SDL_GetTicks64() + (originals ? 14000 : 9000);
+    uint64_t transitionDeadlineAt = SDL_GetTicks64() + (originals ? 18000 : 13000);
 
     std::string sink = defaultSinkName();
     syncDelayMs = loadSyncDelay(sink);
@@ -1093,8 +1093,8 @@ int main(int argc, char** argv) {
                 originalTrackPreset.reset();
                 presetTransitionActive = false;
                 if (!loadPresetAtVisualTempo(engines[activeEngine], presets[presetIndex], false)) return 1;
-                transitionWindowAt = now + 28000;
-                transitionDeadlineAt = now + 34000;
+                transitionWindowAt = now + 19000;
+                transitionDeadlineAt = now + 23000;
                 publishPairedState(presetIndex, 0, 11, true);
                 std::cerr << "preset: " << presets[presetIndex] << " (under cover)\n";
             }

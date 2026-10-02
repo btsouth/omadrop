@@ -1,6 +1,27 @@
 <RCC>
     <qresource prefix="/">
         <file>Main.qml</file>
+        <file alias="assets/scenes-ascii/collection-01.png">../assets/scenes-ascii/collection-01.png</file>
+        <file alias="assets/scenes-ascii/collection-02.png">../assets/scenes-ascii/collection-02.png</file>
+        <file alias="assets/scenes-ascii/collection-03.png">../assets/scenes-ascii/collection-03.png</file>
+        <file alias="assets/scenes-ascii/collection-04.png">../assets/scenes-ascii/collection-04.png</file>
+        <file alias="assets/scenes-ascii/collection-05.png">../assets/scenes-ascii/collection-05.png</file>
+        <file alias="assets/scenes-ascii/collection-06.png">../assets/scenes-ascii/collection-06.png</file>
+        <file alias="assets/scenes-ascii/collection-07.png">../assets/scenes-ascii/collection-07.png</file>
+        <file alias="assets/scenes-ascii/collection-08.png">../assets/scenes-ascii/collection-08.png</file>
+        <file alias="assets/scenes-ascii/collection-09.png">../assets/scenes-ascii/collection-09.png</file>
+        <file alias="assets/scenes-ascii/collection-10.png">../assets/scenes-ascii/collection-10.png</file>
+        <file alias="assets/scenes-ascii/collection-11.png">../assets/scenes-ascii/collection-11.png</file>
+        <file alias="assets/scenes-ascii/collection-12.png">../assets/scenes-ascii/collection-12.png</file>
+        <file alias="assets/scenes-ascii/collection-13.png">../assets/scenes-ascii/collection-13.png</file>
+        <file alias="assets/scenes-ascii/collection-14.png">../assets/scenes-ascii/collection-14.png</file>
+        <file alias="assets/scenes-ascii/collection-15.png">../assets/scenes-ascii/collection-15.png</file>
+        <file alias="assets/scenes-ascii/collection-16.png">../assets/scenes-ascii/collection-16.png</file>
+        <file alias="assets/scenes-ascii/collection-17.png">../assets/scenes-ascii/collection-17.png</file>
+        <file alias="assets/scenes-ascii/collection-18.png">../assets/scenes-ascii/collection-18.png</file>
+        <file alias="assets/scenes-ascii/collection-19.png">../assets/scenes-ascii/collection-19.png</file>
+        <file alias="assets/scenes-ascii/collection-20.png">../assets/scenes-ascii/collection-20.png</file>
+        <file alias="assets/scenes-ascii/collection-21.png">../assets/scenes-ascii/collection-21.png</file>
         <file alias="assets/scenes/collection-01.jpg">../assets/scenes/collection-01.jpg</file>
         <file alias="assets/scenes/collection-02.jpg">../assets/scenes/collection-02.jpg</file>
         <file alias="assets/scenes/collection-03.jpg">../assets/scenes/collection-03.jpg</file>
