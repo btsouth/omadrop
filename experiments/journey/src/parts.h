@@ -95,6 +95,6 @@ Col duotone(Col c, double g);
 // Boat shared by the crossing (ink) and Kanagawa (woodblock); style 0..1.
 // bearerAt: 0 stern .. 1 bow; bearerH: figure height (0 = 74 * scale).
 void drawBoat(Ctx& c, Canvas& body, Canvas& light, V2 at, double len, double tilt, int crew, double style, double scale,
-              bool bearer, double stroke, double bearerAt = 1, double bearerH = 0, double bearerWalk = 0);
+              bool bearer, double stroke, double bearerAt = 1, double bearerH = 0, double bearerWalk = 0, bool showBearer = true, double moored = 0);
 // Six lines on the water in the crossing: from touchdown to the right.
 }

@@ -14,7 +14,7 @@ namespace T {
 constexpr double osakaEnd = 28.0;      // glide begins
 constexpr double kanagawaDelay = 8.0; // additional travel before the dawn chapter
 constexpr double crossingEnd = 40.0 + kanagawaDelay;
-constexpr double kanagawaEnd = 96.0; // wave, crew recovery, departure toward the inlet
+constexpr double kanagawaEnd = 78.0; // short wave, recovery, landing and first mountain-road bend
 }
 
 struct Ctx {
@@ -25,9 +25,11 @@ struct Ctx {
     int seed;
     std::array<Canvas, 6>* canvases;
     int next = 0;
+    double cameraX = 0; // scene-local world coordinates; crossing defaults to zero
     Canvas& canvas() {
         Canvas& c = (*canvases)[next++ % canvases->size()];
         c.reset(gpu.pixelScale());
+        c.translate(-cameraX, 0);
         return c;
     }
     double band(int i) const { return a.bands[std::size_t(std::clamp(i, 0, 5))]; }

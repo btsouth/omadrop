@@ -41,6 +41,7 @@ def main():
         ("titleLabel", "OMARCHY THEME", a.regular, 12.5, 0.6),
         ("titleOsaka", "Osaka Jade", a.bold, 34, 0),
         ("titleKanagawa", "Kanagawa", a.bold, 34, 0),
+        ("titleTokyo", "Tokyo Night", a.bold, 34, 0),
     ):
         data = outline(ft, library, font, text, size, tracking)
         out.append(f"\nconstexpr char {name}[] =")

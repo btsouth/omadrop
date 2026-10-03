@@ -69,6 +69,7 @@ void drawTitle(Canvas& c, int which, double alpha, Col accent, Col text) {
     static const auto label = parse(titleLabel);
     static const auto osaka = parse(titleOsaka);
     static const auto kanagawa = parse(titleKanagawa);
+    static const auto tokyo = parse(titleTokyo);
     const double a = clamp01(alpha);
     const double rise = 6 * (1 - easeOut(a));
     // Feathered local shadow for legibility, no panel edge.
@@ -81,7 +82,7 @@ void drawTitle(Canvas& c, int which, double alpha, Col accent, Col text) {
     c.fill();
     c.restore();
     c.fillRect(72, 1000 + rise, 4, 40, accent, a);
-    fillText(c, which == 0 ? osaka : kanagawa, 92, 1032 + rise, text, a);
+    fillText(c, which == 0 ? osaka : which == 1 ? kanagawa : tokyo, 92, 1032 + rise, text, a);
     fillText(c, label, 93, 996 + rise, mix(text, accent, 0.55), 0.9 * a);
 }
 }
