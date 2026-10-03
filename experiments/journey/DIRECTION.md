@@ -22,6 +22,15 @@ Four things persist through the whole journey:
 | 28 to 48 | The crossing. Layered valley fog, town lights and finale smoke remain through the glide. The bearer boards at 34.4 to 35.3 s, walks to the bow, then rows out on a shared bass-integral clock. Oar rings, a trailing lantern reflection and the six water strands carry the journey through a gradual night-to-dawn grade. |
 | 48 to 82 | Kanagawa. Hold the dawn print to 61 s: Fuji and the red sun clear the horizon, fishing crews row, plovers pass, seven sea planes answer their bands and spray is born on onsets. A passing swell lifts the bearer from 60.5 s; rowers look out at 62 s and the sea draws back. The existing wave then rises to 72 s and leans from 69 to 78.5 s; its shifted break window is 72 to 79 s, fallback 77.6 s. The epic build and crash are M3 work. |
 
+The crossing keeps water behind live coast geometry, revealed by a moving
+shoreline mask instead of making land transparent. Street reflections retire continuously before the boat is
+composited; its hull and oar contact stay readable. Both the crossing target
+and dawn boats follow the same ordered swell surface. The six strand bands
+keep one measured pulse clock, fixed screen x and a single accent pass through
+arrival. Their flat
+swell continues to the frame edge and tapers its width, avoiding a blunt cap.
+The accepted Osaka walk schedule and pre-28-second artwork are unchanged.
+
 Music response in Osaka Jade, so it stays visible in dense, compressed mixes:
 panes, festival lanterns, the valley's windows and moths answer how far their
 band stands above its own recent level (`Ctx::lift`), not only its absolute

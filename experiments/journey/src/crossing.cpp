@@ -15,6 +15,27 @@ const Col WARM_B(0.98f, 0.90f, 0.66f), PAPER = hex(0xdcd7ba), SPRING = hex(0x7fb
 const Col KRED = hex(0xc34043), HOT = hex(0xe82424), ORANGE = hex(0xc17158), WAVE = hex(0x223249), VIOLET = hex(0x957fb8);
 const Col PULSE[6] = {WARM_B, WARM_B, CYAN, CYAN, BBLUE, BBLUE};
 
+// Retire the live coast at its shoreline instead of revealing water through it.
+const char* shoreFs = R"(
+uniform sampler2D u_tex;
+uniform float u_retire;
+void main() {
+    vec2 p = design();
+    float edge = 934.0 - 450.0 * u_retire
+        + 16.0 * sin(p.x / 310.0 + 0.7) * sin(3.14159265 * u_retire);
+    float mask = 1.0 - smoothstep(edge - 18.0, edge + 18.0, p.y);
+    o = texture(u_tex, v_uv) * mask;
+}
+)";
+
+void shoreComposite(Ctx& c, int tex, double t) {
+    Program& p = c.gpu.effect("crossingShore", shoreFs);
+    c.gpu.pass(p, Blend::Over, [&](Program& q) {
+        c.gpu.bindTexture(0, tex, q, "u_tex");
+        q.set("u_retire", float(sstep(35.5, 46.5, t)));
+    });
+}
+
 // Glide: ease in over 1.5 s, cruise, ease out over 3 s (about 2570 px).
 double glide(double t) {
     const double t0 = 28.0, a = 1.5, cruiseEnd = 37.0, t1 = 40.0, v = 315.0;
@@ -27,20 +48,6 @@ double glide(double t) {
     return base + v * (u - u * u / (2 * d));
 }
 
-std::vector<V2> resample(const std::vector<V2>& p, int n) {
-    std::vector<double> acc{0};
-    for (std::size_t i = 1; i < p.size(); ++i) acc.push_back(acc.back() + (p[i] - p[i - 1]).len());
-    std::vector<V2> out;
-    const double L = acc.back();
-    std::size_t j = 0;
-    for (int k = 0; k < n; ++k) {
-        const double s = L * k / (n - 1);
-        while (j + 2 < acc.size() && acc[j + 1] < s) ++j;
-        const double f = (s - acc[j]) / std::max(1e-9, acc[j + 1] - acc[j]);
-        out.push_back(lerp(p[j], p[j + 1], clamp01(f)));
-    }
-    return out;
-}
 }  // namespace
 
 double crossingCam(double t) { return 30 + glide(t); }
@@ -54,39 +61,43 @@ void crossingStrands(Ctx& c, double t) {
     const auto target = waveStrands(t, 0.0);
     const double morph = easeInOut((t - T::crossingEnd) / 3.5);
     const double g = sstep(37.0, 51.0, t);
-    const double fadeOut = 1 - sstep(50.5, 52.0, t);
     Canvas& cv = c.canvas();
-    Rng rng(9);
     for (int i = 0; i < 6; ++i) {
+        Rng rng(900 + i);
         const V2 td = outs[std::size_t(i)][3];
         const double touch = 36.5 + i * 0.22;
         if (t < touch) continue;
         const double reach = std::min(1990.0, td.x + 900 * (t - touch));
-        std::vector<V2> line;
-        for (double x = td.x; x <= reach; x += 8) {
-            const double rel = x - td.x;
-            line.push_back({x, td.y + (10 + 5 * i) * std::sin(rel / (120 + 22 * i) - (t - touch) * 1.3) * sstep(0, 160, rel) + rel * 0.012 * (i - 2)});
+        // Keep screen x fixed. Only the local water support approaches the
+        // arriving swell; no endpoint or pulse is transported to the left.
+        std::vector<V2> pts = resampleStrand(target[std::size_t(i)], 80);
+        for (V2& p : pts) {
+            const double water = lerp(td.y, seaStrandY(c, p.x, i), sstep(0, 260, p.x - td.x));
+            p.y = lerp(water, p.y, morph);
         }
-        if (line.size() < 2) continue;
-        std::vector<V2> pts = resample(line, 80);
-        if (morph > 0) {
-            const std::vector<V2> dst = resample(target[std::size_t(i)], 80);
-            for (int k = 0; k < 80; ++k) pts[std::size_t(k)] = lerp(pts[std::size_t(k)], dst[std::size_t(k)], morph);
-        }
+        auto visible = [&](V2 p) {
+            const double extension = sstep(47.9, 51.5, t);
+            return lerp(sstep(td.x - 8, td.x + 8, p.x), 1.0, extension)
+                * (1 - sstep(reach - 12, reach + 12, p.x));
+        };
         const Col col = mix(mix(MINT, CREAM, 0.3), mix(SPRING, PAPER, 0.35), g);
-        cv.polyline(pts, 1.6 + 0.6 * c.lift(i), col, (0.38 + 0.42 * c.lift(i) + 0.20 * c.band(i)) * fadeOut);
+        for (int j = 0; j < 79; ++j) cv.line(pts[j].x, pts[j].y, pts[j + 1].x, pts[j + 1].y,
+            1.6 + 0.6 * c.lift(i), col, (0.38 + 0.42 * c.lift(i) + 0.20 * c.band(i)) * visible(pts[j]));
         const double age = t - touch;
-        if (age < 1.6) cv.glow(td.x, td.y, 18 + 26 * std::exp(-age * 3), CREAM, (0.55 + 0.35 * std::exp(-age * 4)) * (1 - age / 1.6));
-        const double travel = (0.07 + 0.03 * i) * (0.6 * t + 3.4 * (c.score ? c.score->integral(i, t) : 0));
+        if (age < 1.6) cv.glow(td.x, td.y, 18 + 26 * std::exp(-age * 3), CREAM, (0.55 + 0.35 * std::exp(-age * 4)) * (1 - age / 1.6) * visible(td));
+        const double travel = strandClock(c, i);
         const double lvl = std::min(1.0, 0.3 + 1.1 * c.band(i) + 0.7 * c.lift(i));
         for (int q = 0; q < 4; ++q) {
             const int j = int(std::fmod(rng.uni() + travel, 1.0) * 79);
             for (int back = 0; back < 12; ++back) {
                 const int jj = j - back;
                 if (jj < 0) break;
-                cv.disc(pts[std::size_t(jj)].x, pts[std::size_t(jj)].y, 3.2 * (1 - back / 12.0) + 0.6, mix(PULSE[i], PAPER, g), std::pow(1 - back / 12.0, 1.5) * lvl * fadeOut);
+                if (jj + 1 < 80) cv.line(pts[std::size_t(jj)].x, pts[std::size_t(jj)].y,
+                    pts[std::size_t(jj + 1)].x, pts[std::size_t(jj + 1)].y, 1.6 + 0.7 * (1 - back / 12.0),
+                    mix(PULSE[i], PAPER, g), std::pow(1 - back / 12.0, 1.5) * lvl * visible(pts[jj]));
             }
-            cv.glow(pts[std::size_t(j)].x, pts[std::size_t(j)].y, 20, mix(PULSE[i], i < 2 ? GOLD : PAPER, g), 0.9 * lvl * fadeOut);
+            cv.glowEllipse(pts[std::size_t(j)].x, pts[std::size_t(j)].y, 16, 3.5,
+                mix(PULSE[i], i < 2 ? GOLD : PAPER, g), 0.9 * lvl * visible(pts[j]));
         }
     }
     c.gpu.over(cv, 1.5f);
@@ -99,7 +110,9 @@ void drawCrossing(Ctx& c) {
     OsakaState s;
     s.cam = cam;
     s.land = 1 - sstep(35.0, 46.5, t);
-    s.harbour = 1 - sstep(40.0, 47.5, t);
+    s.harbour = 1 - sstep(35.5, 41.5, t);
+    s.harbourFeather = sstep(35.5, 37.0, t);
+    s.reflection = 1 - sstep(35.5, 41.5, t);
     s.outAlpha = 1 - sstep(40.0, 46.0, t);
     s.wisteria = 1;
     // Fog rises in depth: the far valley first, the near town later; it
@@ -168,13 +181,28 @@ void drawCrossing(Ctx& c) {
         osakaFog(c, farFog, 590, 840, mix(Col(0.38f, 0.72f, 0.58f), PAPER, g));
         osakaGlowThrough(c, s, farFog * 0.45);
     };
-    drawOsakaBackdrop(c, s, false, false, &bh);
-    if (k > 0.001) {
+    bh.beforeCoast = [&] {
+        if (k > 0.001) {
+            c.gpu.beginOffscreen(true);
+            kanagawaSea(c);
+            if (t < 47.9) crossingStrands(c, t);
+            gradeComposite(c, c.gpu.endOffscreen(), g, k);
+        }
+    };
+    OsakaState retained = s;
+    retained.land = 1;
+    bh.coast = [&] {
         c.gpu.beginOffscreen(true);
-        kanagawaSea(c);
-        gradeComposite(c, c.gpu.endOffscreen(), g, k);
-    }
+        drawOsakaCoast(c, retained, &bh);
+        shoreComposite(c, c.gpu.endOffscreen(), t);
+    };
+    drawOsakaBackdrop(c, s, false, false, &bh);
     OsakaHooks hooks;
+    hooks.town = [&] {
+        c.gpu.beginOffscreen(true);
+        drawOsakaDistantTown(c, retained);
+        shoreComposite(c, c.gpu.endOffscreen(), t);
+    };
     hooks.afterTown = [&] {
         osakaFog(c, fog, fogTop, fogBottom, mix(Col(0.62f, 0.96f, 0.78f), PAPER, g));
         // The town's lights keep glowing through the fog as it thickens.
@@ -182,7 +210,8 @@ void drawCrossing(Ctx& c) {
     };
     hooks.afterWires = [&] {
         osakaFog(c, nearFog, 700 - 40 * sstep(31.8, 35.0, t), 1400, mix(Col(0.55f, 0.90f, 0.72f), PAPER, g));
-        crossingStrands(c, t);
+    };
+    hooks.afterReflections = [&] {
         // The boat: waits at the steps, takes the lantern-bearer aboard, and
         // rows out to where Kanagawa's near boat will be.
         const double par = 0.85, quay = 2330;
@@ -192,14 +221,14 @@ void drawCrossing(Ctx& c) {
         const double sc = lerp(1.3, 1.0, away);
         const double len = lerp(440, 400, away);
         const V2 moored(quay + 190 + len / 2 - 40 * sc - cam * par, 1014 + 3 * std::sin(t * 1.3));
-        const V2 target(1250, 822 + 9 * std::sin(t * 0.8 + 1) - 7 * c.kick(5));
-        const V2 at = lerp(moored, target, away);
+        const BoatPose target = seaBoatPose(c, true);
+        const V2 at = lerp(moored, target.at, away);
         const bool aboard = t >= 35.3;
         Canvas& b = c.canvas();
         Canvas& l = c.canvas();
         const double stroke = rowingClock(c);
         const double walk = sstep(35.35, 38.6, t);
-        drawBoat(c, b, l, at, len, lerp(-0.03, 0.10 + 0.04 * std::sin(t * 0.8), away), 5, g, sc, aboard, t > 35.4 ? stroke : 0,
+        drawBoat(c, b, l, at, len, lerp(-0.03, target.tilt, away), 5, g, sc, aboard, t > 35.4 ? stroke : 0,
                  walk, lerp(146, 74, sstep(35.5, 45.5, t)), walk > 0 && walk < 1 ? 1 : 0);
         // Boarding: down the quay steps and onto the bow.
         if (!aboard && t >= 34.4) {
@@ -239,10 +268,11 @@ void drawCrossing(Ctx& c) {
         // The far fishing crew rows in from outside the frame before arrival.
         Canvas& b = c.canvas(); Canvas& l = c.canvas();
         const double u = sstep(45.0, T::crossingEnd, t);
-        drawBoat(c, b, l, {1960, 706 + 5 * std::sin(t * 0.9)}, 250,
-                 -0.07 + 0.03 * std::sin(t * 0.9), 6, g, 0.7, false, rowingClock(c) + 0.3);
+        const BoatPose far = seaBoatPose(c, false);
+        drawBoat(c, b, l, far.at, 250, far.tilt, 6, g, 0.7, false, rowingClock(c) + 0.3);
         c.gpu.over(b, 1, 0, float(u));
     }
+    if (t > 47.9) kanagawaEntry(c);
     FinishParams f;
     f.time = float(t);
     f.bloom = float(lerp(0.55, 0.3, g));

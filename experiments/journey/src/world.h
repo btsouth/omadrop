@@ -56,6 +56,8 @@ struct OsakaState {
     bool chapter = true;  // false during the crossing (no new street events)
     double outAlpha = 1;  // aerial wires from the last pole to the sea
     double harbour = 1;   // dark harbour water beyond the quay
+    double reflection = 1; // street/harbour reflected light, unchanged in Osaka
+    double harbourFeather = 0; // soften the retiring water strip only in the crossing
 };
 
 void drawOsaka(Ctx& c, const OsakaState& s);

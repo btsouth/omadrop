@@ -31,9 +31,11 @@ void hazeBand(Ctx& c, double y0, double sigma, double lo, double hi, double shif
 
 // Osaka stage split so the crossing can interleave fog and the next world.
 struct OsakaHooks {
+    std::function<void()> town; // optional crossing shoreline compositor
     std::function<void()> afterTown;   // after downhill roofs (fog goes here)
     std::function<void()> afterYatai;  // the boat at the quay
     std::function<void()> afterWires;
+    std::function<void()> afterReflections; // crossing boats above the street reflection
 };
 // The crossing replaces the sky's neighbours, the disc and the mountain at
 // their place in the backdrop's depth order.
@@ -41,10 +43,14 @@ struct BackdropHooks {
     std::function<void()> afterSky;
     std::function<void()> disc;
     std::function<void()> mountain;
+    std::function<void()> beforeCoast; // sea behind the retiring shoreline
+    std::function<void()> coast; // optional crossing shoreline compositor
     std::function<void()> afterValley; // distant fog, before the nearer ridge
 };
 void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain, const BackdropHooks* hooks = nullptr);
 void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks);
+void drawOsakaCoast(Ctx& c, const OsakaState& s, const BackdropHooks* hooks);
+void drawOsakaDistantTown(Ctx& c, const OsakaState& s);
 void osakaFog(Ctx& c, double amount, double top, double bottom, Col col);
 // Diffuse glow of the valley city and downhill town seen through fog.
 void osakaGlowThrough(Ctx& c, const OsakaState& s, double amount);
@@ -73,6 +79,12 @@ std::array<std::vector<V2>, 6> waveStrands(double t, double rise);
 void crossingStrands(Ctx& c, double t);
 double crossingCam(double t);
 double rowingClock(const Ctx& c);
+struct BoatPose { V2 at; double tilt; };
+BoatPose seaBoatPose(const Ctx& c, bool near);
+double seaStrandY(const Ctx& c, double x, int band);
+double strandClock(const Ctx& c, int band);
+std::vector<V2> resampleStrand(const std::vector<V2>& path, int n);
+void kanagawaEntry(Ctx& c); // shared lower-edge swell entry before/after arrival
 // The flock formation after the surge, in screen space; colour per world.
 void drawFlock(Ctx& c, Col col, double size, double alpha = 1);
 void drawBearerLantern(Canvas& body, Canvas& light, V2 hand, double swing, double size, double bright);

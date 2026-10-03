@@ -856,7 +856,12 @@ void streetSurface(Ctx& c, const OsakaState& s) {
     cv.line(0, 934.5, std::min(1920.0, qx), 934.5, 1.2, MINT, 0.30);
     if (qx < 1930 && s.harbour > 0.01) {
         // Harbour water beyond the quay.
-        cv.linear(0, 934, 0, 1080, {{0, Col(0.030f, 0.120f, 0.100f), float(s.harbour)}, {1, Col(0.006f, 0.022f, 0.022f), float(s.harbour)}});
+        if (s.harbourFeather > 0) {
+            cv.linear(0, 934, 0, 1080, {{0, Col(0.030f, 0.120f, 0.100f), float(s.harbour * (1 - s.harbourFeather))},
+                {0.15f, Col(0.026f, 0.103f, 0.085f), float(s.harbour)}, {1, Col(0.006f, 0.022f, 0.022f), float(s.harbour)}});
+        } else {
+            cv.linear(0, 934, 0, 1080, {{0, Col(0.030f, 0.120f, 0.100f), float(s.harbour)}, {1, Col(0.006f, 0.022f, 0.022f), float(s.harbour)}});
+        }
         cv.rect(qx, 934, 1930 - qx, 146);
         cv.fill();
         for (int k = 0; k < 26; ++k) {
@@ -1590,9 +1595,13 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
             l.glow(q.x, q.y, (13 + 14 * lvl) * sc, PULSE[i], 0.9 * std::min(1.0, lvl));
         }
         Rng quayRng(1012 + i);
+        // Continue the quay instrument into departure with more measured
+        // travel, keeping its position continuous at 28 and its ambient speed.
+        const double departure = t > 28 && c.score ? c.score->integral(i, t) - c.score->integral(i, 28) : 0;
+        const double quayTravel = travel * 1.4 + speed * 3.0 * departure;
         for (int k = 0; k < 6; ++k) {
             Rng& pulseRng = k < 4 ? rng : quayRng;
-            const double u = std::fmod(pulseRng.uni() + travel * 1.4, 1.0) * 3.0;
+            const double u = std::fmod(pulseRng.uni() + quayTravel, 1.0) * 3.0;
             const int seg = int(u);
             const double tt = u - seg;
             const double lvl = std::min(1.4, (0.55 + 0.45 * pulseRng.uni()) * level) * (seg == 0 ? 1.0 : s.outAlpha);
@@ -2026,7 +2035,7 @@ void reflections(Ctx& c, const OsakaState& s) {
     Program& p = c.gpu.effect("reflect", Shaders::reflect);
     c.gpu.pass(p, Blend::Add, [&](Program& q) {
         c.gpu.bindTexture(0, snap, q, "u_img");
-        q.set("u_y0", 936.f); q.set("u_qx", s.harbour > 0.99 ? 4000.f : float(QUAY - s.cam * 0.85)); q.set("u_t", float(c.t)); q.set("u_gain", 1.f);
+        q.set("u_y0", 936.f); q.set("u_qx", 4000.f); q.set("u_t", float(c.t)); q.set("u_gain", float(s.reflection));
         q.set("u_kick", float(std::min(1.0, c.kick(4.5))));
     });
 }
@@ -2087,7 +2096,9 @@ void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain, co
         m.top = Col(0.050f, 0.300f, 0.220f); m.bot = Col(0.30f, 0.84f, 0.60f);
         drawMountain(c, m);
     }
-    if (s.land > 0.01) {
+    if (hooks && hooks->beforeCoast) hooks->beforeCoast();
+    if (hooks && hooks->coast) hooks->coast();
+    else if (s.land > 0.01) {
         ridges(c, s);
         valleyCity(c, s);
         if (s.chapter) firework(c, s, L);
@@ -2098,11 +2109,33 @@ void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain, co
     skyLanterns(c, s, L);
 }
 
-void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks) {
+void drawOsakaCoast(Ctx& c, const OsakaState& s, const BackdropHooks* hooks) {
+    if (s.land > 0.01) {
+        const Life L = lifeAt(c);
+        ridges(c, s);
+        valleyCity(c, s);
+        if (s.chapter) firework(c, s, L);
+        if (hooks && hooks->afterValley) hooks->afterValley();
+        nearRidge(c, s);
+        train(c, s);
+    }
+}
+
+void drawOsakaDistantTown(Ctx& c, const OsakaState& s) {
     const Life L = lifeAt(c);
     const auto plan = birdPlan(c);
     if (s.land > 0.01) downhillRoofs(c, s, L);
     if (s.land > 0.01) polesWires(c, s, L, plan, true);
+}
+
+void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks) {
+    const Life L = lifeAt(c);
+    const auto plan = birdPlan(c);
+    if (hooks.town) hooks.town();
+    else {
+        if (s.land > 0.01) downhillRoofs(c, s, L);
+        if (s.land > 0.01) polesWires(c, s, L, plan, true);
+    }
     if (hooks.afterTown) hooks.afterTown();
     rightHouses(c, s, L);
     streetSurface(c, s);
@@ -2113,6 +2146,7 @@ void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks) {
     moths(c, s);
     if (hooks.afterWires) hooks.afterWires();
     reflections(c, s);
+    if (hooks.afterReflections) hooks.afterReflections();
     streetFront(c, s, L);
     drawBirds(c, s, L, plan);
     nearHouse(c, s, L);
