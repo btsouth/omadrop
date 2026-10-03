@@ -49,3 +49,12 @@ movie seconds; both are transparent at their starting instant. Opacity follows
 a smooth 0.6-second entrance and 1-second exit. The entrance also settles upward
 by 8 normalized pixels. Captions are independent of audio and use a small,
 feathered local shadow for legibility.
+
+## Journey titles
+
+`title-outlines.inc` holds the Journey titles (`OMARCHY THEME`, `Osaka Jade`,
+`Kanagawa`) in JetBrains Mono, the Omarchy mono face: Bold 34 px names and
+Regular 12.5 px label at 1920 x 1080. JetBrains Mono is licensed under the SIL
+Open Font License 1.1. Regenerate with `python title_generate.py` (defaults to
+the Nerd Font build Omarchy installs). The older `outlines.inc` is no longer
+used by the renderer.

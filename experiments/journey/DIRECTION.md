@@ -1,42 +1,33 @@
-# Journey
+# Journey: Six Lines
 
-Step inside an Omarchy theme. A continuous route passes through original
-graphical worlds built from its palettes, tiled geometry and terminal rhythm.
-Each world has a recognizable composition and its own musical behavior.
-Transitions carry objects forward so the journey feels connected.
+Step inside an Omarchy theme. Each chapter is a held stage that comes alive;
+travel happens between worlds, without cuts or whole-frame dissolves.
 
-## First motion study
+Four things persist through the whole journey:
 
-| Movie time | Composition | Musical behavior |
-| --- | --- | --- |
-| 0–24 seconds | Travel along Osaka Jade's canal between illuminated buildings, tiled panels and quay lights. A tram crosses in the distance; lanterns drift on the water. | Six measured frequency ranges articulate windows, panel divisions and reflections. Occasional measured energy rises spread a broader illumination through the skyline. |
-| 24–34 seconds | The camera lowers toward the water. The banks recede into haze, the palette changes continuously, and a foreground current grows into a curl. The moon remains a landmark. | Musical roles remain active. Camera and transition pacing follow the route's clock. |
-| 34–60 seconds | Kanagawa sea with flowing contours, foam and a curling foreground wave. | Bass gives the crest weight; onset accents lift foam; higher ranges articulate the surface. Musical surges produce a larger swell with restrained settling. |
+- Six strands carry the six frequency bands as travelling light: power lines
+  in Osaka Jade, lines on the swell in the crossing, the stripes of the great
+  wave in Kanagawa. Band 0 is the bottom strand.
+- One disc carries bass: the moon, then the red sun. Its halo breathes with
+  bass and rings travel outward on strong bass hits.
+- One mountain: a broad cone in Osaka Jade that recedes to Fuji at sea.
+- A lantern-bearer in a straw hat: walks the street, boards the boat, rides
+  at the bow.
 
-Theme titles appear at the bottom left for five seconds on arrival, then fade.
-The second title begins at 35 seconds, after the sea has become recognizable.
+## Preview timeline (movie seconds)
 
-The scene clock sets the route's pace. Music shapes objects inside that route.
-There is no beat-controlled speed multiplier or stock screensaver scene.
+| Time | Chapter |
+| --- | --- |
+| 0 to 28 | Osaka Jade. Blue hour, moonrise, panes waking by band, the noodle cart opening, shadow play behind paper, birds landing on the wires on onsets, a train in the valley, the cyclist, the shamisen player, a gust, then the surge window (22 to 27): flock burst, one firework, panes flashing outward, sky lanterns. |
+| 28 to 40 | The crossing. Camera glide to the quay, the bearer boards, valley fog rises, land gives way to water, the wires touch down and run on the swell, moon to sun, cone to Fuji, jade to ink and paper. |
+| 40 to 75 | Kanagawa. The swell heaves up into the great wave (to 64 s), leans over the boats (61 to 70 s), grows claws on onsets and flings spray; it breaks in the surge window (64 to 71 s) and the foam washes across the frame. |
 
-This study tests composition, continuity and musical readability. A perspective
-projection supplies depth and camera travel. It uses recorded audio and a
-raster renderer; it is not the finished mode. Native
-performance and live audio integration need separate product work after the
-visual direction earns its place.
+World life runs on the scene clock and continues in silence. Music changes
+objects inside the timeline; story events are gated on music only inside the
+surge windows, which have timed fallbacks (the Kanagawa fallback lands on the
+next strong bass hit when there is one). There is no chorus or drop detection.
 
-## Decisions for the next pass
-
-- Judge the complete transition with music and muted. Strong endpoints alone
-  do not prove a continuous journey.
-- Refine the art and the camera route before expanding the chapter count.
-- Develop distinct actions for later worlds rather than applying the same
-  deformation everywhere.
-- Treat languages and countries as possible authored chapter material.
-  Translated website strings alone do not supply world design or cultural art.
-- Keep the existing MilkDrop experience intact.
-
-## Later ideas
-
-A discreet Le Mans race car easter egg in a suitable world. Keep it incidental
-and prioritize the world composition, motion and transitions first.
+Rendering styles follow each theme: Osaka Jade is luminous haze, silhouettes,
+warm windows, a wet reflective street and soft bloom; Kanagawa is flat ink
+planes, cream linework, paper grain and little bloom. Palettes come from each
+theme's `colors.toml`.

@@ -1,43 +1,46 @@
 #pragma once
 
 #include "audio.h"
+#include "score.h"
 #include <QElapsedTimer>
 #include <QPointer>
-#include <QQuickPaintedItem>
-#include <QTimer>
+#include <QQuickFramebufferObject>
 
 class JourneyBackend : public QObject {
     Q_OBJECT
     Q_PROPERTY(double seconds READ seconds NOTIFY changed)
     Q_PROPERTY(bool paused READ paused NOTIFY changed)
 public:
-    JourneyBackend(Journey::AudioTimeline audio, double duration, double at, bool paused,
-                   QObject* parent = nullptr);
-    double seconds() const { return seconds_; }
+    JourneyBackend(Journey::AudioTimeline audio, Journey::Score score, double duration, double at,
+                   bool paused, int seed, QObject* parent = nullptr);
+    double seconds();
     bool paused() const { return paused_; }
-    Journey::Audio audio() const { return audio_.at(seconds_); }
+    Journey::Audio audioAt(double t) const { return audio_.at(t); }
+    const Journey::Score* score() const { return &score_; }
+    int seed() const { return seed_; }
     Q_INVOKABLE void togglePause();
     Q_INVOKABLE void scrub(double delta);
 signals:
     void changed();
 private:
-    void tick();
     void resetClock();
     Journey::AudioTimeline audio_;
+    Journey::Score score_;
     double duration_, seconds_, origin_ = 0;
     bool paused_;
+    int seed_;
     QElapsedTimer clock_;
-    QTimer timer_;
 };
 
-class JourneyItem : public QQuickPaintedItem {
+// Native preview: the same GPU renderer draws into Qt Quick's framebuffer.
+class JourneyItem : public QQuickFramebufferObject {
     Q_OBJECT
     Q_PROPERTY(JourneyBackend* backend READ backend WRITE setBackend NOTIFY backendChanged)
 public:
     explicit JourneyItem(QQuickItem* parent = nullptr);
     JourneyBackend* backend() const { return backend_; }
     void setBackend(JourneyBackend* backend);
-    void paint(QPainter* painter) override;
+    Renderer* createRenderer() const override;
 signals:
     void backendChanged();
 private:
