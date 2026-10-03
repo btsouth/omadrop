@@ -9,6 +9,7 @@
 namespace Journey {
 namespace {
 #include "caption-assets/title-outlines.inc"
+#include "caption-assets/sign-outlines.inc"
 
 struct Op { char code; double v[6]; };
 
@@ -34,9 +35,10 @@ std::vector<Op> parse(const char* data) {
     return ops;
 }
 
-void fillText(Canvas& c, const std::vector<Op>& ops, double x, double y, Col col, double a) {
+void fillText(Canvas& c, const std::vector<Op>& ops, double x, double y, Col col, double a, double size = 1) {
     c.save();
     c.translate(x, y);
+    c.scale(size, size);
     c.color(col, a);
     for (const Op& o : ops) {
         switch (o.code) {
@@ -50,6 +52,16 @@ void fillText(Canvas& c, const std::vector<Op>& ops, double x, double y, Col col
     c.fill();
     c.restore();
 }
+}
+
+void drawSignGlyph(Canvas& c, int index, double x, double y, double size, Col col, double alpha) {
+    static const std::vector<std::vector<Op>> glyphs = [] {
+        std::vector<std::vector<Op>> v;
+        for (const char* g : signGlyphs) v.push_back(parse(g));
+        return v;
+    }();
+    if (index < 0 || index >= int(glyphs.size()) || alpha <= 0.002) return;
+    fillText(c, glyphs[std::size_t(index)], x, y, col, alpha, size);
 }
 
 void drawTitle(Canvas& c, int which, double alpha, Col accent, Col text) {

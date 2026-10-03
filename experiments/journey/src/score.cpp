@@ -5,16 +5,24 @@
 
 namespace Journey {
 void Score::build(const AudioTimeline& audio, double duration, bool hasAudio) {
-    onsets.clear(); bassHits.clear(); midPeaks.clear(); surges.clear(); bandIntegral.clear();
+    onsets.clear(); bassHits.clear(); midPeaks.clear(); surges.clear(); bandIntegral.clear(); bandMean.clear();
     if (!hasAudio) return;
     constexpr double dt = 1.0 / 120;
     const int n = int(std::ceil(duration / dt)) + 1;
     std::vector<Audio> s(n);
     for (int i = 0; i < n; ++i) s[i] = audio.at(i * dt);
     bandIntegral.resize(n);
-    std::array<double, 6> acc{};
+    bandMean.resize(n);
+    std::array<double, 6> acc{}, mean{};
+    for (int b = 0; b < 6; ++b) mean[b] = s[0].bands[b];
+    const double k = 1 - std::exp(-dt / 1.5);
     for (int i = 0; i < n; ++i) {
-        for (int b = 0; b < 6; ++b) { bandIntegral[i][b] = float(acc[b]); acc[b] += s[i].bands[b] * dt; }
+        for (int b = 0; b < 6; ++b) {
+            bandIntegral[i][b] = float(acc[b]);
+            acc[b] += s[i].bands[b] * dt;
+            mean[b] += (s[i].bands[b] - mean[b]) * k;
+            bandMean[i][b] = float(mean[b]);
+        }
     }
     double lastOnset = -1, lastBass = -1, lastMid = -1, midMean = 0, bassMean = 0;
     bool surgeArmed = true;
@@ -60,6 +68,18 @@ double Score::integral(int band, double t) const {
     const std::size_t j = std::min(bandIntegral.size() - 1, i + 1);
     const double f = std::min(1.0, x - double(i));
     return bandIntegral[i][band] + f * (bandIntegral[j][band] - bandIntegral[i][band]);
+}
+
+double Score::mean(int band, double t) const {
+    if (bandMean.empty()) return 0;
+    const std::size_t i = std::min(bandMean.size() - 1, std::size_t(std::max(0.0, t * 120)));
+    return bandMean[i][band];
+}
+
+double Score::envelope(const std::vector<Event>& list, double t, double decay, double maxAge) {
+    const Event* e = last(list, t);
+    if (!e || t - e->t > maxAge) return 0;
+    return e->strength * std::exp(-(t - e->t) * decay);
 }
 
 int Score::count(const std::vector<Event>& list, double from, double to) {

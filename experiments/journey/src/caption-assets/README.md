@@ -58,3 +58,12 @@ Regular 12.5 px label at 1920 x 1080. JetBrains Mono is licensed under the SIL
 Open Font License 1.1. Regenerate with `python title_generate.py` (defaults to
 the Nerd Font build Omarchy installs). The older `outlines.inc` is no longer
 used by the renderer.
+
+## Osaka Jade sign lettering
+
+`sign-outlines.inc` holds seven glyphs (居酒屋 for the izakaya neon, らーめん
+for the noodle cart's curtains), each at 1 px per em. They derive from Noto
+Sans CJK JP Bold (SIL Open Font License 1.1, Copyright 2014-2021 Adobe, with
+Reserved Font Name 'Source'; see `OFL.txt` for the license text). Regenerate
+with `python3 sign_generate.py --font /usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc`;
+the font's SHA-256 is recorded in the generated file.

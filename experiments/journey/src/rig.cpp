@@ -10,6 +10,38 @@ V2 rot(V2 v, double a) {
     const double c = std::cos(a), s = std::sin(a);
     return {v.x * c - v.y * s, v.x * s + v.y * c};
 }
+
+// Closed smooth outline through the points (Catmull-Rom as cubic Beziers).
+void smoothClosed(Canvas& c, const std::vector<V2>& p) {
+    const int n = int(p.size());
+    c.moveTo(p[0].x, p[0].y);
+    for (int i = 0; i < n; ++i) {
+        const V2 p0 = p[std::size_t((i + n - 1) % n)], p1 = p[std::size_t(i)], p2 = p[std::size_t((i + 1) % n)],
+                 p3 = p[std::size_t((i + 2) % n)];
+        const V2 a = p1 + (p2 - p0) * (1.0 / 6), b = p2 - (p3 - p1) * (1.0 / 6);
+        c.curveTo(a.x, a.y, b.x, b.y, p2.x, p2.y);
+    }
+    c.closePath();
+}
+
+// Profile torso: a chest that leads, a waist, a back with a gentle curve and
+// rounded shoulders, instead of a straight capsule.
+void torso(Canvas& c, const Body& b, Col col, double alpha) {
+    const RigIn& in = b.in;
+    const double h = in.h, k = in.bulk;
+    const V2 axis = b.chest - in.hip;
+    const double len = std::max(1e-6, axis.len());
+    const V2 up = axis * (1.0 / len);
+    const V2 fwd = V2(-up.y, up.x) * in.facing;
+    auto at = [&](double s, double d) { return in.hip + up * (s * h) + fwd * (d * h * k); };
+    const std::vector<V2> pts = {
+        at(-0.03, 0.058), at(0.07, 0.050), at(0.17, 0.066), at(0.25, 0.058), at(0.305, 0.030),
+        at(0.315, -0.012), at(0.29, -0.052), at(0.20, -0.060), at(0.10, -0.050), at(0.02, -0.064), at(-0.04, -0.040),
+    };
+    c.color(col, alpha);
+    smoothClosed(c, pts);
+    c.fill();
+}
 }
 
 V2 ik(V2 root, V2 target, double l1, double l2, double bend) {
@@ -93,8 +125,8 @@ void drawBody(Canvas& c, const Body& b, Col col, double alpha) {
         legDraw(b.kneeB, footB);
     }
     armDraw(b.elbowB, handB);
-    c.capsule(in.hip, b.chest, 0.066 * h * k, 0.074 * h * k, col, alpha);
-    c.capsule(b.chest, b.neck, 0.03 * h * k, 0.026 * h * k, col, alpha);
+    torso(c, b, col, alpha);
+    c.capsule(b.chest, b.neck, 0.026 * h * k, 0.022 * h * k, col, alpha);
     if (!in.robe) legDraw(b.kneeF, footF);
     armDraw(b.elbowF, handF);
     // Head with a small nose cue so the facing and gaze read in silhouette.

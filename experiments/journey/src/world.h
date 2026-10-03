@@ -30,6 +30,16 @@ struct Ctx {
         return c;
     }
     double band(int i) const { return a.bands[std::size_t(std::clamp(i, 0, 5))]; }
+    // How far a band stands above its own recent level: 0 at or below the
+    // running mean, about 1 at twice the mean. Silence gives 0.
+    double lift(int i) const {
+        if (!score) return 0;
+        const double m = score->mean(std::clamp(i, 0, 5), t);
+        return std::clamp((band(i) - m) / (m + 0.035), 0.0, 1.6);
+    }
+    // Recent bass hit / onset as a decaying envelope.
+    double kick(double decay = 6) const { return score ? Score::envelope(score->bassHits, t, decay) : 0; }
+    double hit(double decay = 8) const { return score ? Score::envelope(score->onsets, t, decay) : 0; }
     // Deterministic per-run jitter in [-1, 1].
     double jit(double k) const { return hash2(k, seed * 7.13 + 0.5) * 2 - 1; }
 };
@@ -51,6 +61,9 @@ void drawOsaka(Ctx& c, const OsakaState& s);
 void drawCrossing(Ctx& c);
 void drawKanagawa(Ctx& c);
 void drawTitle(Canvas& canvas, int which, double alpha, Col accent, Col text);
+// Sign lettering, one glyph per index: 0..2 居酒屋, 3..6 らーめん. (x, y) is the
+// glyph origin on the baseline; size is the em in design pixels.
+void drawSignGlyph(Canvas& canvas, int index, double x, double y, double size, Col col, double alpha = 1.0);
 // Shared persistent elements.
 struct Surge { double t = -1; double strength = 0; bool fallback = false; };
 Surge surgeIn(const Score* score, double from, double to, double fallbackAt);

@@ -34,6 +34,18 @@ double ridgeY(int seed, double x, double base, double amp, double scale) {
 }
 
 // ---------- timeline ----------
+// One firework shell. The main pair blooms on the surge; the finale shells
+// burst on the bass hits that follow it, so the sky answers the drop.
+struct Shell {
+    double burst;   // bloom time
+    V2 at;          // bloom centre (mock coordinates, before parallax)
+    double size;    // final radius scale
+    int kind;       // 0 chrysanthemum, 1 peony, 2 ring, 3 golden willow
+    Col a, b;       // star colour, then the colour it cools to
+    double strength;
+    double tilt;    // ring tilt / rotation seed
+};
+
 struct Life {
     double t = 0;
     double wind = 0;      // gust strength
@@ -41,6 +53,7 @@ struct Life {
     double bloom = -1;    // firework bloom time
     double look = 0;      // figures look up
     double scale = 1;     // fallback surge is smaller
+    std::vector<Shell> shells;
 };
 
 double flickerOn(double dt) {
@@ -50,6 +63,48 @@ double flickerOn(double dt) {
     if (dt < 0.17) return 0.8;
     if (dt < 0.22) return 0.35;
     return 0.75 + 0.25 * sstep(0.22, 0.6, dt);
+}
+
+std::vector<Shell> shellPlan(const Ctx& c, const Life& L) {
+    std::vector<Shell> out;
+    if (L.surge.t < 0) return out;
+    const Col GOLD(1.0f, 0.80f, 0.42f), EMBER(0.95f, 0.36f, 0.16f), PINK(0.98f, 0.45f, 0.72f);
+    const Col JADEF(0.40f, 1.0f, 0.74f), ICE(0.70f, 0.95f, 1.0f);
+    out.push_back({L.bloom, FIREWORK, 1.0 * L.scale, 0, GOLD, EMBER, 1.0, 0});
+    out.push_back({L.bloom + 0.26, FIREWORK + V2(-6, 10), 0.55 * L.scale, 1, JADEF, ICE, 0.8, 0});
+    // Finale: up to four shells on the next bass hits before the glide.
+    struct Slot { V2 at; double size; int kind; Col a, b; double tilt; };
+    const Slot spots[4] = {{{640, 330}, 0.62, 1, PINK, MAG, 0},
+                           {{1010, 372}, 0.66, 1, ICE, CYAN, 0.6},
+                           {{730, 250}, 0.80, 3, GOLD, EMBER, 0},
+                           {{960, 268}, 0.58, 1, CYAN, CREAM, 0}};
+    std::vector<double> times;
+    double last = L.bloom + 0.75;
+    if (c.score) {
+        for (const Event& e : c.score->bassHits) {
+            if (e.t < last + 0.42 || e.t > 27.4) continue;
+            times.push_back(e.t);
+            last = e.t;
+            if (times.size() == 4) break;
+        }
+        for (const Event& e : c.score->onsets) {
+            if (times.size() >= 3) break;
+            if (e.t < last + 0.5 || e.t > 27.4 || e.strength < 0.45) continue;
+            times.push_back(e.t);
+            last = e.t;
+        }
+    }
+    for (double ft : {L.bloom + 1.3, L.bloom + 2.1, L.bloom + 2.8}) {
+        if (times.size() >= 3) break;
+        if (ft > 27.4 || (!times.empty() && ft < times.back() + 0.4)) continue;
+        times.push_back(ft);
+    }
+    std::sort(times.begin(), times.end());
+    for (std::size_t i = 0; i < times.size() && i < 4; ++i) {
+        const Slot& sl = spots[i];
+        out.push_back({times[i], sl.at, sl.size * L.scale, sl.kind, sl.a, sl.b, 0.75, sl.tilt + 0.4 * c.jit(600 + i)});
+    }
+    return out;
 }
 
 Life lifeAt(const Ctx& c) {
@@ -63,8 +118,9 @@ Life lifeAt(const Ctx& c) {
     L.scale = L.surge.fallback ? 0.72 : 1.0;
     if (L.surge.t >= 0) {
         L.bloom = L.surge.t + 0.55;
-        L.look = window(t, L.surge.t + 0.3, 0.45, L.surge.t + 4.6, 1.3);
+        L.look = window(t, L.surge.t + 0.3, 0.45, std::max(L.surge.t + 4.6, 28.5), 1.3);
     }
+    L.shells = shellPlan(c, L);
     return L;
 }
 
@@ -79,10 +135,12 @@ double onsetFlash(const Ctx& c, double decay, double maxAge = 0.6) {
 double paneLevel(const Ctx& c, const Life& L, double onTime, int band, V2 centre) {
     const double on = onTime <= -50 ? 1.0 : flickerOn(c.t - onTime);
     if (on <= 0) return 0;
-    double level = on * (0.80 + 0.55 * c.band(band));
-    if (L.bloom >= 0) {
-        const double arrive = L.bloom + (centre - FIREWORK).len() / 1500.0;
-        if (c.t > arrive) level += 1.1 * L.scale * std::exp(-(c.t - arrive) * 3.2) * on;
+    // Absolute level keeps the room warm; the relative lift makes each pane
+    // visibly answer its own frequency role in dense mixes.
+    double level = on * (0.74 + 0.30 * c.band(band) + 0.42 * c.lift(band));
+    for (const Shell& sh : L.shells) {
+        const double arrive = sh.burst + (centre - sh.at).len() / 1500.0;
+        if (c.t > arrive) level += 1.1 * sh.size * sh.strength * std::exp(-(c.t - arrive) * 3.2) * on;
     }
     return level;
 }
@@ -266,32 +324,79 @@ void drawMountain(Ctx& c, const MountainLook& m) {
 }
 
 namespace {
+// The city below the hill: hazy blocks with lit windows that come and go,
+// streets of lamps, a few cars, and warning lights on the towers. Its
+// windows sparkle with the treble.
 void valleyCity(Ctx& c, const OsakaState& s) {
+    const double t = c.t, ox = -s.cam * 0.14;
     Rng rng(41);
-    Canvas& cv = c.canvas();
-    for (int i = 0; i < 26; ++i) {
-        const double x = 520 + rng.uni() * 900 - s.cam * 0.14, w = 5 + rng.uni() * 13, h = 14 + std::pow(rng.uni(), 2) * 62;
-        cv.fillRect(x, 664 - h, w, h + 30, Col(0.05f, 0.30f, 0.22f), 0.75);
+    Canvas& bld = c.canvas();
+    Canvas& lit = c.canvas();
+    const double sparkle = 0.80 + 0.30 * c.band(5) + 0.55 * c.lift(5) + 0.30 * c.lift(4);
+    struct Tower { double x, top; };
+    std::vector<Tower> towers;
+    for (int layer = 0; layer < 2; ++layer) {
+        const Col wall = layer == 0 ? Col(0.07f, 0.34f, 0.25f) : Col(0.045f, 0.24f, 0.175f);
+        const double base = layer == 0 ? 690 : 712;
+        double x = 560 + rng.uni() * 20;
+        while (x < 1400) {
+            const double centre = std::exp(-std::pow((x - 930) / 260, 2));
+            const double w = 9 + rng.uni() * (layer ? 26 : 18);
+            double h = (layer ? 10 : 14) + std::pow(rng.uni(), 2.2) * (layer ? 30 : 46) * (0.4 + centre);
+            if (layer == 0 && centre > 0.4 && rng.uni() < 0.12) h += 30 + rng.uni() * 26;
+            const double top = base - h;
+            bld.fillRect(x + ox, top, w, base - top + 40, wall);
+            if (rng.uni() < 0.35 && h < 40) {
+                bld.color(wall);
+                bld.moveTo(x + ox - 1.5, top); bld.lineTo(x + ox + w * 0.5, top - w * 0.28); bld.lineTo(x + ox + w + 1.5, top);
+                bld.closePath(); bld.fill();
+            }
+            if (layer == 0 && h > 55) towers.push_back({x + w * 0.5 + ox, top});
+            // Windows: each keeps its own hours, switching every few seconds.
+            const double wx0 = x + 2, wy0 = top + 3;
+            const int cols = int((w - 3) / 4), rows = int((base - top - 4) / 5);
+            for (int i = 0; i < cols; ++i) {
+                for (int j = 0; j < rows; ++j) {
+                    const double key = x * 7.1 + i * 13.7 + j * 3.3 + layer * 101;
+                    const double period = 3 + 6 * hash2(key, 1);
+                    const double cell = std::floor((t + 20) / period + hash2(key, 2));
+                    if (hash2(key, cell) > 0.34) continue;
+                    const double pick = hash2(key, 4);
+                    const Col col = pick < 0.68 ? CREAM : (pick < 0.92 ? BCYAN : MAG);
+                    const double b = (0.55 + 0.45 * hash2(key, 5)) * sparkle * (layer ? 0.75 : 1.0);
+                    lit.fillRect(wx0 + i * 4 + ox, wy0 + j * 5, 2.0, 2.4, col * float(std::min(1.6, b)), std::min(1.0, b));
+                }
+            }
+            x += w + rng.uni() * 5 - 1;
+        }
     }
-    c.gpu.over(cv, 1, 0, float(s.land));
-    Canvas& g = c.canvas();
-    const double shimmer = 0.85 + 0.35 * c.band(5) + 0.2 * c.band(4);
-    for (int i = 0; i < 520; ++i) {
-        const double u = rng.normal();
-        const double x = 930 + u * 290 - s.cam * 0.14;
-        const double y = 640 + std::pow(rng.uni(), 1.3) * 44 - std::abs(u) * 4;
-        const double ph = rng.uni() * Tau, rate = 1.5 + rng.uni() * 3;
-        const double b = (0.35 + 0.65 * (0.5 + 0.5 * std::sin((c.t + 10) * rate + ph))) * shimmer;
-        const double pick = rng.uni();
-        const Col col = pick < 0.6 ? CREAM : (rng.uni() < 0.7 ? BCYAN : MAG);
-        g.glow(x, y, 1.6 + rng.uni() * 2.6, col, std::min(1.0, 0.95 * b));
+    // Street lamps along three curving streets, and cars moving on them.
+    for (int st = 0; st < 3; ++st) {
+        const double y0 = 676 + st * 13, slope = (st - 1) * 0.018;
+        for (double x = 600 + st * 23; x < 1360; x += 17 + 6 * hash2(x, st)) {
+            const double y = y0 + (x - 930) * slope + 3 * std::sin(x * 0.01 + st);
+            lit.glow(x + ox, y, 2.4, WARM_T, 0.65 + 0.2 * std::sin(t * 1.3 + x));
+        }
+        for (int k = 0; k < 4; ++k) {
+            const double dir = (k + st) % 2 ? 1 : -1, speed = 34 + 22 * hash2(k, st + 9);
+            const double x = 600 + std::fmod(hash2(k, st) * 760 + dir * speed * (t + 20) + 7600, 760.0);
+            const double y = y0 + (x - 930) * slope + 3 * std::sin(x * 0.01 + st) - 0.5;
+            if (dir > 0) { lit.glow(x + ox, y, 3.2, CREAM, 0.95); lit.glow(x + ox - 3, y, 2.4, CREAM, 0.8); }
+            else { lit.glow(x + ox, y, 2.6, RED, 0.9); lit.glow(x + ox + 3, y, 2.2, RED, 0.8); }
+        }
     }
-    c.gpu.over(g, 1.7f, 0, float(s.land));
+    for (const Tower& tw : towers) {
+        const double blink = std::pow(std::max(0.0, std::sin((t + tw.x * 0.01) * Pi)), 6);
+        lit.glow(tw.x, tw.top - 2, 5, RED, 0.25 + 0.75 * blink);
+    }
+    c.gpu.over(bld, 1, 1.2f, float(s.land));
+    c.gpu.over(lit, 1.6f, 0, float(s.land));
+    c.gpu.add(lit, float(0.45 * s.land), 6);
+    band(c, 690, 30, 0.10, 0.08, ox * 2 + t * 4, 61, mix(WARM_T, GLOW, 0.6), 0.5 * s.land);
 }
 
 void nearRidge(Ctx& c, const OsakaState& s) {
     Canvas& cv = c.canvas();
-    Rng rng(9);
     cv.linear(0, 690, 0, 840, {{0, Col(0.022f, 0.13f, 0.096f), 1}, {1, Col(0.05f, 0.25f, 0.18f), 1}});
     cv.moveTo(-20, 1080);
     std::vector<V2> pts;
@@ -303,11 +408,27 @@ void nearRidge(Ctx& c, const OsakaState& s) {
     cv.lineTo(1941, 1080);
     cv.closePath();
     cv.fill();
-    const Col pine(0.022f, 0.13f, 0.096f);
+    // A mixed wood: cedars in stands, rounder broadleaf crowns, and gaps.
+    const Col pine(0.022f, 0.13f, 0.096f), leaf(0.028f, 0.15f, 0.11f);
     for (std::size_t i = 0; i < pts.size(); i += 2) {
-        const double hgt = 9 + rng.uni() * 20;
-        const double sway = std::sin(c.t * 0.9 + pts[i].x * 0.02) * 0.6;
-        cv.tri({pts[i].x - 4.5, pts[i].y + 3}, {pts[i].x + rng.normal() + sway, pts[i].y - hgt}, {pts[i].x + 4.5, pts[i].y + 3}, pine);
+        const double wx = pts[i].x + s.cam * 0.2;
+        const double stand = 0.5 + 0.5 * noise1(wx / 70, 3);
+        if (stand < 0.22) continue;
+        const double hk = hash2(std::floor(wx / 6), 17);
+        if (hk > 0.45 + 0.5 * stand) continue;
+        const double hgt = (10 + 26 * stand * (0.5 + 0.5 * hash2(wx, 4))) * (hk < 0.1 ? 1.4 : 1.0);
+        const double sway = std::sin(c.t * 0.9 + wx * 0.02) * 0.6 * (hgt / 25);
+        const V2 base = pts[i] + V2(0, 3);
+        if (hash2(std::floor(wx / 23), 5) < 0.62) {
+            const double w = hgt * (0.26 + 0.1 * hash2(wx, 6));
+            cv.tri({base.x - w, base.y}, {base.x + sway, base.y - hgt}, {base.x + w, base.y}, pine);
+            cv.tri({base.x - w * 0.8, base.y - hgt * 0.32}, {base.x + sway * 1.1, base.y - hgt * 1.12}, {base.x + w * 0.8, base.y - hgt * 0.32}, pine);
+        } else {
+            const double r = hgt * 0.32;
+            cv.disc(base.x + sway * 0.5, base.y - r * 1.1, r, leaf);
+            cv.disc(base.x - r * 0.7 + sway * 0.4, base.y - r * 0.6, r * 0.8, leaf);
+            cv.disc(base.x + r * 0.75 + sway * 0.4, base.y - r * 0.7, r * 0.85, leaf);
+        }
     }
     c.gpu.over(cv, 1, 0, float(s.land));
 }
@@ -377,57 +498,128 @@ void skyLanterns(Ctx& c, const OsakaState& s, const Life& L) {
     c.gpu.add(l, float(0.5 * fade), 10);
 }
 
+// Star position for a shell: drag-limited outward travel plus gravity, so
+// stars race out, slow, then sag (the willow sags most).
+V2 starPos(const Shell& sh, V2 dir, double speed, double age, double fx, double fy) {
+    const double k = sh.kind == 3 ? 1.7 : 2.4;
+    const double reach = (1 - std::exp(-k * age)) / (1 - std::exp(-k * 1.6));
+    const double g = sh.kind == 3 ? 30 : 13;
+    return {fx + dir.x * speed * reach, fy + dir.y * speed * reach + g * age * age * (0.55 + 0.45 * sh.size)};
+}
+
 void firework(Ctx& c, const OsakaState& s, const Life& L) {
-    if (L.surge.t < 0) return;
+    if (L.surge.t < 0 || L.shells.empty()) return;
     const double t = c.t;
-    const double launch = L.surge.t, bloom = L.bloom;
-    const double fx = FIREWORK.x - s.cam * 0.1, fy = FIREWORK.y;
+    Canvas& smoke = c.canvas();
     Canvas& cv = c.canvas();
-    if (t >= launch && t < bloom + 0.1) {
-        // Rocket: a bright head climbing on a wobbling trail.
-        const double u = clamp01((t - launch) / (bloom - launch));
-        const double y0 = 690, hy = lerp(y0, fy, easeOut(u));
-        for (int j = 0; j < 22; ++j) {
-            const double back = j * 0.018;
-            const double uu = clamp01((t - back - launch) / (bloom - launch));
-            if (t - back < launch) break;
-            const double yy = lerp(y0, fy, easeOut(uu));
-            cv.disc(fx + 2 * std::sin(yy * 0.05), yy, 2.2 * (1 - j / 22.0) + 0.4, CREAM, (1 - j / 22.0) * 0.9);
+    bool anySmoke = false;
+    for (std::size_t si = 0; si < L.shells.size(); ++si) {
+        const Shell& sh = L.shells[si];
+        const double fx = sh.at.x - s.cam * 0.1, fy = sh.at.y;
+        const double climb = si == 0 ? sh.burst - L.surge.t : 0.62;
+        const double launch = sh.burst - climb;
+        if (t < launch) continue;
+        Rng rng(404 + si * 31);
+        if (t < sh.burst + 0.05 && si != 1) {
+            // Rocket: a hot head on a wobbling, sparking trail.
+            const double x0 = fx - 24 + 48 * hash2(si, 2), y0 = 700;
+            auto at = [&](double tt) {
+                const double u = clamp01((tt - launch) / climb);
+                const double e = easeOut(u);
+                return V2(lerp(x0, fx, e) + 3 * std::sin(u * 17 + si), lerp(y0, fy, e));
+            };
+            for (int j = 0; j < 26; ++j) {
+                const double tt = t - j * 0.016;
+                if (tt < launch) break;
+                const V2 q = at(tt);
+                cv.disc(q.x, q.y, 2.0 * (1 - j / 26.0) + 0.4, mix(CREAM, AMBER, j / 26.0), (1 - j / 26.0) * 0.85);
+            }
+            for (int j = 0; j < 10; ++j) {
+                const double born = t - 0.04 * j - 0.02 * hash2(j, si);
+                if (born < launch) break;
+                const V2 q = at(born) + V2(6 * (hash2(j + 3, si + std::floor(t * 20)) - 0.5), 6 * (t - born) * 30);
+                cv.disc(q.x, q.y, 1.0, AMBER, 0.6 * (1 - j / 10.0));
+            }
+            const V2 h = at(t);
+            cv.glow(h.x, h.y, 14, CREAM, 0.9);
+            continue;
         }
-        cv.glow(fx, hy, 16, CREAM, 0.9);
-    }
-    const double p = (t - bloom) / 2.6;
-    if (p > 0 && p < 1.3) {
-        Rng rng(404);
-        const double R = 205 * L.scale * (1 - std::pow(1 - std::min(p * 1.6, 1.0), 2.4));
-        const double fade = p < 0.45 ? 1.0 : std::max(0.0, 1 - (p - 0.45) / 0.75);
-        struct Ring { Col col; double rs; int n; };
-        const Ring rings[3] = {{CREAM, 1.0, 64}, {CYAN, 0.66, 44}, {MAG, 0.36, 26}};
-        for (int ring = 0; ring < 3; ++ring) {
-            for (int k = 0; k < rings[ring].n; ++k) {
-                const double a = Tau * k / rings[ring].n + ring * 0.3 + rng.normal() * 0.03;
-                const double r1 = R * rings[ring].rs * (0.92 + 0.16 * rng.uni());
-                const double droop = p * p * 70 * rings[ring].rs;
-                const double tw = 0.75 + 0.25 * std::sin(t * 31 + k * 2.7);
-                for (int j = 0; j < 12; ++j) {
-                    const double f = j / 12.0;
-                    const double rr = r1 * (1 - f * 0.42 * std::min(1.0, p * 3));
-                    cv.disc(fx + std::cos(a) * rr, fy + std::sin(a) * rr + droop * (1 - f * 0.7),
-                            2.5 * (1 - f) + 0.5, rings[ring].col, std::pow(1 - f, 1.5) * fade);
-                }
-                cv.glow(fx + std::cos(a) * r1, fy + std::sin(a) * r1 + droop, 9, rings[ring].col, fade * tw);
+        const double age = t - sh.burst;
+        if (age < 0) continue;
+        const double life = sh.kind == 3 ? 3.4 : sh.kind == 0 ? 2.7 : 1.8;
+        const double R = 215 * sh.size;
+        // Burst flash and the light it throws on the haze and the town.
+        if (age < 0.16) cv.glow(fx, fy, 150 * sh.size * (1 - age / 0.16), CREAM, 1.0);
+        const double shine = std::exp(-age * 2.2) * sh.strength;
+        if (shine > 0.01) {
+            Program& g = c.gpu.effect("radialGlow", Shaders::radialGlow);
+            c.gpu.pass(g, Blend::Add, [&](Program& q) {
+                q.set("u_c", float(fx), float(fy)); q.set("u_falloff", float(300 + 220 * sh.size));
+                q.set("u_gain", float(0.30 * shine * sh.size)); q.set("u_col", mix(sh.a, GLOW, 0.35));
+            });
+        }
+        // Smoke: a soft veil that holds the colour for a moment, then drifts.
+        if (age < 6.0) {
+            anySmoke = true;
+            Rng sr(900 + si);
+            for (int k = 0; k < 9; ++k) {
+                const double a = Tau * k / 9 + sr.uni();
+                const double r = R * (0.25 + 0.5 * sr.uni()) * (1 - std::exp(-age * 1.4));
+                const double drift = age * (10 + 18 * L.wind);
+                const double sx = fx + std::cos(a) * r + drift, sy = fy + std::sin(a) * r * 0.8 + age * 6;
+                const double alpha = 0.16 * sstep(0, 0.4, age) * (1 - sstep(2.5, 6.0, age)) * sh.size;
+                const Col col = mix(Col(0.10f, 0.20f, 0.17f), sh.a * 0.55f, std::exp(-age * 1.6));
+                smoke.glowEllipse(sx, sy, 70 * sh.size + 30 * age, 46 * sh.size + 18 * age, col, alpha);
             }
         }
-        if (p < 0.12) cv.glow(fx, fy, 120 * (1 - p / 0.12), CREAM, 1.0);
-        Program& g = c.gpu.effect("radialGlow", Shaders::radialGlow);
-        c.gpu.pass(g, Blend::Add, [&](Program& q) {
-            q.set("u_c", float(fx), float(fy)); q.set("u_falloff", 420.f);
-            q.set("u_gain", float(0.34 * fade * L.scale)); q.set("u_col", mix(CREAM, GLOW, 0.45));
-        });
+        if (age > life * 1.15) continue;
+        const int n = sh.kind == 0 ? 96 : sh.kind == 3 ? 72 : sh.kind == 2 ? 54 : 64;
+        const int trail = sh.kind == 0 || sh.kind == 3 ? 16 : 8;
+        const double span = sh.kind == 0 ? 0.42 : sh.kind == 3 ? 0.75 : 0.16;
+        for (int k = 0; k < n; ++k) {
+            V2 dir;
+            if (sh.kind == 2) {
+                const double a = Tau * k / n + rng.normal() * 0.02;
+                const double ca = std::cos(sh.tilt), sa = std::sin(sh.tilt);
+                const V2 d0(std::cos(a), std::sin(a) * 0.45);
+                dir = {d0.x * ca - d0.y * sa, d0.x * sa + d0.y * ca};
+            } else {
+                // Points on a sphere, projected: dense at the rim like a real shell.
+                const double z = rng.uni() * 2 - 1, ph = rng.uni() * Tau, rr = std::sqrt(1 - z * z);
+                dir = {rr * std::cos(ph), rr * std::sin(ph)};
+            }
+            const double speed = R * (0.88 + 0.2 * rng.uni());
+            const double myLife = life * (0.8 + 0.3 * rng.uni());
+            const double u = age / myLife;
+            const double seedK = rng.uni();
+            if (u >= 1) continue;
+            const double fade = std::pow(1 - u, 1.4);
+            const Col head = mix(mix(Col(1, 0.97f, 0.88f), sh.a, sstep(0.0, 0.18, u)), sh.b, sstep(0.45, 0.95, u));
+            for (int j = trail; j >= 0; --j) {
+                const double aj = age - span * j / trail;
+                if (aj < 0) continue;
+                const V2 q = starPos(sh, dir, speed, aj, fx, fy);
+                const double f = double(j) / trail;
+                const double tw = sh.kind == 3 ? 0.55 + 0.45 * hash2(k * 13 + j, std::floor(t * 24)) : 1.0;
+                cv.disc(q.x, q.y, (2.4 * (1 - f) + 0.5) * (0.7 + 0.3 * sh.size), mix(head, sh.b, f * 0.7),
+                        std::pow(1 - f, 1.6) * fade * tw);
+            }
+            const V2 q = starPos(sh, dir, speed, age, fx, fy);
+            cv.glow(q.x, q.y, 9 * (0.7 + 0.3 * sh.size), head, fade * (0.8 + 0.2 * std::sin(t * 31 + k * 2.7)));
+            // Crackle: the chrysanthemum's stars break into glitter as they die.
+            if (sh.kind == 0 && u > 0.62) {
+                for (int g = 0; g < 3; ++g) {
+                    if (hash2(k * 7 + g, std::floor(t * 26)) < 0.45) continue;
+                    const V2 o = q + V2(14 * (hash2(k, g) - 0.5), 14 * (hash2(g, k) - 0.5) + 6 * (u - 0.62));
+                    cv.glow(o.x, o.y, 4, Col(1, 0.95f, 0.8f), 0.9 * (1 - u) / 0.38 * (0.5 + 0.5 * seedK));
+                }
+            }
+        }
     }
+    if (anySmoke) c.gpu.over(smoke, 1.0f, 18);
     if (!cv.empty()) {
         c.gpu.over(cv, 2.0f);
-        c.gpu.add(cv, 1.1f, 30);
+        c.gpu.add(cv, 1.0f, 26);
     }
 }
 
@@ -611,15 +803,21 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
         f.fill();
     }
     Canvas& n = c.canvas();
-    // Neon with an occasional stutter.
+    // Neon 居酒屋 on a dark board, with an occasional stutter; it kicks with the bass.
     const double stutter = (hash1(std::floor(t * 6)) < 0.04) ? 0.35 : 1.0;
-    n.fillRect(x0 + 296, 800, 26, 112, MAG);
-    for (int j = 0; j < 4; ++j) n.fillRect(x0 + 302, 808 + j * 26, 14, 16, INK, 0.85);
-    n.glow(x0 + 309, 856, 120, MAG, 0.35);
-    for (int i = 0; i < 7; ++i)
-        n.glow(x0 - 26 + i * 44, 798 + std::sin(t * 1.3 + i) * 1.5 + wind * 2 * std::sin(t * 5 + i), 9, i % 2 ? RED : WARM_T, 1.0);
+    f.fillRect(x0 + 289, 792, 40, 126, Col(0.016f, 0.035f, 0.03f));
+    const Col tube = mix(MAG, Col(1.0f, 0.92f, 0.97f), 0.35);
+    n.color(MAG, 0.9); n.rect(x0 + 291, 794, 36, 122); n.stroke(1.6);
+    for (int j = 0; j < 3; ++j) drawSignGlyph(n, j, x0 + 294, 826 + j * 36, 30, tube, 1.0);
+    n.glow(x0 + 309, 856, 120, MAG, 0.30 + 0.25 * c.kick(5));
+    for (int i = 0; i < 7; ++i) {
+        const double bulb = 0.65 + 0.55 * c.lift(3 + i % 3) * (0.6 + 0.4 * hash2(i, 3));
+        n.glow(x0 - 26 + i * 44, 798 + std::sin(t * 1.3 + i) * 1.5 + wind * 2 * std::sin(t * 5 + i), 9, i % 2 ? RED : WARM_T, std::min(1.0, bulb));
+    }
     c.gpu.over(f);
-    c.gpu.over(n, float(1.5 * (0.8 + 0.2 * std::sin(t * 5)) * stutter));
+    const double neon = (0.85 + 0.15 * std::sin(t * 5) + 0.5 * c.kick(5)) * stutter;
+    c.gpu.over(n, float(1.3 * neon));
+    c.gpu.add(n, float(0.35 * neon), 8);
 }
 
 void streetSurface(Ctx& c, const OsakaState& s) {
@@ -691,15 +889,32 @@ Walker bearerAt(double t) {
     return {470 + d, d, clamp01(v / 30)};
 }
 
+// A paper chochin on a short pole: ribbed, capped, lit warm from within.
+void paperLantern(Canvas& light, V2 at, double rx, double ry, double tilt, Col paper, double bright) {
+    light.save();
+    light.translate(at.x, at.y);
+    light.rotate(tilt);
+    const float k = float(0.55 + 0.45 * bright);
+    light.radial(-rx * 0.2, -ry * 0.15, std::max(rx, ry) * 1.15,
+                 {{0, mix(paper, Col(1, 0.95f, 0.8f), 0.55) * k, 1}, {0.6f, paper * k, 1}, {1, mix(paper, INK, 0.45) * k, 1}});
+    light.ellipse(0, 0, rx, ry);
+    light.fill();
+    for (int j = -2; j <= 2; ++j) {
+        const double y = j * ry * 0.33, half = rx * std::sqrt(std::max(0.0, 1 - (y * y) / (ry * ry))) * 0.96;
+        light.line(-half, y, half, y, std::max(0.5, ry * 0.07), mix(paper, INK, 0.7), 0.55);
+    }
+    light.fillRect(-rx * 0.62, -ry - ry * 0.16, rx * 1.24, ry * 0.22, INK);
+    light.fillRect(-rx * 0.62, ry - ry * 0.06, rx * 1.24, ry * 0.22, INK);
+    light.restore();
+}
+
 void lantern(Canvas& body, Canvas& light, V2 hand, double swing, double size, double bright) {
     const V2 top = hand + V2(14 * size, -6 * size);
     const V2 hang = top + V2(std::sin(swing) * 26 * size, std::cos(swing) * 26 * size);
     body.line(hand.x, hand.y, top.x, top.y, 2.6 * size, INK);
     body.line(top.x, top.y, hang.x, hang.y - 12 * size, 1.4 * size, INK);
-    light.color(WARM_B * float(0.9 + 0.3 * bright));
-    light.ellipse(hang.x, hang.y, 11 * size, 15 * size, swing * 0.6);
-    light.fill();
-    light.glow(hang.x, hang.y, 66 * size, WARM_T, 0.5 * bright);
+    light.glow(hang.x, hang.y, 54 * size, Col(1.0f, 0.60f, 0.28f), 0.34 * bright);
+    paperLantern(light, hang, 9 * size, 12 * size, swing * 0.6, Col(0.98f, 0.62f, 0.30f), 0.7 + 0.3 * bright);
 }
 
 void streetFront(Ctx& c, const OsakaState& s, const Life& L) {
@@ -740,7 +955,7 @@ void streetFront(Ctx& c, const OsakaState& s, const Life& L) {
         l.save();
         l.translate(lp.x, 976);
         l.scale(1, 0.16);
-        l.glow(0, 0, 120, WARM_T, 0.22 * bright);
+        l.glow(0, 0, 110, Col(1.0f, 0.62f, 0.30f), 0.20 * bright);
         l.restore();
     }
     // Cyclist, right to left, headlamp sweeping the wet street.
@@ -811,23 +1026,25 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
     p.stroke(1.2);
     // Cook: ladles in a loop once the cart opens; passes a bowl at 12 s.
     {
-        const double cx = yx + 58;
+        const double cx = yx + 72;
         const double ph = std::fmod(std::max(0.0, t - 5.6), 2.6) / 2.6;
         V2 hand;
-        const V2 pot(yx + 126, 832), bowl(yx + 104, 846), rest(cx + 30, 846);
+        // Hand targets sit where the ladle tip (hand + 18, 20) meets the pot
+        // or the bowl, so the elbow stays bent instead of pointing.
+        const V2 pot(yx + 108, 814), bowl(yx + 92, 826), rest(cx + 20, 846);
         if (t < 5.6) hand = rest;
-        else if (ph < 0.3) hand = lerp(rest, pot + V2(0, -16), easeInOut(ph / 0.3));
-        else if (ph < 0.45) hand = pot + V2(0, -16 + 18 * std::sin(Pi * (ph - 0.3) / 0.15));
-        else if (ph < 0.7) hand = lerp(pot + V2(0, -16), bowl + V2(4, -22), easeInOut((ph - 0.45) / 0.25));
-        else if (ph < 0.85) hand = bowl + V2(4, -22 + 4 * std::sin(Pi * (ph - 0.7) / 0.15));
-        else hand = lerp(bowl + V2(4, -22), rest, easeInOut((ph - 0.85) / 0.15));
+        else if (ph < 0.3) hand = lerp(rest, pot, easeInOut(ph / 0.3));
+        else if (ph < 0.45) hand = pot + V2(2 * std::sin(Tau * (ph - 0.3) / 0.15), 7 * std::sin(Pi * (ph - 0.3) / 0.15));
+        else if (ph < 0.7) hand = lerp(pot, bowl, easeInOut((ph - 0.45) / 0.25));
+        else if (ph < 0.85) hand = bowl + V2(0, 3 * std::sin(Pi * (ph - 0.7) / 0.15));
+        else hand = lerp(bowl, rest, easeInOut((ph - 0.85) / 0.15));
         const double serve = window(t, 11.9, 0.4, 12.9, 0.4);
         hand = lerp(hand, V2(yx + 196, 838), serve);
         RigIn r;
-        r.h = 108; r.facing = 1; r.lean = 0.05 + 0.08 * serve;
+        r.h = 108; r.facing = 1; r.lean = 0.05 + 0.08 * serve + 0.05 * std::max(0.0, (hand.x - rest.x) / 20);
         r.hip = {cx, 902 - hipHeight(108)};
         r.footF = {cx + 6, 902 - 4}; r.footB = {cx - 8, 902 - 4};
-        r.handF = hand; r.handB = {cx + 22, 850};
+        r.handF = hand; r.handB = {cx + 16 + 2 * std::sin(t * 1.7), 852};
         r.headTilt = -0.25 + 0.2 * serve + L.look * 0.6;
         drawBody(p, solve(r), INK);
         // Headband knot, ladle and steaming pot.
@@ -846,17 +1063,20 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
     }
     // Noren drop when the cart opens, then sway and flutter.
     const double wind = L.wind;
-    for (int i = 0; i < 5; ++i) {
-        const double nx = yx + 10 + i * 32;
+    for (int i = 0; i < 4; ++i) {
+        const double nx = yx + 10 + i * 40;
         const double drop = s.chapter ? springStep(t - (5.1 + i * 0.07), 1.6, 5.0) : 1.0;
-        const double len = 4 + 18 * std::max(0.0, drop) + (i % 2) * 3 * std::min(1.0, drop);
+        const double len = 4 + 22 * std::max(0.0, drop);
         const double sway = std::sin(t * 1.3 + i * 0.4) * 3 + wind * 7 * std::sin(t * 6 + i);
+        const double bx = sway * 0.5 + wind * 4;
         l.color(mix(RED, INK, 0.42), 0.98);
-        l.moveTo(nx, 757); l.lineTo(nx + 29, 757);
-        l.lineTo(nx + 29 + sway * (i % 2 * 2 - 1) * 0.4 + wind * 4, 757 + len);
-        l.lineTo(nx + sway * 0.5 + wind * 4, 757 + len);
+        l.moveTo(nx, 757); l.lineTo(nx + 37, 757);
+        l.lineTo(nx + 37 + sway * (i % 2 * 2 - 1) * 0.4 + wind * 4, 757 + len);
+        l.lineTo(nx + bx, 757 + len);
         l.closePath();
         l.fill();
+        // One kana per panel, riding the cloth's sway.
+        drawSignGlyph(l, 3 + i, nx + 10 + bx * 0.6, 757 + len - 4, 17, mix(CREAM, WARM_T, 0.2), 0.92 * sstep(0.6, 0.95, drop));
     }
     // Red lantern flickers on at 5 s; it sways with the cart's breeze.
     {
@@ -942,9 +1162,11 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
                 const double antic = s.chapter ? std::sin(Pi * clamp01((t - 12.2) / 0.3)) * (t < 12.5) : 0;
                 r.lean = 0.10 * (1 - point) + 0.02 * point + 0.05 * mv - 0.03 * antic;
                 r.handF = lerp(r.hip + V2(0.05 * h + 0.07 * h * arm, 0.08 * h), r.hip + V2(0.28 * h, -0.62 * h), backOut(point, 1.2));
+                // Points the firework out to her (it is up and to the left),
+                // other hand on her shoulder.
                 const double cheer = L.look;
-                r.handF = lerp(r.handF, r.hip + V2(0.12 * h, -0.62 * h), cheer);
-                r.handB = lerp(r.hip + V2(-0.05 * h - 0.07 * h * arm, 0.08 * h), r.hip + V2(-0.1 * h, -0.6 * h), cheer);
+                r.handF = lerp(r.handF, r.hip + V2(-0.03 * h, -0.74 * h), cheer);
+                r.handB = lerp(r.hip + V2(-0.05 * h - 0.07 * h * arm, 0.08 * h), r.hip + V2(-0.16 * h, -0.30 * h), cheer);
                 r.headTilt = 0.35 * point + 0.75 * L.look;
                 r.handF = lerp(r.handF, lanternAt + V2(10, 12), hold);
                 r.handB = lerp(r.handB, lanternAt + V2(4, 14), hold);
@@ -952,8 +1174,8 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
                 const double lean = s.chapter ? window(t, 14.4, 0.8, 19.5, 1.0) : 0;
                 r.robe = true; r.bun = true; r.sleeve = true;
                 r.lean = 0.12 + 0.12 * lean;
-                r.handF = r.hip + V2(0.18 * h, -0.08 * h + 0.03 * h * arm);
-                r.handB = r.hip + V2(0.1 * h, -0.05 * h);
+                r.handF = lerp(r.hip + V2(0.18 * h, -0.08 * h + 0.03 * h * arm), r.hip + V2(0.14 * h, -0.36 * h), L.look);
+                r.handB = lerp(r.hip + V2(0.1 * h, -0.05 * h), r.hip + V2(0.10 * h, -0.33 * h), L.look);
                 r.headTilt = 0.15 * lean + 0.7 * L.look + 0.1;
                 r.handF = lerp(r.handF, lanternAt + V2(-8, 14), hold);
             }
@@ -1009,7 +1231,7 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
         Program& st = c.gpu.effect("steam", Shaders::steam);
         c.gpu.pass(st, Blend::Add, [&](Program& q) {
             q.set("u_base", float(yx + 126), 838.f); q.set("u_t", float(t)); q.set("u_amt", float(steam));
-            q.set("u_wind", float(L.wind));
+            q.set("u_wind", float(L.wind)); q.set("u_puff", float(std::min(1.0, c.kick(3.0))));
         });
     }
 }
@@ -1235,6 +1457,88 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
     c.gpu.add(l, 0.5f, 12);
 }
 
+// Festival lanterns strung from the near eave to the street pole. They come
+// on one by one at 3 s; each onset then sends a wave of light along the
+// string (alternating direction), bass hits lift them all, and every
+// firework shell makes them flare as its light arrives.
+void festoon(Ctx& c, const OsakaState& s, const Life& L) {
+    const double t = c.t;
+    const V2 a(628 - s.cam * 1.05, 594), b(POLES[0].x - 16 - s.cam * POLES[0].par, 640);
+    if (std::max(a.x, b.x) < -40 || std::min(a.x, b.x) > 1960) return;
+    const WireSpan w{a, b, 64};
+    Canvas& p = c.canvas();
+    Canvas& l = c.canvas();
+    std::vector<V2> pts;
+    for (int k = 0; k <= 50; ++k) {
+        V2 q = wireAt(w, k / 50.0);
+        q.y += L.wind * 3 * std::sin(t * 2.3) * 4 * (k / 50.0) * (1 - k / 50.0);
+        pts.push_back(q);
+    }
+    p.polyline(pts, 1.3, INK, 0.95);
+    constexpr int N = 13;
+    // Recent onsets with their running index: each onset lights the next
+    // lantern, so a light steps along the string with the beat and bounces
+    // back at the ends.
+    struct Beat { double t, strength; int lantern; };
+    std::vector<Beat> beats;
+    if (c.score && !c.score->onsets.empty()) {
+        const auto& on = c.score->onsets;
+        for (auto it = on.rbegin(); it != on.rend(); ++it) {
+            if (it->t > t) continue;
+            if (t - it->t > 0.9) break;
+            const int idx = int(&*it - on.data()), cyc = idx % (2 * N - 2);
+            beats.push_back({it->t, it->strength, cyc < N ? cyc : 2 * N - 2 - cyc});
+        }
+    }
+    const double kick = c.kick(5);
+    for (int i = 0; i < N; ++i) {
+        const double u = (i + 0.5) / N;
+        V2 top = wireAt(w, u);
+        top.y += L.wind * 3 * std::sin(t * 2.3) * 4 * u * (1 - u);
+        const double sw = 0.07 * std::sin(t * 1.6 + i * 0.9) + L.wind * 0.35 * std::sin(t * 3.1 + i * 0.7);
+        const double cord = 12 + 4 * (i % 2);
+        const V2 at = top + V2(std::sin(sw) * cord, std::cos(sw) * cord + 7);
+        p.line(top.x, top.y, at.x - std::sin(sw) * 7, at.y - 7, 0.9, INK);
+        const double on = s.chapter ? flickerOn(t - (3.0 + 0.11 * i + 0.05 * c.jit(700 + i))) : 1.0;
+        double lv = 0.30 + 0.14 * c.band(i % 6) + 0.40 * kick;
+        for (const Beat& b : beats) {
+            const double d = std::abs(i - b.lantern);
+            if (d < 1.5) lv += (d < 0.5 ? 1.7 : 0.35) * (0.5 + 0.5 * b.strength) * std::exp(-(t - b.t) * 4.0);
+        }
+        for (const Shell& sh : L.shells) {
+            const double arrive = sh.burst + (at - sh.at).len() / 1500.0;
+            if (t > arrive) lv += 0.8 * sh.size * std::exp(-(t - arrive) * 2.6);
+        }
+        lv *= on;
+        if (lv < 0.02) { paperLantern(l, at, 8, 10.5, sw * 0.6, Col(0.18f, 0.06f, 0.05f), 0.4); continue; }
+        const Col paper = i % 3 == 1 ? Col(0.98f, 0.82f, 0.52f) : Col(0.96f, 0.30f, 0.20f);
+        l.glow(at.x, at.y, 24 + 26 * std::min(lv, 1.8), mix(paper, WARM_T, 0.4), 0.32 * std::min(lv, 1.8));
+        paperLantern(l, at, 8, 10.5, sw * 0.6, paper, std::min(1.5, lv));
+    }
+    c.gpu.over(p);
+    c.gpu.over(l, 1.35f);
+    c.gpu.add(l, 0.45f, 14);
+}
+
+// Moths circling the street lamp; they get busier with the treble.
+void moths(Ctx& c, const OsakaState& s) {
+    const double t = c.t, px = POLES[0].x - s.cam * POLES[0].par - 83, py = 612;
+    if (px < -40 || px > 1960) return;
+    Canvas& m = c.canvas();
+    const double busy = 1 + 0.8 * c.lift(5);
+    for (int k = 0; k < 4; ++k) {
+        const double ph = t * (1.6 + 0.5 * k) * busy + k * 1.7 + 0.8 * noise1(t * 1.3, k);
+        const double r = 16 + 9 * k + 6 * noise1(t * 0.9, k + 5);
+        const V2 q(px + std::cos(ph) * r, py + 6 + std::sin(ph * 1.3) * r * 0.55);
+        const double flap = 0.5 + 0.5 * std::sin(t * 40 + k * 3);
+        m.ellipse(q.x, q.y, 2.0 + 1.2 * flap, 1.4);
+        m.color(Col(0.9f, 0.95f, 0.8f), 0.85);
+        m.fill();
+    }
+    c.gpu.over(m, 1.4f);
+    c.gpu.add(m, 0.5f, 3);
+}
+
 void drawBirds(Ctx& c, const OsakaState& s, const Life& L, const std::vector<BirdPlan>& plan) {
     const double t = c.t;
     Canvas& cv = c.canvas();
@@ -1339,6 +1643,8 @@ void nearHouse(Ctx& c, const OsakaState& s, const Life& L) {
     w.rect(70 + ox, 640, 400, 328);
     w.fill();
     w.glow(270 + ox, 720, 150, WARM_B, 0.65);
+    // The paper lamp in the room swells a little on the bass.
+    w.glow(270 + ox, 716, 80, Col(1.0f, 0.86f, 0.62f), 0.40 * c.kick(5));
     c.gpu.over(cv);
     c.gpu.over(w, 1.18f);
     // Shadow play behind the paper.
@@ -1532,15 +1838,45 @@ void reflections(Ctx& c, const OsakaState& s) {
     c.gpu.pass(p, Blend::Add, [&](Program& q) {
         c.gpu.bindTexture(0, snap, q, "u_img");
         q.set("u_y0", 936.f); q.set("u_qx", s.harbour > 0.99 ? 4000.f : float(QUAY - s.cam * 0.85)); q.set("u_t", float(c.t)); q.set("u_gain", 1.f);
+        q.set("u_kick", float(std::min(1.0, c.kick(4.5))));
     });
 }
 }  // namespace
 
 double bearerX(double t) { return bearerAt(t).x; }
 
+// A shooting star crosses the upper sky on the first strong onset after
+// 15.5 s (timed fallback at 16.8 s): one small thing to catch on a rewatch.
+void shootingStar(Ctx& c, const OsakaState& s) {
+    double at = 16.8;
+    if (c.score) {
+        for (const Event& e : c.score->onsets) {
+            if (e.t < 15.5) continue;
+            if (e.t > 19.0) break;
+            if (e.strength > 0.55) { at = e.t; break; }
+        }
+    }
+    const double age = c.t - at;
+    if (age < 0 || age > 0.9) return;
+    const double u = easeOut(age / 0.75);
+    const V2 from(470 - s.cam * 0.02, 70), to(150 - s.cam * 0.02, 205);
+    const V2 head = lerp(from, to, u);
+    const double fade = 1 - sstep(0.55, 0.9, age);
+    Canvas& cv = c.canvas();
+    for (int j = 0; j < 24; ++j) {
+        const double f = j / 24.0;
+        const V2 q = lerp(from, to, std::max(0.0, u - f * 0.35));
+        cv.disc(q.x, q.y, 1.8 * (1 - f) + 0.3, mix(CREAM, BCYAN, f), std::pow(1 - f, 1.5) * fade);
+    }
+    cv.glow(head.x, head.y, 12, CREAM, 0.9 * fade);
+    c.gpu.over(cv, 1.6f);
+    c.gpu.add(cv, 0.5f, 6);
+}
+
 void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain) {
     const Life L = lifeAt(c);
     sky(c, s, L);
+    if (s.chapter) shootingStar(c, s);
     if (disc) {
         DiscLook d;
         d.pos = {1190 - s.cam * 0.015 + s.moonDx, 286 + s.moonDy};
@@ -1578,7 +1914,9 @@ void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks) {
     streetSurface(c, s);
     yatai(c, s, L);
     if (hooks.afterYatai) hooks.afterYatai();
+    festoon(c, s, L);
     polesWires(c, s, L, plan);
+    moths(c, s);
     if (hooks.afterWires) hooks.afterWires();
     reflections(c, s);
     streetFront(c, s, L);

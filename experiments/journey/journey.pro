@@ -10,5 +10,5 @@ HEADERS += src/backend.h src/audio.h src/scene.h src/score.h src/headless.h src/
 LIBS += -lEGL -lOpenGL
 QMAKE_CXXFLAGS_RELEASE += -O2
 DISTFILES += src/caption-assets/title-outlines.inc src/caption-assets/title_generate.py src/caption-assets/outlines.inc src/caption-assets/generate.py \
-    src/caption-assets/README.md src/caption-assets/OFL.txt
+    src/caption-assets/README.md src/caption-assets/sign-outlines.inc src/caption-assets/sign_generate.py src/caption-assets/OFL.txt
 RESOURCES += src/resources.qrc

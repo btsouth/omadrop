@@ -20,6 +20,13 @@ struct Score {
     // up with the music without jumping when the level changes.
     std::vector<std::array<float, 6>> bandIntegral; // 120 Hz
     double integral(int band, double t) const;
+    // Slow running mean of each band (about 1.5 s), so objects can answer how
+    // far a band stands above its recent level rather than its absolute
+    // loudness (dense, compressed mixes keep every band near the same level).
+    std::vector<std::array<float, 6>> bandMean; // 120 Hz
+    double mean(int band, double t) const;
+    // Decaying envelope of the most recent event: strength * exp(-age * decay).
+    static double envelope(const std::vector<Event>& list, double t, double decay, double maxAge = 1.5);
 
     void build(const AudioTimeline& audio, double duration, bool hasAudio);
     // Events in [from, to).
