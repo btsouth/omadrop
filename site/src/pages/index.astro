@@ -2,7 +2,7 @@
 import "../styles/global.css";
 
 const title = "Omadrop | See the music";
-const description = "Music visuals for Omarchy: 21 curated MilkDrop scenes and 37 music-driven terminal effects in one app, with controls first and local PipeWire capture.";
+const description = "See your music with 21 curated MilkDrop scenes, local audio capture and native controls. Built for Omarchy on Arch Linux.";
 const scenes = [
   [
     "collection-01",
@@ -260,6 +260,10 @@ const effects = [
     "Wipe"
   ]
 ];
+const selectedScenes = [scenes[6], scenes[5], scenes[0], scenes[13]];
+const previewEffects = [effects[31], effects[0], effects[35]];
+const installCommand = "curl -fLO https://github.com/btsouth/omadrop/releases/latest/download/omadrop-x86_64.pkg.tar.zst && sudo pacman -U ./omadrop-x86_64.pkg.tar.zst";
+const repository = "https://github.com/btsouth/omadrop";
 ---
 
 <!doctype html>
@@ -268,7 +272,7 @@ const effects = [
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#050606" />
+    <meta name="theme-color" content="#101411" />
     <link rel="canonical" href="https://omadrop.com/" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
@@ -289,184 +293,182 @@ const effects = [
     <meta name="twitter:image" content="https://omadrop.com/og.png" />
     <title>{title}</title>
   </head>
-  <body>
-    <main>
+  <body id="top">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header container">
+      <a class="wordmark" href="#top" aria-label="Omadrop home">
+        <img src="/omadrop.svg" alt="" width="25" height="25" />omadrop
+      </a>
+      <nav aria-label="Primary">
+        <a href="#collection">Collection</a>
+        <a class="source-link" href={repository}>GitHub <span aria-hidden="true">↗</span></a>
+        <a class="button button--small" href="#install">Install <span aria-hidden="true">↓</span></a>
+      </nav>
+    </header>
+
+    <main id="main" class="container">
       <section class="hero" aria-labelledby="hero-title">
-        <video
-          class="hero__film"
-          autoplay
-          muted
-          playsinline
-          preload="metadata"
-          poster="/media/collection-poster.jpg"
-          aria-hidden="true"
-        >
-          <source media="(max-width: 720px)" src="/media/collection.mp4" type="video/mp4" />
-          <source src="/media/collection.mp4" type="video/mp4" />
-        </video>
-        <div class="hero__shade"></div>
-
-        <nav class="nav" aria-label="Primary">
-          <a class="wordmark" href="#top" aria-label="Omadrop home">
-            <span aria-hidden="true">⣿</span> omadrop
-          </a>
-          <span class="status"><i></i> v0.5.0</span>
-        </nav>
-
-        <div class="hero__copy" id="top">
-          <p class="eyebrow">music visuals for omarchy</p>
-          <h1 id="hero-title">see the<br />music.</h1>
-          <p class="lede">21 MilkDrop scenes. 37 terminal effects. One app.</p>
-          <a class="button" href="#story">Choose your mode <span aria-hidden="true">↓</span></a>
+        <div class="hero-intro">
+          <div>
+            <p class="eyebrow">Music visuals for Omarchy <span class="version">v0.5.0</span></p>
+            <h1 id="hero-title">See the music.</h1>
+            <p class="lede">Put on a song. Get lost in the visuals.</p>
+          </div>
+          <div class="hero-action">
+            <a class="button" href="#install">Install Omadrop <span aria-hidden="true">↓</span></a>
+            <span class="platform">Arch Linux · x86_64</span>
+          </div>
         </div>
 
-        <p class="hero__note" aria-hidden="true">MILKDROP / OMARCHY / LOCAL AUDIO</p>
-        <div class="hero__index" aria-hidden="true"><span>01</span><b></b><span>OMADROP</span></div>
-      </section>
+        <div class="playback" id="playback">
+          <div class="stage-header">
+            <div class="mode-switch" role="tablist" aria-label="Preview mode" hidden>
+              <button id="milkdrop-tab" type="button" role="tab" aria-selected="true" aria-controls="milkdrop-preview">MilkDrop</button>
+              <button id="omarchy-tab" type="button" role="tab" aria-selected="false" aria-controls="omarchy-preview" tabindex="-1">Omarchy</button>
+            </div>
+            <span class="stage-label" id="preview-kind">Recorded playback / 53 seconds</span>
+          </div>
 
-      <section class="manifesto" id="story" aria-labelledby="story-title">
-        <p class="section-id">01 / OPEN, CHOOSE, PLAY</p>
-        <h2 id="story-title">Two modes.<br />Controls first.</h2>
-        <p class="manifesto__body">
-          Open Omadrop to a compact panel with a thumbnail grid. Choose MilkDrop
-          for 21 curated presets with added audio response, blended
-          transitions and an optional ASCII dot filter. Choose Omarchy for the
-          screensaver's 37 ttfx effects, driven by your music. Press Play or
-          click a card to start. Esc brings you back to the controls.
-        </p>
-      </section>
+          <div id="milkdrop-preview" class="preview-panel" role="tabpanel" aria-labelledby="milkdrop-tab" tabindex="0">
+            <video id="collection-video" controls muted loop playsinline preload="none" poster="/media/launch-poster.jpg" width="1280" height="720" aria-label="Recorded Omadrop MilkDrop launch preview with music">
+              <source src="/media/launch-preview.mp4" type="video/mp4" />
+              <p><a href="/media/launch-preview.mp4">Download the launch preview</a>.</p>
+            </video>
+            <div class="player-controls" hidden>
+              <button class="control" id="play-toggle" type="button" aria-label="Play recording">
+                <svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7Z" /></svg>
+                <svg class="pause-icon" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M8 5v14M16 5v14" /></svg>
+                <span id="play-text">Play</span>
+              </button>
+              <button class="control" id="sound-toggle" type="button" aria-label="Enable sound" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4Z" /><path class="sound-off-icon" d="m16 9 6 6m0-6-6 6" /><path class="sound-on-icon" d="M16 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" hidden /></svg>
+                <span id="sound-text">Sound off</span>
+              </button>
+              <div class="seek-control">
+                <input id="seek" type="range" min="0" max="53" step="0.1" value="0" aria-label="Seek through recording" aria-valuetext="0:00 of 0:53" />
+                <span id="time" class="time" aria-hidden="true">0:00 / 0:53</span>
+              </div>
+              <button class="control fullscreen-control" id="fullscreen-toggle" type="button" aria-label="Enter fullscreen">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6" /></svg>
+                <span>Fullscreen</span>
+              </button>
+            </div>
+          </div>
 
-      <section class="proof" aria-labelledby="proof-title">
-        <div class="proof__intro">
-          <p class="section-id">02 / WATCH OMADROP</p>
-          <h2 id="proof-title">MilkDrop<br />in motion.</h2>
-          <p>A recording of the MilkDrop collection reacting to music. <a href="/media/collection-attribution.txt">Music credits</a>.</p>
+          <div id="omarchy-preview" class="preview-panel omarchy-preview" role="tabpanel" aria-labelledby="omarchy-tab" tabindex="0">
+            <div class="still-stage">
+              <img id="effect-preview" src="/media/effects/synthgrid.jpg" alt="Synth Grid, an actual ttfx terminal effect screenshot" width="480" height="270" loading="lazy" />
+              <span class="still-caption" id="effect-caption">Synth Grid / ttfx</span>
+            </div>
+            <div class="effect-picker" role="group" aria-label="Omarchy screenshots">
+              <span class="still-note">Still previews</span>
+              {previewEffects.map(([slug, name], index) => (
+                <button type="button" data-effect={slug} data-name={name} aria-pressed={index === 0 ? "true" : "false"}>{name}</button>
+              ))}
+            </div>
+          </div>
         </div>
-        <button class="proof__stage" type="button" aria-label="Open Omadrop performance fullscreen">
-          <video autoplay muted loop playsinline preload="none" poster="/media/collection-poster.jpg" aria-hidden="true">
-            <source src="/media/collection.mp4" type="video/mp4" />
-          </video>
-          <span>view performance <b>↗</b></span>
-        </button>
+        <div class="preview-caption">
+          <p id="preview-description">Actual playback from the Omadrop v0.5.0 launch film. <a href="/media/launch-attribution.txt">Music credits</a>.</p>
+          <a href={`${repository}/releases/download/v0.5.0/omadrop-v0.5.0-demo.mp4`}>Watch the launch film <span aria-hidden="true">↗</span></a>
+        </div>
+        <p id="player-status" class="player-status" role="status"></p>
+        <noscript><p class="no-script-note">Use the video's built-in controls. The Omarchy images below are still previews of the early terminal mode.</p></noscript>
+        <div class="product-facts" aria-label="Product features">
+          <span>Music from any app</span><span>Local PipeWire capture</span><span>No account. No cloud.</span><span>Made for Omarchy</span>
+        </div>
       </section>
 
-      <dialog class="player" aria-label="Omadrop performance">
-        <button class="player__close" type="button" aria-label="Close performance">close ×</button>
-        <video controls muted playsinline preload="metadata" poster="/media/collection-poster.jpg">
-          <source src="/media/collection.mp4" type="video/mp4" />
-        </video>
-      </dialog>
-
-      <section class="worlds" id="worlds" aria-labelledby="worlds-title">
-        <div class="worlds__intro">
-          <p class="section-id">03 / THE COLLECTION</p>
-          <h2 id="worlds-title">21 curated<br />MilkDrop scenes.</h2>
-          <p>
-            Authored by MilkDrop artists, selected for variety, and adapted for
-            Omadrop. These are actual frames from the collection.
-          </p>
+      <section class="collection section" id="collection" aria-labelledby="collection-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">The collection</p><h2 id="collection-title">A different world with every scene.</h2></div>
+          <p>21 hand-picked MilkDrop presets. Original shaders, colors and textures, with added music response and blended transitions.</p>
         </div>
-        <div class="worlds__grid">
-          {scenes.map(([slug, name, family], index) => (
+        <div class="curated-grid">
+          {selectedScenes.map(([slug, name, credit]) => (
             <figure class="scene-card">
-              <img
-                src={`/media/scenes/${slug}.jpg`}
-                alt={`${name}, a curated MilkDrop preset in Omadrop`}
-                width="960"
-                height="540"
-                loading="lazy"
-                decoding="async"
-              />
-              <figcaption>
-                <span>{String(index + 1).padStart(2, "0")} / {name}</span>
-                <small>{family}</small>
-              </figcaption>
+              <a href={`/media/scenes/${slug}.jpg`} aria-label={`View full image of ${name}`}>
+                <img src={`/media/scenes/${slug}.jpg`} alt={`${name}, an actual frame from Omadrop`} width="960" height="540" loading="lazy" decoding="async" />
+              </a>
+              <figcaption><span>{name}</span><small>{credit}</small></figcaption>
             </figure>
           ))}
         </div>
+
+        <details class="complete-collection">
+          <summary><span>Explore the full collection <small>21 MilkDrop scenes + 37 Omarchy effects</small></span><span class="expand-mark" aria-hidden="true">+</span></summary>
+          <div class="gallery-section">
+            <div class="gallery-heading"><h3>MilkDrop <span>21 scenes</span></h3><a href={`${repository}/blob/master/THIRD_PARTY_NOTICES.md`}>Artist credits &amp; licenses <span aria-hidden="true">↗</span></a></div>
+            <div class="gallery-grid">
+              {scenes.map(([slug, name, credit], index) => (
+                <figure class="scene-card">
+                  <a href={`/media/scenes/${slug}.jpg`} aria-label={`View full image of ${name}`}><img src={`/media/scenes/${slug}.jpg`} alt={`${name}, an actual MilkDrop frame`} width="960" height="540" loading="lazy" decoding="async" /></a>
+                  <figcaption><span><b>{String(index + 1).padStart(2, "0")}</b> {name}</span><small>{credit}</small></figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
+          <div class="gallery-section" id="omarchy-gallery">
+            <div class="gallery-heading"><h3>Omarchy <span>37 effects · early mode</span></h3></div>
+            <p class="gallery-description">Terminal effects from the Omarchy screensaver, driven by music in the app. These are actual still screenshots, credited to ttfx / TerminalTextEffects.</p>
+            <div class="gallery-grid">
+              {effects.map(([slug, name], index) => (
+                <figure class="scene-card">
+                  <a href={`/media/effects/${slug}.jpg`} aria-label={`View full screenshot of ${name}`}><img src={`/media/effects/${slug}.jpg`} alt={`${name}, an actual ttfx terminal effect screenshot`} width="480" height="270" loading="lazy" decoding="async" /></a>
+                  <figcaption><span><b>{String(index + 1).padStart(2, "0")}</b> {name}</span><small>ttfx / TerminalTextEffects</small></figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
+        </details>
       </section>
 
-      <section class="worlds" id="effects" aria-labelledby="effects-title">
-        <div class="worlds__intro">
-          <p class="section-id">04 / OMARCHY MODE</p>
-          <h2 id="effects-title">37 effects.<br />Your music sets the pace.</h2>
-          <p>
-            The ttfx terminal effects from the Omarchy screensaver, with music
-            driving their movement. Browse, favorite, hide or preview effects
-            in the controls. Every enabled effect gets a turn in the rotation.
-            These thumbnails show the actual effects.
-          </p>
+      <section class="controls-section section" aria-labelledby="controls-title">
+        <div class="controls-copy">
+          <p class="eyebrow">Your music. Your setup.</p>
+          <h2 id="controls-title">Pick a scene.<br />Press Play.</h2>
+          <p>Native Qt controls that follow your Omarchy theme. Click a thumbnail to start there, or let the collection shuffle.</p>
+          <ul class="feature-list">
+            <li>Switch between MilkDrop and the early Omarchy mode.</li>
+            <li>Try ASCII, hide scenes and choose your display.</li>
+            <li>Adjust audio timing for Bluetooth and other outputs.</li>
+          </ul>
+          <p class="keyboard-note"><kbd>Esc</kbd> returns to controls in MilkDrop.</p>
+          <a class="text-link" href={`${repository}/blob/master/docs/controls.md`}>All controls &amp; shortcuts <span aria-hidden="true">↗</span></a>
         </div>
-        <div class="worlds__grid">
-          {effects.map(([slug, name], index) => (
-            <figure class="scene-card">
-              <img src={`/media/effects/${slug}.jpg`} alt={`${name}, a ttfx terminal effect`}
-                width="480" height="270" loading="lazy" decoding="async" />
-              <figcaption>
-                <span>{String(index + 1).padStart(2, "0")} / {name}</span>
-                <small>ttfx / TerminalTextEffects</small>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
+        <figure class="controls-image">
+          <img src="/media/controls.png" alt="Omadrop's native Qt controls in the Osaka Jade theme, with a scene grid, Play button, ASCII toggle and display choices" width="1120" height="720" loading="lazy" decoding="async" />
+          <figcaption>Omadrop v0.5.0 / Osaka Jade</figcaption>
+        </figure>
       </section>
 
-      <section class="engine" aria-labelledby="engine-title">
-        <div class="engine__field" aria-hidden="true">
-          <span>⠁⠂⠄⡀⢀⠠⠐⠈</span><span>⣿⣷⣤⣀⣀⣤⣾⣿</span><span>⠈⠐⠠⢀⡀⠄⠂⠁</span>
+      <section class="install-section section" id="install" aria-labelledby="install-title">
+        <div class="install-intro">
+          <p class="eyebrow">Ready when you are</p>
+          <h2 id="install-title">Bring the music to your desktop.</h2>
+          <p>For Omarchy on Arch Linux, x86_64.<br />Requires Hyprland, PipeWire and OpenGL 3.3.</p>
+          <a class="text-link" href={`${repository}/releases/latest`}>Latest release <span aria-hidden="true">↗</span></a>
         </div>
-        <div class="engine__content">
-          <p class="section-id">05 / THE SIGNAL PATH</p>
-          <h2 id="engine-title">Your audio.<br />Local processing.</h2>
-          <ol class="signal" aria-label="Omadrop signal path">
-            <li><span>01</span>PipeWire output</li>
-            <li><span>02</span>music analysis</li>
-            <li><span>03</span>MilkDrop / Omarchy</li>
-            <li><span>04</span>music-driven visuals</li>
-          </ol>
+        <div class="install-instructions">
+          <div class="command-heading"><span>Install / update</span><button id="copy-install" class="copy-button" type="button" hidden>Copy command</button></div>
+          <pre class="install-command" tabindex="0" aria-label="Installation command"><code id="install-command">{installCommand}</code></pre>
+          <p id="copy-status" class="copy-status" role="status"></p>
+          <p>Open <strong>Omadrop</strong> from the app launcher, or run <code>omadrop</code>. Play music in any app, choose a scene and press Play.</p>
+          <p class="install-note">Pacman installs the dependencies. Close Omadrop before updating and rerun this command. GitHub installs do not update automatically through Omarchy.</p>
+          <a href={`${repository}#build-from-source`}>Prefer to build from source? <span aria-hidden="true">↗</span></a>
         </div>
-      </section>
-
-      <section class="close" aria-labelledby="close-title">
-        <p class="section-id">BUILT FOR OMARCHY</p>
-        <h2 id="close-title">Install.<br />Open Omadrop.<br />Press Play.</h2>
-        <p class="close__status">Download the Arch package from the release page, then run:</p>
-        <pre class="install-command"><code>sudo pacman -U omadrop-*.pkg.tar.zst</code></pre>
-        <p class="close__status">From source: <code>packaging/makepkg.sh -si</code> or <code>./install.sh</code>.</p>
-        <p class="close__status">Requires Omarchy, Hyprland and PipeWire on Arch Linux.</p>
-        <a class="button" href="https://github.com/btsouth/omadrop/releases">View releases <span aria-hidden="true">↗</span></a>
-        <p class="close__status"><a href="https://github.com/btsouth/omadrop/blob/master/THIRD_PARTY_NOTICES.md">Preset credits and licenses</a>. Omadrop code is MIT licensed. Built with projectM, MilkDrop artists, ttfx and TerminalTextEffects. Presets keep their authors' rights. <a href="https://github.com/btsouth/omadrop/issues/new/choose">Request a correction or removal</a>.</p>
       </section>
     </main>
 
+    <footer class="site-footer container">
+      <div class="footer-top"><a class="wordmark" href="#top">omadrop</a><p>Music in. Worlds out.</p><a href={repository}>Source on GitHub <span aria-hidden="true">↗</span></a></div>
+      <div class="footer-bottom">
+        <p>Built with projectM and the work of MilkDrop artists, ttfx and TerminalTextEffects. Presets and textures retain their authors' rights.</p>
+        <nav aria-label="Credits and support"><a href={`${repository}/blob/master/LICENSE`}>MIT code license</a><a href={`${repository}/blob/master/THIRD_PARTY_NOTICES.md`}>Credits &amp; licenses</a><a href={`${repository}/issues/new/choose`}>Corrections &amp; support</a></nav>
+      </div>
+    </footer>
     <script>
-      const video = document.querySelector(".hero__film");
-      const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
-      if (video instanceof HTMLVideoElement) {
-        if (reduceMotion.matches) video.removeAttribute("autoplay");
-        video.addEventListener("ended", () => document.body.classList.add("hero-finished"));
-      }
-
-      const stage = document.querySelector(".proof__stage");
-      const player = document.querySelector(".player");
-      const playerVideo = player?.querySelector("video");
-      const closePlayer = player?.querySelector(".player__close");
-      if (stage instanceof HTMLButtonElement && player instanceof HTMLDialogElement && playerVideo instanceof HTMLVideoElement) {
-        stage.addEventListener("click", () => {
-          player.showModal();
-          playerVideo.currentTime = 0;
-          void playerVideo.play();
-        });
-        const close = () => {
-          playerVideo.pause();
-          player.close();
-        };
-        closePlayer?.addEventListener("click", close);
-        player.addEventListener("close", () => playerVideo.pause());
-        player.addEventListener("click", (event) => {
-          if (event.target === player) close();
-        });
-      }
+      import "../scripts/player";
     </script>
   </body>
 </html>
