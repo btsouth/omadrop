@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/journey">
+        <file>Main.qml</file>
+    </qresource>
+</RCC>

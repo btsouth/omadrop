@@ -1,0 +1,9 @@
+QT += core gui
+QT -= widgets
+CONFIG += console c++17 link_pkgconfig
+CONFIG -= app_bundle
+PKGCONFIG += fftw3f
+TEMPLATE = app
+TARGET = journey-audio-tests
+SOURCES += audio_tests.cpp ../src/audio.cpp
+HEADERS += ../src/audio.h ../src/scene.h
