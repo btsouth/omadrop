@@ -1240,6 +1240,8 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
 struct Pole { double x, top, base, par, sc; };
 const Pole POLES[3] = {{1474, 96, 946, 0.9, 1.0}, {1318, 560, 800, 0.5, 0.36}, {1158, 640, 760, 0.3, 0.2}};
 const Pole LAST_POLE = {2240, 150, 946, 0.9, 1.0};
+// A shorter pole on the pier carries the run down toward the water.
+const Pole PIER_POLE = {2650, 470, 1000, 0.9, 0.62};
 
 struct WireSpan { V2 p0, p1; double sag; };
 using Spans = std::vector<std::array<WireSpan, 6>>;
@@ -1247,9 +1249,11 @@ using Spans = std::vector<std::array<WireSpan, 6>>;
 Spans wireRuns(double cam) {
     std::vector<std::array<V2, 6>> pts;
     std::array<V2, 6> a, b;
-    for (int i = 0; i < 6; ++i) a[i] = {-60 - cam, 300 + i * 17.0};
+    // The run comes over the near house roof and is fixed to its wall
+    // brackets, so it moves with the house, not the screen.
+    for (int i = 0; i < 6; ++i) a[i] = {-60 - cam * 1.05, 300 + i * 17.0};
     pts.push_back(a);
-    for (int i = 0; i < 6; ++i) b[i] = {596 - cam, 318 + i * 15.5};
+    for (int i = 0; i < 6; ++i) b[i] = {534 - cam * 1.05, 318 + i * 15.5};
     pts.push_back(b);
     for (const Pole& p : POLES) {
         std::array<V2, 6> q;
@@ -1271,17 +1275,20 @@ Spans wireRuns(double cam) {
 
 }  // namespace
 
-std::array<std::array<V2, 3>, 6> osakaOutRuns(double cam);
-std::array<std::array<V2, 3>, 6> osakaOutRuns(double cam) {
-    // Per strand: main pole point, last pole point, touchdown on the sea.
-    std::array<std::array<V2, 3>, 6> r;
+std::array<std::array<V2, 4>, 6> osakaOutRuns(double cam);
+std::array<std::array<V2, 4>, 6> osakaOutRuns(double cam) {
+    // Per strand: main pole, quay pole, pier pole, touchdown on the sea.
+    std::array<std::array<V2, 4>, 6> r;
     for (int i = 0; i < 6; ++i) {
         r[i][0] = {POLES[0].x - cam * 0.9, POLES[0].top + 26 + i * 15.5};
         r[i][1] = {LAST_POLE.x - cam * 0.9, LAST_POLE.top + 26 + i * 15.5};
-        r[i][2] = {3060 + i * 34 - cam * 0.9, 742 + i * 31};
+        r[i][2] = {PIER_POLE.x - cam * 0.9, PIER_POLE.top + 26 * PIER_POLE.sc + i * 15.5 * PIER_POLE.sc};
+        r[i][3] = {3060 + i * 34 - cam * 0.9, 742 + i * 31};
     }
     return r;
 }
+
+double outSag(int seg, int i) { return seg == 0 ? 70 + 5.0 * i : seg == 1 ? 46 + 3.0 * i : 40 - 3.0 * i; }
 
 namespace {
 V2 wireAt(const WireSpan& s, double u) {
@@ -1334,27 +1341,43 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
     Canvas& cone = c.canvas();
     Spans spans = wireRuns(cam);
     const auto outs = osakaOutRuns(cam);
-    const bool town = s.land > 0.02;
-    std::vector<Pole> poles;
-    if (town) { poles.push_back(POLES[2]); poles.push_back(POLES[1]); }
-    poles.push_back(POLES[0]);
-    poles.push_back(LAST_POLE);
-    for (const Pole& pl : poles) {
-        const double px = pl.x - cam * pl.par, sc = pl.sc;
-        if (px < -120 || px > 2050) continue;
-        cv.color(INK);
+    const double land = clamp01(s.land);
+    const Col INSUL(0.55f, 0.66f, 0.58f);
+    // Poles: valley poles fade with the land under the fog instead of popping.
+    struct Drawn { Pole p; double alpha; };
+    const Drawn poles[] = {{POLES[2], land}, {POLES[1], land}, {POLES[0], 1}, {LAST_POLE, 1}, {PIER_POLE, 1}};
+    for (const Drawn& d : poles) {
+        const Pole& pl = d.p;
+        const double px = pl.x - cam * pl.par, sc = pl.sc, al = d.alpha;
+        if (px < -120 || px > 2050 || al < 0.01) continue;
+        cv.color(INK, al);
         cv.moveTo(px - 6 * sc, pl.top); cv.lineTo(px + 6 * sc, pl.top); cv.lineTo(px + 8.5 * sc, pl.base); cv.lineTo(px - 8.5 * sc, pl.base); cv.closePath();
         cv.fill();
-        cv.line(px - 6 * sc, pl.top, px - 8.5 * sc, pl.base, 1.2, RIM, 0.5 * sc + 0.15);
+        cv.line(px - 6 * sc, pl.top, px - 8.5 * sc, pl.base, 1.2, RIM, (0.5 * sc + 0.15) * al);
+        // Climbing steps and a cable bundle down the pole.
+        for (int k = 0; k < 9; ++k) cv.line(px + 6 * sc, pl.top + (240 + k * 58) * sc, px + 15 * sc, pl.top + (236 + k * 58) * sc, 2.2 * sc, INK, al);
+        cv.line(px - 9 * sc, pl.top + 160 * sc, px - 10 * sc, pl.base, 3.2 * sc, INK, al);
         for (int i = 0; i < 6; ++i) {
             const double yy = pl.top + 26 * sc + i * 15.5 * sc;
-            cv.line(px - 15 * sc, yy, px + 15 * sc, yy, 3.4 * sc, INK);
+            cv.line(px - 15 * sc, yy, px + 15 * sc, yy, 3.4 * sc, INK, al);
+            // Insulators catch a little light.
+            for (double dx : {-11.0, 11.0}) {
+                cv.disc(px + dx * sc, yy - 2.6 * sc, 2.3 * sc, INK, al);
+                cv.disc(px + dx * sc - 0.6 * sc, yy - 3.4 * sc, 1.0 * sc, INSUL, 0.7 * al);
+            }
         }
         for (auto [yy, hw] : {std::pair<double, double>{pl.top + 12 * sc, 62}, {pl.top + 124 * sc, 46}}) {
-            cv.line(px - hw * sc, yy, px + hw * sc, yy, 6.5 * sc, INK);
-            cv.poly({{px - hw * 0.7 * sc, yy}, {px, yy + 30 * sc}, {px + hw * 0.7 * sc, yy}}, 2.4 * sc, INK);
+            cv.line(px - hw * sc, yy, px + hw * sc, yy, 6.5 * sc, INK, al);
+            cv.poly({{px - hw * 0.7 * sc, yy}, {px, yy + 30 * sc}, {px + hw * 0.7 * sc, yy}}, 2.4 * sc, INK, al);
+            for (double dx : {-0.85, -0.45, 0.45, 0.85}) cv.disc(px + dx * hw * sc, yy - 4 * sc, 2.8 * sc, INK, al);
         }
-        cv.fillRect(px + 10 * sc, pl.top + 150 * sc, 30 * sc, 52 * sc, INK);
+        // Transformer drum with a rim of moonlight.
+        const double tx = px + 24 * sc, ty = pl.top + 150 * sc, tw = 15 * sc, th = 50 * sc;
+        cv.fillRect(tx - tw, ty, 2 * tw, th, INK, al);
+        cv.color(INK, al); cv.ellipse(tx, ty, tw, 4 * sc); cv.fill();
+        cv.color(INK, al); cv.ellipse(tx, ty + th, tw, 4 * sc); cv.fill();
+        cv.line(tx - tw + 1.5 * sc, ty + 3 * sc, tx - tw + 1.5 * sc, ty + th - 2 * sc, 1.2, RIM, 0.45 * al);
+        cv.line(px + 8 * sc, ty + 8 * sc, tx - tw, ty + 10 * sc, 2 * sc, INK, al);
         if (sc == 1.0 && pl.x < 2000) {
             const double ly = 596;
             const double flick = 0.92 + 0.08 * std::sin(t * 13) * std::sin(t * 3.7);
@@ -1364,6 +1387,19 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
             cone.linear(0, ly, 0, 1000, {{0, mix(WARM_B, GLOW, 0.35), 0.30f * float(flick)}, {1, mix(WARM_B, GLOW, 0.35), 0}});
             cone.moveTo(px - 92, ly + 8); cone.lineTo(px - 74, ly + 8); cone.lineTo(px + 60, 1000); cone.lineTo(px - 240, 1000); cone.closePath();
             cone.fill();
+        }
+    }
+    // Service drops from the main pole into the two right-hand houses.
+    {
+        const double px = POLES[0].x - cam * 0.9;
+        const WireSpan drops[3] = {{{px - 12, 222}, {1452 - cam * 0.9, 668}, 26}, {{px + 14, 226}, {1628 - cam * 0.9, 604}, 22},
+                                   {{px + 14, 236}, {1700 - cam * 0.9, 606}, 30}};
+        for (const WireSpan& d : drops) {
+            if (std::min(d.p0.x, d.p1.x) > 1960) continue;
+            std::vector<V2> pts;
+            for (int k = 0; k <= 30; ++k) pts.push_back(wireAt(d, k / 30.0) + V2(0, L.wind * 1.5 * std::sin(t * 2.4) * 4 * (k / 30.0) * (1 - k / 30.0)));
+            cv.polyline(pts, 1.0, INK, 0.9);
+            cv.disc(d.p1.x, d.p1.y, 2.4, INK);
         }
     }
     // Wire dips where birds have landed.
@@ -1380,11 +1416,23 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
         }
         return dy;
     };
-    const int nTown = town ? int(spans.size()) : 2;
-    const double widths[6] = {1.7, 1.7, 1.5, 0.9, 0.6, 0.45};
-    for (int si = 0; si < nTown; ++si) {
+    // Each strand has its own gauge (the bass strand heaviest) and a moonlit
+    // upper edge; it hums with a soft glow that follows its band.
+    const double gauge[6] = {2.1, 1.9, 1.6, 1.35, 1.15, 0.95};
+    const double spanScale[6] = {1.0, 1.0, 0.88, 0.53, 0.35, 0.26};
+    auto strand = [&](const std::vector<V2>& pts, int i, double sc, double alpha) {
+        cv.polyline(pts, gauge[i] * sc, INK, 0.95 * alpha);
+        std::vector<V2> rim(pts);
+        for (V2& q : rim) q.y -= 0.55 * gauge[i] * sc;
+        cv.polyline(rim, 0.6 * sc, RIM, 0.32 * alpha);
+        const double hum = (0.05 + 0.10 * c.band(i) + 0.32 * c.lift(i)) * alpha;
+        if (hum > 0.01) l.polyline(pts, (2.2 + 1.5 * c.lift(i)) * sc, PULSE[i], std::min(0.6, hum));
+    };
+    for (std::size_t si = 0; si < spans.size(); ++si) {
+        const double al = si < 2 ? 1.0 : land;
+        if (al < 0.01) continue;
         for (int i = 0; i < 6; ++i) {
-            const WireSpan& w = spans[si][i];
+            const WireSpan& w = spans[si][std::size_t(i)];
             if (std::min(w.p0.x, w.p1.x) > 1960 || std::max(w.p0.x, w.p1.x) < -40) continue;
             std::vector<V2> pts;
             for (int k = 0; k <= 60; ++k) {
@@ -1393,17 +1441,20 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
                 q.y += L.wind * 2.0 * std::sin(t * 2.1 + i) * 4 * (k / 60.0) * (1 - k / 60.0);
                 pts.push_back(q);
             }
-            cv.polyline(pts, widths[si], INK, 0.95);
+            strand(pts, i, spanScale[si], al);
         }
     }
     for (int i = 0; i < 6; ++i) {
-        for (int seg = 0; seg < 2; ++seg) {
-            const V2 p0 = outs[i][seg], p1 = outs[i][seg + 1];
-            if (std::min(p0.x, p1.x) > 1960) continue;
-            const double sag = seg == 0 ? 70 + 5 * i : 150 - 14 * i;
+        for (int seg = 0; seg < 3; ++seg) {
+            const V2 p0 = outs[std::size_t(i)][std::size_t(seg)], p1 = outs[std::size_t(i)][std::size_t(seg + 1)];
+            if (std::min(p0.x, p1.x) > 1960 || std::max(p0.x, p1.x) < -40) continue;
             std::vector<V2> pts;
-            for (int k = 0; k <= 60; ++k) pts.push_back(wireAt({p0, p1, sag}, k / 60.0));
-            cv.polyline(pts, 1.7, INK, 0.95 * (seg == 0 ? 1.0 : s.outAlpha));
+            for (int k = 0; k <= 60; ++k) {
+                V2 q = wireAt({p0, p1, outSag(seg, i)}, k / 60.0);
+                q.y += L.wind * 2.0 * std::sin(t * 2.1 + i) * 4 * (k / 60.0) * (1 - k / 60.0);
+                pts.push_back(q);
+            }
+            strand(pts, i, 1.0, seg == 0 ? 1.0 : s.outAlpha);
         }
     }
     // Light travelling the strands: one stream per frequency role, faster
@@ -1412,14 +1463,15 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
     for (int i = 0; i < 6; ++i) {
         const double speed = 0.05 + 0.035 * i;
         const double travel = speed * (0.55 * (t + 10) + 1.6 * (c.score ? c.score->integral(i, t) : 0));
-        const double level = 0.55 + 1.15 * c.band(i);
-        for (int k = 0; k < 3 + i / 2; ++k) {
+        const double level = 0.55 + 0.8 * c.band(i) + 0.7 * c.lift(i);
+        for (int k = 0; k < 4 + i / 2; ++k) {
             const double u = std::fmod(rng.uni() + travel, 1.0) * 4.0;
             const int si = int(u);
             const double tt = u - si;
-            const double lvl = std::min(1.3, (0.55 + 0.45 * rng.uni()) * level);
-            if (si >= nTown) continue;
-            const WireSpan& w = spans[si][i];
+            const double al = si < 2 ? 1.0 : land;
+            const double lvl = std::min(1.4, (0.55 + 0.45 * rng.uni()) * level) * al;
+            if (lvl < 0.02) continue;
+            const WireSpan& w = spans[std::size_t(si)][std::size_t(i)];
             const double sc = std::array<double, 4>{1.0, 1.0, 0.7, 0.4}[std::size_t(si)];
             const double tail = (0.085 - 0.008 * i) / std::max(0.45, std::abs(w.p1.x - w.p0.x) / 900);
             for (int j = 0; j < 16; ++j) {
@@ -1431,16 +1483,16 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
             }
             V2 q = wireAt(w, tt);
             if (si == 1) q.y += dipAt(i, tt);
-            l.glow(q.x, q.y, (13 + 12 * lvl) * sc, PULSE[i], 0.9 * std::min(1.0, lvl));
+            l.glow(q.x, q.y, (13 + 14 * lvl) * sc, PULSE[i], 0.9 * std::min(1.0, lvl));
         }
-        for (int k = 0; k < 3; ++k) {
-            const double u = std::fmod(rng.uni() + travel * 1.4, 1.0) * 2.0;
+        for (int k = 0; k < 4; ++k) {
+            const double u = std::fmod(rng.uni() + travel * 1.4, 1.0) * 3.0;
             const int seg = int(u);
             const double tt = u - seg;
-            const double lvl = std::min(1.3, (0.55 + 0.45 * rng.uni()) * level);
-            const V2 p0 = outs[i][seg], p1 = outs[i][seg + 1];
-            const WireSpan w{p0, p1, seg == 0 ? 70 + 5.0 * i : 150 - 14.0 * i};
-            if (seg == 1 && s.outAlpha < 0.05) continue;
+            const double lvl = std::min(1.4, (0.55 + 0.45 * rng.uni()) * level) * (seg == 0 ? 1.0 : s.outAlpha);
+            if (lvl < 0.02) continue;
+            const V2 p0 = outs[std::size_t(i)][std::size_t(seg)], p1 = outs[std::size_t(i)][std::size_t(seg + 1)];
+            const WireSpan w{p0, p1, outSag(seg, i)};
             for (int j = 0; j < 16; ++j) {
                 const double tj = tt - 0.07 * j / 16;
                 if (tj < 0) break;
@@ -1448,7 +1500,7 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
                 l.disc(q.x, q.y, (2.4 - 1.6 * j / 16) * (0.8 + 0.5 * lvl), PULSE[i], std::pow(1 - j / 16.0, 1.6) * std::min(1.0, lvl));
             }
             const V2 q = wireAt(w, tt);
-            l.glow(q.x, q.y, 13 + 12 * lvl, PULSE[i], 0.9 * std::min(1.0, lvl));
+            l.glow(q.x, q.y, 13 + 14 * lvl, PULSE[i], 0.9 * std::min(1.0, lvl));
         }
     }
     c.gpu.add(cone, 1.0f, 7);
@@ -1932,6 +1984,28 @@ void osakaFog(Ctx& c, double amount, double top, double bottom, Col col) {
         q.set("u_amount", float(amount)); q.set("u_top", float(top)); q.set("u_bottom", float(bottom));
         q.set("u_t", float(c.t)); q.set("u_col", col);
     });
+}
+
+void osakaGlowThrough(Ctx& c, const OsakaState& s, double amount) {
+    if (amount <= 0.01) return;
+    const double t = c.t;
+    Canvas& g = c.canvas();
+    const double treble = 0.75 + 0.6 * c.lift(5) + 0.3 * c.lift(4);
+    Rng rng(77);
+    // City: a broad glow with brighter knots where the towers stand.
+    for (int k = 0; k < 26; ++k) {
+        const double x = 930 + rng.normal() * 230 - s.cam * 0.14, y = 650 + rng.uni() * 50;
+        const double tw = 0.75 + 0.25 * std::sin(t * (0.7 + rng.uni()) + k);
+        const Col col = rng.uni() < 0.7 ? WARM_T : (rng.uni() < 0.7 ? BCYAN : MAG);
+        g.glow(x, y, 26 + rng.uni() * 40, col, 0.30 * tw * treble * clamp01(s.land + 0.35));
+    }
+    // Downhill town windows and the festival street, closer and warmer.
+    for (int k = 0; k < 22; ++k) {
+        const double x = 540 + rng.uni() * 720 - s.cam * 0.55, y = 790 + rng.uni() * 150;
+        const double band = c.lift(k % 6);
+        g.glow(x, y, 34 + rng.uni() * 36, k % 3 ? WARM_T : RED, (0.22 + 0.25 * band) * clamp01(s.land + 0.25));
+    }
+    c.gpu.add(g, float(1.1 * amount), 10);
 }
 
 void drawOsaka(Ctx& c, const OsakaState& s) {

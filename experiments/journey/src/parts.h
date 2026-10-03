@@ -38,7 +38,9 @@ struct OsakaHooks {
 void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain);
 void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks);
 void osakaFog(Ctx& c, double amount, double top, double bottom, Col col);
-std::array<std::array<V2, 3>, 6> osakaOutRuns(double cam);
+// Diffuse glow of the valley city and downhill town seen through fog.
+void osakaGlowThrough(Ctx& c, const OsakaState& s, double amount);
+std::array<std::array<V2, 4>, 6> osakaOutRuns(double cam);
 // Lantern-bearer position (mock x) at movie time t.
 double bearerX(double t);
 

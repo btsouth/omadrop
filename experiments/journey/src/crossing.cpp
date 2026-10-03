@@ -53,12 +53,12 @@ void crossingStrands(Ctx& c, double t) {
     const auto outs = osakaOutRuns(cam);
     const auto target = waveStrands(t, 0.0);
     const double morph = easeInOut((t - 40.0) / 3.5);
-    const double g = sstep(36.0, 41.5, t);
+    const double g = sstep(35.0, 43.0, t);
     const double fadeOut = 1 - sstep(42.5, 44.0, t);
     Canvas& cv = c.canvas();
     Rng rng(9);
     for (int i = 0; i < 6; ++i) {
-        const V2 td = outs[std::size_t(i)][2];
+        const V2 td = outs[std::size_t(i)][3];
         const double touch = 36.5 + i * 0.22;
         if (t < touch) continue;
         const double reach = std::min(1990.0, td.x + 900 * (t - touch));
@@ -98,15 +98,18 @@ void drawCrossing(Ctx& c) {
     const double cam = crossingCam(t);
     OsakaState s;
     s.cam = cam;
-    s.land = 1 - sstep(33.0, 35.2, t);
+    s.land = 1 - sstep(33.6, 36.0, t);
     s.harbour = 1 - sstep(33.5, 35.5, t);
     s.outAlpha = 1 - sstep(38.6, 40.0, t);
     s.wisteria = 1;
-    const double fog = sstep(29.6, 33.4, t) * (1 - 0.6 * sstep(36.0, 39.0, t)) * (1 - sstep(38.4, 40.0, t));
-    const double fogTop = 600 - 90 * sstep(29.6, 33.4, t);
+    // Fog rises in depth: the far valley first, the near town later; it
+    // thins slowly so the sea is revealed gradually, not in one flip.
+    const double fog = 0.82 * sstep(29.4, 33.6, t) * (1 - sstep(36.0, 40.2, t));
+    const double nearFog = 0.5 * sstep(31.8, 35.0, t) * (1 - sstep(35.6, 38.6, t));
+    const double fogTop = 610 - 70 * sstep(29.4, 33.6, t);
     const double fogBottom = lerp(1400.0, 560.0, sstep(36.0, 39.6, t));
     const double k = sstep(33.4, 35.6, t);
-    const double g = sstep(36.0, 41.5, t);
+    const double g = sstep(35.0, 43.0, t);
 
     drawOsakaBackdrop(c, s, false, false);
     if (k > 0.001) {
@@ -160,8 +163,11 @@ void drawCrossing(Ctx& c) {
     OsakaHooks hooks;
     hooks.afterTown = [&] {
         osakaFog(c, fog, fogTop, fogBottom, mix(Col(0.62f, 0.96f, 0.78f), PAPER, g));
+        // The town's lights keep glowing through the fog as it thickens.
+        osakaGlowThrough(c, s, fog * (1 - sstep(35.5, 38.5, t)));
     };
     hooks.afterWires = [&] {
+        osakaFog(c, nearFog, 700 - 40 * sstep(31.8, 35.0, t), 1400, mix(Col(0.55f, 0.90f, 0.72f), PAPER, g));
         crossingStrands(c, t);
         // The boat: waits at the steps, takes the lantern-bearer aboard, and
         // rows out to where Kanagawa's near boat will be.

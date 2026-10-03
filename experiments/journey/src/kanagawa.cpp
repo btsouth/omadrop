@@ -94,6 +94,8 @@ WaveFrame waveFrame(double t, double r, double bass, double fall, double collaps
     const double rr = r * (1 - collapse);
     for (int i = 0; i < 10; ++i) {
         V2 p = base[i] * rr + flat[i] * (1 - rr);
+        // The swell rolls up from below the frame as Kanagawa arrives (no pop at the handover).
+        p.y += 210 * (1 - sstep(39.9, 43.0, t)) * (1 - rr);
         p.y -= 12 * std::sin(t * 0.9 + i * 0.5) * (i / 9.0);
         p.y -= bass * 16 * rr * sstep(3, 7, i) + kick * 22 * rr * sstep(3, 8, i);
         if (lean > 0) {
@@ -557,9 +559,12 @@ void greatWave(Ctx& c, const KState& k, const Surge& br) {
 
 void frontSwell(Ctx& c, double t, double lift) {
     Canvas& cv = c.canvas();
+    // The near swell rolls up into view as Kanagawa arrives instead of
+    // appearing on the handover frame.
+    const double drop = 170 * (1 - sstep(39.9, 42.8, t));
     std::vector<V2> ys;
     for (double x = -20; x <= 1941; x += 6)
-        ys.push_back({x, 990 - (96 + 40 * lift) * std::exp(-std::pow((x - 1500 + 30 * std::sin(t * 0.2)) / 300, 2)) - 30 * std::exp(-std::pow((x - 760) / 200, 2)) + 12 * std::sin(x / 60 + t)});
+        ys.push_back({x, drop + 990 - (96 + 40 * lift) * std::exp(-std::pow((x - 1500 + 30 * std::sin(t * 0.2)) / 300, 2)) - 30 * std::exp(-std::pow((x - 760) / 200, 2)) + 12 * std::sin(x / 60 + t)});
     cv.color(mix(DEEP, KINK, 0.25));
     cv.moveTo(-20, 1080);
     for (const V2& p : ys) cv.lineTo(p.x, p.y);
@@ -711,7 +716,7 @@ void drawKanagawa(Ctx& c) {
     const double t = c.t;
     KState k;
     k.t = t;
-    k.grade = sstep(36.0, 41.5, t);
+    k.grade = sstep(35.0, 43.0, t);
     k.rise = kanagawaRise(c);
     k.breakAt = kanagawaBreak(c).t;
     const bool graded = k.grade < 0.999;
