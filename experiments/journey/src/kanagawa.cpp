@@ -888,7 +888,13 @@ void wash(Ctx& c, double age, bool front) {
                 const V2 pos(rootX+dx*u*u+6*std::sin(u*13+q*3)*open,rootY-(12+height)*u);
                 const V2 dir(2*dx*u,-12-height);
                 const V2 normal(-dir.y/std::max(1.0,dir.len()),dir.x/std::max(1.0,dir.len()));
-                const double w=width*(.55+.45*std::pow(std::sin(Pi*u),.7))*(1-.25*u)*(.88+.12*std::sin(u*31+q));
+                // The thrown sheet tears from its tip downward, at unequal
+                // material stations. Its silhouette breaks before alpha fades.
+                const double tornAt=.34+.045*q+.28*(1-u)+.09*hash2(q*37+j,50);
+                const double torn=sstep(tornAt,tornAt+.22,dt);
+                const double w=width*(.55+.45*std::pow(std::sin(Pi*u),.7))*(1-.25*u)
+                    *(.78+.22*std::sin(u*31+q))*(1-torn)
+                    *(1-.5*torn*std::max(0.0,std::sin(u*47+q*2)));
                 centre.push_back(pos);left.push_back(pos+normal*w);right.push_back(pos-normal*w);
             }
             cv.color(PAPER,fade);
@@ -896,11 +902,26 @@ void wash(Ctx& c, double age, bool front) {
             for(auto pos:left) cv.lineTo(pos.x,pos.y);
             for(auto it=right.rbegin();it!=right.rend();++it) cv.lineTo(it->x,it->y);
             cv.closePath();cv.fill();
-            cv.disc(centre.back().x,centre.back().y,width*.41,PAPER,fade);
-            // Torn gaps break up the sheet before it separates into spray.
-            for(int j=12;j<27;j+=4) {
-                const V2 at=centre[j];
-                cv.capsule(at+V2(-2,3),at+V2(4,-4),2.3,1.0,MID,.7*fade*sstep(.3,.6,dt));
+            // Detached pieces inherit the sheet's position and velocity at
+            // their own release, then arc downward into the existing wash.
+            for(int j=4;j<=30;j+=2) {
+                const double u=j/30.0;
+                const double tornAt=.34+.045*q+.28*(1-u)+.09*hash2(q*37+j,50);
+                const double flight=dt-tornAt;
+                if(flight<0 || flight>1.4)continue;
+                const double bornT=c.waterContact+born+tornAt;
+                const double bornY=swellY(rootX,5,bornT,&c)+12;
+                const double launch=290+80*hash2(q,42);
+                const double bornHeight=std::max(0.0,launch*tornAt-155*tornAt*tornAt);
+                const V2 origin(rootX+speeds[q]*tornAt*u*u+6*std::sin(u*13+q*3),bornY-(12+bornHeight)*u);
+                const V2 velocity(speeds[q]*u*u+55*(hash2(q*37+j,51)-.5),
+                    -(launch-310*tornAt)*u-35*hash2(q*37+j,52));
+                const double drag=(1-std::exp(-.8*flight))/.8;
+                const V2 at=origin+velocity*drag+V2(0,175*flight*flight);
+                const double radius=(4+7*hash2(q*37+j,53))*(1-.35*sstep(.5,1.4,flight));
+                const double alpha=window(flight,0,.08,1.4,.55);
+                const V2 tail=velocity*(.018*(1-sstep(.5,1.2,flight)));
+                cv.capsule(at-tail,at+tail,radius,radius*.6,PAPER,alpha);
             }
 
         }
