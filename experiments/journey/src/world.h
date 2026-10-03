@@ -12,8 +12,9 @@
 namespace Journey {
 namespace T {
 constexpr double osakaEnd = 28.0;      // glide begins
-constexpr double crossingEnd = 40.0;   // Kanagawa title, full palette
-constexpr double kanagawaEnd = 74.0;
+constexpr double kanagawaDelay = 8.0; // additional travel before the dawn chapter
+constexpr double crossingEnd = 40.0 + kanagawaDelay;
+constexpr double kanagawaEnd = 74.0 + kanagawaDelay;
 }
 
 struct Ctx {

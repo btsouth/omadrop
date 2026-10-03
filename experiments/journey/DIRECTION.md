@@ -19,8 +19,8 @@ Four things persist through the whole journey:
 | Time | Chapter |
 | --- | --- |
 | 0 to 28 | Osaka Jade. Blue hour, moonrise, festival lanterns strung across the street come on at 3 s, panes waking by band, the noodle cart opening, shadow play behind paper, birds landing on the wires on onsets, a train in the valley, the cyclist, a shooting star on a strong onset, the shamisen player, a gust, then the surge window (22 to 27): flock burst, the main firework pair, finale shells on the bass hits that follow, panes and lanterns flaring as each burst's light arrives, sky lanterns. |
-| 28 to 40 | The crossing. Camera glide to the quay, the bearer boards, valley fog rises, land gives way to water, the wires touch down and run on the swell, moon to sun, cone to Fuji, jade to ink and paper. |
-| 40 to 75 | Kanagawa. The swell heaves up into the great wave (to 64 s), leans over the boats (61 to 70 s), grows claws on onsets and flings spray; it breaks in the surge window (64 to 71 s) and the foam washes across the frame. |
+| 28 to 48 | The crossing. Layered valley fog, town lights and finale smoke remain through the glide. The bearer boards at 34.4 to 35.3 s, walks to the bow, then rows out on a shared bass-integral clock. Oar rings, a trailing lantern reflection and the six water strands carry the journey through a gradual night-to-dawn grade. |
+| 48 to 82 | Kanagawa. Hold the dawn print to 61 s: Fuji and the red sun clear the horizon, fishing crews row, plovers pass, seven sea planes answer their bands and spray is born on onsets. A passing swell lifts the bearer from 60.5 s; rowers look out at 62 s and the sea draws back. The existing wave then rises to 72 s and leans from 69 to 78.5 s; its shifted break window is 72 to 79 s, fallback 77.6 s. The epic build and crash are M3 work. |
 
 Music response in Osaka Jade, so it stays visible in dense, compressed mixes:
 panes, festival lanterns, the valley's windows and moths answer how far their

@@ -1756,7 +1756,11 @@ void drawBirds(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bir
 
 }  // namespace
 
-void drawFlock(Ctx& c, Col col, double size) {
+void drawBearerLantern(Canvas& body, Canvas& light, V2 hand, double swing, double size, double bright) {
+    lantern(body, light, hand, swing, size, bright);
+}
+
+void drawFlock(Ctx& c, Col col, double size, double alpha) {
     const Surge s = surgeIn(c.score, 22.0, 27.0, 26.0);
     Canvas& cv = c.canvas();
     for (int k = 0; k < 15; ++k) {
@@ -1764,7 +1768,7 @@ void drawFlock(Ctx& c, Col col, double size) {
         const V2 q = flockCentre(c.t, burst) + V2(V_FORM[k][0], V_FORM[k][1]);
         drawBirdFly(cv, q.x, q.y, 13 * V_FORM[k][2] * size, col, 0.5 + 0.5 * std::sin(c.t * 9 + k * 2.1), -0.15 + 0.1 * std::sin(k * 1.0));
     }
-    c.gpu.over(cv);
+    c.gpu.over(cv, 1, 0, float(alpha));
 }
 
 namespace {
@@ -2087,6 +2091,7 @@ void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain, co
         ridges(c, s);
         valleyCity(c, s);
         if (s.chapter) firework(c, s, L);
+        if (hooks && hooks->afterValley) hooks->afterValley();
         nearRidge(c, s);
         train(c, s);
     }

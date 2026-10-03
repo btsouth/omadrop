@@ -41,6 +41,7 @@ struct BackdropHooks {
     std::function<void()> afterSky;
     std::function<void()> disc;
     std::function<void()> mountain;
+    std::function<void()> afterValley; // distant fog, before the nearer ridge
 };
 void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain, const BackdropHooks* hooks = nullptr);
 void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks);
@@ -64,14 +65,17 @@ void kanagawaMist(Ctx& c);
 void kanagawaSea(Ctx& c);
 void kanagawaSun(Ctx& c);
 void kanagawaFuji(Ctx& c, double grade);
+void kanagawaPlovers(Ctx& c, double grade);
 void kanagawaForeground(Ctx& c, const KState& k);
 void gradeComposite(Ctx& c, int tex, double grade, double opacity);
 std::array<std::vector<V2>, 6> waveStrands(double t, double rise);
 // Crossing: six lines on the water, handed to the wave strands in Kanagawa.
 void crossingStrands(Ctx& c, double t);
 double crossingCam(double t);
+double rowingClock(const Ctx& c);
 // The flock formation after the surge, in screen space; colour per world.
-void drawFlock(Ctx& c, Col col, double size);
+void drawFlock(Ctx& c, Col col, double size, double alpha = 1);
+void drawBearerLantern(Canvas& body, Canvas& light, V2 hand, double swing, double size, double bright);
 double kanagawaRise(const Ctx& c);
 Surge kanagawaBreak(const Ctx& c);
 Col duotone(Col c, double g);
