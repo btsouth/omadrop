@@ -116,6 +116,12 @@ change notices are in `tests/fixtures/collection-music-attribution.txt` and
 runtime package. `demo/music-rights.json` records approved recording sources;
 it does not bundle those full recordings.
 
+The v0.5.0 launch video uses “We Can Fix Everything” by Kevin Koontz
+([@koozeex1](https://x.com/koozeex1)), also credited on
+[Omarchy’s website](https://omarchy.org/). The video uses a continuous
+60-second excerpt with a short ending fade. Scene and preset-author credits
+appear in the video. The song is not installed in the runtime package.
+
 ## Removal requests
 
 If you own a preset, texture or other asset, request removal or corrected credit
