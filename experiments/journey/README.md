@@ -74,6 +74,10 @@ build/omadrop-journey --audio song.f32 --audio-offset 168.8 --duration 78 --benc
 build/omadrop-journey --audio song.f32 --inspect
 ```
 
+`--start S` renders only movie seconds `[S, duration)` with `--video`, and
+`--fade-in` / `--fade-out` set the fades in seconds (0 disables), for cutting
+segments on the music's bar lines.
+
 `--seed` varies details of the authored timeline (window wake times, bird
 order and approach). `--at` and `--paused` are native-only.
 
