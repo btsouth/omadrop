@@ -26,6 +26,7 @@ struct Ctx {
     std::array<Canvas, 6>* canvases;
     int next = 0;
     double cameraX = 0; // scene-local world coordinates; crossing defaults to zero
+    double waterContact = -1; // Kanagawa pressure begins at one measured impact
     Canvas& canvas() {
         Canvas& c = (*canvases)[next++ % canvases->size()];
         c.reset(gpu.pixelScale());
