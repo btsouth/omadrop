@@ -84,7 +84,8 @@ BoatPose seaBoatPose(const Ctx& c, bool near);
 double seaStrandY(const Ctx& c, double x, int band);
 double strandClock(const Ctx& c, int band);
 std::vector<V2> resampleStrand(const std::vector<V2>& path, int n);
-void kanagawaEntry(Ctx& c); // shared lower-edge swell entry before/after arrival
+void kanagawaEntry(Ctx& c); // shared swell/strand entry behind the boats
+void kanagawaEntryFront(Ctx& c); // matching foreground foam in front
 // The flock formation after the surge, in screen space; colour per world.
 void drawFlock(Ctx& c, Col col, double size, double alpha = 1);
 void drawBearerLantern(Canvas& body, Canvas& light, V2 hand, double swing, double size, double bright);

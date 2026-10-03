@@ -262,6 +262,7 @@ void drawCrossing(Ctx& c) {
         c.gpu.over(l, 1.6f);
         c.gpu.add(l, 0.45f, 18);
     };
+    if (t > 47.9) kanagawaEntry(c);
     drawOsakaForeground(c, s, hooks);
     if (t > 45.0) {
         kanagawaPlovers(c, g);
@@ -272,7 +273,7 @@ void drawCrossing(Ctx& c) {
         drawBoat(c, b, l, far.at, 250, far.tilt, 6, g, 0.7, false, rowingClock(c) + 0.3);
         c.gpu.over(b, 1, 0, float(u));
     }
-    if (t > 47.9) kanagawaEntry(c);
+    if (t > 47.9) kanagawaEntryFront(c);
     FinishParams f;
     f.time = float(t);
     f.bloom = float(lerp(0.55, 0.3, g));

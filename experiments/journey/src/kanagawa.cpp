@@ -861,8 +861,9 @@ void wash(Ctx& c, double age, bool front) {
 void kanagawaEntry(Ctx& c) {
     KState k; k.t = c.t; k.grade = sstep(37.0, 51.0, c.t);
     greatWave(c, k, Surge{});
-    frontSwell(c, c.t, 0);
 }
+
+void kanagawaEntryFront(Ctx& c) { frontSwell(c, c.t, 0); }
 
 void kanagawaPlovers(Ctx& c, double grade) { KState k; k.grade = grade; plovers(c, k); }
 
@@ -891,10 +892,13 @@ void kanagawaForeground(Ctx& c, const KState& k) {
     }
     if (k.wave) {
         wash(c, age, false);
+        // Open-water strands stay behind the hull while joining the swell.
+        // The later foreground build/crash retains its existing boat depth.
+        if (t < 52) greatWave(c, k, br);
         c.gpu.over(bc);
         c.gpu.over(bl, 1.5f);
         c.gpu.add(bl, 0.4f, 16);
-        greatWave(c, k, br);
+        if (t >= 52) greatWave(c, k, br);
     } else {
         c.gpu.over(bc);
         c.gpu.over(bl, 1.5f);
