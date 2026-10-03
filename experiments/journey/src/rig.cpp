@@ -73,6 +73,10 @@ Body solve(const RigIn& in) {
 void drawBody(Canvas& c, const Body& b, Col col, double alpha) {
     const RigIn& in = b.in;
     const double h = in.h, f = in.facing, k = in.bulk;
+    const double flutter = std::clamp(in.flutter, -1.0, 1.0);
+    const V2 up = (b.chest - in.hip) * (1.0 / std::max(1e-6, (b.chest - in.hip).len()));
+    const V2 fwd = V2(-up.y, up.x) * f;
+    auto atBody = [&](double s, double d) { return in.hip + up * (s * h) + fwd * (d * h * k); };
     auto limbEnd = [](V2, V2 joint, V2 target, double l2) {
         const V2 d = target - joint;
         const double L = d.len();
@@ -88,34 +92,60 @@ void drawBody(Canvas& c, const Body& b, Col col, double alpha) {
         c.capsule(knee, foot, 0.038 * h * k, 0.025 * h * k, col, alpha);
         c.capsule(foot, foot + V2(f * 0.07 * h, 0.025 * h), 0.022 * h * k, 0.016 * h * k, col, alpha);
     };
-    auto armDraw = [&](V2 elbow, V2 hand) {
+    auto armDraw = [&](V2 elbow, V2 hand, double phase) {
         c.capsule(b.shoulder, elbow, 0.033 * h * k, 0.026 * h * k, col, alpha);
         c.capsule(elbow, hand, 0.026 * h * k, 0.019 * h * k, col, alpha);
         c.disc(hand.x, hand.y, 0.024 * h * k, col, alpha);
+        if (in.garment == Garment::Jacket || in.garment == Garment::Happi) {
+            const bool happi = in.garment == Garment::Happi;
+            const V2 cuff = lerp(elbow, hand, happi ? 0.34 : 0.24)
+                          + V2(flutter * (happi ? 0.014 : 0.010) * h, 0);
+            c.capsule(b.shoulder, cuff, (happi ? 0.049 : 0.044) * h * k, (happi ? 0.040 : 0.035) * h * k, col, alpha);
+        }
         if (in.sleeve) {
             // Kimono sleeve hanging from the forearm.
             const V2 mid = lerp(elbow, hand, 0.35);
+            const double sleeveSway = flutter * (0.016 + 0.002 * phase) * h;
             c.color(col, alpha);
             c.moveTo(elbow.x, elbow.y);
             c.lineTo(hand.x, hand.y);
-            c.lineTo(mid.x - f * 0.02 * h, mid.y + 0.15 * h);
-            c.lineTo(elbow.x - f * 0.03 * h, elbow.y + 0.11 * h);
+            c.lineTo(mid.x - f * 0.02 * h + sleeveSway, mid.y + 0.15 * h);
+            c.lineTo(elbow.x - f * 0.03 * h + sleeveSway * 0.7, elbow.y + 0.11 * h);
             c.closePath();
             c.fill();
         }
     };
+    if (in.garment == Garment::Jacket || in.garment == Garment::Happi) {
+        // Short coat: shoulder line to a lightly flared hem around the hip.
+        const bool happi = in.garment == Garment::Happi;
+        const V2 sF = atBody(0.275, happi ? 0.080 : 0.072);
+        const V2 sB = atBody(0.275, happi ? -0.076 : -0.068);
+        const V2 wF = atBody(0.020, happi ? 0.105 : 0.088);
+        const V2 wB = atBody(0.020, happi ? -0.105 : -0.088);
+        const V2 hF = atBody(-0.055, happi ? 0.115 : 0.095) + V2(flutter * 0.026 * h, 0);
+        const V2 hB = atBody(-0.050, happi ? -0.115 : -0.095) + V2(flutter * 0.018 * h, 0);
+        c.color(col, alpha);
+        c.moveTo(sF.x, sF.y);
+        c.quadTo(wF.x, wF.y, hF.x, hF.y);
+        c.quadTo(atBody(-0.035, 0).x, hF.y + 0.008 * h, hB.x, hB.y);
+        c.quadTo(wB.x, wB.y, sB.x, sB.y);
+        c.quadTo(b.shoulder.x, b.shoulder.y - 0.014 * h, sF.x, sF.y);
+        c.closePath();
+        c.fill();
+    }
     if (in.robe) {
         // Robe from shoulders to a hem that follows the feet.
         const double hemY = std::max(footF.y, footB.y) - 0.01 * h;
         const double x0 = std::min(footF.x, footB.x) - 0.055 * h, x1 = std::max(footF.x, footB.x) + 0.055 * h;
-        const V2 up = (b.chest - in.hip) * (1.0 / std::max(1e-6, (b.chest - in.hip).len()));
         const V2 side(-up.y, up.x);
         const V2 sL = b.chest + side * (0.085 * h), sR = b.chest - side * (0.085 * h);
         const V2 wL = in.hip + side * (0.075 * h), wR = in.hip - side * (0.075 * h);
+        const V2 hemL(std::min(x0, wL.x - 0.01 * h) + flutter * 0.012 * h, hemY);
+        const V2 hemR(std::max(x1, wR.x + 0.01 * h) + flutter * 0.026 * h, hemY);
         c.color(col, alpha);
         c.moveTo(sL.x, sL.y);
-        c.curveTo(wL.x, wL.y - 0.05 * h, wL.x, wL.y + 0.05 * h, std::min(x0, wL.x - 0.01 * h), hemY);
-        c.lineTo(std::max(x1, wR.x + 0.01 * h), hemY);
+        c.curveTo(wL.x, wL.y - 0.05 * h, wL.x, wL.y + 0.05 * h, hemL.x, hemL.y);
+        c.lineTo(hemR.x, hemR.y);
         c.curveTo(wR.x, wR.y + 0.05 * h, wR.x, wR.y - 0.05 * h, sR.x, sR.y);
         c.closePath();
         c.fill();
@@ -124,15 +154,79 @@ void drawBody(Canvas& c, const Body& b, Col col, double alpha) {
     } else {
         legDraw(b.kneeB, footB);
     }
-    armDraw(b.elbowB, handB);
+    if (in.garment == Garment::Apron) {
+        // Front panel with two rear ties, kept close to the body.
+        const V2 top = atBody(0.060, 0.052);
+        const V2 backTop = atBody(0.050, 0.024);
+        const V2 front = atBody(0.005, 0.080);
+        const V2 hemF = atBody(-0.145, 0.078) + V2(flutter * 0.015 * h, 0);
+        const V2 hemB = atBody(-0.135, 0.026);
+        c.color(col, alpha);
+        c.moveTo(backTop.x, backTop.y);
+        c.lineTo(top.x, top.y);
+        c.quadTo(front.x, front.y, hemF.x, hemF.y);
+        c.quadTo(atBody(-0.165, 0).x, hemF.y, hemB.x, hemB.y);
+        c.closePath();
+        c.fill();
+        const V2 tieRoot = atBody(0.045, -0.052);
+        const V2 tieA = atBody(0.015, -0.098) + V2(flutter * 0.014 * h, 0);
+        const V2 tieB = atBody(0.070, -0.105) + V2(flutter * 0.018 * h, 0);
+        c.capsule(tieRoot, tieA, 0.009 * h, 0.004 * h, col, alpha);
+        c.capsule(tieRoot, tieB, 0.009 * h, 0.004 * h, col, alpha);
+    }
+    armDraw(b.elbowB, handB, -1);
+    if (in.obi) {
+        const std::vector<V2> obi = {
+            atBody(0.055, 0.035), atBody(0.045, 0.068), atBody(0.005, 0.078), atBody(-0.035, 0.067),
+            atBody(-0.050, 0.028), atBody(-0.045, -0.025), atBody(-0.005, -0.066), atBody(0.038, -0.068),
+            atBody(0.058, -0.038),
+        };
+        c.color(col, alpha);
+        smoothClosed(c, obi);
+        c.fill();
+    }
     torso(c, b, col, alpha);
     c.capsule(b.chest, b.neck, 0.026 * h * k, 0.022 * h * k, col, alpha);
+    if (in.shoulderTowel) {
+        const V2 front = b.shoulder + fwd * (0.055 * h) - up * (0.008 * h);
+        const V2 back = b.shoulder - fwd * (0.065 * h) - up * (0.012 * h);
+        const V2 tail = b.shoulder - fwd * (0.055 * h) - up * (0.155 * h) + V2(flutter * 0.024 * h, 0);
+        c.capsule(front, back, 0.016 * h, 0.018 * h, col, alpha);
+        c.capsule(back, tail, 0.020 * h, 0.008 * h, col, alpha);
+    }
     if (!in.robe) legDraw(b.kneeF, footF);
-    armDraw(b.elbowF, handF);
+    armDraw(b.elbowF, handF, 1);
     // Head with a small nose cue so the facing and gaze read in silhouette.
     const double tilt = -f * in.headTilt;
+    const double headRot = tilt * 0.6 + f * in.lean * 0.5;
+    auto headPoint = [&](double dx, double dy) { return b.head + rot(V2(f * dx * h, dy * h), headRot); };
+    if (in.hair == Hair::Ponytail) {
+        // A low tail sits behind the head and stays rounded at the tip.
+        const V2 base = headPoint(-0.045, -0.010);
+        const V2 mid = headPoint(-0.080, 0.055) + V2(flutter * 0.015 * h, 0);
+        const V2 tip = headPoint(-0.070, 0.135) + V2(flutter * 0.032 * h, 0);
+        c.capsule(base, mid, 0.020 * h, 0.015 * h, col, alpha);
+        c.capsule(mid, tip, 0.015 * h, 0.008 * h, col, alpha);
+    }
+    if (in.hair == Hair::Short) {
+        // A shallow cap follows the crown and back without adding ears or spikes.
+        c.color(col, alpha);
+        c.moveTo(headPoint(0.030, -0.060).x, headPoint(0.030, -0.060).y);
+        c.quadTo(headPoint(0.012, -0.085).x, headPoint(0.012, -0.085).y,
+                 headPoint(-0.012, -0.087).x, headPoint(-0.012, -0.087).y);
+        c.quadTo(headPoint(-0.060, -0.080).x, headPoint(-0.060, -0.080).y,
+                 headPoint(-0.074, -0.028).x, headPoint(-0.074, -0.028).y);
+        c.quadTo(headPoint(-0.085, -0.005).x, headPoint(-0.085, -0.005).y,
+                 headPoint(-0.060, 0.032).x, headPoint(-0.060, 0.032).y);
+        c.quadTo(headPoint(-0.045, 0.040).x, headPoint(-0.045, 0.040).y,
+                 headPoint(-0.028, 0.012).x, headPoint(-0.028, 0.012).y);
+        c.quadTo(headPoint(0.005, -0.025).x, headPoint(0.005, -0.025).y,
+                 headPoint(0.030, -0.060).x, headPoint(0.030, -0.060).y);
+        c.closePath();
+        c.fill();
+    }
     c.color(col, alpha);
-    c.ellipse(b.head.x, b.head.y, 0.064 * h, 0.075 * h, tilt * 0.6 + f * in.lean * 0.5);
+    c.ellipse(b.head.x, b.head.y, 0.064 * h, 0.075 * h, headRot);
     c.fill();
     const double nose = 0.012 * h * (1 - in.headTurn);
     if (nose > 0.3) {

@@ -52,6 +52,7 @@ struct Life {
     Surge surge;          // flock burst / rocket launch
     double bloom = -1;    // firework bloom time
     double look = 0;      // figures look up
+    double hush = 0;      // the measured breakdown before the rocket
     double scale = 1;     // fallback surge is smaller
     std::vector<Shell> shells;
 };
@@ -120,6 +121,11 @@ Life lifeAt(const Ctx& c) {
         L.bloom = L.surge.t + 0.55;
         L.look = window(t, L.surge.t + 0.3, 0.45, std::max(L.surge.t + 4.6, 28.5), 1.3);
     }
+    // Keep the six frequency responses intact while the street settles into
+    // the fixture's bass breakdown. The real surge releases the anticipation.
+    L.hush = window(t, 20.15, 0.45, 22.25, 0.65);
+    L.look = std::max(L.look, 0.32 * L.hush);
+    L.wind *= 1 - 0.92 * L.hush;
     L.shells = shellPlan(c, L);
     return L;
 }
@@ -137,7 +143,7 @@ double paneLevel(const Ctx& c, const Life& L, double onTime, int band, V2 centre
     if (on <= 0) return 0;
     // Absolute level keeps the room warm; the relative lift makes each pane
     // visibly answer its own frequency role in dense mixes.
-    double level = on * (0.74 + 0.30 * c.band(band) + 0.42 * c.lift(band));
+    double level = on * (0.74 - 0.20 * L.hush + 0.30 * c.band(band) + 0.42 * c.lift(band));
     for (const Shell& sh : L.shells) {
         const double arrive = sh.burst + (centre - sh.at).len() / 1500.0;
         if (c.t > arrive) level += 1.1 * sh.size * sh.strength * std::exp(-(c.t - arrive) * 3.2) * on;
@@ -568,7 +574,12 @@ void firework(Ctx& c, const OsakaState& s, const Life& L) {
                 const double drift = age * (10 + 18 * L.wind);
                 const double sx = fx + std::cos(a) * r + drift, sy = fy + std::sin(a) * r * 0.8 + age * 6;
                 const double alpha = 0.16 * sstep(0, 0.4, age) * (1 - sstep(2.5, 6.0, age)) * sh.size;
-                const Col col = mix(Col(0.10f, 0.20f, 0.17f), sh.a * 0.55f, std::exp(-age * 1.6));
+                Col col = mix(Col(0.10f, 0.20f, 0.17f), sh.a * 0.55f, std::exp(-age * 1.6));
+                for (const Shell& later : L.shells) {
+                    const double dt = t - later.burst;
+                    if (later.burst > sh.burst && dt >= 0 && dt < 1.3)
+                        col = mix(col, later.a * 0.6f, 0.45 * std::exp(-dt * 3) * std::exp(-(V2(sx, sy) - later.at).len() / 380));
+                }
                 smoke.glowEllipse(sx, sy, 70 * sh.size + 30 * age, 46 * sh.size + 18 * age, col, alpha);
             }
         }
@@ -730,7 +741,7 @@ void rightHouses(Ctx& c, const OsakaState& s, const Life& L) {
             strum = age < 0.07 ? age / 0.07 : 1 - easeOut((age - 0.07) / 0.38);
         }
         RigIn r;
-        r.h = 160; r.facing = -1; r.robe = true; r.bun = true; r.lean = 0.08 + 0.03 * std::sin(t * 2.1);
+        r.h = 160; r.facing = -1; r.obi = true; r.flutter = L.wind * std::sin(t * 2.1); r.robe = true; r.bun = true; r.lean = 0.08 + 0.03 * std::sin(t * 2.1);
         r.hip = {fx, baseY - hipHeight(160) + 18};
         r.footF = {fx - 30, baseY}; r.footB = {fx - 20, baseY};
         r.handF = {fx - 60, baseY - 120 + 4 * std::sin(t * 1.3)};
@@ -774,12 +785,23 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
         const double px = x0 + (i == 0 ? 98 : i == 1 ? 152 : 214);
         const double face = i == 1 ? -1 : 1;
         const double ph = t * (0.7 + 0.13 * i) + i * 2.1;
-        const double drink = std::pow(std::max(0.0, std::sin(ph)), 6);
+        // A shared toast starts on the first strong onset in this phrase.
+        const Event* toastBeat = nullptr;
+        if (c.score) for (const Event& e : c.score->onsets) {
+            if (e.t >= 13.4 && e.t < 14.6 && e.strength >= 0.45) { toastBeat = &e; break; }
+        }
+        const double toastAt = toastBeat ? toastBeat->t : 14.0;
+        const double toast = window(t, toastAt + i * 0.08, 0.24, toastAt + 0.7, 0.35);
+        const double drink = std::max(toast, std::pow(std::max(0.0, std::sin(ph)), 6) * (1 - L.hush));
         const double laugh = std::max(0.0, std::sin(t * 0.43 + i * 1.9)) * 0.08;
         RigIn r;
         r.h = 104; r.facing = face;
+        r.hair = i == 1 ? Hair::Ponytail : Hair::Short;
+        r.garment = i == 2 ? Garment::Happi : Garment::Jacket;
+        r.flutter = 0.25 * std::sin(t * 2 + i) + L.wind * 0.5;
+        r.sleeve = i == 1; r.obi = i == 1;
         r.hip = {px, 902 - 6};
-        r.lean = 0.05 + laugh + 0.05 * std::sin(ph * 0.5);
+        r.lean = 0.05 + laugh + 0.05 * std::sin(ph * 0.5) + 0.10 * window(t, toastAt + 1, 0.3, toastAt + 1.6, 0.5);
         r.footF = {px + face * 22, 902 + 22}; r.footB = {px + face * 16, 902 + 24};
         r.handF = {px + face * (18 + 6 * drink), 902 - 30 - 28 * drink};
         r.handB = {px + face * 14, 902 - 22};
@@ -929,7 +951,7 @@ void streetFront(Ctx& c, const OsakaState& s, const Life& L) {
         g.stride = 0.72 * h; g.lift = 0.07 * h; g.bob = 0.018 * h;
         const Steps st = gaitAt(470 + ox, w.dist, gy - 0.04 * h, 1, g, w.motion);
         RigIn r;
-        r.h = h; r.facing = 1; r.hat = true;
+        r.h = h; r.facing = 1; r.hat = true; r.garment = Garment::Jacket; r.flutter = L.wind * std::sin(t * 2.6) + 0.3 * std::sin(Tau * st.phase) * w.motion;
         r.hip = {w.x + ox, gy - hipHeight(h) + st.hipBob - 0.012 * h * w.motion};
         r.lean = 0.06 * w.motion + 0.02;
         r.footF = st.footF; r.footB = st.footB;
@@ -946,6 +968,9 @@ void streetFront(Ctx& c, const OsakaState& s, const Life& L) {
         r.headTurn = watch * 0.8;
         r.hatLift = 0.25 * window(t, 20.0, 0.3, 20.6, 0.4) + 0.06 * hold * std::sin(t * 9);
         r.handB = lerp(r.handB, r.hip + V2(0.06 * h, -0.52 * h), hold);
+        const double reply = window(t, 10.1, 0.28, 10.65, 0.4);
+        r.handB = lerp(r.handB, r.hip + V2(-0.14 * h, -0.40 * h + 4 * std::sin(t * 9)), reply);
+        r.headTurn = std::max(r.headTurn, reply * 0.6);
         const Body b = solve(r);
         drawBody(p, b, INK);
         const double swing = 0.10 * std::sin(Tau * st.phase * 2 - 0.8) * w.motion + 0.18 * L.wind * std::sin(t * 3) + 0.05 * std::sin(t * 1.3);
@@ -982,7 +1007,7 @@ void streetFront(Ctx& c, const OsakaState& s, const Life& L) {
         const V2 pedA = bb + V2(std::cos(crank), std::sin(crank)) * 15, pedB = bb - V2(std::cos(crank), std::sin(crank)) * 15;
         p.line(pedA.x, pedA.y, pedB.x, pedB.y, 3, INK);
         RigIn rr;
-        rr.h = 150; rr.facing = -1; rr.lean = 0.42;
+        rr.h = 150; rr.facing = -1; rr.hair = Hair::Ponytail; rr.garment = Garment::Jacket; rr.flutter = 0.65 * std::sin(t * 5); rr.lean = 0.42;
         rr.hip = seat + V2(2, -6);
         rr.footF = pedA + V2(0, -4); rr.footB = pedB + V2(0, -4);
         rr.handF = bar + V2(-4, -2); rr.handB = bar + V2(2, 0);
@@ -1026,7 +1051,8 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
     p.stroke(1.2);
     // Cook: ladles in a loop once the cart opens; passes a bowl at 12 s.
     {
-        const double cx = yx + 72;
+        const double step = window(t, 11.4, 0.75, 13.3, 0.7);
+        const double cx = yx + 72 + 68 * step;
         const double ph = std::fmod(std::max(0.0, t - 5.6), 2.6) / 2.6;
         V2 hand;
         // Hand targets sit where the ladle tip (hand + 18, 20) meets the pot
@@ -1039,13 +1065,24 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
         else if (ph < 0.85) hand = bowl + V2(0, 3 * std::sin(Pi * (ph - 0.7) / 0.15));
         else hand = lerp(bowl, rest, easeInOut((ph - 0.85) / 0.15));
         const double serve = window(t, 11.9, 0.4, 12.9, 0.4);
-        hand = lerp(hand, V2(yx + 196, 838), serve);
+        const double nod = window(t, 13.05, 0.18, 13.25, 0.32);
+        hand = lerp(hand, rest, L.hush);
+        hand = lerp(hand, V2(yx + 170, 838), serve);
         RigIn r;
-        r.h = 108; r.facing = 1; r.lean = 0.05 + 0.08 * serve + 0.05 * std::max(0.0, (hand.x - rest.x) / 20);
+        r.h = 108; r.facing = 1; r.hair = Hair::Short; r.garment = Garment::Happi; r.shoulderTowel = true; r.flutter = L.wind * std::sin(t * 3); r.lean = 0.05 + 0.08 * serve + 0.05 * std::max(0.0, (hand.x - rest.x) / 20);
         r.hip = {cx, 902 - hipHeight(108)};
-        r.footF = {cx + 6, 902 - 4}; r.footB = {cx - 8, 902 - 4};
+        Gait g; g.stride = 62; g.lift = 7; g.bob = 2;
+        const double mv = clamp01(std::abs(68 * (window(t + 0.02, 11.4, 0.75, 13.3, 0.7) - window(t - 0.02, 11.4, 0.75, 13.3, 0.7)) / 0.04) / 35);
+        const Steps feet = gaitAt(yx + 72, 68 * step, 898, 1, g, mv);
+        r.footF = feet.footF; r.footB = feet.footB; r.hip.y += feet.hipBob;
         r.handF = hand; r.handB = {cx + 16 + 2 * std::sin(t * 1.7), 852};
-        r.headTilt = -0.25 + 0.2 * serve + L.look * 0.6;
+        r.headTilt = -0.25 + 0.2 * serve - 0.38 * nod + L.look * 0.6;
+        r.lean = std::min(r.lean, 0.18);
+        // Keep the ladle inside the rig's reach through the serving step.
+        const V2 shoulder = solve(r).shoulder;
+        const V2 reach = hand - shoulder;
+        if (reach.len() > 0.29 * r.h) hand = shoulder + reach * (0.29 * r.h / reach.len());
+        r.handF = hand;
         drawBody(p, solve(r), INK);
         // Headband knot, ladle and steaming pot.
         const Body bd = solve(r);
@@ -1106,7 +1143,7 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
                 const double mv = clamp01(speedOf(t, 8.6, 10.7, 0, 200) / 40);
                 const Steps st = gaitAt(startX, 200 * d, 936 - 0.04 * h, -1, g, mv);
                 RigIn r;
-                r.h = h; r.facing = -1;
+                r.h = h; r.facing = -1; r.hair = Hair::Short; r.garment = Garment::Jacket; r.flutter = 0.15 * std::sin(t * 2.2) + L.wind * 0.4;
                 r.hip = {walkX, 936 - hipHeight(h) + st.hipBob};
                 r.lean = 0.05 * mv;
                 r.footF = st.footF; r.footB = st.footB;
@@ -1117,10 +1154,10 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
             } else {
                 // Sit with a small dip of anticipation, then eat in a loop.
                 const double dip = std::sin(Pi * clamp01((t - 10.75) / 0.6)) * 6 * (s.chapter ? 1 : 0);
-                const double eat = t > 12.6 ? std::pow(std::max(0.0, std::sin((t - 12.6) * 2.1)), 3) : 0.0;
+                const double eat = t > 12.6 ? std::pow(std::max(0.0, std::sin((t - 12.6) * 2.1)), 3) * (1 - L.hush) : 0.0;
                 const double hold = sstep(12.3, 12.7, t);
                 RigIn r;
-                r.h = h; r.facing = -1;
+                r.h = h; r.facing = -1; r.hair = Hair::Short; r.garment = Garment::Jacket; r.flutter = 0.15 * std::sin(t * 2.2) + L.wind * 0.4;
                 const V2 stand(sx + 10, 936 - hipHeight(h)), seat(sx, 898 - 0.06 * h);
                 r.hip = lerp(stand, seat, sit) + V2(0, dip);
                 r.lean = 0.12 * sit + 0.06 * eat;
@@ -1128,7 +1165,7 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
                 const V2 counter(sx - 40, 870), mouth(sx - 30, 820);
                 r.handF = lerp(counter, mouth, eat * hold);
                 r.handB = lerp(counter + V2(10, 6), mouth + V2(8, 6), eat * hold);
-                r.headTilt = 0.15 * eat * hold - 0.1 * (1 - eat) + L.look * 0.6;
+                r.headTilt = 0.15 * eat * hold - 0.1 * (1 - eat) - 0.38 * window(t, 13.4, 0.18, 13.65, 0.32) + L.look * 0.6;
                 drawBody(p, solve(r), INK);
                 if (hold > 0.5) {
                     const V2 bw = r.handF + V2(-4, -4);
@@ -1151,23 +1188,23 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
             Gait g; g.stride = 0.7 * h; g.lift = 0.06 * h; g.bob = 0.016 * h;
             const Steps st = gaitAt(startX, d, 936 - 0.04 * h, 1, g, mv);
             RigIn r;
-            r.h = h; r.facing = 1;
+            r.h = h; r.facing = 1; r.hair = k == 0 ? Hair::Short : Hair::Default; r.garment = k == 0 ? Garment::Jacket : Garment::Default; r.obi = k == 1; r.flutter = L.wind * std::sin(t * 2.4 + k) + 0.2 * mv;
             r.hip = {startX + d, 936 - hipHeight(h) + st.hipBob};
             r.footF = st.footF; r.footB = st.footB;
             const double arm = std::sin(Tau * st.phase) * mv;
             const double hold = (L.surge.t >= 0) ? window(t, L.surge.t + 1.2, 0.5, L.surge.t + 2.4, 0.25) : 0;
-            const V2 lanternAt(bx - 22, 776);
+            const V2 lanternAt(bx - 24, 828);
             if (k == 0) {
                 const double point = s.chapter ? window(t, 12.4, 0.5, 15.6, 0.7) : 0;
                 const double antic = s.chapter ? std::sin(Pi * clamp01((t - 12.2) / 0.3)) * (t < 12.5) : 0;
                 r.lean = 0.10 * (1 - point) + 0.02 * point + 0.05 * mv - 0.03 * antic;
-                r.handF = lerp(r.hip + V2(0.05 * h + 0.07 * h * arm, 0.08 * h), r.hip + V2(0.28 * h, -0.62 * h), backOut(point, 1.2));
+                r.handF = lerp(r.hip + V2(0.05 * h + 0.07 * h * arm, 0.08 * h), r.hip + V2(0.24 * h, -0.52 * h), backOut(point, 1.2));
                 // Points the firework out to her (it is up and to the left),
                 // other hand on her shoulder.
                 const double cheer = L.look;
-                r.handF = lerp(r.handF, r.hip + V2(-0.03 * h, -0.74 * h), cheer);
+                r.handF = lerp(r.handF, r.hip + V2(-0.12 * h, -0.54 * h), cheer);
                 r.handB = lerp(r.hip + V2(-0.05 * h - 0.07 * h * arm, 0.08 * h), r.hip + V2(-0.16 * h, -0.30 * h), cheer);
-                r.headTilt = 0.35 * point + 0.75 * L.look;
+                r.headTilt = 0.35 * point + 0.75 * L.look - 0.2 * window(t, 17.3, 0.3, 17.7, 0.4);
                 r.handF = lerp(r.handF, lanternAt + V2(10, 12), hold);
                 r.handB = lerp(r.handB, lanternAt + V2(4, 14), hold);
             } else {
@@ -1176,7 +1213,7 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
                 r.lean = 0.12 + 0.12 * lean;
                 r.handF = lerp(r.hip + V2(0.18 * h, -0.08 * h + 0.03 * h * arm), r.hip + V2(0.14 * h, -0.36 * h), L.look);
                 r.handB = lerp(r.hip + V2(0.1 * h, -0.05 * h), r.hip + V2(0.10 * h, -0.33 * h), L.look);
-                r.headTilt = 0.15 * lean + 0.7 * L.look + 0.1;
+                r.headTilt = 0.15 * lean + 0.7 * L.look + 0.1 - 0.22 * window(t, 17.8, 0.25, 18.15, 0.4);
                 r.handF = lerp(r.handF, lanternAt + V2(-8, 14), hold);
             }
             drawBody(p, solve(r), INK);
@@ -1185,13 +1222,11 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
         if (L.surge.t >= 0 && t > L.surge.t + 1.2) {
             const double rel = L.surge.t + 2.5;
             const double age = std::max(0.0, t - rel);
-            const V2 base(bx - 22, 776);
+            const V2 base(bx - 24, 828);
             const V2 pos = base + V2(5 * age + 10 * std::sin(age * 0.8), -(24 * age + 3 * age * age) * sstep(0, 0.6, age));
             const double glow = sstep(L.surge.t + 1.2, L.surge.t + 2.2, t) * (1 - sstep(37.0, 40.0, t));
             const double flick = 0.88 + 0.12 * std::sin(t * 8);
-            l.color(WARM_B * float(flick));
-            l.ellipse(pos.x, pos.y, 9, 12);
-            l.fill();
+            paperLantern(l, pos, 9, 12, 0.05 * std::sin(t * 2), WARM_T, flick);
             l.glow(pos.x, pos.y, 70, WARM_T, 0.6 * glow * flick);
             p.line(pos.x - 9, pos.y + 11, pos.x + 9, pos.y + 11, 1.4, INK, std::min(1.0, glow + 0.2));
         }
@@ -1217,10 +1252,27 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
             CatPose cp;
             cp.pos = {cx + ox, y};
             cp.s = 21; cp.facing = 1; cp.distance = dist; cp.sit = sit * (1 - startle * 0.8);
-            cp.look = look + startle * 1.2; cp.crouch = crouch + startle * 0.5;
+            cp.look = look + startle * 1.2 + 0.6 * window(t, 13.5, 0.3, 14.5, 0.35); cp.crouch = crouch + startle * 0.5;
             cp.tailBase = 0.3 * startle; cp.tailWave = 0.25 + 0.1 * std::sin(t * 0.7); cp.tailPhase = t * 3.1;
             drawCat(p, cp, INK);
         }
+    }
+    // Child runs from the izakaya toward the flock, brakes and points.
+    if (L.surge.t >= 0 && t > L.surge.t + 0.18) {
+        const double start = L.surge.t + 0.18, h = 80;
+        const double d = easedDistance(t, start, start + 1.9, 0, 148);
+        const double mv = clamp01(speedOf(t, start, start + 1.9, 0, 148) / 40);
+        Gait g; g.stride = 48; g.lift = 9; g.bob = 3;
+        const Steps st = gaitAt(1288 + ox, d, 932, -1, g, mv);
+        RigIn r; r.h = h; r.facing = -1; r.hair = Hair::Short; r.garment = Garment::Happi;
+        r.hip = {1288 + ox - d, 936 - hipHeight(h) + st.hipBob};
+        r.footF = st.footF; r.footB = st.footB;
+        r.lean = 0.10 + 0.14 * mv; r.headTilt = 0.65 + 0.06 * std::sin(t * 3);
+        const double point = sstep(start + 1.65, start + 2.15, t);
+        r.handF = r.hip + V2(-14 - 6 * std::sin(Tau * st.phase) * mv, -8 - 36 * point);
+        r.handB = r.hip + V2(6 + 9 * std::sin(Tau * st.phase) * mv, 4);
+        r.flutter = 0.4 * mv + L.wind * std::sin(t * 4);
+        drawBody(p, solve(r), INK);
     }
     c.gpu.over(p);
     c.gpu.over(l, 1.6f);
@@ -1347,10 +1399,10 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
     const Col INSUL(0.55f, 0.66f, 0.58f);
     // Poles: valley poles fade with the land under the fog instead of popping.
     struct Drawn { Pole p; double alpha; };
-    const Drawn poles[] = {{POLES[2], land}, {POLES[1], land}, {POLES[0], 1}, {LAST_POLE, 1}, {PIER_POLE, 1}};
-    for (int pi = 0; pi < 5; ++pi) {
+    const Drawn poles[] = {{POLES[2], land}, {POLES[1], land}, {{1080, 588, 894, 0.85, 0.40}, land}, {{1820, 414, 946, 0.9, 0.65}, land}, {POLES[0], 1}, {LAST_POLE, 1}, {PIER_POLE, 1}};
+    for (int pi = 0; pi < 7; ++pi) {
         const Drawn& d = poles[pi];
-        if ((pi < 2) != far) continue;
+        if ((pi < 4) != far) continue;
         const Pole& pl = d.p;
         const double px = pl.x - cam * pl.par, sc = pl.sc, al = d.alpha;
         if (px < -120 || px > 2050 || al < 0.01) continue;
@@ -1393,6 +1445,21 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
             cone.fill();
         }
     }
+    // Guy anchors and slack communications cable share each support's parallax.
+    if (far) {
+        for (const Pole& pl : {POLES[0], LAST_POLE, PIER_POLE}) {
+            const double px = pl.x - cam * pl.par;
+            cv.line(px - 2 * pl.sc, pl.top + 210 * pl.sc, px - 66 * pl.sc, pl.base, 1.1 * pl.sc, INK, 0.85);
+            cv.line(px - 38 * pl.sc, pl.base - 126 * pl.sc, px - 49 * pl.sc, pl.base - 70 * pl.sc, 3 * pl.sc, INSUL, 0.5);
+            for (int k = 0; k < 5; ++k) cv.line(px - 12 * pl.sc, pl.top + (220 + k * 110) * pl.sc, px + 6 * pl.sc, pl.top + (220 + k * 110) * pl.sc, 2 * pl.sc, INK2);
+        }
+    }
+    if (!far) {
+        const WireSpan cable{{534 - cam * 1.05, 441}, {POLES[0].x - cam * 0.9, 256}, 138};
+        std::vector<V2> pts;
+        for (int k = 0; k <= 60; ++k) pts.push_back(wireAt(cable, k / 60.0) + V2(0, L.wind * 3 * std::sin(t * 1.7) * std::sin(Pi * k / 60.0)));
+        cv.polyline(pts, 2.8, INK, 0.82);
+    }
     // Service drops from the main pole into the two right-hand houses.
     if (!far) {
         const double px = POLES[0].x - cam * 0.9;
@@ -1404,6 +1471,14 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
             for (int k = 0; k <= 30; ++k) pts.push_back(wireAt(d, k / 30.0) + V2(0, L.wind * 1.5 * std::sin(t * 2.4) * 4 * (k / 30.0) * (1 - k / 30.0)));
             cv.polyline(pts, 1.0, INK, 0.9);
             cv.disc(d.p1.x, d.p1.y, 2.4, INK);
+        }
+    }
+    if (far) {
+        for (const WireSpan& w : {WireSpan{{1080 - cam * 0.85, 604}, {1318 - cam * 0.5, 587}, 38},
+                                  WireSpan{{1820 - cam * 0.9, 431}, {2240 - cam * 0.9, 292}, 65}}) {
+            std::vector<V2> pts;
+            for (int k = 0; k <= 40; ++k) pts.push_back(wireAt(w, k / 40.0));
+            cv.polyline(pts, 1.4, INK, land * 0.8);
         }
     }
     // Wire dips where birds have landed.
@@ -1429,7 +1504,7 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
         std::vector<V2> rim(pts);
         for (V2& q : rim) q.y -= 0.55 * gauge[i] * sc;
         cv.polyline(rim, 0.6 * sc, RIM, 0.32 * alpha);
-        const double hum = (0.05 + 0.10 * c.band(i) + 0.32 * c.lift(i)) * alpha;
+        const double hum = (0.05 + 0.12 * c.band(i) + 0.46 * c.lift(i)) * alpha;
         if (hum > 0.01) l.polyline(pts, (2.2 + 1.5 * c.lift(i)) * sc, PULSE[i], std::min(0.6, hum));
     };
     for (std::size_t si = 0; si < spans.size(); ++si) {
@@ -1469,7 +1544,7 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
         const double speed = 0.05 + 0.035 * i;
         const double travel = speed * (0.55 * (t + 10) + 1.6 * (c.score ? c.score->integral(i, t) : 0));
         const double level = 0.55 + 0.8 * c.band(i) + 0.7 * c.lift(i);
-        for (int k = 0; k < 4 + i / 2; ++k) {
+        for (int k = 0; k < 6 + i / 2; ++k) {
             const double u = std::fmod(rng.uni() + travel, 1.0) * 4.0;
             const int si = int(u);
             const double tt = u - si;
@@ -1557,7 +1632,7 @@ void festoon(Ctx& c, const OsakaState& s, const Life& L) {
         const V2 at = top + V2(std::sin(sw) * cord, std::cos(sw) * cord + 7);
         p.line(top.x, top.y, at.x - std::sin(sw) * 7, at.y - 7, 0.9, INK);
         const double on = s.chapter ? flickerOn(t - (3.0 + 0.11 * i + 0.05 * c.jit(700 + i))) : 1.0;
-        double lv = 0.30 + 0.14 * c.band(i % 6) + 0.40 * kick;
+        double lv = 0.30 - 0.14 * L.hush + 0.14 * c.band(i % 6) + 0.40 * kick;
         for (const Beat& b : beats) {
             const double d = std::abs(i - b.lantern);
             if (d < 1.5) lv += (d < 0.5 ? 1.7 : 0.35) * (0.5 + 0.5 * b.strength) * std::exp(-(t - b.t) * 4.0);
@@ -1710,24 +1785,30 @@ void nearHouse(Ctx& c, const OsakaState& s, const Life& L) {
     if (lv[0] > 0.05 && t > 7.8 && s.chapter) {
         // Tea-pourer: walks in, lifts the kettle, pours, sets it down, sips.
         const double enter = easedDistance(t, 8.0, 9.3, 0, 1);
-        const double hx = lerp(40, 158, enter) + ox;
-        const double walking = clamp01(speedOf(t, 8.0, 9.3, 0, 118) / 30);
-        const double bob = std::abs(std::sin(t * 7.5)) * 6 * walking;
+        const double next = easedDistance(t, 17.3, 18.7, 0, 60);
+        const double hx = lerp(40, 158, enter) + next + ox;
+        const double walking = clamp01((speedOf(t, 8.0, 9.3, 0, 118) + speedOf(t, 17.3, 18.7, 0, 60)) / 30);
+        Gait g; g.stride = 160; g.lift = 14; g.bob = 5;
+        const Steps st = gaitAt(40 + ox, 118 * enter + next, 640, 1, g, walking);
+        const double bob = st.hipBob;
         const double lift = sstep(9.5, 10.2, t) * (1 - sstep(12.6, 13.3, t));
         const double tilt = window(t, 10.4, 0.5, 12.4, 0.4);
         const double sip = window(t, 14.6, 0.6, 16.2, 0.6);
         RigIn r;
-        r.h = 300; r.facing = 1; r.robe = true; r.bun = true; r.sleeve = true;
-        r.lean = 0.10 + 0.04 * tilt;
+        r.h = 300; r.facing = 1; r.obi = true; r.flutter = 0.16 * std::sin(t * 1.8) + 0.4 * walking; r.robe = true; r.bun = true; r.sleeve = true;
+        r.lean = 0.10 + 0.04 * tilt + 0.05 * window(t, 16.6, 0.25, 17.1, 0.2) - 0.05 * L.look;
         r.hip = {hx, 640 - hipHeight(300) + bob};
-        r.footF = {hx + 20, 640}; r.footB = {hx - 10, 640};
+        r.footF = st.footF; r.footB = st.footB;
         const V2 low(hx + 40, 470), kettleUp(hx + 88, 446 - 10 * tilt);
         r.handF = lerp(low, kettleUp, lift);
         r.handF = lerp(r.handF, V2(hx + 30, 400), sip);
         r.handB = lerp(V2(hx + 20, 480), V2(hx + 60, 470), lift);
+        const double slide = window(t, 19.0, 0.4, 19.8, 0.35);
+        r.handF = lerp(r.handF, V2(hx + 42 - 25 * sstep(19.4, 20.0, t), 435), slide);
+        r.handF = lerp(r.handF, V2(hx + 18, 474), L.look);
         r.headTilt = -0.2 * tilt + 0.15 * sip + 0.5 * L.look;
         drawBody(sh, solve(r), SHADOW);
-        if (sip < 0.5) {
+        if (t < 13.4 && sip < 0.5) {
             const V2 k = r.handF + V2(6, 0);
             const double ang = 0.65 * tilt;
             sh.save();
@@ -1741,9 +1822,14 @@ void nearHouse(Ctx& c, const OsakaState& s, const Life& L) {
                 const V2 spout = k + V2(std::cos(ang) * 34 - std::sin(ang) * 8, std::sin(ang) * 34 + std::cos(ang) * 8);
                 sh.line(spout.x, spout.y, spout.x + 4, 498, 2.2 * (tilt - 0.6) / 0.4, SHADOW);
             }
-        } else {
+        } else if (t > 14.3 && t < 17.2) {
             sh.fillRect(r.handF.x - 6, r.handF.y - 10, 12, 12, SHADOW);
         }
+        if (t > 17.2) sh.fillRect(200 + ox, 487, 12, 12, SHADOW);
+        // The tea is left on a low shelf; the paper door slides a little.
+        sh.fillRect(187 + ox, 501, 64, 5, SHADOW);
+        const double door = 20 * window(t, 19.1, 0.5, 21.0, 0.8);
+        sh.fillRect(260 + ox - door, 312, 3, 196, SHADOW, 0.55);
         any = true;
     }
     if (lv[3] > 0.05) {
@@ -1795,13 +1881,14 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
         const double fanPh = std::max(0.0, t - 2.6);
         const double fanning = (0.5 - 0.5 * std::cos(fanPh * Tau / 1.9)) * sstep(2.5, 3.2, t) * (1 - 0.6 * L.look);
         RigIn r;
-        r.h = h; r.facing = 1; r.bun = true; r.robe = false;
+        r.h = h; r.facing = 1; r.bun = true; r.robe = false; r.sleeve = true; r.obi = true; r.flutter = L.wind * std::sin(t * 2);
         r.hip = {x, y - 0.06 * h};
         r.lean = 0.04 + 0.03 * std::sin(t * 0.7) - 0.03 * L.look;
         r.footF = {x + 0.235 * h, y + 0.2 * h}; r.footB = {x + 0.22 * h, y + 0.21 * h};
         const V2 lap(x + 0.16 * h, y - 0.12 * h), raise(x + 0.2 * h, y - 0.27 * h);
         r.handF = lerp(lap, raise, clamp01(open)) + V2(0, 10 * antic) + V2(-4, -12) * fanning;
-        r.handB = {x + 0.13 * h, y - 0.1 * h};
+        const double wave = window(t, 9.2, 0.35, 10.25, 0.4);
+        r.handB = lerp(V2(x + 0.13 * h, y - 0.1 * h), V2(x + 0.15 * h + 8 * std::sin(t * 8), y - 0.48 * h), wave);
         const double glance = window(t, 9.0, 0.5, 10.6, 0.6);
         r.headTilt = 0.05 * std::sin(t * 0.5) - 0.25 * glance + 0.8 * L.look;
         drawBody(f, solve(r), INK);
@@ -1820,10 +1907,12 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
     {
         // Veranda cat flicks its tail at 2 s, then sways it lazily.
         CatPose cp;
-        cp.pos = {420 + ox, 968}; cp.s = 27; cp.facing = 1; cp.sit = 1;
+        const double greet = window(t, 13.05, 0.25, 14.25, 0.4);
+        cp.pos = {420 + ox, 968}; cp.s = 27; cp.facing = 1; cp.sit = 1 - 0.8 * greet;
+        cp.crouch = 0.3 * greet;
         const double flick = s.chapter ? ring(t - 2.0, 2.4, 2.2) : 0;
-        cp.tailWave = 0.18 + 0.9 * flick; cp.tailPhase = t * 2.0 + flick * 4;
-        cp.look = 0.25 * std::max(0.0, std::sin(t * 0.37)) + 1.1 * L.look;
+        cp.tailWave = 0.18 + 0.9 * flick + 0.45 * greet; cp.tailPhase = t * 2.0 + flick * 4;
+        cp.look = 0.25 * std::max(0.0, std::sin(t * 0.37)) + 1.1 * L.look + 0.6 * greet;
         drawCat(f, cp, INK);
     }
     {
@@ -1879,7 +1968,8 @@ void wisteria(Ctx& c, const OsakaState& s, const Life& L) {
                 const double px = cx + side * wd * (0.35 + 0.65 * rng.uni()), py = cy + rng.normal() * 1.6;
                 const double r = 2.3 + 2.0 * (1 - f) * rng.uni();
                 const Col tone = mix(Col(0.03f, 0.26f, 0.18f), MINT, std::pow(f, 1.3) * (0.6 + 0.4 * rng.uni()));
-                cv.disc(px, py, r, mix(dark, tone, 0.35 + 0.65 * f));
+                cv.color(mix(dark, tone, 0.35 + 0.65 * f));
+                cv.ellipse(px, py, r * 0.8, r * 1.6, side * 0.35); cv.fill();
                 if (f > 0.45 && rng.uni() < 0.5) e.glow(px, py, r * 2.4, rng.uni() < 0.88 ? MINT : MAG, std::min(1.0, 0.55 * f * glint));
             }
         }

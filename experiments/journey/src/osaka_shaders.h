@@ -101,12 +101,13 @@ void main() {
     for (int k = -6; k <= 6; ++k) {
         float f = float(k) / 6.0;
         float w = exp(-f * f * 2.2);
-        vec2 q = vec2(p.x + wob + f * 1.5, sy + f * len);
+        vec2 q = vec2(p.x + wob + f * 3.0, sy + f * len);
         acc += max(texture(u_img, vec2(q.x / 1920.0, 1.0 - q.y / 1080.0)).rgb - 0.08, 0.0) * w;
         wsum += w;
     }
     // Gentle breakup into ripple bands that drift toward the viewer.
-    float bands = 0.80 + 0.20 * sin(r * 0.5 + rip * 10.0 - u_t * 2.2) - 0.10 * u_kick * sin(r * 0.21 - u_t * 9.0);
+    float phase = r * 0.5 + rip * 10.0 - u_t * 2.2;
+    float bands = 0.80 + 0.20 * sin(phase) * exp(-0.25 * fwidth(phase) * fwidth(phase)) - 0.10 * u_kick * sin(r * 0.21 - u_t * 9.0);
     o = vec4(acc / wsum * bands * mix(0.66, 0.10, r / n) * u_gain, 0.0);
 }
 )";

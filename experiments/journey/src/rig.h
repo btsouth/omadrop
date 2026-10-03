@@ -9,6 +9,9 @@
 namespace Journey {
 V2 ik(V2 root, V2 target, double l1, double l2, double bend);
 
+enum class Hair { Default, Short, Ponytail };
+enum class Garment { Default, Apron, Jacket, Happi };
+
 struct RigIn {
     V2 hip;              // absolute hip joint
     double h = 140;      // standing height
@@ -22,6 +25,10 @@ struct RigIn {
     double hatLift = 0;  // gust lifts the hat brim
     double bulk = 1;     // limb thickness multiplier
     double kneeBend = 1; // +1 natural (knees toward facing)
+    Hair hair = Hair::Default;
+    Garment garment = Garment::Default;
+    double flutter = 0;  // signed wind/movement, -1..1
+    bool obi = false, shoulderTowel = false;
 };
 
 struct Body {
