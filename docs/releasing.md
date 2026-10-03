@@ -42,16 +42,18 @@ Use the same devbox checkout and caches for the validation loop.
    archive's SHA-256 before AUR submission; keep `SKIP` only for pinned Git
    sources. Confirm the installed app reports the intended version. Use this
    build's `.pkg.tar.zst` as the release asset so it matches the public tag.
-5. Generate checksums beside the package:
+5. Copy the versioned package to the stable filename used by the one-line installer,
+   then generate checksums beside both packages:
 
    ```sh
+   cp omadrop-0.5.0-1-x86_64.pkg.tar.zst omadrop-x86_64.pkg.tar.zst
    sha256sum omadrop-*.pkg.tar.zst > SHA256SUMS
    sha256sum -c SHA256SUMS
    ```
 
    Create a GitHub release for `v0.5.0`, using the reviewed changelog entry,
-   and attach the `.pkg.tar.zst` and `SHA256SUMS`. Verify both downloads and
-   their checksums. Include the install command `sudo pacman -U omadrop-*.pkg.tar.zst`.
+   and attach both `.pkg.tar.zst` files and `SHA256SUMS`. Verify both downloads and
+   their checksums. Include the latest-release install command from the README.
 6. For the AUR, copy the verified release `PKGBUILD` and `.SRCINFO` into the
    `omadrop` AUR checkout. Review them, commit, and push there. Check the live
    AUR source URL and version. A package-only fix increments `pkgrel`, rather

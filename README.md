@@ -14,13 +14,13 @@ Play music in any app, open Omadrop, and go fullscreen.
 For Omarchy on Arch Linux, x86_64:
 
 ```sh
-curl -fLO https://github.com/btsouth/omadrop/releases/download/v0.5.0/omadrop-0.5.0-1-x86_64.pkg.tar.zst
-sudo pacman -U omadrop-0.5.0-1-x86_64.pkg.tar.zst
+curl -fLO https://github.com/btsouth/omadrop/releases/latest/download/omadrop-x86_64.pkg.tar.zst && sudo pacman -U ./omadrop-x86_64.pkg.tar.zst
 ```
 
 Open **Omadrop** from the app launcher, or run `omadrop`.
-Close the app before updating. Package dependencies are installed by pacman;
-the package does not change your Hyprland shortcuts.
+Run the same command to install a newer release. These GitHub installs do not
+update automatically through Omarchy. Close the app before updating.
+Pacman installs the dependencies. The package does not change your Hyprland shortcuts.
 
 ## Pick a scene. Press Play.
 
