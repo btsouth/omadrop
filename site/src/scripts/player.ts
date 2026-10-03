@@ -23,6 +23,7 @@ if (video && playback && milkdropPanel && omarchyPanel && modeSwitch && milkdrop
   let wantsPlayback = !reducedMotion.matches;
   let activeMode: "milkdrop" | "omarchy" = "milkdrop";
   let inView = true;
+  let imageViewerOpen = false;
   let playRequest = 0;
   const milkdropDescription = previewDescription.cloneNode(true) as HTMLElement;
   const playText = playButton.querySelector<HTMLElement>("#play-text");
@@ -54,11 +55,12 @@ if (video && playback && milkdropPanel && omarchyPanel && modeSwitch && milkdrop
     const duration = Number.isFinite(video.duration) ? video.duration : 53;
     seek.max = String(duration);
     seek.value = String(video.currentTime);
+    seek.style.setProperty("--progress", `${duration > 0 ? video.currentTime / duration * 100 : 0}%`);
     seek.setAttribute("aria-valuetext", `${formatTime(video.currentTime)} of ${formatTime(duration)}`);
     time.textContent = `${formatTime(video.currentTime)} / ${formatTime(duration)}`;
   };
 
-  const shouldPlay = () => wantsPlayback && activeMode === "milkdrop" && inView && !document.hidden;
+  const shouldPlay = () => wantsPlayback && activeMode === "milkdrop" && inView && !document.hidden && !imageViewerOpen;
   const pause = () => {
     playRequest++;
     video.pause();
@@ -159,6 +161,10 @@ if (video && playback && milkdropPanel && omarchyPanel && modeSwitch && milkdrop
     }
   });
   document.addEventListener("visibilitychange", reconcilePlayback);
+  document.addEventListener("imageviewerchange", (event) => {
+    imageViewerOpen = (event as CustomEvent<{ open: boolean }>).detail.open;
+    reconcilePlayback();
+  });
   if ("IntersectionObserver" in window) {
     new IntersectionObserver(([entry]) => {
       inView = entry.isIntersecting;
@@ -184,6 +190,12 @@ if (effectPreview && effectCaption) {
       if (!effect || !name) return;
       effectPreview.src = `/media/effects/${effect}.jpg`;
       effectPreview.alt = `${name}, an actual ttfx terminal effect screenshot`;
+      const imageLink = document.querySelector<HTMLAnchorElement>("#effect-image-link");
+      if (imageLink) {
+        imageLink.href = effectPreview.src;
+        imageLink.dataset.title = name;
+        imageLink.setAttribute("aria-label", `Enlarge ${name} screenshot`);
+      }
       effectCaption.textContent = `${name} / ttfx`;
       effectButtons.forEach((other) => other.setAttribute("aria-pressed", String(other === button)));
     });
@@ -194,13 +206,25 @@ const copyButton = document.querySelector<HTMLButtonElement>("#copy-install");
 const installCommand = document.querySelector<HTMLElement>("#install-command");
 const copyStatus = document.querySelector<HTMLElement>("#copy-status");
 if (copyButton && installCommand && copyStatus && window.isSecureContext && navigator.clipboard?.writeText) {
+  let resetTimer: ReturnType<typeof setTimeout>;
   copyButton.hidden = false;
   copyButton.addEventListener("click", async () => {
+    clearTimeout(resetTimer);
+    copyButton.disabled = true;
+    copyButton.textContent = "Copying…";
     try {
       await navigator.clipboard.writeText(installCommand.textContent?.trim() ?? "");
+      copyButton.textContent = "Copied ✓";
       copyStatus.textContent = "Command copied.";
+      resetTimer = setTimeout(() => {
+        copyButton.textContent = "Copy command";
+        copyStatus.textContent = "";
+      }, 2500);
     } catch {
+      copyButton.textContent = "Copy command";
       copyStatus.textContent = "Select and copy the command above.";
+    } finally {
+      copyButton.disabled = false;
     }
   });
 }
