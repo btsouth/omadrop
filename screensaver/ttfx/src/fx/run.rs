@@ -210,7 +210,7 @@ impl MusicLog {
         let mut out = std::io::BufWriter::new(std::fs::File::create(path)?);
         writeln!(
             out,
-            "frame,time,effect,tempo,ticks,presence,energy,intensity,push,accent,kick,snare,hat,rms,changes,bytes"
+            "frame,time,effect,tempo,ticks,presence,energy,intensity,push,accent,kick,snare,hat,rms,changes,bytes,scene,scene_age,bass_body,sub,low,lowmid,mid,highmid,high"
         )?;
         Ok(MusicLog { out })
     }
@@ -218,7 +218,7 @@ impl MusicLog {
     pub fn line(&mut self, pace: &Pace, effect: &str, f: &crate::music::Frame, changes: usize) {
         let _ = writeln!(
             self.out,
-            "{},{:.5},{},{:.3},{},{:.3},{:.3},{:.3},{:.3},{:.3},{},{},{},{:.5},{},{}",
+            "{},{:.5},{},{:.3},{},{:.3},{:.3},{:.3},{:.3},{:.3},{},{},{},{:.5},{},{},{},{:.5},{:.4},{:.4},{:.4},{:.4},{:.4},{:.4},{:.4}",
             pace.frames,
             f.time,
             effect,
@@ -234,7 +234,11 @@ impl MusicLog {
             f.hat as u8,
             f.rms,
             changes,
-            pace.bytes
+            pace.bytes,
+            f.scene as u8,
+            f.scene_age,
+            f.bass_body,
+            f.bands[0], f.bands[1], f.bands[2], f.bands[3], f.bands[4], f.bands[5]
         );
     }
 }

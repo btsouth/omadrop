@@ -44,6 +44,7 @@ enum Last {
 struct RingChar {
     /// The ring's coordinates in its direction, in `Rings::coords`.
     coords: u32,
+    role: usize,
     n: u32,
     /// character_starting_index.
     start: u32,
@@ -88,6 +89,8 @@ pub struct Rings {
     disperse_time_remaining: i64,
     cycles_remaining: i64,
     initial_phase_time_remaining: i64,
+    scene_scattered_at: Option<f64>,
+    scene_last_scatter: f64,
 }
 
 impl Rings {
@@ -109,6 +112,8 @@ impl Rings {
             disperse_time_remaining: 0,
             cycles_remaining: 0,
             initial_phase_time_remaining: 100,
+            scene_scattered_at: None,
+            scene_last_scatter: 0.0,
         }
     }
 
@@ -128,8 +133,18 @@ impl Rings {
         let index = *self.ring_index.at(slot);
         self.ring_chars.at_mut(index).cur = k;
         let r = self.ring_chars.at(index);
-        let (path, h, coord) = (r.ring_path, r.history + k, self.ring_coord(r, k));
-        e.path_retarget(path, coord, *self.history.at(h));
+        let (path, h, mut coord) = (r.ring_path, r.history + k, self.ring_coord(r, k));
+        if e.cue.scene {
+            coord = crate::music::scenes::ring_target(coord, e.canvas.center, r.role, e.cue);
+        }
+        // A moving musical target needs fresh distance bookkeeping; stock
+        // targets keep the exact per-waypoint history used by upstream.
+        let history = if e.cue.scene {
+            (0.0, 0.0)
+        } else {
+            *self.history.at(h)
+        };
+        e.path_retarget(path, coord, history);
         e.activate_path(self, slot, path);
         *self.history.at_mut(h) = e.path_history(path);
     }
@@ -260,6 +275,52 @@ impl Rings {
             e.activate_path_name(self, slot, external);
             e.active_insert(slot);
         }
+    }
+
+    /// Sustained orbit uses the native ring chain; occasional accents launch
+    /// its native dispersal, then regroup without assembling the logo again.
+    fn scene_frame(&mut self, e: &mut Engine) -> bool {
+        use crate::music::scenes::{departure, COMPLETE_BY};
+        let age = e.cue.scene_age;
+        if self.phase == Phase::Complete || age >= COMPLETE_BY {
+            return false;
+        }
+        if self.phase != Phase::Final && departure(e.cue) {
+            self.phase = Phase::Final;
+            self.final_phase(e);
+        }
+        match self.phase {
+            Phase::Start => {
+                // One arrival, then spend the scene in the formation.
+                self.initial_disperse(e);
+                self.initial_disperse_complete = true;
+                self.phase = Phase::Disperse;
+                self.scene_scattered_at = Some(age);
+            }
+            Phase::Disperse => {
+                if age - self.scene_scattered_at.unwrap_or(age) >= 0.85 {
+                    self.spin(e);
+                    self.phase = Phase::Spin;
+                    self.scene_scattered_at = None;
+                }
+            }
+            Phase::Spin => {
+                if e.cue.accent > 0.0 && age - self.scene_last_scatter >= 3.0 {
+                    self.disperse(e);
+                    self.phase = Phase::Disperse;
+                    self.scene_scattered_at = Some(age);
+                    self.scene_last_scatter = age;
+                }
+            }
+            Phase::Final => {
+                if e.active_is_empty() {
+                    self.phase = Phase::Complete;
+                }
+            }
+            Phase::Complete => return false,
+        }
+        e.update(self);
+        true
     }
 
     /// Everyone visible and home; ring characters fade back.
@@ -486,6 +547,7 @@ impl Effect for Rings {
                 self.ring_slots.push(slot);
                 self.ring_chars.push(RingChar {
                     coords,
+                    role: ring_count,
                     n,
                     start,
                     cur: 0,
@@ -535,6 +597,9 @@ impl Effect for Rings {
     }
 
     fn next_frame(&mut self, e: &mut Engine) -> bool {
+        if e.cue.scene {
+            return self.scene_frame(e);
+        }
         match self.phase {
             Phase::Complete => return false,
             Phase::Start => {

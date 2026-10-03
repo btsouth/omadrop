@@ -17,6 +17,10 @@
 //!   launch until an accent arrives, and effects that reveal steadily release
 //!   a burst on it, so launches and reveals land with the moves.
 //!
+//! Opt-in sustained Rings/Beams instead use a steady native animation clock:
+//! bass controls formation extent/beam width, continuous bands control ring
+//! shape and sweep coverage, and accents launch local native actions.
+//!
 //! These are measurements of the signal (onsets in bands, loudness), not
 //! instrument or chorus recognition.
 
@@ -24,6 +28,7 @@ pub mod controls;
 pub mod features;
 pub mod fft;
 pub mod rotation;
+pub mod scenes;
 pub mod source;
 
 use features::{Analyzer, Features, HOP};
@@ -48,6 +53,12 @@ pub struct Cue {
     pub intensity: f32,
     /// 1 while music is playing, 0 in silence.
     pub presence: f32,
+    /// Only the opt-in sustained prototype uses these controls. Bands are
+    /// relative spectral activity, not instrument labels, bounded to 0..1.
+    pub scene: bool,
+    pub scene_age: f64,
+    pub bands: [f32; 6],
+    pub bass_body: f32,
 }
 
 impl Cue {
@@ -235,6 +246,10 @@ pub struct Frame {
     pub snare: bool,
     pub hat: bool,
     pub rms: f32,
+    pub scene: bool,
+    pub scene_age: f64,
+    pub bands: [f32; 6],
+    pub bass_body: f32,
 }
 
 pub struct Music {
@@ -249,6 +264,10 @@ pub struct Music {
     /// Review comparison: analyze and log as usual, but run the effect at the
     /// stock one tick per frame with no cues.
     pub stock: bool,
+    /// Opt-in sustained Rings/Beams. Stock comparison takes precedence.
+    pub scenes: bool,
+    levels: scenes::Levels,
+    latest_features: Features,
     // presentation state
     rms_fast: f32,
     reference: f32,
@@ -296,6 +315,9 @@ impl Music {
             delay: delay_ms as f64 / 1000.0,
             tuning: Tuning::from_env(),
             stock: false,
+            scenes: false,
+            levels: scenes::Levels::default(),
+            latest_features: Features::default(),
             rms_fast: 0.0,
             reference: 0.05,
             presence: 0.0,
@@ -375,6 +397,7 @@ impl Music {
                 self.last_move = f64::NEG_INFINITY;
                 resumed_on_hop = true;
             }
+            self.latest_features = f;
             self.hear_hits(at, &f);
             rms = f.rms;
             self.silent_hops = if f.rms < 1e-4 { self.silent_hops + 1 } else { 0 };
@@ -398,7 +421,7 @@ impl Music {
             // fire when music resumes
             self.owed = 0.0;
             // Clear music debt on pause, but retain fractional idle drift.
-            if self.was_playing || self.idle == 0.0 {
+            if !self.scenes && (self.was_playing || self.idle == 0.0) {
                 self.carry = 0.0;
             }
             self.accent = 0.0;
@@ -430,6 +453,8 @@ impl Music {
             _ => 0.0,
         };
         self.idle += (idle_target - self.idle) * (1.0 - (-dt / 0.6).exp());
+
+        self.levels.advance(&self.latest_features, playing, dt);
 
         let energy = (self.rms_fast / self.reference).clamp(0.0, 1.0);
         // Intensity: how driving the music is, from its absolute level (a
@@ -466,6 +491,15 @@ impl Music {
         let tempo = if playing { self.presence * drift * dt } else { 0.0 }
             + delivered
             + (1.0 - self.presence) * self.idle.min(t.max_tempo) * dt;
+        // Scene paths keep their native 120 Hz cadence. Musical composition
+        // comes from independent levels and launches, with gentle circulation
+        // in silence. Onset debt and finishing acceleration do not speed them.
+        let tempo = if self.scenes && !self.stock {
+            self.owed = 0.0;
+            120.0 * dt
+        } else {
+            tempo
+        };
         self.carry += tempo;
         let mut ticks = self.carry.floor();
         // Only advance what this frame is allowed to; the rest stays banked in
@@ -492,6 +526,10 @@ impl Music {
             snare,
             hat,
             rms,
+            scene: self.scenes && !self.stock,
+            scene_age: (now - self.effect_start).max(0.0),
+            bands: self.levels.bands,
+            bass_body: self.levels.bass_body,
         };
         ticks as u32
     }
@@ -568,6 +606,10 @@ impl Music {
             energy: self.frame.energy,
             intensity: self.intensity,
             presence: self.presence,
+            scene: self.scenes && !self.stock,
+            scene_age: (self.frame.time - self.effect_start).max(0.0),
+            bands: self.levels.bands,
+            bass_body: self.levels.bass_body,
         }
     }
 
@@ -614,6 +656,51 @@ mod tests {
         let mut music = Music::new(Source::Fixture(fixture), 0);
         music.tuning = Tuning::default();
         music
+    }
+
+    #[test]
+    fn sustained_clock_and_levels_use_delayed_audio_then_clear_on_silence() {
+        let mut music = silent_music();
+        music.scenes = true;
+        music.delay = 0.2;
+        music.queue.push_back((
+            0.0,
+            Features {
+                rms: 0.1,
+                level: [2.0; 6],
+                bass_body: 0.3,
+                ..Features::default()
+            },
+        ));
+        music.advance(0.1, MAX_TICKS_PER_FRAME);
+        assert_eq!(music.cue().bands, [0.0; 6]);
+        music.advance(0.2, MAX_TICKS_PER_FRAME);
+        assert!(music.cue().bands[3] > 0.0);
+        assert!(music.cue().bass_body > 0.0);
+        // A missing capture stream decays the role controls. It never leaves
+        // the last spectral frame held, nor an old accent waiting to launch.
+        for n in 0..240 {
+            music.advance(0.21 + n as f64 / 120.0, MAX_TICKS_PER_FRAME);
+        }
+        assert!(music.cue().bands.iter().all(|level| *level < 0.003));
+        assert!(music.cue().bass_body < 0.003);
+        assert_eq!(music.cue().accent, 0.0);
+        assert!(music.cue().scene);
+        music.stock = true;
+        assert!(!music.cue().scene);
+        assert!(!music.cue().active);
+    }
+
+    #[test]
+    fn sustained_clock_is_frame_rate_independent_even_in_silence() {
+        for hz in [30, 60, 120] {
+            let mut music = silent_music();
+            music.scenes = true;
+            let total: u32 = (1..=hz * 2)
+                .map(|n| music.advance(n as f64 / hz as f64, MAX_TICKS_PER_FRAME))
+                .sum();
+            assert!((239..=241).contains(&total), "{hz} Hz: {total} ticks");
+        }
     }
 
     /// One display frame with music heard: force the playing state the audio

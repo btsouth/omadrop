@@ -63,6 +63,9 @@ pub struct Beams {
     next_wipe: usize,
     delay: i64,
     phase: Phase,
+    scene_groups: [Vec<u32>; 2],
+    scene_credit: [f64; 2],
+    scene_initialized: bool,
 }
 
 impl Beams {
@@ -78,6 +81,9 @@ impl Beams {
             next_wipe: 0,
             delay: 0,
             phase: Phase::Beams,
+            scene_groups: [Vec::new(), Vec::new()],
+            scene_credit: [0.0; 2],
+            scene_initialized: false,
         }
     }
 
@@ -99,6 +105,110 @@ impl Beams {
             speed,
             counter: 0.0,
         }
+    }
+
+    fn advance_groups(&mut self, e: &mut Engine) {
+        let mut kept = 0;
+        for i in 0..self.active.len() {
+            let g = *self.active.at(i);
+            let group = self.groups.at_mut(g);
+            group.counter += group.speed;
+            // int() truncation
+            let count = group.counter as i64;
+            if count > 1 {
+                let n = (count as usize).min(group.chars.len() - group.pos);
+                let (start, direction) = (group.pos, group.direction);
+                group.pos += n;
+                group.counter -= n as f64;
+                for k in start..start + n {
+                    // Group.get_next_character
+                    let slot = *self.groups.at(g).chars.at(k);
+                    let active = e.active_scene(slot);
+                    let fresh = active == NONE;
+                    if fresh {
+                        e.set_visible(slot, true);
+                    } else {
+                        e.scene_reset(active);
+                    }
+                    let scene = self.scenes.at(slot)[direction];
+                    e.activate_scene(self, slot, scene);
+                    if fresh {
+                        e.active_insert(slot);
+                    }
+                }
+            }
+            let group = self.groups.at(g);
+            if group.pos < group.chars.len() {
+                *self.active.at_mut(kept) = g;
+                kept += 1;
+            }
+        }
+        self.active.truncate(kept);
+    }
+
+    /// Launch adjacent native row/column groups, preserving each group's
+    /// authored direction, speed, beam symbols and gradient. Keep the budget
+    /// bounded and never restart a sweep already crossing the canvas.
+    fn launch_cluster(&mut self, e: &mut Engine, direction: usize, width: usize) {
+        let available = &self.scene_groups[direction];
+        if available.is_empty() {
+            return;
+        }
+        let anchor = e.rng.randrange(0, available.len() as i64) as usize;
+        let width = width.min(available.len());
+        let start = anchor
+            .saturating_sub(width / 2)
+            .min(available.len() - width);
+        for k in start..start + width {
+            if self.active.len() >= 12 {
+                break;
+            }
+            let g = self.scene_groups[direction][k];
+            if self.active.contains(&g) {
+                continue;
+            }
+            let group = &mut self.groups[g as usize];
+            group.pos = 0;
+            group.counter = 0.0;
+            self.active.push(g);
+        }
+    }
+
+    fn scene_frame(&mut self, e: &mut Engine) -> bool {
+        use crate::music::scenes::{beam_rates, beam_width};
+        if !self.scene_initialized {
+            self.scene_initialized = true;
+            // Show the authored dim resting logo once, not a repeated reveal.
+            for slot in 0..self.scenes.len() as u32 {
+                let scene = self.scenes[slot as usize][ROW];
+                if scene == NONE {
+                    continue;
+                }
+                if let Some(frame) = e.scenes.frames_of(scene).last() {
+                    let visual = frame.visual;
+                    e.set_visual(slot, visual);
+                    e.set_visible(slot, true);
+                }
+            }
+        }
+        let rates = beam_rates(e.cue);
+        let width = beam_width(e.cue);
+        for (direction, rate) in rates.into_iter().enumerate() {
+            self.scene_credit[direction] += rate / 120.0;
+            if self.scene_credit[direction] >= 1.0 {
+                self.scene_credit[direction] -= 1.0;
+                self.launch_cluster(e, direction, width);
+            }
+        }
+        if e.cue.accent > 0.0 {
+            // A distinct crossing formation in addition to band-driven drift.
+            // Do not spend/reset the sustained band's launch credit.
+            self.launch_cluster(e, ROW, width);
+            self.launch_cluster(e, COLUMN, width);
+        }
+        self.advance_groups(e);
+        e.update(self);
+        true
     }
 }
 
@@ -270,10 +380,41 @@ impl Effect for Beams {
 
         e.rng.shuffle(&mut self.groups);
         self.active.reserve(self.groups.len());
+        for direction in [ROW, COLUMN] {
+            let mut ordered: Vec<u32> = self
+                .groups
+                .iter()
+                .enumerate()
+                .filter(|(_, group)| group.direction == direction)
+                .map(|(g, _)| g as u32)
+                .collect();
+            ordered.sort_by_key(|&g| {
+                let coord = e.input_coord(self.groups[g as usize].chars[0]);
+                if direction == ROW {
+                    coord.row
+                } else {
+                    coord.column
+                }
+            });
+            self.scene_groups[direction] = ordered;
+        }
         Ok(())
     }
 
     fn next_frame(&mut self, e: &mut Engine) -> bool {
+        if e.cue.scene {
+            if e.cue.scene_age >= crate::music::scenes::COMPLETE_BY {
+                return false;
+            }
+            if self.phase == Phase::Beams {
+                if crate::music::scenes::departure(e.cue) {
+                    self.active.clear();
+                    self.phase = Phase::FinalWipe;
+                } else {
+                    return self.scene_frame(e);
+                }
+            }
+        }
         if self.phase == Phase::Complete && e.active_is_empty() {
             return false;
         }
@@ -294,42 +435,7 @@ impl Effect for Beams {
                 } else {
                     self.delay -= 1;
                 }
-                let mut kept = 0;
-                for i in 0..self.active.len() {
-                    let g = *self.active.at(i);
-                    let group = self.groups.at_mut(g);
-                    group.counter += group.speed;
-                    // int() truncation
-                    let count = group.counter as i64;
-                    if count > 1 {
-                        let n = (count as usize).min(group.chars.len() - group.pos);
-                        let (start, direction) = (group.pos, group.direction);
-                        group.pos += n;
-                        group.counter -= n as f64;
-                        for k in start..start + n {
-                            // Group.get_next_character
-                            let slot = *self.groups.at(g).chars.at(k);
-                            let active = e.active_scene(slot);
-                            let fresh = active == NONE;
-                            if fresh {
-                                e.set_visible(slot, true);
-                            } else {
-                                e.scene_reset(active);
-                            }
-                            let scene = self.scenes.at(slot)[direction];
-                            e.activate_scene(self, slot, scene);
-                            if fresh {
-                                e.active_insert(slot);
-                            }
-                        }
-                    }
-                    let group = self.groups.at(g);
-                    if group.pos < group.chars.len() {
-                        *self.active.at_mut(kept) = g;
-                        kept += 1;
-                    }
-                }
-                self.active.truncate(kept);
+                self.advance_groups(e);
                 if self.next_pending == self.groups.len()
                     && self.active.is_empty()
                     && e.active_is_empty()

@@ -164,6 +164,10 @@ pub struct Cli {
     #[arg(long = "music", value_name = "SOURCE")]
     pub music: Option<String>,
 
+    /// Review prototype: sustained Rings and Beams, with independent musical geometry.
+    #[arg(long = "music-scenes", default_value_t = false, requires = "music")]
+    pub music_scenes: bool,
+
     /// Speaker delay in ms (default: the delay Omadrop saved for the output)
     #[arg(long = "music-delay", value_name = "MS")]
     pub music_delay: Option<u32>,

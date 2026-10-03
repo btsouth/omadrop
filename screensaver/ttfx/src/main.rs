@@ -42,6 +42,13 @@ fn main() -> ExitCode {
     ttfx::restore_sigpipe();
     let cli = cli::Cli::parse();
 
+    // The sustained prototype needs enough display frames to deliver its
+    // fixed native clock within the per-frame tick budget. Zero selects 120 Hz.
+    if cli.music_scenes && !cli.music_stock && cli.frame_rate != 0 && cli.frame_rate < 30 {
+        ttfx::errln!("Error: --music-scenes requires --frame-rate of at least 30 (or 0 for 120 Hz)");
+        return ExitCode::from(1);
+    }
+
     // upstream prints the completion script and returns before any input handling
     if let Some(shell) = &cli.print_completion {
         use clap::CommandFactory;
@@ -286,6 +293,7 @@ fn run_music(cli: &cli::Cli, input_data: &str) -> ExitCode {
     };
     let mut music = ttfx::music::Music::new(source, delay_ms);
     music.stock = cli.music_stock;
+    music.scenes = cli.music_scenes;
     let mut config = cli.terminal_config();
     if config.frame_rate == 0 {
         config.frame_rate = 120;
@@ -321,6 +329,9 @@ fn run_music(cli: &cli::Cli, input_data: &str) -> ExitCode {
     names.retain(|n| !cli.exclude_effects.contains(n));
     // clap's generated `help` subcommand is not an effect; never offer it up.
     names.retain(|n| is_effect_name(n));
+    if cli.music_scenes {
+        names.retain(|n| matches!(n.as_str(), "rings" | "beams"));
+    }
     if names.is_empty() {
         ttfx::errln!("Error: No effects available after filtering.");
         return ExitCode::from(1);
