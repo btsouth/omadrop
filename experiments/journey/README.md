@@ -1,6 +1,6 @@
 # Journey study
 
-An original Osaka Jade city to Kanagawa sea prototype, rendered by
+An original Osaka Jade canal journey to Kanagawa sea prototype, rendered by
 `Journey::paint` in both a native fullscreen Qt Quick window and headless JPEG
 export. This is a study, not accepted artwork or a product integration.
 
@@ -20,7 +20,7 @@ make -j4
 Native preview inside omabox:
 
 ```sh
-build/omadrop-journey --audio /path/song.f32 --audio-offset 12 --duration 72
+build/omadrop-journey --audio /path/song.f32 --audio-offset 12 --duration 60
 build/omadrop-journey --audio /path/song.f32 --audio-offset 12 --at 36 --paused
 ```
 
@@ -39,12 +39,14 @@ Headless export on devbox:
 
 ```sh
 build/omadrop-journey --audio /path/song.f32 --audio-offset 12 \
-  --export-dir /path/frames --fps 30 --duration 72 --width 1920 --height 1080
+  --export-dir /path/frames --fps 30 --duration 60 --width 1920 --height 1080
 ```
 
 This constructs `QCoreApplication`, never `QGuiApplication`, and paints to
-`QImage` with the same scene function. Keep that function free of fonts/text
-and GUI resources. Export writes JPEG quality 94, named `frame-000000.jpg`
+`QImage` with the same scene function. Keep that function free of runtime font
+lookup and GUI resources. Theme captions use bundled vector outlines; see
+[caption assets and attribution](src/caption-assets/README.md).
+Export writes JPEG quality 94, named `frame-000000.jpg`
 onward. Frame `i` samples movie time `i / fps`; the endpoint is excluded. Existing
 target frames cause failure before rendering unless `--overwrite` is explicit.
 Unrelated files in the directory are retained. A later write failure can leave
@@ -69,6 +71,12 @@ channel independently for bass body and onset accent. Bass combines by RMS
 and onsets by maximum, preserving opposite-phase stereo. A supplementary
 stereo FFT supplies absolute bands.
 
+An additional smoothed musical-surge envelope measures increases above recent
+energy, with a six-second cooldown and hysteresis. It drives larger local light
+and water responses. It estimates energy changes, not song sections or isolated
+instruments. The route and camera continue in silence. See
+[the scene direction](DIRECTION.md).
+
 Omitting `--audio` deliberately renders silence. The harness analyzes recorded
 audio but does not play it. Sound can be muxed into exported frames separately.
 Invalid paths, incomplete stereo frames, nonfinite samples, magnitude above 16,
@@ -88,6 +96,7 @@ make -j4
 ```
 
 The checks cover warmed fractional offsets, interpolation, role balance,
-opposite-phase stereo, silence and malformed/short input. They establish harness behavior, not beauty
-or musical acceptance. No live PipeWire, product backend, website, installer or
+opposite-phase stereo, surge cooldown and warmed history, silence, and malformed
+or short input. They establish harness behavior, not beauty or musical
+acceptance. No live PipeWire, product backend, website, installer or
 desktop configuration is changed by this study.

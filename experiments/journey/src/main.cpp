@@ -22,7 +22,7 @@ int fail(const QString& error) {
 
 struct Options {
     QString audio, exportDir;
-    double offset = 0, duration = 72, at = 0;
+    double offset = 0, duration = 60, at = 0;
     int fps = 30, width = 1920, height = 1080;
     bool paused = false, overwrite = false;
 };
@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
     parser.addOptions({
         {QStringLiteral("audio"), QStringLiteral("Recorded stereo 44100 Hz float32 little-endian PCM; omitted = silence."), QStringLiteral("path")},
         {QStringLiteral("audio-offset"), QStringLiteral("Fixture seconds corresponding to movie time zero."), QStringLiteral("seconds"), QStringLiteral("0")},
-        {QStringLiteral("duration"), QStringLiteral("Movie length, at most 600 seconds."), QStringLiteral("seconds"), QStringLiteral("72")},
+        {QStringLiteral("duration"), QStringLiteral("Movie length, at most 600 seconds (default: 60)."), QStringLiteral("seconds"), QStringLiteral("60")},
         {QStringLiteral("at"), QStringLiteral("Initial native movie time."), QStringLiteral("seconds"), QStringLiteral("0")},
         {QStringLiteral("paused"), QStringLiteral("Start native playback paused.")},
         {QStringLiteral("export-dir"), QStringLiteral("Headless JPEG export destination."), QStringLiteral("path")},

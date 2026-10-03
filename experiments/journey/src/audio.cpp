@@ -22,6 +22,49 @@ double smooth(double previous, double target, double dt,
         * (1.0 - std::exp(-dt / (target > previous ? attack : release)));
 }
 
+// Reuse measured stereo features; no extra FFT or changes to the role mappings.
+class MusicalSurge {
+public:
+    double process(const std::array<double, 6>& bands, double bass,
+                   double onset, double dt) {
+        double power = 0;
+        for (double band : bands) power += band * band;
+        const double energy = 0.85 * std::sqrt(power / bands.size()) + 0.15 * bass;
+        level_ = smooth(level_, energy, dt, 0.10, 0.20);
+        elapsed_ += dt;
+        // One second of warmup seeds the baseline, suppressing startup events.
+        if (elapsed_ <= 1.0) {
+            baseline_ = level_;
+            return 0;
+        }
+        // A 2s baseline, >=0.08 absolute energy and >=0.03 / 35% upward
+        // novelty reserve swells for increases rather than sustained loudness.
+        const double novelty = std::max(0.0, level_ - baseline_);
+        const double threshold = std::max(0.03, 0.35 * baseline_);
+        baseline_ = smooth(baseline_, level_, dt, 2.0, 2.0);
+        cooldown_ = std::max(0.0, cooldown_ - dt);
+        hold_ = std::max(0.0, hold_ - dt);
+        // Hysteresis requires the rise to settle before another crossing.
+        if (novelty < threshold * 0.5) armed_ = true;
+        if (armed_ && novelty >= threshold && level_ >= 0.08) {
+            armed_ = false;
+            if (cooldown_ <= 0) {
+                // Onset supports strength only; it cannot trigger a swell alone.
+                strength_ = std::clamp(0.45 + 1.5 * novelty + 0.10 * onset, 0.0, 1.0);
+                hold_ = 0.65;
+                cooldown_ = 6.0;
+            }
+        }
+        // Briefly hold the measured event, with 0.3s attack / 2s release.
+        value_ = smooth(value_, hold_ > 0 ? strength_ : 0.0, dt, 0.30, 2.0);
+        return std::clamp(value_, 0.0, 1.0);
+    }
+private:
+    double level_ = 0, baseline_ = 0, elapsed_ = 0;
+    double cooldown_ = 0, hold_ = 0, strength_ = 0, value_ = 0;
+    bool armed_ = true;
+};
+
 // The bus's level[] is divided by each role's history. A supplementary FFT
 // measures absolute power with a shared gain instead, keeping role balance.
 // Analyze channels separately so opposite-phase stereo does not erase bands.
@@ -96,6 +139,7 @@ bool AudioTimeline::load(const QString& path, double offset, double duration, QS
     }
     AudioFeatureBus leftAnalyzer, rightAnalyzer;
     AbsoluteBands absolute;
+    MusicalSurge surge;
     if (!absolute.valid()) {
         error = QStringLiteral("Cannot create the FFTW analysis plan.");
         return false;
@@ -145,6 +189,8 @@ bool AudioTimeline::load(const QString& path, double offset, double duration, QS
             double(left.snareImpact), double(left.hatImpact), double(right.kickImpact),
             double(right.snareImpact), double(right.hatImpact)}) / 1.35;
         current.accent = smooth(current.accent, std::clamp(impact, 0.0, 1.0), dt, 0.025, 0.13);
+        current.surge = surge.process(bands, std::clamp(bass, 0.0, 1.0),
+            std::clamp(impact, 0.0, 1.0), dt);
         processed += count;
         result.push_back({double(processed) / rate, current});
     }
@@ -167,6 +213,7 @@ Audio AudioTimeline::at(double movieSeconds) const {
         value.bands[i] = left.audio.bands[i] + amount * (right->audio.bands[i] - left.audio.bands[i]);
     value.bass = left.audio.bass + amount * (right->audio.bass - left.audio.bass);
     value.accent = left.audio.accent + amount * (right->audio.accent - left.audio.accent);
+    value.surge = left.audio.surge + amount * (right->audio.surge - left.audio.surge);
     return value;
 }
 }

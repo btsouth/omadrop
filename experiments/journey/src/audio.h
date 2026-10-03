@@ -7,7 +7,7 @@
 namespace Journey {
 class AudioTimeline {
 public:
-    // Always analyze from sample zero, including the history before the offset.
+    // Warm all feature/surge history from sample zero before applying the offset.
     bool load(const QString& path, double offset, double duration, QString& error);
     Audio at(double movieSeconds) const;
 
