@@ -482,7 +482,8 @@ void train(Ctx& c, const OsakaState& s) {
 void skyLanterns(Ctx& c, const OsakaState& s, const Life& L) {
     if (L.surge.t < 0) return;
     const double t = c.t;
-    const double fade = 1 - sstep(36.0, 39.0, t);
+    // Retire the complete warm lantern before its glow leaves a dark shell.
+    const double fade = 1 - sstep(35.8, 37.7, t);
     if (fade <= 0) return;
     Canvas& l = c.canvas();
     for (int k = 0; k < 11; ++k) {
@@ -498,9 +499,9 @@ void skyLanterns(Ctx& c, const OsakaState& s, const Life& L) {
         l.color(WARM_B * float(flick));
         l.ellipse(x, y, sz, sz * 1.3);
         l.fill();
-        l.glow(x, y, sz * 10, WARM_T, 0.7 * flick * in * fade);
+        l.glow(x, y, sz * 10, WARM_T, 0.7 * flick * in);
     }
-    c.gpu.over(l, float(1.3 * fade));
+    c.gpu.over(l, 1.3f, 0, float(fade));
     c.gpu.add(l, float(0.5 * fade), 10);
 }
 
