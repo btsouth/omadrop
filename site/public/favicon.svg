@@ -1,11 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#050606"/>
-  <g fill="#a8ff78">
-    <circle cx="19" cy="14" r="4"/><circle cx="32" cy="14" r="4"/>
-    <circle cx="19" cy="26" r="4"/><circle cx="45" cy="26" r="4"/>
-    <circle cx="19" cy="38" r="4"/><circle cx="45" cy="38" r="4"/>
-    <circle cx="32" cy="50" r="4"/><circle cx="45" cy="50" r="4"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Omadrop">
+  <defs>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#17131f"/>
+      <stop offset="1" stop-color="#08070c"/>
+    </linearGradient>
+    <linearGradient id="drop" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#ff5fd2"/>
+      <stop offset="0.5" stop-color="#8b5cff"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+    <clipPath id="body">
+      <path d="M64 18C64 18 30 56 30 80a34 34 0 0 0 68 0C98 56 64 18 64 18Z"/>
+    </clipPath>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#ground)"/>
+  <path d="M64 18C64 18 30 56 30 80a34 34 0 0 0 68 0C98 56 64 18 64 18Z" fill="url(#drop)"/>
+  <g clip-path="url(#body)" fill="none" stroke="#0b0910" stroke-linecap="round">
+    <circle cx="64" cy="84" r="9" stroke-width="5"/>
+    <circle cx="64" cy="84" r="20" stroke-width="4" opacity="0.75"/>
+    <circle cx="64" cy="84" r="31" stroke-width="3" opacity="0.5"/>
   </g>
-  <circle cx="32" cy="26" r="4" fill="#d77bff"/>
-  <circle cx="32" cy="38" r="4" fill="#79dfff"/>
 </svg>
