@@ -262,7 +262,7 @@ const effects = [
 ];
 const selectedScenes = [scenes[6], scenes[5], scenes[0], scenes[13]];
 const previewEffects = [effects[31], effects[0], effects[35]];
-const installCommand = "curl -fLO https://github.com/btsouth/omadrop/releases/latest/download/omadrop-x86_64.pkg.tar.zst && sudo pacman -U ./omadrop-x86_64.pkg.tar.zst";
+const installCommand = "curl -fsSL https://pkgs.btso.dev/install.sh | bash -s -- omadrop";
 const repository = "https://github.com/btsouth/omadrop";
 ---
 
@@ -469,7 +469,7 @@ const repository = "https://github.com/btsouth/omadrop";
           <pre class="install-command" tabindex="0" aria-label="Installation command"><code id="install-command">{installCommand}</code></pre>
           <p id="copy-status" class="copy-status" role="status"></p>
           <p>Open <strong>Omadrop</strong> from the app launcher, or run <code>omadrop</code>. Play music in any app, choose a scene and press Play.</p>
-          <p class="install-note">Pacman installs the dependencies. Close Omadrop before updating and rerun this command. GitHub installs do not update automatically through Omarchy.</p>
+          <p class="install-note">This adds the <a href="https://pkgs.btso.dev/">signed package repository</a> and installs the dependencies. Omadrop then updates with the rest of your system (<code>omarchy update</code> or <code>sudo pacman -Syu</code>). Already installed from a release download? Run this command once to start getting updates. Close Omadrop before updating.</p>
           <a href={`${repository}#build-from-source`}>Prefer to build from source? <span aria-hidden="true">↗</span></a>
         </div>
       </section>

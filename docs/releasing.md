@@ -42,7 +42,7 @@ Use the same devbox checkout and caches for the validation loop.
    archive's SHA-256 before AUR submission; keep `SKIP` only for pinned Git
    sources. Confirm the installed app reports the intended version. Use this
    build's `.pkg.tar.zst` as the release asset so it matches the public tag.
-5. Copy the versioned package to the stable filename used by the one-line installer,
+5. Copy the versioned package to the stable filename for direct downloads,
    then generate checksums beside both packages:
 
    ```sh
@@ -53,7 +53,10 @@ Use the same devbox checkout and caches for the validation loop.
 
    Create a GitHub release for `v0.5.0`, using the reviewed changelog entry,
    and attach both `.pkg.tar.zst` files and `SHA256SUMS`. Verify both downloads and
-   their checksums. Include the latest-release install command from the README.
+   their checksums. Include the signed-repository install command from the README.
+   The [package repository](https://github.com/btsouth/pkgs) imports the versioned
+   package, verifies its checksum and signs it within an hour. Confirm it appears
+   at https://pkgs.btso.dev/ before announcing repository availability.
 6. For the AUR, copy the verified release `PKGBUILD` and `.SRCINFO` into the
    `omadrop` AUR checkout. Review them, commit, and push there. Check the live
    AUR source URL and version. A package-only fix increments `pkgrel`, rather
