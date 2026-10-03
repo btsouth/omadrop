@@ -31,7 +31,7 @@ int fail(const QString& error) {
 
 struct Options {
     QString audio, exportDir, video, stills, outDir, bench;
-    double offset = 0, duration = 60, at = 0;
+    double offset = 0, duration = 60, at = 0, start = 0, fadeIn = 0.6, fadeOut = 1.2;
     int fps = 30, width = 1920, height = 1080, seed = 1;
     bool paused = false, overwrite = false, inspect = false;
 };
@@ -148,32 +148,46 @@ int exportFrames(const Options& options, const Journey::AudioTimeline& audio, co
     const int count = int(std::ceil(options.duration * options.fps - 1e-9));
     if (!options.video.isEmpty()) {
         // Raw RGB frames into ffmpeg; audio is muxed from the analysed fixture.
+        // --start renders a segment [start, duration) of the movie.
+        const double length = options.duration - options.start;
+        const int frames = int(std::ceil(length * options.fps - 1e-9));
         QString cmd = QStringLiteral("ffmpeg -v error -y -f rawvideo -pix_fmt rgb24 -s %1x%2 -r %3 -i - ")
             .arg(options.width).arg(options.height).arg(options.fps);
         if (!options.audio.isEmpty())
             cmd += QStringLiteral("-f f32le -ar 44100 -ac 2 -ss %1 -t %2 -i '%3' ")
-                .arg(options.offset, 0, 'f', 6).arg(options.duration, 0, 'f', 6).arg(options.audio);
-        // Fade in from black and out at the end so the film does not cut mid-phrase.
-        const double end = options.duration;
-        cmd += QStringLiteral("-vf fade=in:st=0:d=0.6,fade=out:st=%1:d=1.2 ").arg(end - 1.2, 0, 'f', 3);
+                .arg(options.offset + options.start, 0, 'f', 6).arg(length, 0, 'f', 6).arg(options.audio);
+        // Fades so the film does not cut in or out mid-phrase (0 disables).
+        QStringList vf, af;
+        if (options.fadeIn > 0) {
+            vf << QStringLiteral("fade=in:st=0:d=%1").arg(options.fadeIn, 0, 'f', 3);
+            af << QStringLiteral("afade=in:st=0:d=%1").arg(std::min(0.4, options.fadeIn), 0, 'f', 3);
+        }
+        if (options.fadeOut > 0) {
+            vf << QStringLiteral("fade=out:st=%1:d=%2").arg(length - options.fadeOut, 0, 'f', 3).arg(options.fadeOut, 0, 'f', 3);
+            const double a = std::min(length, options.fadeOut + 0.4);
+            af << QStringLiteral("afade=out:st=%1:d=%2").arg(length - a, 0, 'f', 3).arg(a, 0, 'f', 3);
+        }
+        if (!vf.isEmpty()) cmd += QStringLiteral("-vf %1 ").arg(vf.join(','));
         cmd += QStringLiteral("-c:v libx264 -preset slow -crf 16 -pix_fmt yuv420p -movflags +faststart ");
-        if (!options.audio.isEmpty())
-            cmd += QStringLiteral("-af afade=in:st=0:d=0.4,afade=out:st=%1:d=1.6 -c:a aac -b:a 256k -shortest ").arg(end - 1.6, 0, 'f', 3);
+        if (!options.audio.isEmpty()) {
+            if (!af.isEmpty()) cmd += QStringLiteral("-af %1 ").arg(af.join(','));
+            cmd += QStringLiteral("-c:a aac -b:a 256k -shortest ");
+        }
         cmd += QStringLiteral("'%1'").arg(options.video);
         FILE* pipe = popen(cmd.toLocal8Bit().constData(), "w");
         if (!pipe) return fail(QStringLiteral("Cannot start ffmpeg."));
         QElapsedTimer timer;
         timer.start();
-        for (int frame = 0; frame < count; ++frame) {
-            const double t = double(frame) / options.fps;
+        for (int frame = 0; frame < frames; ++frame) {
+            const double t = options.start + double(frame) / options.fps;
             world.render(options.width, options.height, t, audio.at(t));
             world.gpu().readRgb(rgb);
             if (std::fwrite(rgb.data(), 1, rgb.size(), pipe) != rgb.size()) { pclose(pipe); return fail(QStringLiteral("ffmpeg pipe closed.")); }
             if (frame % (options.fps * 5) == 0)
-                QTextStream(stderr) << "Frame " << frame << '/' << count << "  " << timer.elapsed() / 1000.0 << " s\n";
+                QTextStream(stderr) << "Frame " << frame << '/' << frames << "  " << timer.elapsed() / 1000.0 << " s\n";
         }
         if (pclose(pipe) != 0) return fail(QStringLiteral("ffmpeg failed."));
-        QTextStream(stdout) << "Wrote " << count << " frames to " << options.video << '\n';
+        QTextStream(stdout) << "Wrote " << frames << " frames to " << options.video << '\n';
         return 0;
     }
 
@@ -219,6 +233,9 @@ int main(int argc, char* argv[]) {
         {QStringLiteral("paused"), QStringLiteral("Start native playback paused.")},
         {QStringLiteral("export-dir"), QStringLiteral("Headless JPEG export destination."), QStringLiteral("path")},
         {QStringLiteral("video"), QStringLiteral("Headless H.264 export (audio muxed from --audio)."), QStringLiteral("path")},
+        {QStringLiteral("start"), QStringLiteral("--video: first movie second of the rendered segment."), QStringLiteral("seconds"), QStringLiteral("0")},
+        {QStringLiteral("fade-in"), QStringLiteral("--video: fade from black, seconds (0 disables)."), QStringLiteral("seconds"), QStringLiteral("0.6")},
+        {QStringLiteral("fade-out"), QStringLiteral("--video: fade to black, seconds (0 disables)."), QStringLiteral("seconds"), QStringLiteral("1.2")},
         {QStringLiteral("stills"), QStringLiteral("Comma-separated movie times to export as PNG."), QStringLiteral("times")},
         {QStringLiteral("out-dir"), QStringLiteral("Directory for --stills."), QStringLiteral("path")},
         {QStringLiteral("inspect"), QStringLiteral("Print a per-second audio feature report for the whole --audio file.")},
@@ -243,6 +260,9 @@ int main(int argc, char* argv[]) {
     if (!number(parser, QStringLiteral("duration"), 1.0 / 60, 600, options.duration, error)
         || !number(parser, QStringLiteral("audio-offset"), 0, 21600, options.offset, error)
         || !number(parser, QStringLiteral("at"), 0, options.duration, options.at, error)
+        || !number(parser, QStringLiteral("start"), 0, options.duration - 1.0 / 60, options.start, error)
+        || !number(parser, QStringLiteral("fade-in"), 0, 10, options.fadeIn, error)
+        || !number(parser, QStringLiteral("fade-out"), 0, 10, options.fadeOut, error)
         || !integer(parser, QStringLiteral("fps"), 1, 120, options.fps, error)
         || !integer(parser, QStringLiteral("seed"), 0, 1 << 30, options.seed, error)
         || !integer(parser, QStringLiteral("width"), 1, 8192, options.width, error)
