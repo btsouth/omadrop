@@ -35,7 +35,14 @@ struct OsakaHooks {
     std::function<void()> afterYatai;  // the boat at the quay
     std::function<void()> afterWires;
 };
-void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain);
+// The crossing replaces the sky's neighbours, the disc and the mountain at
+// their place in the backdrop's depth order.
+struct BackdropHooks {
+    std::function<void()> afterSky;
+    std::function<void()> disc;
+    std::function<void()> mountain;
+};
+void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain, const BackdropHooks* hooks = nullptr);
 void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks);
 void osakaFog(Ctx& c, double amount, double top, double bottom, Col col);
 // Diffuse glow of the valley city and downhill town seen through fog.

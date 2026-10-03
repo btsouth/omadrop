@@ -1334,7 +1334,9 @@ const double V_FORM[15][3] = {{0, 0, 1.0}, {-46, 22, 0.95}, {-52, -30, 0.9}, {-1
                               {-160, 70, 0.8}, {-176, -84, 0.8}, {-70, -4, 0.7}, {-230, 96, 0.75}, {-250, -110, 0.7},
                               {-140, 10, 0.7}, {-300, 30, 0.65}, {-210, -40, 0.7}, {-280, -70, 0.66}, {-330, 60, 0.6}};
 
-void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<BirdPlan>& birds) {
+// Two passes: `far` draws the valley poles and the spans running down to them,
+// behind the street and under the fog; the near pass draws everything else.
+void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<BirdPlan>& birds, bool far) {
     const double t = c.t, cam = s.cam;
     Canvas& cv = c.canvas();
     Canvas& l = c.canvas();
@@ -1346,7 +1348,9 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
     // Poles: valley poles fade with the land under the fog instead of popping.
     struct Drawn { Pole p; double alpha; };
     const Drawn poles[] = {{POLES[2], land}, {POLES[1], land}, {POLES[0], 1}, {LAST_POLE, 1}, {PIER_POLE, 1}};
-    for (const Drawn& d : poles) {
+    for (int pi = 0; pi < 5; ++pi) {
+        const Drawn& d = poles[pi];
+        if ((pi < 2) != far) continue;
         const Pole& pl = d.p;
         const double px = pl.x - cam * pl.par, sc = pl.sc, al = d.alpha;
         if (px < -120 || px > 2050 || al < 0.01) continue;
@@ -1390,7 +1394,7 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
         }
     }
     // Service drops from the main pole into the two right-hand houses.
-    {
+    if (!far) {
         const double px = POLES[0].x - cam * 0.9;
         const WireSpan drops[3] = {{{px - 12, 222}, {1452 - cam * 0.9, 668}, 26}, {{px + 14, 226}, {1628 - cam * 0.9, 604}, 22},
                                    {{px + 14, 236}, {1700 - cam * 0.9, 606}, 30}};
@@ -1429,6 +1433,7 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
         if (hum > 0.01) l.polyline(pts, (2.2 + 1.5 * c.lift(i)) * sc, PULSE[i], std::min(0.6, hum));
     };
     for (std::size_t si = 0; si < spans.size(); ++si) {
+        if ((si >= 2) != far) continue;
         const double al = si < 2 ? 1.0 : land;
         if (al < 0.01) continue;
         for (int i = 0; i < 6; ++i) {
@@ -1444,7 +1449,7 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
             strand(pts, i, spanScale[si], al);
         }
     }
-    for (int i = 0; i < 6; ++i) {
+    for (int i = 0; i < 6 && !far; ++i) {
         for (int seg = 0; seg < 3; ++seg) {
             const V2 p0 = outs[std::size_t(i)][std::size_t(seg)], p1 = outs[std::size_t(i)][std::size_t(seg + 1)];
             if (std::min(p0.x, p1.x) > 1960 || std::max(p0.x, p1.x) < -40) continue;
@@ -1470,7 +1475,7 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
             const double tt = u - si;
             const double al = si < 2 ? 1.0 : land;
             const double lvl = std::min(1.4, (0.55 + 0.45 * rng.uni()) * level) * al;
-            if (lvl < 0.02) continue;
+            if (lvl < 0.02 || (si >= 2) != far) continue;
             const WireSpan& w = spans[std::size_t(si)][std::size_t(i)];
             const double sc = std::array<double, 4>{1.0, 1.0, 0.7, 0.4}[std::size_t(si)];
             const double tail = (0.085 - 0.008 * i) / std::max(0.45, std::abs(w.p1.x - w.p0.x) / 900);
@@ -1490,7 +1495,7 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
             const int seg = int(u);
             const double tt = u - seg;
             const double lvl = std::min(1.4, (0.55 + 0.45 * rng.uni()) * level) * (seg == 0 ? 1.0 : s.outAlpha);
-            if (lvl < 0.02) continue;
+            if (lvl < 0.02 || far) continue;
             const V2 p0 = outs[std::size_t(i)][std::size_t(seg)], p1 = outs[std::size_t(i)][std::size_t(seg + 1)];
             const WireSpan w{p0, p1, outSag(seg, i)};
             for (int j = 0; j < 16; ++j) {
@@ -1925,10 +1930,12 @@ void shootingStar(Ctx& c, const OsakaState& s) {
     c.gpu.add(cv, 0.5f, 6);
 }
 
-void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain) {
+void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain, const BackdropHooks* hooks) {
     const Life L = lifeAt(c);
     sky(c, s, L);
+    if (hooks && hooks->afterSky) hooks->afterSky();
     if (s.chapter) shootingStar(c, s);
+    if (hooks && hooks->disc) hooks->disc();
     if (disc) {
         DiscLook d;
         d.pos = {1190 - s.cam * 0.015 + s.moonDx, 286 + s.moonDy};
@@ -1941,6 +1948,7 @@ void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain) {
         d.energy = (0.35 + 0.6 * c.a.bass + 0.2 * c.a.surge) * rise;
         drawDisc(c, d, s.cam);
     }
+    if (hooks && hooks->mountain) hooks->mountain();
     if (mountain) {
         MountainLook m;
         m.px = 1040 - s.cam * 0.04; m.peak = 396; m.base = 632; m.width = 330;
@@ -1961,13 +1969,14 @@ void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks) {
     const Life L = lifeAt(c);
     const auto plan = birdPlan(c);
     if (s.land > 0.01) downhillRoofs(c, s, L);
+    if (s.land > 0.01) polesWires(c, s, L, plan, true);
     if (hooks.afterTown) hooks.afterTown();
     rightHouses(c, s, L);
     streetSurface(c, s);
     yatai(c, s, L);
     if (hooks.afterYatai) hooks.afterYatai();
     festoon(c, s, L);
-    polesWires(c, s, L, plan);
+    polesWires(c, s, L, plan, false);
     moths(c, s);
     if (hooks.afterWires) hooks.afterWires();
     reflections(c, s);

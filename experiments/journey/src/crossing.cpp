@@ -111,50 +111,59 @@ void drawCrossing(Ctx& c) {
     const double k = sstep(33.4, 35.6, t);
     const double g = sstep(35.0, 43.0, t);
 
-    drawOsakaBackdrop(c, s, false, false);
-    if (k > 0.001) {
-        c.gpu.beginOffscreen();
-        kanagawaSky(c);
-        kanagawaMist(c);
-        gradeComposite(c, c.gpu.endOffscreen(), g, k);
-    }
-    // The disc sinks and warms from cream to red.
-    {
-        const double m = easeInOut((t - 30.5) / 9.5);
-        const double warm = sstep(32.0, 40.0, t);
-        DiscLook d;
-        d.pos = lerp(V2(1190 - cam * 0.015, 286), V2(1310, 512), m);
-        d.r = lerp(108, 112, m);
-        const Col cream = CREAM * 1.22f;
-        const Col orange = hex(0xe2703a) * 1.15f;
-        d.col = warm < 0.5 ? mix(cream, orange, warm * 2) : mix(orange, KRED * 1.08f, (warm - 0.5) * 2);
-        d.col2 = warm < 0.5 ? d.col : mix(orange, HOT * 1.08f, (warm - 0.5) * 2);
-        d.halo = mix(Col(0.55f, 0.95f, 0.74f), ORANGE, warm);
-        d.ring = mix(CREAM, GOLD, warm);
-        d.haloA = lerp(70, 90, warm); d.haloB = lerp(40, 50, warm); d.haloC = lerp(0.30, 0.34, warm);
-        d.haloD = lerp(0.2, 0, warm); d.haloFar = lerp(0.13, 0, warm);
-        d.veil = 1 - warm; d.tex = 1 - warm;
-        d.energy = 0.35 + 0.6 * c.a.bass;
-        d.restRings = lerp(1.0, 1.6, warm);
-        drawDisc(c, d, cam);
-    }
-    // The mountain recedes into Fuji on the same geometry, then the sea laps its foot.
-    {
-        const double m = easeInOut((t - 33.0) / 6.5);
-        MountainLook mt;
-        const Col fuji = duotone(mix(WAVE, VIOLET, 0.25), g);
-        mt.px = lerp(1040 - cam * 0.04, 1086, m);
-        mt.peak = lerp(396, 486, m);
-        mt.base = lerp(632, 616, m);
-        mt.width = lerp(330, 150, m);
-        mt.top = mix(Col(0.050f, 0.300f, 0.220f), fuji, m);
-        mt.bot = mix(Col(0.30f, 0.84f, 0.60f), fuji, m);
-        mt.snow = sstep(36.5, 39.5, t);
-        mt.snowScale = 1;
-        mt.snowCol = duotone(PAPER, g);
-        mt.foot = lerp(30, 0, m);
-        drawMountain(c, mt);
-    }
+    // The disc and the mountain sit behind the valley (ridges, city, trees),
+    // exactly as in Osaka, so nothing is painted over the town at the handover.
+    BackdropHooks bh;
+    bh.afterSky = [&] {
+        if (k > 0.001) {
+            c.gpu.beginOffscreen();
+            kanagawaSky(c);
+            kanagawaMist(c);
+            gradeComposite(c, c.gpu.endOffscreen(), g, k);
+        }
+    };
+    bh.disc = [&] {
+        // The disc sinks and warms from cream to red.
+        {
+            const double m = easeInOut((t - 30.5) / 9.5);
+            const double warm = sstep(32.0, 40.0, t);
+            DiscLook d;
+            d.pos = lerp(V2(1190 - cam * 0.015, 286), V2(1310, 512), m);
+            d.r = lerp(108, 112, m);
+            const Col cream = CREAM * 1.22f;
+            const Col orange = hex(0xe2703a) * 1.15f;
+            d.col = warm < 0.5 ? mix(cream, orange, warm * 2) : mix(orange, KRED * 1.08f, (warm - 0.5) * 2);
+            d.col2 = warm < 0.5 ? d.col : mix(orange, HOT * 1.08f, (warm - 0.5) * 2);
+            d.halo = mix(Col(0.55f, 0.95f, 0.74f), ORANGE, warm);
+            d.ring = mix(CREAM, GOLD, warm);
+            d.haloA = lerp(70, 90, warm); d.haloB = lerp(40, 50, warm); d.haloC = lerp(0.30, 0.34, warm);
+            d.haloD = lerp(0.2, 0, warm); d.haloFar = lerp(0.13, 0, warm);
+            d.veil = 1 - warm; d.tex = 1 - warm;
+            d.energy = 0.35 + 0.6 * c.a.bass;
+            d.restRings = lerp(1.0, 1.6, warm);
+            drawDisc(c, d, cam);
+        }
+    };
+    bh.mountain = [&] {
+        // The mountain recedes into Fuji on the same geometry, then the sea laps its foot.
+        {
+            const double m = easeInOut((t - 33.0) / 6.5);
+            MountainLook mt;
+            const Col fuji = duotone(mix(WAVE, VIOLET, 0.25), g);
+            mt.px = lerp(1040 - cam * 0.04, 1086, m);
+            mt.peak = lerp(396, 486, m);
+            mt.base = lerp(632, 616, m);
+            mt.width = lerp(330, 150, m);
+            mt.top = mix(Col(0.050f, 0.300f, 0.220f), fuji, m);
+            mt.bot = mix(Col(0.30f, 0.84f, 0.60f), fuji, m);
+            mt.snow = sstep(36.5, 39.5, t);
+            mt.snowScale = 1;
+            mt.snowCol = duotone(PAPER, g);
+            mt.foot = lerp(30, 0, m);
+            drawMountain(c, mt);
+        }
+    };
+    drawOsakaBackdrop(c, s, false, false, &bh);
     if (k > 0.001) {
         c.gpu.beginOffscreen(true);
         kanagawaSea(c);
