@@ -664,7 +664,7 @@ Surge kanagawaBreak(const Ctx& c) {
 
 void kanagawaSky(Ctx& c) {
     Program& sky = c.gpu.effect("kanagawaSky", kanagawaSkyFs);
-    c.gpu.pass(sky, Blend::Replace, [&](Program& q) { q.set("u_grade", 1.f);q.set("u_arrival",float(sstep(68,78,c.t)));q.set("u_paper",float(kanagawaPaperWeight(c.t))); });
+    c.gpu.pass(sky, Blend::Replace, [&](Program& q) { q.set("u_grade", 1.f);q.set("u_arrival",float(std::max(sstep(68,78,c.t),.62*(1-kanagawaPaperWeight(c.t))*sstep(66,68.5,c.t))));q.set("u_paper",float(kanagawaPaperWeight(c.t))); });
 }
 void kanagawaMist(Ctx& c) { mistBars(c, c.t); }
 void kanagawaSea(Ctx& c) {

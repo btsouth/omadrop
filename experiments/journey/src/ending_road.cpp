@@ -42,7 +42,7 @@ void pine(Canvas& cv,V2 root,double h) {
 struct Road {
     std::vector<V2> center;
     std::vector<double> length;
-    Road():center(smooth({{80,1120},{620,1010},{1270,931},{1660,800},
+    Road():center(smooth({{-300,1200},{620,1010},{1270,931},{1660,800},
                          {1490,683},{1770,590},{2130,540}})) {
         length.push_back(0);
         for(std::size_t i=1;i<center.size();++i)
@@ -424,11 +424,12 @@ void endingCar(Ctx& c, const CarPose& pose, const Bearer& bearer) {
     panel({{2.339,-.65,.31},{2.339,-.32,.31},{2.339,-.32,.40},{2.339,-.65,.40}},hex(0xa8a493));
     panel({{2.339,.32,.31},{2.339,.65,.31},{2.339,.65,.40},{2.339,.32,.40}},hex(0xa8a493));
     panel({{2.34,-.23,.31},{2.34,.23,.31},{2.34,.23,.41},{2.34,-.23,.41}},hex(0x293047));
+    const double lamps=sstep(77.5,78.1,c.t),lift=.03+.23*lamps;
     for(double y:{-.55,.55}) {
         panel({{1.73,y-.19,.61},{1.98,y-.19,.61},{1.98,y+.19,.61},{1.73,y+.19,.61}},paint,true);
-        panel({{1.98,y-.19,.61},{1.98,y+.19,.61},{1.94,y+.19,.87},{1.94,y-.19,.87}},trim);
-        panel({{1.985,y-.155,.655},{1.985,y+.155,.655},{1.955,y+.155,.83},{1.955,y-.155,.83}},cream);
-        panel({{1.73,y-.19,.61},{1.94,y-.19,.87},{1.94,y+.19,.87},{1.73,y+.19,.61}},lit,true);
+        panel({{1.98,y-.19,.61},{1.98,y+.19,.61},{1.94,y+.19,.61+lift},{1.94,y-.19,.61+lift}},trim);
+        if(lamps>.05)panel({{1.985,y-.155,.61+lift*.17},{1.985,y+.155,.61+lift*.17},{1.955,y+.155,.61+lift*.85},{1.955,y-.155,.61+lift*.85}},mix(cream,hex(0xfff3d6),lamps));
+        panel({{1.73,y-.19,.61},{1.94,y-.19,.61+lift},{1.94,y+.19,.61+lift},{1.73,y+.19,.61}},lit,true);
     }
     // One front-hinged passenger door, rotated in model space as a real panel.
     auto door=[&](P p) {
@@ -512,10 +513,21 @@ void endingCar(Ctx& c, const CarPose& pose, const Bearer& bearer) {
     // at the projected doorway edge as the solved pose physically enters.
     if(c.t<77.3)drawBearer(c,bearer,-1,entryBottom,entryTop,beltA,beltB);
     Canvas& glow=c.canvas();
-    const V2 poolA=project({2.8,-.55,.005});
-    glow.glowEllipse(poolA.x,poolA.y,96*pose.scale/110,17*pose.scale/110,gold,.18);
-    const V2 poolB=project({2.8,.55,.005});
-    glow.glowEllipse(poolB.x,poolB.y,84*pose.scale/110,15*pose.scale/110,gold,.13);
+    const double beam=.25+.75*lamps,k=pose.scale/110;
+    const V2 poolA=project({2.8+.6*lamps,-.55,.005});
+    glow.glowEllipse(poolA.x,poolA.y,(96+60*lamps)*k,(17+6*lamps)*k,gold,.18*beam+.10*lamps);
+    const V2 poolB=project({2.8+.6*lamps,.55,.005});
+    glow.glowEllipse(poolB.x,poolB.y,(84+50*lamps)*k,(15+5*lamps)*k,gold,.13*beam+.08*lamps);
+    for(double y:{-.55,.55}) {
+        const V2 lamp=project({1.99,y,.61+lift*.5});
+        glow.glow(lamp.x,lamp.y,(10+16*lamps)*k,hex(0xfff0cc),.85*lamps);
+    }
+    // Tail lamps warm up as the engine starts and stay lit into the bend.
+    const double tail=sstep(77.3,77.9,c.t);
+    for(double y:{-.57,.57}) {
+        const V2 lamp=project({-2.33,y,.45});
+        glow.glow(lamp.x,lamp.y,(9+5*tail)*k,hex(0xff4a5a),.25+.6*tail);
+    }
     const V2 sill=project({-.40,-1.0,0});
     glow.glowEllipse(sill.x,sill.y,65*pose.scale/110,16*pose.scale/110,hex(0xd4a5ba),.12);
     c.gpu.add(glow,.4,float(12*pose.scale/110));
@@ -547,8 +559,11 @@ void drawEndingRoad(Ctx& c) {
     const CarPose car=carPose(c.t);const Bearer bearer=bearerAt(c,car);
     // Translate complete vector geometry before tessellation/frame clipping.
     // The road is fully settled at the water-to-bank contact handoff.
+    // The coast dissolves in around the surge rather than sliding in as a
+    // panel; the sky's warm arrival carries the change between worlds.
     const double camera=c.cameraX;
-    const double offset=1920*(1-sstep(68.8,70.7,c.t));
+    const double offset=0,arrive=sstep(68.6,70.5,c.t);
+    if(arrive<1)c.gpu.beginOffscreen(true);
     c.cameraX=-offset;
     roadLandscape(c);
     // A quiet warm strip above the guardrail links the storm wash to the
@@ -559,13 +574,18 @@ void drawEndingRoad(Ctx& c) {
     bank.curveTo(1060,984,960,1002,870,990);bank.closePath();bank.fill();
     c.gpu.over(bank);
     c.cameraX=camera;
+    if(arrive<1)c.gpu.composite(c.gpu.endOffscreen(),Blend::Over,1,float(arrive));
     washFoam(c);
     // Early bearer belongs to water until the explicit 70.7-second handoff.
     // Once the road has arrived, one doorway split owns both the approach
     // and boarding. There is no 75.8-second render-ownership handoff.
     if(c.t<73)drawBearer(c,bearer);
     c.cameraX=-offset;
+    // The coupe settles in after the coast, never ghosting over the crew.
+    const double carIn=sstep(69.9,70.7,c.t);
+    if(carIn<1)c.gpu.beginOffscreen(true);
     endingCar(c,car,c.t>=73?bearer:Bearer{});
+    if(carIn<1)c.gpu.composite(c.gpu.endOffscreen(),Blend::Over,1,float(carIn));
     c.cameraX=camera;
 }
 

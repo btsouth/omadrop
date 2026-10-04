@@ -96,18 +96,40 @@ void printSea(Ctx& c,double opacity) {
         for(int k=-8;k<12;++k) {
             const double middle=(-Pi/2+2*Pi*k+c.t*.52+drift-depth*6-pull*1.1)*waveScale;
             if(middle<-200 || middle>2100)continue;
-            const double span=54+150*depth*(.65+.35*hash2(k,row+38));
-            const double x0=middle-span*.42;
-            cv.color(cream,.96);cv.moveTo(x0,top(x0));
-            for(int j=1;j<=22;++j){double x=x0+j*span/22;cv.lineTo(x,top(x));}
-            for(int j=22;j>=0;--j){double u=j/22.0,x=x0+u*span;cv.lineTo(x,top(x)+(4+27*depth)*std::pow(std::sin(Pi*u),.7)*(1+.24*noise1(u*7,row)));}
-            cv.closePath();cv.fill();
-            for(int j=0;j<5;++j) {
-                const double x=x0+span*(.48+j*.095),yy=top(x);
-                const double ln=(6+20*depth)*(1+.4*hash2(j+k,row));
-                cv.color(cream,.96);cv.moveTo(x-3,yy+4);
-                cv.curveTo(x+ln*.45,yy-4,x+ln*1.1,yy+2,x+ln,yy+ln*.65);
-                cv.curveTo(x+ln*.75,yy+ln*.12,x+ln*.3,yy+10,x-3,yy+4);cv.closePath();cv.fill();
+            // Each travelling crest keeps its own identity: some stay bare,
+            // the rest break, swell and thin on their own clock, so the sea
+            // never reads as a stamped grid of identical caps.
+            const double id=hash2(k,row+71);
+            if(id<.34)continue;
+            const double breath=.5+.5*std::sin(c.t*(.45+.55*hash2(k,row+72))+Tau*hash2(k,row+73));
+            const double size=(.45+.95*hash2(k,row+38))*(.38+.62*breath)*(1+.35*c.lift(std::clamp(int((1-depth)*5),0,5)));
+            const double span=(40+170*depth)*size;
+            if(span<14)continue;
+            const double x0=middle-span*(.30+.22*hash2(k,row+74));
+            const double thick=(4+30*depth)*(.7+.5*size);
+            const int lobes=2+int(4*hash2(k,row+75));
+            auto under=[&](double u) {
+                const double lobe=.62+.38*std::abs(std::sin(Pi*u*lobes+hash2(k,row+76)*3));
+                // Heavier on the leading (right) side where the crest spills.
+                return thick*std::pow(std::sin(Pi*u),.65)*lobe*(.7+.6*u)*(1+.22*noise1(u*9,row+k));
+            };
+            for(int pass=0;pass<2;++pass) {
+                // A thin Prussian underprint separates the cap from its swell.
+                const double dy=pass?0:2.5+2*depth;
+                cv.color(pass?cream:hex(0x0e2347),pass?.97:.55);
+                cv.moveTo(x0,top(x0)+dy);
+                for(int j=1;j<=24;++j){double x=x0+j*span/24;cv.lineTo(x,top(x)-(pass?0:1)+dy);}
+                for(int j=24;j>=0;--j){double u=j/24.0,x=x0+u*span;cv.lineTo(x,top(x)+under(u)+dy);}
+                cv.closePath();cv.fill();
+            }
+            // Small curled fingers spill forward off the leading edge.
+            const int fingers=int(1+4*size*hash2(k,row+77)+.5);
+            for(int j=0;j<fingers;++j) {
+                const double u=.62+.34*(j+.5)/std::max(1,fingers),x=x0+span*u,yy=top(x)+under(u)*.55;
+                const double ln=(5+19*depth)*(.7+.6*hash2(j+k,row))*(.6+.5*size);
+                cv.color(cream,.96);cv.moveTo(x-3,yy-2);
+                cv.curveTo(x+ln*.45,yy-6,x+ln*1.15,yy,x+ln*.95,yy+ln*.7);
+                cv.curveTo(x+ln*.70,yy+ln*.25,x+ln*.3,yy+6,x-3,yy+3);cv.closePath();cv.fill();
             }
         }
         for(int j=0;j<3;++j) {
@@ -282,25 +304,53 @@ void studyWave(Ctx& c,double growth) {
         }
         auto band=rim;for(auto it=inside.rbegin();it!=inside.rend();++it)band.push_back(*it);
         polyfill(foam,band,cream);
-        // Unequal clusters: rounded curling limbs rooted in the cream sheet.
-        for(int k=0;k<(seg==0?4:6);++k) {
-            const double u=(k+.22+.50*hash2(k,seg+48))/(seg==0?4:6);
+    }
+    // Hokusai claws: tapered talons that reach forward along the crest and
+    // hook back at the tip, each splitting into smaller fingers. A Prussian
+    // underprint drawn first keeps neighbouring talons readable as separate.
+    struct Talon {V2 root;double ang,len,width,turn;};
+    std::vector<Talon> talons;
+    for(int seg=0;seg<3;++seg) {
+        const Cubic& q=crown[seg];
+        const int count=seg==0?4:(seg==1?11:5);
+        for(int k=0;k<count;++k) {
+            const double u=std::clamp((k+.15+.70*hash2(k,seg+48))/count,.02,.98);
             const V2 tangent=map(q.at(std::min(1.0,u+.005)))-map(q.at(std::max(0.0,u-.005)));
             const double ang=std::atan2(tangent.y,tangent.x);
             V2 normal=unit(q.tangent(u));normal={-normal.y,normal.x};
-            const V2 root=map(q.at(u)+normal*65);
-            const double len=(55+95*hash2(k,seg+30))*(.05+.95*growth)*(1+.25*c.hit(4));
-            for(int branch=0;branch<6;++branch) {
-                const double a=ang+1.05+branch*.06+.20*hash2(k*6+branch,seg+94),ln=len*(.48+.42*hash2(k*6+branch,seg+51)),w=(10+12*hash2(k*6+branch,seg))*(.08+.92*growth);
-                const V2 start=root+V2(std::cos(ang),std::sin(ang))*(branch-2.5)*13;
-                const double curl=-.35+.95*hash2(k*6+branch,seg+77);
-                foamDigit(foam,start,a,ln,w,curl+.1,cream,1);
-                const V2 fork=start+V2(std::cos(a+.20),std::sin(a+.20))*ln*.76;
-                if(branch==1 || branch==4)foamDigit(foam,fork,a-.55,ln*.32,w*.45,-.55,cream,1);
-                if(branch==2)foamDigit(foam,fork,a+.55,ln*.30,w*.40,.6,cream,1);
-            }
+            // Talons grow toward the lip, where the wave throws forward.
+            const double reach=seg==0?.45:(seg==1?.55+.45*u:1.0);
+            const double base=(70+110*hash2(k,seg+30))*reach*(.05+.95*growth)*(1+.22*c.hit(4));
+            // Inner talons hang from the sheet; outer ones fringe the rim.
+            const double inside=(seg==0?45:92)*(.45+.55*growth)*(.75+.2*hash2(k,seg+31));
+            talons.push_back({map(q.at(u)+normal*inside),ang+.55+.35*hash2(k,seg+94),base,
+                (13+10*hash2(k,seg))*(.1+.9*growth),1.25+.6*hash2(k,seg+77)});
+            // Only the thrown lip fringes its outer edge, rooted in the sheet.
+            if(seg==2 && u<.75 && hash2(k,seg+33)>.3)
+                talons.push_back({map(q.at(u)+normal*10),ang-.35-.3*hash2(k,seg+95),base*.42,
+                    (9+5*hash2(k,seg+2))*(.1+.9*growth),1.5+.5*hash2(k,seg+78)});
         }
-
+    }
+    for(int pass=0;pass<2;++pass) for(std::size_t i=0;i<talons.size();++i) {
+        const Talon& t=talons[i];
+        const Col col=pass?cream:hex(0x1d4673);
+        const double grow=pass?0:3.2;
+        tendril(foam,t.root,t.ang,t.len+grow,t.width+grow,t.turn,col,1);
+        // Two or three fingers fork from the outer half and hook harder.
+        const int forks=t.len>110?2:1;
+        for(int f=0;f<forks;++f) {
+            const double at=.42+.16*f+.08*hash2(int(i),f+120);
+            const double a=t.ang+t.turn*std::pow(at,1.7);
+            V2 p=t.root;
+            // Walk the main talon's centreline to the fork root.
+            for(int j=0;j<int(at*30);++j) {
+                const double uu=j/30.0,aa=t.ang+t.turn*std::pow(uu,1.7);
+                p=p+V2(std::cos(aa),std::sin(aa))*(t.len/30);
+            }
+            const double side=(f%2?1:-1)*(.55+.25*hash2(int(i),f+121));
+            tendril(foam,p,a+side,t.len*(.30+.16*hash2(int(i),f+122))+grow,t.width*(.45-.08*f)+grow*.6,
+                t.turn*(1.1+.4*f)*(side>0?1:.6),col,1);
+        }
     }
     // Foam follows the same waterline feather as the face. The remaining
     // crest breaks into the existing impact spray rather than blinking out.
@@ -361,7 +411,7 @@ void studyWreck(Ctx& c,V2 rescueBoat,double boatScale) {
     cv.save();cv.translate(0,-75*std::sin(Pi*settle)+5*std::sin(age*1.8));
     // Settled halves and scattered structural timbers, well separated crew.
     for(int half=0;half<2;++half) {
-        cv.save();cv.translate(lerp(1385.0,850.0,settle)+half*lerp(300.0,470.0,settle)-950*pan,865+20*settle+half*28*settle);cv.rotate((half?.16:-.11)*sstep(0,.5,age));
+        cv.save();cv.translate(lerp(1385.0,850.0,settle)+half*lerp(300.0,470.0,settle)-1180*pan,865+20*settle+half*28*settle-55*pan);cv.rotate((half?.16:-.11)*sstep(0,.5,age));
         cv.color(wood);cv.moveTo(-120,-14);cv.curveTo(-95,20,50,30,112,1);
         cv.lineTo(97,-13);cv.lineTo(85,-4);cv.lineTo(65,-12);cv.lineTo(55,-3);cv.lineTo(34,-13);
         cv.curveTo(-30,1,-100,-3,-120,-14);cv.closePath();cv.fill();
@@ -405,28 +455,70 @@ void impact(Ctx& c,double age) {
     Canvas& cv=c.canvas();
     const double erupt=sstep(0,.17,age)*(1-sstep(.65,1.5,age));
     if(erupt>0) {
-        for(int mass=0;mass<7;++mass) {
-            const double x=830+mass*155+28*std::sin(age*2+mass);
-            const double w=(240+75*hash2(mass,281))*erupt;
-            const double h=(330+260*hash2(mass,282))*erupt;
-            std::vector<V2> edge={{x-w,1140}};
-            for(int j=0;j<=46;++j) {
-                const double u=j/46.0,xx=x-w+2*w*u;
-                const double top=1060-h*std::pow(std::sin(Pi*u),.7)-45*erupt*noise1(u*18,mass+64);
-                edge.push_back({xx,top});
+        // One domed explosion of whitewater, built from staggered plumes.
+        // The union of their rounded profiles gives a single silhouette with
+        // sloping shoulders; a shaded back layer and blue folds give volume.
+        constexpr int plumes=7;
+        double px[plumes],pw[plumes],ph[plumes];
+        for(int m=0;m<plumes;++m) {
+            const double lag=.035*std::abs(m-3.2);
+            const double e=sstep(lag,.17+lag,age)*(1-sstep(.65+lag*.6,1.5,age));
+            px[m]=860+m*150+30*std::sin(age*2+m);
+            pw[m]=(210+70*hash2(m,281))*(.6+.4*e);
+            ph[m]=(250+300*hash2(m,282))*(1-.55*std::pow(std::abs(m-3.2)/3.2,2))*e;
+        }
+        auto envelope=[&](double x,double scale,double shift) {
+            double h=0;
+            for(int m=0;m<plumes;++m) {
+                const double d=(x-px[m]-shift)/(pw[m]*scale*1.25);
+                if(std::abs(d)<1)h=std::max(h,ph[m]*.82*scale*std::pow(1-d*d,1.3));
             }
-            edge.push_back({x+w,1140});polyfill(cv,edge,cream);
-            for(int k=0;k<8;++k) {
-                const double u=.10+.80*hash2(k,mass+285),xx=x-w+2*w*u;
-                const double yy=1060-h*std::pow(std::sin(Pi*u),.7);
-                for(int finger=0;finger<3;++finger)
-                    foamDigit(cv,{xx+finger*8,yy+12},-1.5+finger*.3,erupt*(25+55*hash2(k,mass+288)),5+4*hash2(k,mass+289),.5+finger*.25,cream,1);
+            return h;
+        };
+        // Billowing lobes ride the envelope: a cumulus of foam, not a peak.
+        auto height=[&](double x,double scale,double shift) {
+            double h=envelope(x,scale,shift);
+            for(int b=0;b<26;++b) {
+                const double bx=520+b*58+20*hash2(b,290)+shift;
+                const double base=envelope(bx,scale,shift);
+                if(base<30)continue;
+                const double r=(38+46*hash2(b,291))*(.5+.5*base/450)*scale;
+                const double d=x-bx;
+                if(std::abs(d)<r)h=std::max(h,base+std::sqrt(r*r-d*d)-r*.55);
             }
-            for(int k=0;k<3;++k) {
-                const double dx=(hash2(k,mass+299)-.5)*w,yy=1020-h*(.08+.42*hash2(k,mass+301));
-                cv.color(teal,.60);cv.moveTo(x+dx,yy+34*erupt);
-                cv.curveTo(x+dx-24*erupt,yy+7*erupt,x+dx+30*erupt,yy-14*erupt,x+dx+44*erupt,yy-31*erupt);cv.stroke(2+3*erupt);
+            return h;
+        };
+        for(int layer=0;layer<2;++layer) {
+            const double scale=layer?1.0:1.07,shift=layer?0:-18;
+            std::vector<V2> edge={{420,1140}};
+            for(double x=420;x<=2000;x+=8) {
+                const double h=height(x,scale,shift);
+                edge.push_back({x,1075-h-(h>4?10*erupt*noise1(x*.03,layer+64):0)});
             }
+            edge.push_back({2000,1140});
+            double top=1080;for(V2 p:edge)top=std::min(top,p.y);
+            const Col body=layer?cream:mix(cream,teal,.38);
+            cv.linear(0,top,0,1100,{{0,body,1},{.55f,body,1},{1,mix(body,hex(0x315985),.45),1}});
+            cv.moveTo(edge[0].x,edge[0].y);for(V2 p:edge)cv.lineTo(p.x,p.y);cv.closePath();cv.fill();
+        }
+        // Talons fringe the dome, thrown outward from the point of contact.
+        for(int k=0;k<34;++k) {
+            const double x=560+1300*hash2(k,285);
+            const double h=height(x,1,0);
+            if(h<40)continue;
+            const double y=1075-h+6;
+            const double out=std::atan2(-(h+120),(x-1310)*1.4);
+            const double side=x<1310?-1:1;
+            const double ln=erupt*(28+70*hash2(k,288))*(.6+.4*h/550);
+            tendril(cv,{x,y},out,ln+3,7+5*hash2(k,289)+3,1.3*side,hex(0x6f93ad),1);
+            tendril(cv,{x,y},out,ln,6+5*hash2(k,289),1.3*side,cream,1);
+        }
+        for(int k=0;k<14;++k) {
+            const double x=600+1250*hash2(k,299),h=height(x,1,0);
+            if(h<70)continue;
+            const double yy=1075-h*(.25+.55*hash2(k,301));
+            cv.color(teal,.55);cv.moveTo(x,yy+34*erupt);
+            cv.curveTo(x-24*erupt,yy+7*erupt,x+30*erupt,yy-14*erupt,x+44*erupt,yy-31*erupt);cv.stroke(2+2.5*erupt);
         }
     }
     // Spray follows a launch velocity with ballistic gravity, never bead discs.
