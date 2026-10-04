@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build and run the controller's fake-process tests. No GUI, no real session.
-# Fast enough to run anywhere Qt6 is installed; safe to run on the devbox.
+# Fast enough to run anywhere Qt6 is installed.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
