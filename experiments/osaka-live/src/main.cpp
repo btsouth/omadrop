@@ -116,7 +116,7 @@ int main(int argc,char** argv) {
     QFile stats(parser.value("stats"));
     if(parser.isSet("stats") && !stats.open(QIODevice::WriteOnly|QIODevice::Truncate)) return 1;
     QTextStream csv(&stats);
-    if(stats.isOpen()) csv<<"seconds,render_ms,submit_ms,thread_cpu_ms,gain,bass,accent,surge,band0,band1,band2,band3,band4,band5,onsets,bass_hits,mid_peaks,firework_at,finale_count,train_age,cyclist_age,static_builds,static_uploads,vertex_upload_bytes\n";
+    if(stats.isOpen()) csv<<"seconds,render_ms,submit_ms,thread_cpu_ms,gain,bass,accent,surge,band0,band1,band2,band3,band4,band5,onsets,bass_hits,mid_peaks,firework_at,finale_count,train_age,cyclist_age,static_builds,static_uploads,vertex_upload_bytes,pre_gain_level,full_firework_show\n";
     const auto start=std::chrono::steady_clock::now();
     std::vector<unsigned char> rgb;
     const int frames=int(std::ceil(seconds*fps));
@@ -148,7 +148,8 @@ int main(int argc,char** argv) {
                 <<','<<f.schedule.fireworks<<','<<f.schedule.finale.size()
                 <<','<<f.schedule.age(Journey::Moment::Train,f.seconds)<<','<<f.schedule.age(Journey::Moment::Cyclist,f.seconds)
                 <<','<<world.staticBuilds()<<','<<world.gpu().geometryStats().staticUploads
-                <<','<<world.gpu().geometryStats().vertexBytes-previousBytes<<'\n';
+                <<','<<world.gpu().geometryStats().vertexBytes-previousBytes<<','<<f.audio.preGainLevel
+                <<','<<int(f.schedule.fullFireworkShow)<<'\n';
         }
         if(record) {
             world.gpu().readRgb(rgb);

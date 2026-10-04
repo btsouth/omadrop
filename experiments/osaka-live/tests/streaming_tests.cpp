@@ -49,6 +49,7 @@ int main() {
     for(int k=0;k<8*3600*60;++k) {
         const double t=k/60.0;
         Audio a;
+        a.preGainLevel=0.112;
         if(k<3600 || k>=7200) {
             for(int b=0;b<6;++b) a.bands[b]=0.15+0.12*std::sin(t*(1.5+b*0.17));
             a.bass=0.25+0.20*std::sin(t*6.5);
@@ -62,7 +63,8 @@ int main() {
         for(double phase:score.strandPhase) require(std::isfinite(phase)&&phase>=0&&phase<5,"strand phase drifted");
         if(schedule.fireworks!=previousFirework) {
             require(schedule.fireworks>=t-0.1,"firework was backdated");
-            if(previousFirework>=0) require(schedule.fireworks-previousFirework>=18,"firework cooldown failed");
+            if(previousFirework>=0) require(schedule.fireworks-previousFirework>=45,"firework cooldown failed");
+            require(schedule.fireworkReady-t>=45 && schedule.fireworkReady-t<=90,"seeded cooldown outside 45-90s");
             previousFirework=schedule.fireworks; ++fireworks;
             require(k<3600 || k>=7200,"silence triggered fireworks");
         }
@@ -70,6 +72,24 @@ int main() {
         if(ts!=trainStart) { trainStart=ts; ++trains; }
     }
     require(fireworks>100 && trains>100,"moments failed to recur");
+    // Strong measured events remain required, even for loud material.
+    // Gymnopedie gets one small shell and cannot add follow-ups; Sneaky and
+    // Volatile keep the full authored show. Test the latched show separately.
+    for(double level:{0.066,0.112,0.375}) {
+        Schedule shows(1); Score events; Audio a;
+        a.bands.fill(0.2); a.preGainLevel=level;
+        for(int k=0;k<300;++k) {
+            const double t=10+k/60.0;
+            events.onsets.push_back({t,0.8,std::uint64_t(k+1)});
+            shows.advance(t,a,events);
+            require(shows.fullFireworkShow==(level>=0.09),"pre-gain show gate failed");
+            if(level<0.09) require(shows.finale.empty(),"quiet input produced a volley");
+        }
+        require(shows.fireworks==10,"show restarted inside cooldown");
+        if(level>=0.09) require(!shows.finale.empty(),"loud show lost follow-ups");
+    }
+    // Shared gain must not enter the independent pre-gain level measurement.
+    require(small[180].preGainLevel==large[180].preGainLevel,"chunking changed pre-gain level");
     Schedule silent(7); Score quiet;
     for(int k=0;k<18000;++k) { quiet.advance({},k/60.0,1.0/60); silent.advance(k/60.0,{},quiet); }
     require(silent.fireworks<0,"timed fallback fireworks survived");

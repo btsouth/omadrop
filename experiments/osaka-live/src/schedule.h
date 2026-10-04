@@ -20,6 +20,7 @@ struct Schedule {
     std::array<Recurrence,int(Moment::Count)> moments{};
     std::array<double,15> birdLand{}, birdReturn{};
     double fireworks=-1, fireworkStrength=0, fireworkReady=10;
+    bool fullFireworkShow = true;
     std::deque<Event> finale;
 private:
     int seed_;

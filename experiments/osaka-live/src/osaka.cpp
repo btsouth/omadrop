@@ -75,6 +75,7 @@ std::vector<Shell> shellPlan(const Ctx& c, const Life& L) {
     const Col GOLD(1.0f, 0.80f, 0.42f), EMBER(0.95f, 0.36f, 0.16f), PINK(0.98f, 0.45f, 0.72f);
     const Col JADEF(0.40f, 1.0f, 0.74f), ICE(0.70f, 0.95f, 1.0f);
     out.push_back({L.bloom, FIREWORK, 1.0 * L.scale, 0, GOLD, EMBER, 1.0, 0});
+    if (!c.schedule->fullFireworkShow) return out;
     out.push_back({L.bloom + 0.26, FIREWORK + V2(-6, 10), 0.55 * L.scale, 1, JADEF, ICE, 0.8, 0});
     // Finale: up to four shells on the next bass hits before the glide.
     struct Slot { V2 at; double size; int kind; Col a, b; double tilt; };
@@ -98,6 +99,7 @@ Life lifeAt(const Ctx& c) {
     L.wind=0.12+0.06*fbm1(t*0.6,3)+gust*(0.85+0.15*fbm1(t*2.3,9));
     if(c.schedule->fireworks>=0 && t-c.schedule->fireworks<12) {
         L.surge={c.schedule->fireworks,c.schedule->fireworkStrength,false};
+        L.scale=c.schedule->fullFireworkShow?1.0:0.35;
         L.bloom=L.surge.t+0.55;
         L.look=window(t,L.surge.t+0.3,0.45,L.surge.t+5.0,1.3);
     }

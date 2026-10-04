@@ -124,6 +124,7 @@ struct StreamingAudio::Impl {
             }
         }
         rms = std::sqrt(power / (hop * 2));
+        current.preGainLevel = smooth(current.preGainLevel, rms, step, 3.0, 3.0);
         const auto& l = left.processStereo(mono[0].data(), hop);
         const auto& r = right.processStereo(mono[1].data(), hop);
         auto bands = absolute.process(pending.data(), hop);
