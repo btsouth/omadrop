@@ -23,7 +23,8 @@ void World::render(int width, int height, double t, const Audio& audio) {
     } else if (t < T::crossingEnd) {
         drawCrossing(c);
     } else {
-        drawKanagawa(c);
+        if (directionStudy_) drawDirectionStudy(c);
+        else drawKanagawa(c);
     }
 }
 }

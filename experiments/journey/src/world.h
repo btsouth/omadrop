@@ -66,6 +66,7 @@ struct OsakaState {
 void drawOsaka(Ctx& c, const OsakaState& s);
 void drawCrossing(Ctx& c);
 void drawKanagawa(Ctx& c);
+void drawDirectionStudy(Ctx& c);
 void drawTitle(Canvas& canvas, int which, double alpha, Col accent, Col text);
 // Sign lettering, one glyph per index: 0..2 居酒屋, 3..6 らーめん. (x, y) is the
 // glyph origin on the baseline; size is the em in design pixels.
@@ -79,12 +80,14 @@ public:
     explicit World(int seed) : seed_(seed) {}
     bool init(QString& error) { return gpu_.init(error); }
     void setScore(const Score* score) { score_ = score; }
+    void setDirectionStudy(bool enabled) { directionStudy_ = enabled; }
     void render(int width, int height, double t, const Audio& audio);
     Gpu& gpu() { return gpu_; }
 private:
     Gpu gpu_;
     const Score* score_ = nullptr;
     int seed_;
+    bool directionStudy_ = false;
     std::array<Canvas, 6> canvases_;
 };
 }

@@ -33,7 +33,7 @@ struct Options {
     QString audio, exportDir, video, stills, outDir, bench;
     double offset = 0, duration = 60, at = 0, start = 0, fadeIn = 0.6, fadeOut = 1.2;
     int fps = 30, width = 1920, height = 1080, seed = 1;
-    bool paused = false, overwrite = false, inspect = false;
+    bool paused = false, overwrite = false, inspect = false, directionStudy = false;
 };
 
 bool number(const QCommandLineParser& parser, const QString& name,
@@ -108,6 +108,7 @@ int exportFrames(const Options& options, const Journey::AudioTimeline& audio, co
     Journey::World world(options.seed);
     if (!world.init(error)) return fail(error);
     world.setScore(&score);
+    world.setDirectionStudy(options.directionStudy);
     QTextStream(stderr) << "GPU: " << context.renderer() << '\n';
     std::vector<unsigned char> rgb;
 
@@ -237,6 +238,7 @@ int main(int argc, char* argv[]) {
         {QStringLiteral("fade-in"), QStringLiteral("--video: fade from black, seconds (0 disables)."), QStringLiteral("seconds"), QStringLiteral("0.6")},
         {QStringLiteral("fade-out"), QStringLiteral("--video: fade to black, seconds (0 disables)."), QStringLiteral("seconds"), QStringLiteral("1.2")},
         {QStringLiteral("stills"), QStringLiteral("Comma-separated movie times to export as PNG."), QStringLiteral("times")},
+        {QStringLiteral("direction-study"), QStringLiteral("Headless still/benchmark studies for the proposed wave and car ending.")},
         {QStringLiteral("out-dir"), QStringLiteral("Directory for --stills."), QStringLiteral("path")},
         {QStringLiteral("inspect"), QStringLiteral("Print a per-second audio feature report for the whole --audio file.")},
         {QStringLiteral("bench"), QStringLiteral("Headless: time rendering at these movie times (comma list), no output."), QStringLiteral("times")},
@@ -280,6 +282,11 @@ int main(int argc, char* argv[]) {
     options.paused = parser.isSet(QStringLiteral("paused"));
     options.overwrite = parser.isSet(QStringLiteral("overwrite"));
     options.inspect = parser.isSet(QStringLiteral("inspect"));
+    options.directionStudy = parser.isSet(QStringLiteral("direction-study"));
+    if (options.directionStudy && (options.stills.isEmpty() && options.bench.isEmpty()))
+        return fail(QStringLiteral("--direction-study requires --stills or --bench."));
+    if (options.directionStudy && (!options.video.isEmpty() || !options.exportDir.isEmpty()))
+        return fail(QStringLiteral("Direction studies are still-frame previews, not a completed film."));
     const bool exporting = parser.isSet(QStringLiteral("export-dir")) || parser.isSet(QStringLiteral("video"))
         || parser.isSet(QStringLiteral("stills")) || parser.isSet(QStringLiteral("bench"));
     if (parser.isSet(QStringLiteral("audio")) && options.audio.isEmpty()) return fail(QStringLiteral("--audio path is empty."));
