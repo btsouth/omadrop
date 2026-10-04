@@ -61,7 +61,7 @@ h1 { margin-top: 8px; font-size: clamp(42px, 5.2vw, 66px); line-height: 1.04; fo
 .mode-switch button[aria-selected="true"] { background: #303c30; color: #d5eed0; box-shadow: 0 1px 4px #0004, inset 0 1px #ffffff0a; }
 .mode-switch button:hover { color: #e9ece5; }
 .stage-label { color: var(--muted); font: 10px var(--mono); }
-#collection-video { width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: contain; background: #000; }
+#collection-video, #osaka-video { width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: contain; background: #000; }
 .player-controls { min-height: 52px; display: flex; align-items: center; gap: 20px; padding: 8px 15px; background: #191f1a; border-top: 1px solid var(--line); }
 .control { min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 6px; background: transparent; border-radius: 5px; font-size: 11px; white-space: nowrap; transition: color .18s, background .18s; }
 .control:hover { color: var(--accent); background: #ffffff07; }
@@ -75,15 +75,6 @@ h1 { margin-top: 8px; font-size: clamp(42px, 5.2vw, 66px); line-height: 1.04; fo
 .seek-control input::-webkit-slider-thumb { appearance: none; margin-top: -4.5px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px #b8e6b218; }
 .seek-control input::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: var(--accent); }
 .time { flex-shrink: 0; font: 10px var(--mono); color: var(--muted); }
-.still-stage { aspect-ratio: 16 / 9; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; background: #000; }
-.still-stage .image-link { width: min(100%, 480px); }
-.still-stage img { width: 100%; height: auto; border: 1px solid #2e3930; }
-.still-caption { color: var(--muted); font: 10px var(--mono); }
-.effect-picker { min-height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 15px; background: #191f1a; border-top: 1px solid var(--line); }
-.still-note { margin-right: auto; font: 10px var(--mono); color: var(--muted); }
-.effect-picker button { min-height: 35px; padding: 0 12px; background: transparent; border: 1px solid var(--line); border-radius: 4px; font-size: 11px; }
-.effect-picker button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-.effect-picker button:hover { border-color: var(--accent); }
 .preview-caption { width: min(100%, 1040px); margin: 13px auto 0; display: flex; justify-content: space-between; gap: 20px; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .preview-caption > a { white-space: nowrap; }
 .player-status { max-width: 1040px; margin: 8px auto 0; color: var(--accent); font-size: 12px; }
@@ -94,8 +85,8 @@ h1 { margin-top: 8px; font-size: clamp(42px, 5.2vw, 66px); line-height: 1.04; fo
 .product-facts span:last-child { border-right: 0; }
 .playback:fullscreen { width: 100%; height: 100%; max-width: none; border: 0; border-radius: 0; display: flex; flex-direction: column; }
 .playback:fullscreen .preview-panel:not([hidden]) { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.playback:fullscreen video, .playback:fullscreen .still-stage { flex: 1; min-height: 0; width: 100%; height: 100%; object-fit: contain; }
-.playback:fullscreen .stage-header, .playback:fullscreen .player-controls, .playback:fullscreen .effect-picker { flex-shrink: 0; }
+.playback:fullscreen video { flex: 1; min-height: 0; width: 100%; height: 100%; object-fit: contain; }
+.playback:fullscreen .stage-header, .playback:fullscreen .player-controls { flex-shrink: 0; }
 
 .section { padding-top: 60px; }
 h2 { font-size: clamp(26px, 3vw, 36px); line-height: 1.14; font-weight: 550; letter-spacing: -.04em; }
@@ -238,13 +229,6 @@ kbd { padding: 3px 6px; margin-right: 5px; border: 1px solid #485248; border-rad
   .control { min-height: 40px; }
   .seek-control { order: 4; flex-basis: 100%; gap: 10px; }
   .fullscreen-control { margin-left: auto; }
-  .still-stage { padding: 12px; gap: 8px; }
-  .still-stage .image-link { min-height: 0; max-height: 80%; width: auto; max-width: 100%; }
-  .still-stage img { max-height: 140px; width: auto; }
-  .still-caption { font-size: 9px; }
-  .effect-picker { flex-wrap: wrap; gap: 6px; padding: 8px; }
-  .still-note { flex-basis: 100%; text-align: center; }
-  .effect-picker button { min-height: 40px; font-size: 10px; padding-inline: 10px; }
   .preview-caption { flex-direction: column; gap: 7px; font-size: 10px; }
   .product-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin-top: 24px; padding-bottom: 26px; font-size: 10px; }
   .product-facts span { padding: 0; border: 0; }

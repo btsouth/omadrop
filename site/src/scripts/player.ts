@@ -16,6 +16,7 @@ const time = document.querySelector<HTMLElement>("#time");
 const status = document.querySelector<HTMLElement>("#player-status");
 const previewKind = document.querySelector<HTMLElement>("#preview-kind");
 const previewDescription = document.querySelector<HTMLElement>("#preview-description");
+const osakaVideo = document.querySelector<HTMLVideoElement>("#osaka-video");
 
 // Keep native video controls and both previews available if enhancement cannot run.
 if (video && playback && milkdropPanel && omarchyPanel && modeSwitch && milkdropTab && omarchyTab && playerControls && playButton && soundButton && fullscreenButton && seek && time && status && previewKind && previewDescription) {
@@ -93,11 +94,15 @@ if (video && playback && milkdropPanel && omarchyPanel && modeSwitch && milkdrop
     omarchyTab.tabIndex = isMilkdrop ? -1 : 0;
     milkdropPanel.hidden = !isMilkdrop;
     omarchyPanel.hidden = isMilkdrop;
-    previewKind.textContent = isMilkdrop ? "Recorded playback / 53 seconds" : "Early mode / still screenshots";
+    previewKind.textContent = isMilkdrop ? "Recorded playback / 53 seconds" : "Osaka Jade / 24 seconds, no sound";
     if (isMilkdrop) previewDescription.replaceChildren(...Array.from(milkdropDescription.cloneNode(true).childNodes));
-    else previewDescription.textContent = "Actual ttfx screenshots from the early Omarchy mode. Music response runs in the installed app.";
+    else previewDescription.textContent = "Recorded from Omadrop v0.6.0 with music playing. In the app, the street reacts to whatever you play.";
     status.textContent = "";
     reconcilePlayback();
+    if (osakaVideo) {
+      if (!isMilkdrop && wantsPlayback) void osakaVideo.play().catch(() => undefined);
+      else osakaVideo.pause();
+    }
   };
 
   milkdropTab.addEventListener("click", () => selectMode("milkdrop"));
@@ -178,28 +183,6 @@ if (video && playback && milkdropPanel && omarchyPanel && modeSwitch && milkdrop
   syncPlayButton();
   syncSoundButton();
   selectMode("milkdrop");
-}
-
-const effectPreview = document.querySelector<HTMLImageElement>("#effect-preview");
-const effectCaption = document.querySelector<HTMLElement>("#effect-caption");
-const effectButtons = document.querySelectorAll<HTMLButtonElement>("[data-effect]");
-if (effectPreview && effectCaption) {
-  effectButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const { effect, name } = button.dataset;
-      if (!effect || !name) return;
-      effectPreview.src = `/media/effects/${effect}.jpg`;
-      effectPreview.alt = `${name}, an actual ttfx terminal effect screenshot`;
-      const imageLink = document.querySelector<HTMLAnchorElement>("#effect-image-link");
-      if (imageLink) {
-        imageLink.href = effectPreview.src;
-        imageLink.dataset.title = name;
-        imageLink.setAttribute("aria-label", `Enlarge ${name} screenshot`);
-      }
-      effectCaption.textContent = `${name} / ttfx`;
-      effectButtons.forEach((other) => other.setAttribute("aria-pressed", String(other === button)));
-    });
-  });
 }
 
 const copyButton = document.querySelector<HTMLButtonElement>("#copy-install");

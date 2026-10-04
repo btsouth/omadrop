@@ -1,31 +1,28 @@
 # Maintainer: Omadrop contributors
 #
 # Builds Omadrop entirely from source: patched projectM 4.1.7 (with the pinned
-# projectm-eval submodule), the MilkDrop collection renderer, ttfx-music and the
+# projectm-eval submodule), the MilkDrop collection renderer, Osaka Jade and the
 # Qt controller. Use packaging/makepkg.sh from a local checkout to stage the
 # source archive; makepkg fetches the pinned projectM sources.
 pkgname=omadrop
-pkgver=0.5.0
+pkgver=0.6.0
 pkgrel=1
-pkgdesc="Music-reactive MilkDrop visuals and the Omarchy music screensaver"
+pkgdesc="Music-reactive MilkDrop visuals and the live Osaka Jade scene"
 arch=('x86_64')
 url="https://github.com/btsouth/omadrop"
 license=('MIT' 'LGPL-2.1-or-later' 'custom')
 
 depends=(
-  'qt6-base' 'qt6-declarative' 'python' 'jq' 'socat' 'ghostty'
+  'qt6-base' 'qt6-declarative' 'python' 'jq' 'socat'
   'sdl2-compat' 'glew' 'libpng' 'fftw' 'json-c' 'libpulse' 'mesa'
   'pipewire-audio' 'imagemagick' 'curl' 'glib2' 'xorg-xwayland'
 )
 makedepends=(
-  'git' 'python' 'rust' 'cmake' 'ninja' 'pkgconf'
+  'git' 'python' 'cmake' 'ninja' 'pkgconf'
   'qt6-base' 'qt6-declarative'
   'sdl2-compat' 'glew' 'libpng' 'fftw' 'json-c' 'mesa'
 )
 optdepends=(
-  'alacritty: terminal for the Omarchy music screensaver'
-  'kitty: terminal for the Omarchy music screensaver'
-  'foot: terminal for the Omarchy music screensaver'
   'ffmpeg: output calibration and demo recording'
   'gpu-screen-recorder: demo recording'
 )
@@ -38,18 +35,13 @@ source=(
 sha256sums=('SKIP' 'SKIP' 'SKIP')
 
 prepare() {
-  export CARGO_HOME="$srcdir/cargo-home"
   # projectM builds its vendor/projectm-eval submodule in-tree; the source list
   # pins it, so place it before configure. build() runs offline after this.
   rm -rf "$srcdir/projectm/vendor/projectm-eval"
   cp -a "$srcdir/projectm-eval" "$srcdir/projectm/vendor/projectm-eval"
-  cargo fetch --locked \
-    --manifest-path "$srcdir/omadrop-$pkgver/screensaver/ttfx/Cargo.toml"
 }
 
 build() {
-  export CARGO_HOME="$srcdir/cargo-home"
-  export CARGO_NET_OFFLINE=true
   OMADROP_PROJECTM_SOURCE="$srcdir/projectm" \
     "$srcdir/omadrop-$pkgver/install.sh" --stage "$srcdir/root"
 }

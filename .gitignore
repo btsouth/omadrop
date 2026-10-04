@@ -6,7 +6,6 @@
 /presets/pilot.txt
 /app/build/
 /app/tests/.build/
-/screensaver/ttfx/target/
 *.qsb
 __pycache__/
 *.pyc

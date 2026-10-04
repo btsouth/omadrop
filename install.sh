@@ -2,7 +2,7 @@
 # Build and install Omadrop for the current user.
 #
 # One product, one root: the MilkDrop collection and the Omarchy music
-# screensaver, driven by the single public `omadrop` command.
+# Osaka Jade scene, driven by the single public `omadrop` command.
 set -euo pipefail
 
 root=$(dirname "$(readlink -f "$0")")
@@ -16,7 +16,7 @@ prebuilt=
 stage_dir=
 
 bin_scripts=(
-  omadrop omadrop-milkdrop omadrop-effects omadrop-screensaver omadrop-screensaver-run
+  omadrop omadrop-milkdrop
   mpris-state mpris-art art-fetch art-prep omadrop-doctor omadrop-close-window
   omadrop-calibrate omadrop-pack omadrop-demo omadrop-demo-record omadrop-preview
   demo-audio-audit demo-rights-audit
@@ -29,7 +29,7 @@ usage() {
 Usage: ./install.sh [--no-deps] [--no-bindings] [--prebuilt DIR] [--stage DIR]
 
 Build and install Omadrop for the current user: the MilkDrop collection and the
-Omarchy music screensaver, driven by the single `omadrop` command.
+live Osaka Jade scene, driven by the single `omadrop` command.
 
   --no-deps       Do not install missing Arch packages
   --no-bindings   Do not add Omarchy keyboard shortcuts
@@ -67,7 +67,8 @@ done
 
 build_all() {
   "$root/bin/build-install-runtime"
-  ( cd "$root/screensaver/ttfx" && cargo build --release --locked )
+  ( mkdir -p "$root/experiments/osaka-live/build" && cd "$root/experiments/osaka-live/build"
+      qmake6 ../osaka.pro && make -j"$(nproc)" )
   ( mkdir -p "$root/app/build" && cd "$root/app/build" \
       && qmake6 ../omadrop-ui.pro && make -j"$(nproc)" )
 }
@@ -79,7 +80,7 @@ stage_from_repo() {
   for name in "${bin_scripts[@]}"; do
     install -Dm755 "$root/bin/$name" "$dest/bin/$name"
   done
-  install -Dm755 "$root/screensaver/ttfx/target/release/ttfx" "$dest/bin/ttfx-music"
+  install -Dm755 "$root/experiments/osaka-live/build/omadrop-osaka" "$dest/bin/omadrop-osaka"
   install -Dm755 "$root/app/build/omadrop-ui" "$dest/bin/omadrop-ui"
   cp -a "$root"/lib/libprojectM-4.so* "$dest/lib/"
   for name in "${projectm_scripts[@]}" "${projectm_tools[@]}"; do
@@ -106,8 +107,7 @@ stage_from_repo() {
   done
   install -Dm644 "$root/LICENSE" "$dest/licenses/LICENSE"
   install -Dm644 "$root/THIRD_PARTY_NOTICES.md" "$dest/licenses/THIRD_PARTY_NOTICES.md"
-  install -Dm644 "$root/screensaver/ttfx/LICENSE" "$dest/licenses/ttfx-LICENSE"
-  install -Dm644 "$root/screensaver/ttfx/NOTICE" "$dest/licenses/ttfx-NOTICE"
+  install -Dm644 "$root/experiments/osaka-live/src/caption-assets/OFL.txt" "$dest/licenses/noto-sans-cjk-OFL.txt"
   for file in "$root"/third-party/projectm/*; do
     install -Dm644 "$file" "$dest/licenses/projectm-$(basename "$file")"
   done
@@ -152,7 +152,7 @@ fi
 dependencies=(
   gcc pkgconf cmake ninja git python glslang sdl2-compat glew libpng fftw
   json-c pipewire-audio libpulse imagemagick curl glib2 jq
-  ffmpeg gpu-screen-recorder rust qt6-base qt6-declarative
+  ffmpeg gpu-screen-recorder qt6-base qt6-declarative
 )
 if ((install_dependencies)); then
   if command -v omarchy >/dev/null; then
@@ -199,7 +199,7 @@ fi
 
 # Stage checks run before any installed file is replaced.
 [[ -x $install_root/bin/omadrop-ui ]] || { echo 'install: the Qt controller was not built' >&2; exit 1; }
-[[ -x $install_root/bin/ttfx-music ]] || { echo 'install: ttfx-music was not built' >&2; exit 1; }
+[[ -x $install_root/bin/omadrop-osaka ]] || { echo 'install: Osaka was not built' >&2; exit 1; }
 [[ -x $install_root/experiments/projectm-ascii/projectm-ascii-live ]]
 [[ $(wc -l < "$install_root/presets/pilot.txt") == 21 ]]
 if [[ -e $final_root ]]; then
@@ -219,7 +219,7 @@ install_root=$final_root
 install_command() {
   local name link target backup
   mkdir -p "$bin_dir"
-  for name in omadrop-preview omadrop-close-window omadrop-demo omadrop-demo-record omadrop-doctor; do
+  for name in ttfx-music omadrop-effects omadrop-screensaver omadrop-screensaver-run omadrop-preview omadrop-close-window omadrop-demo omadrop-demo-record omadrop-doctor; do
     link=$bin_dir/$name
     [[ -L $link ]] || continue
     target=$(readlink -m "$link")

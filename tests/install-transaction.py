@@ -27,7 +27,7 @@ bindings.write_text('-- existing user bindings\n')
 
 # A staged root so the transaction is exercised without a full build.
 prebuilt = t / 'prebuilt'
-for name in ('omadrop', 'omadrop-milkdrop', 'omadrop-ui', 'ttfx-music'):
+for name in ('omadrop', 'omadrop-milkdrop', 'omadrop-ui', 'omadrop-osaka'):
     path = prebuilt / 'bin' / name
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text('#!/bin/sh\nexit 0\n')

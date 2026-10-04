@@ -1,7 +1,7 @@
 // Unit/smoke tests for the Omadrop native product controller.
 //
 // No GUI and no real session: the controller dispatcher, hyprctl and the
-// effects helper are local fake scripts, driven by environment overrides and
+// renderer are local fake scripts, driven by environment overrides and
 // scratch paths. The backend talks to them through QProcess exactly as it
 // would in production.
 
@@ -70,11 +70,9 @@ private slots:
     void playMapsWhenSessionWindowAppears();
     void playReportsStartupFailure();
     void pollFailureStillTimesOut();
-    void previewDispatchesWithoutTouchingPreferences();
     void stopDispatchesStop();
     void missingControllerReportsError();
-    void effectsDiscoveryAndToggles();
-    void defaultsToInstalledScreensaver();
+    void defaultsToInstalledOsaka();
     void explicitUiModeDoesNotRewriteSettings();
     void startupDeadlineWithBrokenQuery_data();
     void startupDeadlineWithBrokenQuery();
@@ -84,8 +82,6 @@ private slots:
     void preexistingWindowsDoNotCountAsNewSession();
     void stopCancelsLaunchAndQueuedWindows();
     void runtimeCrashReportsFailure();
-    void effectFailuresAreVisible();
-    void effectRefreshRerunsAfterConcurrentToggle();
     void preferencesFailureIsVisible();
     void scenesLoadFromManifest();
     void scenesReadHiddenConf();
@@ -96,17 +92,12 @@ private slots:
 
 private:
     void writeClients(const QString& json);
-    QVariantMap effectBySlug(const Backend& backend, const QString& slug) const;
     QVariantMap sceneByNumber(const Backend& backend, int number) const;
 
     QTemporaryDir m_dir;
     QString m_controller;
     QString m_hyprctl;
-    QString m_helper;
-    QString m_ttfx;
     QString m_controlLog;
-    QString m_helperLog;
-    QString m_effectsState;
     QString m_clients;
     QString m_configHome;
     QString m_productConf;
@@ -123,11 +114,7 @@ void BackendTest::init() {
 
     m_controller = root + "/omadrop";
     m_hyprctl = root + "/hyprctl";
-    m_helper = root + "/omadrop-effects";
-    m_ttfx = root + "/ttfx-music";
     m_controlLog = root + "/control.log";
-    m_helperLog = root + "/helper.log";
-    m_effectsState = root + "/effects-state";
     m_clients = root + "/clients.json";
     m_configHome = root + "/config";
     m_productConf = m_configHome + "/omadrop/product.conf";
@@ -142,60 +129,11 @@ void BackendTest::init() {
     makeExecutable(m_hyprctl,
                    "#!/bin/sh\n"
                    "if [ \"$1\" = clients ]; then cat \"$OMADROP_TEST_CLIENTS\" 2>/dev/null; fi\n");
-    makeExecutable(m_ttfx,
-                   "#!/bin/sh\n"
-                   "if [ \"$1\" = --help ]; then\n"
-                   "cat <<'EOF'\n"
-                   "Terminal text effects\n"
-                   "\n"
-                   "Commands:\n"
-                   "  beams            Beams description\n"
-                   "  matrix           Matrix description\n"
-                   "  rain             Rain description\n"
-                   "  swarm            Swarm description\n"
-                   "  help             Print help\n"
-                   "EOF\n"
-                   "fi\n");
-    makeExecutable(m_helper,
-                   "#!/bin/bash\n"
-                   "state=\"$OMADROP_TEST_EFFECTS_STATE\"\n"
-                   "printf '%s\\n' \"$*\" >>\"$OMADROP_TEST_EFFECTS_LOG\"\n"
-                   "toggle() {\n"
-                   "  local file=\"$state.$1\" slug=\"$2\"\n"
-                   "  touch -- \"$file\"\n"
-                   "  if grep -qxF -- \"$slug\" \"$file\"; then\n"
-                   "    grep -vF -x -- \"$slug\" \"$file\" >\"$file.tmp\" || true\n"
-                   "    mv \"$file.tmp\" \"$file\"\n"
-                   "  else\n"
-                   "    printf '%s\\n' \"$slug\" >>\"$file\"\n"
-                   "  fi\n"
-                   "}\n"
-                   "status_of() {\n"
-                   "  local fav=\"\" hid=\"\"\n"
-                   "  grep -qxF -- \"$1\" \"$state.favorites\" 2>/dev/null && fav=1\n"
-                   "  grep -qxF -- \"$1\" \"$state.hidden\" 2>/dev/null && hid=1\n"
-                   "  if [ -n \"$fav\" ] && [ -n \"$hid\" ]; then printf 'favorite, hidden\\n'\n"
-                   "  elif [ -n \"$fav\" ]; then printf 'favorite\\n'\n"
-                   "  elif [ -n \"$hid\" ]; then printf 'hidden\\n'\n"
-                   "  else printf 'enabled\\n'; fi\n"
-                   "}\n"
-                   "case \"$1\" in\n"
-                   "  --list) for slug in beams matrix rain swarm; do\n"
-                   "            printf '%s\\t%s\\t%s\\n' \"$slug\" \"$slug\" \"$(status_of \"$slug\")\"\n"
-                   "          done ;;\n"
-                   "  --favorite) toggle favorites \"$2\" ;;\n"
-                   "  --hide) toggle hidden \"$2\" ;;\n"
-                   "esac\n"
-                   "exit 0\n");
-
     writeFile(m_controlLog, QString());
-    writeFile(m_helperLog, QString());
     writeClients(QStringLiteral("[]"));
 
     qputenv("OMADROP_CONTROLLER_BACKEND", m_controller.toUtf8());
     qputenv("OMADROP_HYPRCTL", m_hyprctl.toUtf8());
-    qputenv("OMADROP_EFFECTS_HELPER", m_helper.toUtf8());
-    qputenv("OMADROP_EFFECTS_BINARY", m_ttfx.toUtf8());
     qputenv("OMADROP_MILKDROP_LIVE", (root + "/no-such-renderer").toUtf8());
     qputenv("OMADROP_COLLECTION_MANIFEST", m_manifest.toUtf8());
     qputenv("OMADROP_POLL_INTERVAL_MS", "40");
@@ -206,8 +144,6 @@ void BackendTest::init() {
     qunsetenv("OMADROP_MILKDROP_BACKEND");
     qunsetenv("OMADROP_OMARCHY_BACKEND");
     qputenv("OMADROP_TEST_CONTROL_LOG", m_controlLog.toUtf8());
-    qputenv("OMADROP_TEST_EFFECTS_LOG", m_helperLog.toUtf8());
-    qputenv("OMADROP_TEST_EFFECTS_STATE", m_effectsState.toUtf8());
     qputenv("OMADROP_TEST_CLIENTS", m_clients.toUtf8());
     qputenv("HOME", root.toUtf8());
     qputenv("XDG_CONFIG_HOME", m_configHome.toUtf8());
@@ -219,15 +155,6 @@ void BackendTest::writeClients(const QString& json) {
     writeFile(m_clients, json);
 }
 
-QVariantMap BackendTest::effectBySlug(const Backend& backend, const QString& slug) const {
-    for (const QVariant& value : backend.effects()) {
-        const QVariantMap effect = value.toMap();
-        if (effect.value(QStringLiteral("slug")).toString() == slug) {
-            return effect;
-        }
-    }
-    return {};
-}
 
 QVariantMap BackendTest::sceneByNumber(const Backend& backend, int number) const {
     for (const QVariant& value : backend.scenes()) {
@@ -376,9 +303,6 @@ void BackendTest::alphabeticalGrids() {
         {"number":1,"label":"zebra"},{"number":2,"label":"Apple"},
         {"number":3,"label":"banana"},{"number":4,"label":"Apricot"}]})"));
     writeFile(m_scenesConf, QStringLiteral("version=1\nhidden=4\n"));
-    makeExecutable(m_helper, QStringLiteral(
-        "#!/bin/sh\nprintf 'z\\tzebra\\tenabled\\nb\\tbanana\\tfavorite\\n"
-        "c\\tCherry\\tfavorite\\na\\tApple\\tenabled\\nx\\tApricot\\tfavorite, hidden\\n'\n"));
     Backend backend;
     QCOMPARE(backend.scenes().at(0).toMap().value("number").toInt(), 2);
     QCOMPARE(backend.scenes().at(1).toMap().value("number").toInt(), 3);
@@ -386,10 +310,7 @@ void BackendTest::alphabeticalGrids() {
     QCOMPARE(backend.scenes().at(3).toMap().value("number").toInt(), 4);
     backend.toggleSceneHidden(4);
     QCOMPARE(backend.scenes().at(1).toMap().value("number").toInt(), 4);
-    QTRY_COMPARE(backend.effects().size(), 5);
-    QStringList names;
-    for (const auto& effect : backend.effects()) names << effect.toMap().value("name").toString();
-    QCOMPARE(names, QStringList({"banana", "Cherry", "Apple", "zebra", "Apricot"}));
+
 }
 
 void BackendTest::rendererIdentityDetectsMappedWindow() {
@@ -485,17 +406,6 @@ void BackendTest::pollFailureStillTimesOut() {
     QVERIFY(show.count() >= 1);
 }
 
-void BackendTest::previewDispatchesWithoutTouchingPreferences() {
-    const QString preferences = QStringLiteral("version=4\nascii=1\ndisplay=single\n");
-    writeFile(m_preferencesConf, preferences);
-    writeFile(m_modeConf, QStringLiteral("mode=omarchy\n"));
-    Backend backend;
-    backend.preview(QStringLiteral("beams"));
-    QTRY_VERIFY(readFile(m_controlLog).contains(QStringLiteral("--preview-effect beams")));
-    QCOMPARE(readFile(m_preferencesConf), preferences);
-    QCOMPARE(readFile(m_modeConf), QStringLiteral("mode=omarchy\n"));
-    QVERIFY(!QFileInfo::exists(m_productConf));
-}
 
 void BackendTest::stopDispatchesStop() {
     Backend backend;
@@ -515,34 +425,8 @@ void BackendTest::missingControllerReportsError() {
     QVERIFY(show.count() >= 1);
 }
 
-void BackendTest::effectsDiscoveryAndToggles() {
-    Backend backend;
-    QTRY_COMPARE(backend.effects().size(), 4);
 
-    const QVariantMap beams = effectBySlug(backend, QStringLiteral("beams"));
-    QVERIFY(!beams.isEmpty());
-    QCOMPARE(beams.value(QStringLiteral("slug")).toString(), QStringLiteral("beams"));
-    QVERIFY(beams.contains(QStringLiteral("name")));
-    QVERIFY(beams.contains(QStringLiteral("description")));
-    QCOMPARE(beams.value(QStringLiteral("description")).toString(),
-             QStringLiteral("Beams description"));
-    QVERIFY(!beams.value(QStringLiteral("favorite")).toBool());
-    QVERIFY(!beams.value(QStringLiteral("hidden")).toBool());
-
-    backend.toggleFavorite(QStringLiteral("beams"));
-    QTRY_VERIFY(effectBySlug(backend, QStringLiteral("beams"))
-                    .value(QStringLiteral("favorite"))
-                    .toBool());
-    QVERIFY(readFile(m_helperLog).contains(QStringLiteral("--favorite beams")));
-
-    backend.toggleHidden(QStringLiteral("swarm"));
-    QTRY_VERIFY(effectBySlug(backend, QStringLiteral("swarm"))
-                    .value(QStringLiteral("hidden"))
-                    .toBool());
-    QVERIFY(readFile(m_helperLog).contains(QStringLiteral("--hide swarm")));
-}
-
-void BackendTest::defaultsToInstalledScreensaver() {
+void BackendTest::defaultsToInstalledOsaka() {
     qputenv("OMADROP_OMARCHY_BACKEND", m_controller.toUtf8());
     Backend backend;
     QVERIFY(!backend.milkdropAvailable());
@@ -675,34 +559,7 @@ void BackendTest::runtimeCrashReportsFailure() {
     QVERIFY(!backend.playing());
 }
 
-void BackendTest::effectFailuresAreVisible() {
-    makeExecutable(m_helper, QStringLiteral(
-        "#!/bin/sh\n"
-        "if [ \"$1\" = --list ]; then printf 'beams\\tBeams\\tenabled\\n'; exit 0; fi\n"
-        "echo 'at least one effect must stay visible' >&2\nexit 1\n"));
-    Backend backend;
-    QTRY_COMPARE(backend.effects().size(), 1);
-    backend.toggleHidden(QStringLiteral("beams"));
-    QTRY_VERIFY(backend.error().contains(QStringLiteral("stay visible")));
-    QVERIFY(!effectBySlug(backend, QStringLiteral("beams")).value(QStringLiteral("hidden")).toBool());
-}
 
-void BackendTest::effectRefreshRerunsAfterConcurrentToggle() {
-    makeExecutable(m_helper, QStringLiteral(
-        "#!/bin/sh\n"
-        "state=\"$OMADROP_TEST_EFFECTS_STATE\"\n"
-        "if [ \"$1\" = --list ]; then\n"
-        "  status=enabled; [ -e \"$state\" ] && status=favorite\n"
-        "  touch \"$state.listing\"\n"
-        "  sleep 0.3\n"
-        "  printf 'beams\\tBeams\\t%s\\n' \"$status\"\n"
-        "else touch \"$state\"; fi\n"));
-    Backend backend;
-    QTRY_VERIFY(QFileInfo::exists(m_effectsState + ".listing"));
-    backend.toggleFavorite(QStringLiteral("beams"));
-    QTRY_VERIFY(QFileInfo::exists(m_effectsState));
-    QTRY_VERIFY(effectBySlug(backend, QStringLiteral("beams")).value(QStringLiteral("favorite")).toBool());
-}
 
 void BackendTest::preferencesFailureIsVisible() {
     writeFile(m_configHome + "/omadrop", QStringLiteral("a file blocks the settings directory"));
@@ -781,13 +638,11 @@ void BackendTest::playSceneDispatchesSceneArgument() {
 }
 
 void BackendTest::pathDefaultsRelativeToAppDir() {
-    qunsetenv("OMADROP_EFFECTS_HELPER");
+    qunsetenv("OMADROP_OMARCHY_BACKEND");
     Backend backend;
-    const QString expected = QCoreApplication::applicationDirPath()
-                             + QStringLiteral("/omadrop-effects");
-    QVERIFY2(backend.error().contains(expected),
-             qPrintable(QStringLiteral("error %1 does not mention %2")
-                            .arg(backend.error(), expected)));
+    const QString expected = QCoreApplication::applicationDirPath() + "/omadrop-osaka";
+    QCOMPARE(backend.omarchyAvailable(), QFileInfo(expected).isExecutable());
+    QVERIFY(backend.error().isEmpty());
 }
 
 QTEST_GUILESS_MAIN(BackendTest)

@@ -2,8 +2,8 @@
 # Remove the per-user Omadrop installation created by install.sh.
 #
 # Removes the installed root, the one `omadrop` command and the Omadrop desktop
-# entry and icon. Settings, cached artwork and the legacy omadrop-product /
-# omadrop-screensaver directories are never touched.
+# entry and icon. Settings, cached artwork and legacy data directories
+# are preserved.
 set -euo pipefail
 
 data_home=${XDG_DATA_HOME:-$HOME/.local/share}
@@ -30,8 +30,10 @@ fi
 remove_link() {
   local link=$1 target
   [[ -L $link ]] || return 0
-  target=$(readlink -f "$link")
-  [[ $target == "$install_root"/* ]] && unlink "$link"
+  target=$(readlink -m "$link")
+  case $target in
+    "$install_root"/*|"$data_home/omadrop-screensaver"/*) unlink "$link" ;;
+  esac
 }
 
 remove_bindings() {
@@ -66,7 +68,7 @@ remove_bindings() {
 remove_bindings
 
 # Older installers also put helper symlinks in PATH; drop the ones we own.
-for name in omadrop-preview omadrop-close-window omadrop-demo omadrop-demo-record omadrop-doctor; do
+for name in ttfx-music omadrop-effects omadrop-screensaver omadrop-screensaver-run omadrop-preview omadrop-close-window omadrop-demo omadrop-demo-record omadrop-doctor; do
   remove_link "$bin_dir/$name"
 done
 remove_link "$bin_dir/omadrop"
@@ -75,7 +77,7 @@ if [[ ( -e $bin_dir/omadrop.before-omadrop || -L $bin_dir/omadrop.before-omadrop
   mv -- "$bin_dir/omadrop.before-omadrop" "$bin_dir/omadrop"
 fi
 
-rm -f -- "$data_home/applications/omadrop.desktop"
+rm -f -- "$data_home/applications/omadrop.desktop" "$data_home/applications/omadrop-effects.desktop"
 rm -f -- "$data_home/icons/hicolor/scalable/apps/omadrop.svg"
 
 if [[ -f $install_root/VERSION && -x $install_root/bin/omadrop ]]; then

@@ -53,15 +53,14 @@ echo "==> smoke checks"
 docker exec "$container" bash -euc '
   root=/usr/lib/omadrop
   for f in \
-    bin/omadrop bin/omadrop-ui bin/omadrop-milkdrop bin/omadrop-effects \
-    bin/omadrop-screensaver bin/omadrop-screensaver-run bin/ttfx-music \
+    bin/omadrop bin/omadrop-ui bin/omadrop-milkdrop bin/omadrop-osaka \
     bin/mpris-state bin/art-fetch bin/omadrop-doctor bin/omadrop-close-window \
     experiments/projectm-ascii/projectm-ascii-live experiments/projectm-ascii/run-collection.sh \
-    presets/pilot.txt VERSION licenses/THIRD_PARTY_NOTICES.md \
+    presets/pilot.txt VERSION licenses/THIRD_PARTY_NOTICES.md licenses/noto-sans-cjk-OFL.txt \
     shaders/native scene-api/1; do
     [[ -e "$root/$f" ]] || { echo "missing: $root/$f" >&2; exit 1; }
   done
-  for f in "$root/bin/omadrop-ui" "$root/bin/ttfx-music" "$root/experiments/projectm-ascii/projectm-ascii-live"; do
+  for f in "$root/bin/omadrop-ui" "$root/bin/omadrop-osaka" "$root/experiments/projectm-ascii/projectm-ascii-live"; do
     libs=$(ldd "$f" | awk "/not found/ {print \$1}")
     [[ -z "$libs" ]] || { echo "missing libraries for $f: $libs" >&2; exit 1; }
   done
@@ -72,7 +71,6 @@ docker exec "$container" bash -euc '
   [[ -n $(ls /usr/share/licenses/omadrop/) ]]
   [[ $(ls "$root"/presets/pilot/*.milk | wc -l) -eq 21 ]]
   omadrop --help >/dev/null
-  [[ $("$root/bin/omadrop-effects" --list | wc -l) -eq 37 ]]
   export QT_QPA_PLATFORM=offscreen
   "$root/bin/omadrop-ui" --controls >/tmp/omadrop-ui.log 2>&1 &
   ui=$!

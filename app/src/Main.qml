@@ -9,8 +9,8 @@ ApplicationWindow {
     title: qsTr("Omadrop")
     width: 1120
     height: 720
-    minimumWidth: 1120
-    minimumHeight: 720
+    minimumWidth: 900
+    minimumHeight: 640
     maximumWidth: 1120
     maximumHeight: 720
     color: app.cBg
@@ -34,7 +34,6 @@ ApplicationWindow {
         if (app.focusedIndex < 0) return
         var item = app.visibleItems[app.focusedIndex]
         if (item.scene) backend.toggleSceneHidden(item.number)
-        else backend.toggleHidden(String(item.key))
     }
 
     // Everything is derived from the live Omarchy theme and fades on a switch.
@@ -64,7 +63,7 @@ ApplicationWindow {
     readonly property color cWarn: app.tRed
     readonly property color cErrorBg: app.mix(app.tBg, app.tRed, 0.14)
     readonly property color cErrorBorder: app.mix(app.tBg, app.tRed, 0.45)
-    readonly property color cErrorText: app.mix(app.tRed, app.tFg, 0.35)
+    readonly property color cErrorText: app.cText
     readonly property color cAccent: app.tAccent
     // Text drawn on an accent fill.
     readonly property color cOnAccent: (0.2126 * app.tAccent.r + 0.7152 * app.tAccent.g
@@ -78,20 +77,11 @@ ApplicationWindow {
     readonly property string modeName: backend.mode ? String(backend.mode).toLowerCase() : "milkdrop"
     readonly property bool milkdropMode: app.modeName === "milkdrop"
     readonly property bool omarchyMode: app.modeName === "omarchy"
-    readonly property var effects: backend.effects ? backend.effects : []
     readonly property var scenes: backend.scenes ? backend.scenes : []
     readonly property bool hasError: backend.error ? String(backend.error).length > 0 : false
     readonly property bool typing: searchField.activeFocus
 
-    readonly property int enabledCount: {
-        var n = 0
-        for (var i = 0; i < app.effects.length; i++)
-            if (!app.effects[i].hidden) n++
-        return n
-    }
-
-    // One card model for both modes: MilkDrop scenes and Omarchy effects differ
-    // only in how a card is played and whether it can be favorited.
+    // MilkDrop cards. Osaka is one indefinitely looping scene.
     readonly property var items: {
         var out = []
         if (app.milkdropMode) {
@@ -102,17 +92,7 @@ ApplicationWindow {
                            name: s.label ? String(s.label) : ("Scene " + s.number),
                            description: s.description ? String(s.description) : "",
                            thumbnail: s.thumbnail ? String(s.thumbnail) : "",
-                           hidden: !!s.hidden, favorite: false, scene: true })
-            }
-        } else {
-            for (var j = 0; j < app.effects.length; j++) {
-                var e = app.effects[j]
-                if (!e) continue
-                out.push({ key: e.slug, number: 0,
-                           name: e.name ? String(e.name) : String(e.slug),
-                           description: e.description ? String(e.description) : "",
-                           thumbnail: e.thumbnail ? String(e.thumbnail) : "",
-                           hidden: !!e.hidden, favorite: !!e.favorite, scene: false })
+                           hidden: !!s.hidden, scene: true })
             }
         }
         return out
@@ -129,26 +109,22 @@ ApplicationWindow {
         }
         out.sort(function(a, b) {
             if (a.hidden !== b.hidden) return a.hidden ? 1 : -1
-            if (a.favorite !== b.favorite) return a.favorite ? -1 : 1
             return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
         })
         return out
     }
 
     readonly property string emptyHint: {
-        if (app.items.length === 0) return app.milkdropMode ? qsTr("No scenes were found.")
-                                                          : qsTr("No effects were found.")
+        if (app.omarchyMode) return qsTr("Osaka Jade\nA living street, listening to your music. Press Play.")
+        if (app.items.length === 0) return qsTr("No scenes were found.")
         if (app.query.length > 0) return qsTr("Nothing matches your search.")
         return qsTr("Nothing is available.")
     }
 
     readonly property bool playEnabled: app.milkdropMode
                                         ? backend.milkdropAvailable
-                                        : (backend.omarchyAvailable && app.enabledCount > 0)
-    readonly property string rotationSummary: app.milkdropMode
-                                              ? qsTr("%1 scenes").arg(app.scenes.length)
-                                              : qsTr("%1 of %2 effects in rotation")
-                                                .arg(app.enabledCount).arg(app.effects.length)
+                                        : backend.omarchyAvailable
+    readonly property string rotationSummary: app.milkdropMode ? qsTr("%1 scenes").arg(app.scenes.length) : qsTr("Osaka Jade")
     readonly property string modeReason: {
         if (!backend.milkdropAvailable && !backend.omarchyAvailable)
             return qsTr("MilkDrop and Omarchy aren't installed")
@@ -174,7 +150,6 @@ ApplicationWindow {
     function openItem(item) {
         if (!item) return
         if (app.milkdropMode) backend.playScene(item.number)
-        else backend.preview(String(item.key))
     }
 
     Connections {
@@ -236,10 +211,6 @@ ApplicationWindow {
         if (app.focusedIndex >= 0) app.openItem(app.visibleItems[app.focusedIndex])
     } }
     Shortcut { sequence: "H"; enabled: !app.typing; onActivated: app.hideFocused() }
-    Shortcut { sequence: "F"; enabled: !app.typing; onActivated: {
-        if (app.omarchyMode && app.focusedIndex >= 0)
-            backend.toggleFavorite(String(app.visibleItems[app.focusedIndex].key))
-    } }
 
     MouseArea {
         anchors.fill: parent
@@ -371,70 +342,118 @@ ApplicationWindow {
             border.color: app.cErrorBorder
 
             RowLayout {
-                anchors.fill: parent
-                anchors.margins: 13
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 14
+                anchors.rightMargin: 14
+                height: 32
                 spacing: 12
 
                 Label {
                     Layout.fillWidth: true
-                    Layout.maximumHeight: 32
+                    Layout.fillHeight: true
                     text: backend.error || ""
                     color: app.cErrorText
                     font.pixelSize: 13
-                    wrapMode: Text.WordWrap
-                    maximumLineCount: 2
+                    renderType: Text.NativeRendering
                     elide: Text.ElideRight
                     verticalAlignment: Text.AlignVCenter
                 }
 
                 Button {
+                    id: errorDetailsButton
+                    Layout.preferredHeight: 32
+                    Layout.alignment: Qt.AlignVCenter
                     visible: !!backend.errorDetails
                     text: qsTr("Details")
+                    leftPadding: 12
+                    rightPadding: 12
+                    contentItem: Text {
+                        text: errorDetailsButton.text
+                        color: app.cErrorText
+                        font.pixelSize: 13
+                        renderType: Text.NativeRendering
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle {
+                        radius: 8
+                        color: errorDetailsButton.down ? app.mix(app.cErrorBg, app.cText, 0.12)
+                               : errorDetailsButton.hovered ? app.mix(app.cErrorBg, app.cText, 0.08)
+                               : "transparent"
+                        border.width: 1
+                        border.color: errorDetailsButton.visualFocus ? app.cAccent : app.cErrorBorder
+                    }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
                     onClicked: app.detailsOpen = !app.detailsOpen
                 }
 
-                Rectangle {
-                    Layout.preferredWidth: 28
-                    Layout.preferredHeight: 28
-                    radius: 8
-                    color: errCloseHover.hovered ? app.cErrorBorder : "transparent"
-                    border.width: 1
-                    border.color: app.cErrorBorder
-                    Text {
-                        anchors.centerIn: parent
+                Button {
+                    id: errorCloseButton
+                    Layout.preferredWidth: 32
+                    Layout.preferredHeight: 32
+                    Layout.alignment: Qt.AlignVCenter
+                    padding: 0
+                    Accessible.name: qsTr("Dismiss error")
+                    contentItem: Text {
                         text: "×"
                         color: app.cErrorText
-                        font.pixelSize: 16
+                        font.pixelSize: 18
+                        renderType: Text.NativeRendering
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
-                    HoverHandler { id: errCloseHover }
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: backend.clearError()
+                    background: Rectangle {
+                        radius: 8
+                        color: errorCloseButton.down ? app.mix(app.cErrorBg, app.cText, 0.12)
+                               : errorCloseButton.hovered ? app.mix(app.cErrorBg, app.cText, 0.08)
+                               : "transparent"
+                        border.width: 1
+                        border.color: errorCloseButton.visualFocus ? app.cAccent : app.cErrorBorder
                     }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    onClicked: backend.clearError()
                 }
             }
         }
 
         ScrollView {
+            id: errorDetailsPanel
             Layout.fillWidth: true
-            Layout.preferredHeight: 140
+            // Keep short messages compact; long logs scroll within a bounded panel.
+            Layout.preferredHeight: Math.min(errorDetailsText.implicitHeight, app.height * 0.25)
+            Layout.minimumHeight: Layout.preferredHeight
+            Layout.maximumHeight: Layout.preferredHeight
             visible: app.hasError && app.detailsOpen && !!backend.errorDetails
             clip: true
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            background: Rectangle {
+                radius: 12
+                color: app.cErrorBg
+                border.width: 1
+                border.color: app.cErrorBorder
+            }
             TextArea {
+                id: errorDetailsText
+                width: errorDetailsPanel.availableWidth
                 text: backend.errorDetails
                 readOnly: true
                 selectByMouse: true
                 wrapMode: TextEdit.Wrap
                 color: app.cErrorText
-                font.pixelSize: 11
+                font.pixelSize: 12
+                renderType: Text.NativeRendering
+                padding: 14
+                background: Item {}
             }
         }
 
         TextField {
             id: searchField
             Layout.fillWidth: true
-            placeholderText: app.milkdropMode ? qsTr("Search scenes") : qsTr("Search effects")
+            visible: app.milkdropMode
+            placeholderText: qsTr("Search scenes")
             color: app.cText
             placeholderTextColor: app.cTextMute
             font.pixelSize: 13
@@ -464,10 +483,66 @@ ApplicationWindow {
                 ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
             }
 
+            Rectangle {
+                anchors.centerIn: parent
+                // Leave room for the captions when the error details reduce the viewport.
+                width: Math.min(parent.width - 40, 640, Math.max(240, (parent.height - 80) * 16 / 9 + 16))
+                height: Math.min(parent.height, osakaPreview.implicitHeight)
+                visible: app.omarchyMode
+                radius: 12
+                color: app.cCard
+                border.width: 1
+                border.color: app.cBorder
+
+                ColumnLayout {
+                    id: osakaPreview
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    anchors.margins: 8
+                    anchors.topMargin: 0
+                    anchors.bottomMargin: 0
+                    spacing: 6
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.topMargin: 8
+                        Layout.preferredHeight: (osakaPreview.width) * 9 / 16
+                        Layout.fillHeight: true
+                        Layout.minimumHeight: 0
+                        radius: 8
+                        clip: true
+                        color: app.cPanel
+                        Image {
+                            anchors.fill: parent
+                            source: "qrc:/assets/osaka-jade.jpg"
+                            fillMode: Image.PreserveAspectCrop
+                            smooth: true
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("Osaka Jade")
+                        color: app.cText
+                        font.pixelSize: 15
+                        font.weight: Font.DemiBold
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.bottomMargin: 12
+                        text: qsTr("A living street, listening to your music. Press Play.")
+                        color: app.cTextMute
+                        font.pixelSize: 13
+                        wrapMode: Text.WordWrap
+                    }
+                }
+            }
+
             Label {
                 anchors.centerIn: parent
                 width: parent.width - 40
-                visible: app.visibleItems.length === 0
+                visible: !app.omarchyMode && app.visibleItems.length === 0
                 text: app.emptyHint
                 color: app.cTextMute
                 font.pixelSize: 13
@@ -748,32 +823,7 @@ ApplicationWindow {
                             anchors.top: parent.top
                             anchors.margins: 6
                             spacing: 6
-                            visible: cardHover.hovered || starHover.hovered || eyeHover.hovered
-
-                            Rectangle {
-                                visible: modelData && !modelData.scene
-                                width: 28; height: 28; radius: 8
-                                color: starHover.hovered ? app.cPanelHover : app.accentAlpha(0.22)
-                                border.width: 1
-                                border.color: app.accentAlpha(0.5)
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: (modelData && modelData.favorite) ? "★" : "☆"
-                                    color: (modelData && modelData.favorite) ? app.cAccent : app.cTextDim
-                                    font.pixelSize: 15
-                                }
-                                HoverHandler { id: starHover }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: if (modelData && modelData.key) backend.toggleFavorite(String(modelData.key))
-                                }
-                                ToolTip.visible: starHover.hovered
-                                ToolTip.delay: 450
-                                ToolTip.text: (modelData && modelData.favorite)
-                                              ? qsTr("Remove from favorites")
-                                              : qsTr("Add to favorites")
-                            }
+                            visible: cardHover.hovered || eyeHover.hovered
 
                             Rectangle {
                                 width: 28; height: 28; radius: 8
@@ -793,7 +843,6 @@ ApplicationWindow {
                                     onClicked: {
                                         if (!modelData) return
                                         if (modelData.scene) backend.toggleSceneHidden(modelData.number)
-                                        else backend.toggleHidden(String(modelData.key))
                                     }
                                 }
                                 ToolTip.visible: eyeHover.hovered
