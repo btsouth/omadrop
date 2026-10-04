@@ -33,14 +33,14 @@ void studySea(Ctx& c,bool aftermath) {
     Canvas& cv=c.canvas();
     cv.linear(0,610,0,1080,{{0,hex(0x536786),1},{.42f,blue,1},{1,navy,1}});
     cv.rect(0,612,1920,468);cv.fill();
+    const double age=c.t-(kanagawaBreak(c).t+.60);
     for(int row=0;row<65;++row) {
         const double z=row/64.0,y=616+456*std::pow(z,1.72);
         const double amp=2+22*z*z;
         std::vector<V2> p;
+        const double energy=c.score ? (c.score->integral(row%6,c.t)-c.score->integral(row%6,c.t-.8))/.8 : 0;
         for(int j=0;j<=110;++j) {
             const double x=j*18.0;
-            const double age=c.t-(kanagawaBreak(c).t+.60);
-            const double energy=c.score ? (c.score->integral(row%6,c.t)-c.score->integral(row%6,c.t-.8))/.8 : 0;
             const double swell=aftermath ? 35*z*std::exp(-std::max(0.0,age)*.35)*std::sin(x*.010-z*12-age*3) : 15*z*energy*std::sin(x*.006-c.t*.7+row);
 
             p.push_back({x,y+amp*std::sin(x*.0055+row*.82-c.t*.55)+swell+2*noise1(x*.012,row)});
