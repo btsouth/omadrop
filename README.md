@@ -1,13 +1,13 @@
 # Omadrop
 
-**MilkDrop for Omarchy, wired to your music.**
+**MilkDrop and living worlds for Omarchy, wired to your music.**
 
-21 hand-picked MilkDrop presets, each connected to Omadrop's audio engine.
-Play music in any app, open Omadrop, and go fullscreen.
+21 hand-picked MilkDrop presets and Osaka Jade, a living street that reacts to
+your music. Play music in any app, open Omadrop, and go fullscreen.
 
 [![Neon Orbits in Omadrop](docs/media/neon-orbits.jpg)](https://github.com/btsouth/omadrop/releases/download/v0.5.0/omadrop-v0.5.0-demo.mp4)
 
-[Watch the launch video](https://github.com/btsouth/omadrop/releases/download/v0.5.0/omadrop-v0.5.0-demo.mp4) · [Download v0.5.0](https://github.com/btsouth/omadrop/releases/tag/v0.5.0)
+[See it with music at omadrop.com](https://omadrop.com) · [Watch the MilkDrop launch video](https://github.com/btsouth/omadrop/releases/download/v0.5.0/omadrop-v0.5.0-demo.mp4) · [Latest release](https://github.com/btsouth/omadrop/releases/latest)
 
 ## Install
 
@@ -80,6 +80,14 @@ Or use `./install.sh` for a user installation. See
 [building and testing](docs/building.md) and [contributing](CONTRIBUTING.md).
 Omadrop needs Hyprland, PipeWire and an OpenGL 3.3 capable GPU. Omarchy mode
 plays the fixed Osaka Jade artwork on one display or all displays.
+
+## Help build living worlds
+
+The goal is a living world for every Omarchy theme, and eventually a Journey
+mode that travels between them. A contributor kit is in the works so artists,
+theme authors and developers can build worlds in the style of Osaka Jade. The
+plan, and the place to say you want in, is
+[Living worlds: contributor kit](https://github.com/btsouth/omadrop/issues/6).
 
 ## Credits
 

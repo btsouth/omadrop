@@ -1,7 +1,7 @@
 # Releasing
 
 These steps are for the maintainer. Housekeeping and CI do not publish anything.
-Use the same devbox checkout and caches for the validation loop.
+Reuse one build checkout and its caches for the validation loop.
 
 1. Set `VERSION`, `pkgver` in both `packaging/PKGBUILD` and
    `packaging/PKGBUILD.release`, and the changelog to the release version.
@@ -14,7 +14,7 @@ Use the same devbox checkout and caches for the validation loop.
    ```
 
    Confirm `ARCH PACKAGE OK` and the `.pkg.tar.zst` in `dist/`. Check playback,
-   Esc, Bluetooth timing and multiple displays in an isolated desktop session.
+   Esc, Bluetooth timing and multiple displays on a desktop session.
    Review preset and media credits and unresolved distribution terms.
 3. Review the complete diff and release notes, commit the release changes, and
    tag that exact commit. For 0.6.0:

@@ -62,9 +62,8 @@ in `archlinux:latest`, checks libraries and all 21 presets, runs the controller
 offscreen, removes the package, and copies the package to `dist/`. Success ends
 with `ARCH PACKAGE OK`.
 
-Run heavy builds and full checks on devbox in the assigned checkout. Do not
-launch GUI apps there. Playback, Bluetooth timing and multiple displays need a
-separate isolated desktop session. Headless checks cannot establish those.
+Playback, Bluetooth timing and multiple displays need a real desktop session.
+Headless checks cannot establish those.
 
 The website requires Node.js 22.12 or newer, as specified by
 its locked Astro dependency. CI runs the fast shell, product, controller and
