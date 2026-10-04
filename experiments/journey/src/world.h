@@ -14,7 +14,7 @@ namespace T {
 constexpr double osakaEnd = 28.0;      // glide begins
 constexpr double kanagawaDelay = 8.0; // additional travel before the dawn chapter
 constexpr double crossingEnd = 40.0 + kanagawaDelay;
-constexpr double kanagawaEnd = 87.0; // travelling wave, wreck, washed bearer and mountain-road ending
+constexpr double kanagawaEnd = 83.0; // travelling wave, wreck, washed bearer and mountain-road ending
 }
 
 struct Ctx {
@@ -67,6 +67,7 @@ void drawOsaka(Ctx& c, const OsakaState& s);
 void drawCrossing(Ctx& c);
 void drawKanagawa(Ctx& c);
 void drawDirectionStudy(Ctx& c);
+void drawJourneyEnding(Ctx& c);
 void drawTitle(Canvas& canvas, int which, double alpha, Col accent, Col text);
 // Sign lettering, one glyph per index: 0..2 居酒屋, 3..6 らーめん. (x, y) is the
 // glyph origin on the baseline; size is the em in design pixels.

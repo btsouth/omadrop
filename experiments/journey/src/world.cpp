@@ -24,7 +24,7 @@ void World::render(int width, int height, double t, const Audio& audio) {
         drawCrossing(c);
     } else {
         if (directionStudy_) drawDirectionStudy(c);
-        else drawKanagawa(c);
+        else drawJourneyEnding(c);
     }
 }
 }
