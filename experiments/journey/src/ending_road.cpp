@@ -329,7 +329,7 @@ void endingCar(Ctx& c, const CarPose& pose, const Bearer& bearer) {
         }
         cv.polyline(edge,pose.scale/110,hex(0xc0a6cc),.72);
     };
-    wheel(-1.43,.945,false);wheel(1.48,.945,false);
+
     // In this low near-side view the chassis occludes the far tyres.
     // The opening's dark interior is behind the seat and surrounding panels.
     std::vector<V2> doorway;
@@ -488,13 +488,9 @@ void reveal(Ctx& c,int tex) {
         uniform float u_arrival;
         void main() {
             vec2 p=design();
-            // A curved front arrives from the right across the shore. Land
-            // behind it is opaque from its first reveal; sea remains at left.
-            float front=mix(2320.0,-300.0,u_arrival)
-                       +165.0*sin((p.y-612.0)*.0045)
-                       +38.0*sin(p.y*.013);
-            float mask=smoothstep(front-6.0,front+6.0,p.x);
-            o=texture(u_tex,v_uv)*mask;
+            float offset=mix(1920.0,0.0,u_arrival);
+            vec2 uv=v_uv-vec2(offset/1920.0,0.0);
+            o=(uv.x<0.0 || uv.x>1.0) ? vec4(0.0) : texture(u_tex,uv);
         }
     )";
     Program& p=c.gpu.effect("endingRoadArrival",shader);
@@ -510,7 +506,7 @@ V2 endingBearerWashAt(double t) {
 }
 
 void drawEndingRoad(Ctx& c) {
-    if(c.t<69)return;
+    if(c.t<68.8)return;
     const CarPose car=carPose(c.t);const Bearer bearer=bearerAt(c,car);
     if(c.t<73)c.gpu.beginOffscreen(true);
     roadLandscape(c);

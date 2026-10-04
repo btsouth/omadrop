@@ -124,8 +124,8 @@ void studyWave(Ctx& c,double growth) {
     for(int band=0;band<6;++band) {
         const double clock=c.score?c.score->integral(band,c.t):0;
         const double f=.06+band*.145+.025*std::sin(clock*4.5+c.t*.7+band);
-        flow.color(mix(teal,cream,.12+.10*band),.12+.36*c.lift(band)+.15*c.hit(4));
-        stream(f);flow.stroke(13+9*c.band(band));
+        flow.color(mix(blue,teal,.40+.08*band),.12+.55*c.lift(band)+.20*c.hit(4));
+        stream(f);flow.stroke(38+16*c.band(band));
         flow.color(teal,.2+.24*c.lift(band));stream(f+.013);flow.stroke(3.1);
     }
     for(int line=0;line<64;++line) {
@@ -253,7 +253,7 @@ void studyBoat(Ctx& c,V2 at,double scale,double tilt,bool bearer,bool rescue=fal
     c.gpu.over(wake);
 }
 
-void studyWreck(Ctx& c) {
+void studyWreck(Ctx& c,V2 rescueBoat,double boatScale) {
     Canvas& cv=c.canvas();
     const double age=c.t-(kanagawaBreak(c).t+.60),settle=sstep(0,2.0,age);
     cv.save();cv.translate(0,-75*std::sin(Pi*settle)+5*std::sin(age*1.8));
@@ -272,7 +272,10 @@ void studyWreck(Ctx& c) {
     }
     const V2 crew[5]={{970,865},{1100,915},{1230,876},{1370,945},{1510,831}};
     for(int i=0;i<5;++i) {
-        const double x=crew[i].x,y=crew[i].y;
+        const double tow=sstep(70.4+i*.12,72.2+i*.12,c.t);
+        const V2 aboard=rescueBoat+V2((i-2)*55*boatScale,18*boatScale);
+        const V2 q=lerp(crew[i],aboard,tow);
+        const double x=q.x,y=q.y+3*std::sin(c.t*1.7+i);
         const double side=i%2?1:-1;
         cv.capsule({x,y+7},{x-3*side,y-19},7.5,9,ink);
         cv.capsule({x-3*side,y-24},{x-3*side,y-32},5,5.2,ink);
@@ -300,31 +303,39 @@ void impact(Ctx& c,double age) {
     Canvas& cv=c.canvas();
     const double erupt=sstep(0,.17,age)*(1-sstep(.65,1.5,age));
     if(erupt>0) {
-        cv.color(cream,erupt);cv.moveTo(150,1120);
-        cv.curveTo(280,770,580,880,690,730);cv.curveTo(760,570,940,610,1080,720);
-        cv.curveTo(1190,430,1430,445,1530,760);cv.curveTo(1710,640,1880,830,1990,1060);
-        cv.lineTo(1990,1120);cv.closePath();cv.fill();
-        // Unequal, curling foam clusters grow out of the sheet. Roots
-        // overlap the sheet and taper into fine forks; no rows of spikes.
-        for(int j=0;j<62;++j) {
-            const double f=hash2(j,213),x=360+f*1530;
-            const double y=860+170*hash2(j,214)-100*std::sin(Pi*f);
-            const double a=-2.6+1.6*f+.5*(hash2(j,215)-.5);
-            const double ln=(65+145*hash2(j,216))*erupt,w=7+10*hash2(j,217);
-            const double curl=(hash2(j,218)>.5?1:-1)*(1.0+1.4*hash2(j,219));
-            tendril(cv,{x+3,y+5},a,ln+4,w+1.8,curl,blue,erupt*.75);
-            tendril(cv,{x,y},a,ln,w,curl,cream,erupt);
-            const V2 fork={x+std::cos(a+curl*.2)*ln*.45,y+std::sin(a+curl*.2)*ln*.45};
-            for(int b=0;b<2;++b)tendril(cv,fork,a+(b?-.45:.4),ln*.53,w*.36,(b?-1:1)*1.8,cream,erupt);
+        Canvas& sheet=c.canvas();
+        // A spreading crown with ragged capillaries at its edge. The print
+        // stays cream, but dark lacy channels break up the body of the foam.
+        std::vector<V2> edge={{120,1140}};
+        for(int j=0;j<=160;++j) {
+            const double a=-Pi+j*Pi/160;
+            const double radius=(290+190*std::pow(std::sin(-a),2)+65*fbm1(j*.15,278)+18*noise1(j*.8,277));
+            edge.push_back({1260+radius*1.85*std::cos(a)*erupt,1040+radius*1.13*std::sin(a)*erupt});
         }
+        edge.push_back({2120,1140});polyfill(sheet,edge,cream,erupt);
+        const int mask=c.gpu.layer(sheet);
+        Program& foam=c.gpu.effect("endingFoamLace",R"(
+            uniform sampler2D u_tex;uniform float u_t,u_age;
+            void main(){
+                vec2 p=design();vec4 a=texture(u_tex,v_uv);
+                vec2 q=vec2((p.x-1260.0)/160.0,(1040.0-p.y)/115.0);
+                q.x+=.35*sin(q.y*1.7-u_age*2.0);
+                float n=fbm(q*3.4+vec2(u_age*.45,-u_age*.8));
+                float fine=fbm(q*12.0+vec2(u_age*.7,-u_age));
+                float lace=1.0-smoothstep(.045,.085,abs(n-.50));
+                float holes=smoothstep(.55,.70,n)*smoothstep(.50,.65,fine);
+                vec3 col=mix(vec3(.88,.85,.73),vec3(.36,.52,.61),.23*lace+.42*holes);
+                o=vec4(col*a.a,a.a);
+            }
+        )");
+        c.gpu.pass(foam,Blend::Over,[&](Program& p){c.gpu.bindTexture(0,mask,p,"u_tex");p.set("u_age",float(age));p.set("u_t",float(c.t));});
         for(int j=0;j<44;++j) {
-            const double x=280+hash2(j,231)*1650,y=900+190*hash2(j,232);
-            const double a=-1.6+.8*(hash2(j,233)-.5);
-            tendril(cv,{x,y},a,35+90*hash2(j,234),1.2+2*hash2(j,235),1.5,teal,erupt*.45);
-        }
-        for(int j=0;j<12;++j) {
-            cv.color(teal,erupt*.35);cv.moveTo(150+j*80,1060);
-            cv.curveTo(600+j*60,950,1100+j*30,1050,2010,900+j*17);cv.stroke(.8+j*.07);
+            const double a=-Pi+Pi*hash2(j,213),radius=340+110*std::sin(-a)+40*hash2(j,216);
+            const V2 root={1260+radius*1.85*std::cos(a)*erupt,1040+radius*1.13*std::sin(a)*erupt};
+            const double ln=(32+75*hash2(j,217))*erupt,w=5+7*hash2(j,218),curl=1.1+1.5*hash2(j,219);
+            tendril(cv,root,a,ln,w,curl,cream,erupt);
+            const V2 fork=root+V2(std::cos(a+curl*.2),std::sin(a+curl*.2))*ln*.4;
+            tendril(cv,fork,a-.55,ln*.6,w*.35,-1.6,cream,erupt);
         }
     }
     // Spray follows a launch velocity with ballistic gravity, never bead discs.
@@ -342,7 +353,7 @@ void impact(Ctx& c,double age) {
         const double y=790+125*u+14*k,alpha=(1-sstep(1.2,3.8,u))*.65;
         if(y>1150)continue;
         cv.color(cream,alpha);cv.moveTo(-100,y);
-        cv.curveTo(470,y-45,1080,y+40,2020,y-20);cv.stroke(lerp(28,3,sstep(.4,2.8,u)));
+        cv.curveTo(470,y-65-30*std::sin(u*2),1080,y+55,2020,y-35);cv.stroke(lerp(22,3,sstep(.4,2.8,u)));
         cv.color(teal,alpha*.8);cv.moveTo(-100,y+16);cv.curveTo(440,y-25,1310,y+43,2020,y+3);cv.stroke(2.0);
     }
     c.gpu.over(cv);
@@ -352,8 +363,9 @@ void flyingTimbers(Ctx& c,double age) {
     if(age<0 || age>2.5)return;
     Canvas& cv=c.canvas();
     for(int i=0;i<21;++i) {
-        const double vx=(hash2(i,240)-.5)*650,vy=-260-380*hash2(i,241),a=age;
-        V2 p={1490+vx*a,850+vy*a+260*a*a};
+        const double a=age-(.025+.30*hash2(i,245));if(a<0)continue;
+        const double vx=(hash2(i,240)-.5)*650,vy=-260-380*hash2(i,241);
+        V2 p={1490+120*(hash2(i,246)-.5)+vx*a,850+vy*a+260*a*a};
         const double ang=(hash2(i,242)-.5)*3+age*(hash2(i,243)-.5)*7;
         V2 d={std::cos(ang),std::sin(ang)};
         const double len=25+55*hash2(i,244);
@@ -368,7 +380,7 @@ void flyingTimbers(Ctx& c,double age) {
 void drawEndingWater(Ctx& c) {
     const double impactAt=kanagawaBreak(c).t+.60,age=c.t-impactAt;
     kanagawaSea(c);studySea(c,age>=0);
-    if(c.t<69)crossingStrands(c,c.t);
+    if(c.t<69)crossingStrands(c,std::min(49.8,c.t));
     const double growth=sstep(50.0,impactAt-.52,c.t);
     // Boats draw back together and sample the same travelling swell.
     auto pose=[&](bool near) {
@@ -388,11 +400,11 @@ void drawEndingWater(Ctx& c) {
     const double rescue=sstep(impactAt+2,72,c.t),recede=sstep(71.5,76,c.t);
     far.at=lerp(far.at,V2(1330,808),rescue);
     far.at=lerp(far.at,V2(380,810),recede);
-    studyBoat(c,far.at,lerp(.57,.40,recede),far.tilt*(1-.7*rescue),false,rescue>.5);
-    if(age<0)studyBoat(c,near.at,.90,near.tilt,true);
+    if(age<0) {studyBoat(c,far.at,.57,far.tilt,false);studyBoat(c,near.at,.90,near.tilt,true);}
     else {
         // Broken halves are exposed before/after the dense spray crown.
-        if(age>.08)studyWreck(c);
+        if(age>.08)studyWreck(c,far.at,lerp(.57,.40,recede));
+        studyBoat(c,far.at,lerp(.57,.40,recede),far.tilt*(1-.7*rescue),false,rescue>.5);
         impact(c,age);flyingTimbers(c,age);
     }
 }
