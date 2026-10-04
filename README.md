@@ -47,9 +47,13 @@ Esc brings you back to the controls.
 </p>
 <p><sub>Liquid Ice · Neon Orbits in ASCII</sub></p>
 
+![Osaka Jade in Omadrop](docs/media/osaka-jade.jpg)
+
 **Omarchy mode** plays Osaka Jade: a living street with music-reactive lights,
-residents and measured-event fireworks. It loops indefinitely, with every
-Omarchy theme. MilkDrop stays the default; Esc returns to controls in either mode.
+residents and fireworks that answer loud songs. Each launch gets its own
+timeline, so trains, cyclists and the people on the street come back at
+different moments. It plays with every Omarchy theme. MilkDrop stays the
+default; Esc returns to controls in either mode.
 
 ## Controls
 

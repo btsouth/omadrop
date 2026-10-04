@@ -5,7 +5,7 @@
 # Qt controller. This release recipe fetches the tagged GitHub source archive.
 # Replace the archive checksum with updpkgsums before submitting to the AUR.
 pkgname=omadrop
-pkgver=0.5.0
+pkgver=0.6.0
 pkgrel=1
 pkgdesc="Music-reactive MilkDrop visuals and the live Osaka Jade scene"
 arch=('x86_64')

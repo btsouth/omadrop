@@ -18,8 +18,8 @@ const search = document.querySelector<HTMLInputElement>("#library-search");
 const libraryStatus = document.querySelector<HTMLElement>("#library-status");
 const libraryTabs = Array.from(document.querySelectorAll<HTMLButtonElement>(".library-tabs button"));
 const sections = Array.from(document.querySelectorAll<HTMLElement>("[data-library]"));
-if (toolbar && search && libraryStatus && libraryTabs.length === 2 && sections.length === 2) {
-  let mode = "milkdrop";
+if (toolbar && search && libraryStatus && sections.length > 0 && (libraryTabs.length === 0 || libraryTabs.length === sections.length)) {
+  let mode = sections[0].dataset.library ?? "milkdrop";
   const filter = () => {
     const query = search.value.trim().toLocaleLowerCase();
     let shown = 0;
@@ -55,7 +55,7 @@ if (toolbar && search && libraryStatus && libraryTabs.length === 2 && sections.l
     selectLibrary(tab);
     tab.focus();
   });
-  sections.forEach((section, index) => {
+  if (libraryTabs.length > 0) sections.forEach((section, index) => {
     section.setAttribute("role", "tabpanel");
     section.setAttribute("aria-labelledby", libraryTabs[index].id);
     section.tabIndex = 0;
@@ -78,7 +78,7 @@ if (viewer?.showModal && image && title && credit && category && count && status
     const link = group[index];
     title.textContent = link.dataset.title ?? "Omadrop";
     credit.textContent = link.dataset.credit ?? "";
-    category.textContent = link.dataset.lightbox === "controls" ? "Made for your desktop" : link.dataset.lightbox === "omarchy" || link.dataset.lightbox === "preview" ? "Omarchy / still preview" : "MilkDrop / scene preview";
+    category.textContent = link.dataset.lightbox === "controls" ? "Made for your desktop" : "MilkDrop / scene preview";
     image.alt = link.querySelector("img")?.alt ?? title.textContent;
     const thumbnail = link.querySelector("img");
     media.style.setProperty("--image-ratio", `${thumbnail?.getAttribute("width") ?? 16} / ${thumbnail?.getAttribute("height") ?? 9}`);

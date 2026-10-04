@@ -1,13 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
 
-- Omarchy mode now plays live Osaka Jade on every theme and returns to controls
-  with Escape. MilkDrop and its ASCII option remain the default experience.
-- Retain static Osaka geometry between frames. Fireworks use a seeded 45 to 90
-  second cooldown; quiet music gets a small single shell.
-- Remove the ttfx screensaver, effect browser and terminal dependencies.
-
+- Omarchy mode is now Osaka Jade, a living street that reacts to your music.
+  It plays on every Omarchy theme, and Esc returns to the controls. MilkDrop
+  and its ASCII option remain the default.
+- Every launch gets its own timeline. Trains, cyclists, the noodle cart, tea,
+  toasts, gusts and the shooting star come back at varied times and speeds,
+  and the street's small gestures and windows no longer repeat on fixed loops.
+- Fireworks follow the music. Loud songs get a full show with follow-up
+  shells; quiet songs get a single small shell. Each waits 45 to 90 seconds
+  before the next.
+- Osaka lowers its internal resolution on slower GPUs, such as integrated
+  Intel graphics, and restores it when there is headroom. Set
+  `OMADROP_OSAKA_SCALE` to a value from 0.5 to 1 to fix the scale.
+- The Omarchy tab in the controls shows an Osaka Jade preview.
+- Remove the ttfx terminal effects, the effect browser and their terminal
+  dependencies. Upgrades clean up the old screensaver commands and launcher.
 
 ## 0.5.0
 
