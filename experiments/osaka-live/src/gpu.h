@@ -9,8 +9,10 @@
 #include "canvas.h"
 #include "glcore.h"
 #include <QString>
+#include <QRectF>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -41,7 +43,14 @@ struct FinishParams {
 
 class Gpu {
 public:
+    struct GeometryStats {
+        std::uint64_t uploads = 0, staticUploads = 0, vertexBytes = 0, paintBytes = 0;
+    };
+    Gpu();
     ~Gpu();
+    void clearGeometryCache();
+    void setGeometryCacheEnabled(bool enabled) { cacheGeometry_ = enabled; }
+    const GeometryStats& geometryStats() const { return geometryStats_; }
     bool init(QString& error);
     // Prepare the main image for a w x h output. Clears it to black.
     void begin(int width, int height);
@@ -61,7 +70,7 @@ public:
     // declares v_uv, design(), noise helpers and the output `o`.
     Program& effect(const std::string& name, const char* body);
     // Draw a full-screen pass into main (or into texture `target` if >= 0).
-    void pass(Program& p, Blend blend, const std::function<void(Program&)>& setup, int target = -1);
+    void pass(Program& p, Blend blend, const std::function<void(Program&)>& setup, int target = -1, const QRectF& clip = {});
     // Resolve main into a pooled texture for passes that read the image.
     int snapshot();
     void bindTexture(int unit, int tex, Program& p, const char* name);
@@ -86,17 +95,26 @@ private:
     int acquire(int w, int h);
     void bindMain();
     void drawCanvas(const Canvas& canvas);
+    void bindGeometry(const Canvas& canvas);
     void setBlend(Blend blend, float gain);
     void fullscreen();
     int downsample(int src);
     int blurPass(int src, float sigmaPx, bool horizontal);
 
+    struct Geometry {
+        GLuint vao = 0, vbo = 0, paints = 0;
+        std::uint64_t revision = 0,paintRevision=0;
+    };
+    std::map<std::uint64_t, Geometry> geometry_;
+    GeometryStats geometryStats_;
+    std::uint64_t dynamicVertexId_=0,dynamicVertexRevision_=0,dynamicPaintId_=0,dynamicPaintRevision_=0;
+    bool cacheGeometry_ = true;
     int w_ = 0, h_ = 0, samples_ = 4;
     Target main_, layer_, out_, alt_;
     Target* current_ = &main_;
     GLuint outTex_ = 0, outFbo_ = 0;
     std::vector<Tex> pool_;
-    GLuint vao_ = 0, vbo_ = 0, quadVao_ = 0, paints_ = 0;
+    GLuint vao_ = 0, vbo_ = 0, quadVao_ = 0, paints_ = 0, zeroPaints_ = 0;
     Program canvas_, compositeP_, blurP_, downP_, brightP_, finishP_;
     std::map<std::string, Program> effects_;
 };

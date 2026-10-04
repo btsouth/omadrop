@@ -4,19 +4,67 @@
 #include "schedule.h"
 #include <QString>
 #include <array>
+#include <any>
 
 namespace Journey {
+struct StaticGeometry {
+    using Key = std::pair<std::string, std::vector<double>>;
+    std::map<Key, Canvas> canvases;
+    std::map<Key, std::vector<V2>> points;
+    std::uint64_t builds = 0;
+    std::map<std::string,std::any> layouts;
+};
 struct Ctx {
     Gpu& gpu;
     double t;
     Audio a;
     const Score* score;
     int seed;
-    std::array<Canvas,6>* canvases;
+    std::vector<std::unique_ptr<Canvas>>* canvases;
     const Schedule* schedule;
+    StaticGeometry* staticGeometry = nullptr;
     int next=0;
     double cameraX=0;
-    Canvas& canvas() { auto& c=(*canvases)[next++%canvases->size()]; c.reset(gpu.pixelScale()); c.translate(-cameraX,0); return c; }
+    Canvas& canvas() {
+        if(std::size_t(next)>=canvases->size()) canvases->push_back(std::make_unique<Canvas>());
+        auto& canvas=*(*canvases)[next++];
+        canvas.reset(gpu.pixelScale());canvas.translate(-cameraX,0);return canvas;
+    }
+
+    // Builders contain only time/audio-independent geometry. Parameters name
+    // the camera/state values baked into a span; resolution is invalidated by World.
+    Canvas* retainedBuilder(Canvas& target, const std::string& name,
+                            std::initializer_list<double> parameters = {}) {
+        if (!staticGeometry) return &target;
+        std::vector<double> values(parameters);
+        values.push_back(cameraX);
+        auto result = staticGeometry->canvases.try_emplace(StaticGeometry::Key{name, values});
+        auto& retained = result.first->second;
+        if (result.second) {
+            retained.reset(gpu.pixelScale());
+            retained.translate(-cameraX, 0);
+            retained.freeze();
+            ++staticGeometry->builds;
+        }
+        // A new span is empty until its builder runs, so append even when empty.
+        target.append(retained);
+        return result.second ? &retained : nullptr;
+    }
+    template<class Builder>
+    void retain(Canvas& target, const std::string& name, Builder build,
+                std::initializer_list<double> parameters = {}) {
+        if (Canvas* retained = retainedBuilder(target, name, parameters)) build(*retained);
+    }
+    template<class Builder>
+    const std::vector<V2>& points(const std::string& name, Builder build,
+                                 std::initializer_list<double> parameters = {}) {
+        if (!staticGeometry) { temporaryPoints = build(); return temporaryPoints; }
+        auto result = staticGeometry->points.try_emplace(
+            StaticGeometry::Key{name, std::vector<double>(parameters)});
+        if (result.second) result.first->second = build();
+        return result.first->second;
+    }
+    std::vector<V2> temporaryPoints;
     double band(int i) const { return a.bands[std::clamp(i,0,5)]; }
     double lift(int i) const {
         const double m=score?score->mean(std::clamp(i,0,5),t):0;
@@ -42,9 +90,15 @@ public:
     bool init(QString& error) { return gpu_.init(error); }
     void render(int width,int height,double time,const Audio&,const Score&,const Schedule&);
     Gpu& gpu() { return gpu_; }
+    void setGeometryCacheEnabled(bool enabled);
+    std::uint64_t staticBuilds() const { return staticGeometry_.builds; }
+    std::size_t staticSpanCount() const { return staticGeometry_.canvases.size(); }
 private:
     Gpu gpu_;
     int seed_;
-    std::array<Canvas,6> canvases_;
+    std::vector<std::unique_ptr<Canvas>> canvases_;
+    StaticGeometry staticGeometry_;
+    bool cacheGeometry_ = true;
+    int cacheWidth_ = 0, cacheHeight_ = 0;
 };
 }

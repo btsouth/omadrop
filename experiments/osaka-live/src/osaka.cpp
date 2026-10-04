@@ -8,6 +8,9 @@
 
 #include <cmath>
 #include <vector>
+#include <map>
+#include <cstdio>
+#include <cstdlib>
 
 namespace Journey {
 namespace {
@@ -190,7 +193,7 @@ void sky(Ctx& c, const OsakaState& s, const Life& L) {
     const double energy = 0.45 + 0.35 * c.a.bass + 0.25 * c.a.surge;
     c.gpu.pass(p, Blend::Replace, [&](Program& q) {
         q.set("u_cam", float(s.cam)); q.set("u_t", float(c.t + 10)); q.set("u_energy", float(energy));
-    });
+    }, -1, c.staticGeometry && s.land==1 ? QRectF(0,0,1920,640) : QRectF());
     (void)L;
 }
 
@@ -224,7 +227,7 @@ void drawDisc(Ctx& c, const DiscLook& d, double camForClouds) {
         q.setArray("u_rings", rings, 6, 4);
         q.set("u_halo", d.halo); q.set("u_col", d.col); q.set("u_col2", d.col2); q.set("u_ring", d.ring);
         q.set("u_haloK", float(d.haloA), float(d.haloB), float(d.haloC), float(d.haloD)); q.set("u_haloFar", float(d.haloFar));
-    });
+    }, -1, c.staticGeometry ? QRectF(0,0,1920,640) : QRectF());
 }
 
 void hazeBand(Ctx& c, double y0, double sigma, double lo, double hi, double shift, double seed, Col col, double gain,
@@ -234,7 +237,7 @@ void hazeBand(Ctx& c, double y0, double sigma, double lo, double hi, double shif
         q.set("u_y0", float(y0)); q.set("u_sigma", float(sigma)); q.set("u_lo", float(lo)); q.set("u_hi", float(hi));
         q.set("u_shift", float(shift)); q.set("u_seed", float(seed)); q.set("u_gain", float(gain));
         q.set("u_col", col); q.set("u_noise", float(noise.x), float(noise.y));
-    });
+    }, -1, c.staticGeometry ? QRectF(0,y0-7*sigma,1920,14*sigma) : QRectF());
 }
 
 namespace {
@@ -253,17 +256,19 @@ void ridges(Ctx& c, const OsakaState& s) {
     for (int i = 0; i < 3; ++i) {
         const Spec& sp = specs[i];
         Canvas& cv = c.canvas();
-        cv.linear(0, sp.base - sp.amp, 0, sp.base + 26,
-                  {{0, sp.top, 1}, {0.62f, mix(sp.top, sp.bot, 0.22), 1}, {1, sp.bot, 1}});
-        cv.moveTo(-20, 1080);
-        for (double x = -20; x <= 1941; x += 4) {
-            double y = ridgeY(sp.seed, x + s.cam * sp.par, sp.base, sp.amp, sp.scale);
-            if (i == 0) y = ridgeY(sp.seed, x + s.cam * sp.par, sp.base + 6, 60, 300);
-            cv.lineTo(x, y);
-        }
-        cv.lineTo(1941, 1080);
-        cv.closePath();
-        cv.fill();
+    c.retain(cv, "ridge-" + std::to_string(i), [&](Canvas& cv) {
+            cv.linear(0, sp.base - sp.amp, 0, sp.base + 26,
+                      {{0, sp.top, 1}, {0.62f, mix(sp.top, sp.bot, 0.22), 1}, {1, sp.bot, 1}});
+            cv.moveTo(-20, 1080);
+            for (double x = -20; x <= 1941; x += 4) {
+                double y = ridgeY(sp.seed, x + s.cam * sp.par, sp.base, sp.amp, sp.scale);
+                if (i == 0) y = ridgeY(sp.seed, x + s.cam * sp.par, sp.base + 6, 60, 300);
+                cv.lineTo(x, y);
+            }
+            cv.lineTo(1941, 1080);
+            cv.closePath();
+            cv.fill();
+    }, {s.cam});
         c.gpu.over(cv, 1, 0, float(s.land));
         band(c, sp.base + 26, 34, 0.25, 0.5, s.cam * sp.par + c.t * 6, 31 + i, Col(0.36f, 0.92f, 0.66f), 0.26 * s.land);
     }
@@ -274,33 +279,35 @@ void ridges(Ctx& c, const OsakaState& s) {
 // The one mountain: a broad cone in Osaka Jade that recedes to Fuji at sea.
 void drawMountain(Ctx& c, const MountainLook& m) {
     Canvas& cv = c.canvas();
-    const double h = m.base - m.peak;
-    cv.linear(0, m.peak, 0, m.base, {{0, m.top, 1}, {0.62f, mix(m.top, m.bot, 0.22), 1}, {1, m.bot, 1}});
-    cv.moveTo(m.px - m.width * 3.2, m.base + m.foot);
-    for (int i = 0; i <= 160; ++i) {
-        const double dx = (i / 160.0 * 2 - 1) * m.width * 3.2;
-        const double ax = std::abs(dx);
-        double y = m.peak + h * (1 - std::exp(-std::pow(ax / m.width, 1.35))) + 0.012 * h * std::sin((m.px + dx) / 23.0);
-        if (ax < m.width * 0.079) y = m.peak + 4 * h / 236 + std::pow(ax / (m.width * 0.079), 2) * 6 * h / 236;
-        cv.lineTo(m.px + dx, y);
-    }
-    cv.lineTo(m.px + m.width * 3.2, m.base + m.foot);
-    cv.closePath();
-    cv.fill();
-    if (m.snow > 0.01) {
-        // Snow cap with fingers, grown from the summit.
-        const double sc = m.snowScale;
-        const double k = m.snow;
-        cv.color(m.snowCol, 1.0);
-        const double py = m.peak + 3 * sc;
-        auto P = [&](double x, double y) { return V2(m.px + x * sc, py + y * sc * k); };
-        const V2 pts[] = {P(-22, 0), P(20, 0), P(52, 40), P(36, 30), P(28, 52), P(12, 30), P(2, 58),
-                          P(-10, 32), P(-24, 50), P(-30, 28), P(-48, 38)};
-        cv.moveTo(pts[0].x, pts[0].y);
-        for (int i = 1; i < 11; ++i) cv.lineTo(pts[i].x, pts[i].y);
+    c.retain(cv, "mountain", [&](Canvas& cv) {
+        const double h = m.base - m.peak;
+        cv.linear(0, m.peak, 0, m.base, {{0, m.top, 1}, {0.62f, mix(m.top, m.bot, 0.22), 1}, {1, m.bot, 1}});
+        cv.moveTo(m.px - m.width * 3.2, m.base + m.foot);
+        for (int i = 0; i <= 160; ++i) {
+            const double dx = (i / 160.0 * 2 - 1) * m.width * 3.2;
+            const double ax = std::abs(dx);
+            double y = m.peak + h * (1 - std::exp(-std::pow(ax / m.width, 1.35))) + 0.012 * h * std::sin((m.px + dx) / 23.0);
+            if (ax < m.width * 0.079) y = m.peak + 4 * h / 236 + std::pow(ax / (m.width * 0.079), 2) * 6 * h / 236;
+            cv.lineTo(m.px + dx, y);
+        }
+        cv.lineTo(m.px + m.width * 3.2, m.base + m.foot);
         cv.closePath();
         cv.fill();
-    }
+        if (m.snow > 0.01) {
+            // Snow cap with fingers, grown from the summit.
+            const double sc = m.snowScale;
+            const double k = m.snow;
+            cv.color(m.snowCol, 1.0);
+            const double py = m.peak + 3 * sc;
+            auto P = [&](double x, double y) { return V2(m.px + x * sc, py + y * sc * k); };
+            const V2 pts[] = {P(-22, 0), P(20, 0), P(52, 40), P(36, 30), P(28, 52), P(12, 30), P(2, 58),
+                              P(-10, 32), P(-24, 50), P(-30, 28), P(-48, 38)};
+            cv.moveTo(pts[0].x, pts[0].y);
+            for (int i = 1; i < 11; ++i) cv.lineTo(pts[i].x, pts[i].y);
+            cv.closePath();
+            cv.fill();
+        }
+    }, {m.px, m.peak, m.base, m.width, m.foot, m.snow, m.snowScale, m.top.r, m.top.g, m.top.b, m.bot.r, m.bot.g, m.bot.b, m.snowCol.r, m.snowCol.g, m.snowCol.b});
     c.gpu.over(cv, 1, 0, float(m.alpha));
 }
 
@@ -313,6 +320,7 @@ void valleyCity(Ctx& c, const OsakaState& s) {
     Rng rng(41);
     Canvas& bld = c.canvas();
     Canvas& lit = c.canvas();
+    Canvas* staticBld = c.retainedBuilder(bld, "valley-buildings", {s.cam});
     const double sparkle = 0.80 + 0.30 * c.band(5) + 0.55 * c.lift(5) + 0.30 * c.lift(4);
     struct Tower { double x, top; };
     std::vector<Tower> towers;
@@ -326,12 +334,14 @@ void valleyCity(Ctx& c, const OsakaState& s) {
             double h = (layer ? 10 : 14) + std::pow(rng.uni(), 2.2) * (layer ? 30 : 46) * (0.4 + centre);
             if (layer == 0 && centre > 0.4 && rng.uni() < 0.12) h += 30 + rng.uni() * 26;
             const double top = base - h;
-            bld.fillRect(x + ox, top, w, base - top + 40, wall);
-            if (rng.uni() < 0.35 && h < 40) {
-                bld.color(wall);
-                bld.moveTo(x + ox - 1.5, top); bld.lineTo(x + ox + w * 0.5, top - w * 0.28); bld.lineTo(x + ox + w + 1.5, top);
-                bld.closePath(); bld.fill();
-            }
+            if (staticBld) {
+                staticBld->fillRect(x + ox, top, w, base - top + 40, wall);
+                if (rng.uni() < 0.35 && h < 40) {
+                    staticBld->color(wall);
+                    staticBld->moveTo(x + ox - 1.5, top); staticBld->lineTo(x + ox + w * 0.5, top - w * 0.28); staticBld->lineTo(x + ox + w + 1.5, top);
+                    staticBld->closePath(); staticBld->fill();
+                }
+            } else rng.uni(); // the authored roof-choice draw still advances RNG
             if (layer == 0 && h > 55) towers.push_back({x + w * 0.5 + ox, top});
             // Windows: each keeps its own hours, switching every few seconds.
             const double wx0 = x + 2, wy0 = top + 3;
@@ -378,17 +388,20 @@ void valleyCity(Ctx& c, const OsakaState& s) {
 
 void nearRidge(Ctx& c, const OsakaState& s) {
     Canvas& cv = c.canvas();
-    cv.linear(0, 690, 0, 840, {{0, Col(0.022f, 0.13f, 0.096f), 1}, {1, Col(0.05f, 0.25f, 0.18f), 1}});
-    cv.moveTo(-20, 1080);
-    std::vector<V2> pts;
-    for (double x = -20; x <= 1941; x += 3) {
-        const double y = ridgeY(27, x + s.cam * 0.2, 742, 46, 260);
-        cv.lineTo(x, y);
-        pts.push_back({x, y});
-    }
-    cv.lineTo(1941, 1080);
-    cv.closePath();
-    cv.fill();
+    const auto& pts = c.points("near-ridge", [&] {
+        std::vector<V2> points;
+        for (double x = -20; x <= 1941; x += 3)
+            points.push_back({x, ridgeY(27, x + s.cam * 0.2, 742, 46, 260)});
+        return points;
+    }, {s.cam});
+    c.retain(cv, "near-ridge-base", [&](Canvas& cv) {
+        cv.linear(0, 690, 0, 840, {{0, Col(0.022f, 0.13f, 0.096f), 1}, {1, Col(0.05f, 0.25f, 0.18f), 1}});
+        cv.moveTo(-20, 1080);
+        for (const auto& p : pts) cv.lineTo(p.x, p.y);
+        cv.lineTo(1941, 1080);
+        cv.closePath();
+        cv.fill();
+    }, {s.cam});
     // A mixed wood: cedars in stands, rounder broadleaf crowns, and gaps.
     const Col pine(0.022f, 0.13f, 0.096f), leaf(0.028f, 0.15f, 0.11f);
     for (std::size_t i = 0; i < pts.size(); i += 2) {
@@ -625,16 +638,20 @@ void downhillRoofs(Ctx& c, const OsakaState& s, const Life& L) {
         const Row& R = rows[row];
         Canvas& cv = c.canvas();
         Canvas& cw = c.canvas();
+        Canvas* staticRoofs = c.retainedBuilder(cv, "downhill-roofs-" + std::to_string(row), {s.cam});
         const Col rf = mix(R.wall, R.rf2, 0.3);
         double x = 540 - s.cam * R.par + rng.uni() * 40;
         for (int i = 0; i < R.n; ++i) {
             const double w = (150 + rng.uni() * 130) * R.sc, hgt = (120 + rng.uni() * 70) * R.sc;
             const double ye = R.yb - hgt + rng.normal() * 8, yr = ye - (36 + rng.uni() * 26) * R.sc;
-            cv.fillRect(x, ye, w, 400, R.wall);
-            roof(cv, x, x + w, ye, yr, 16 * R.sc, rf, R.rf2, MINT, 5 * R.sc, true, 0.30);
-            if (rng.uni() < 0.5) {
-                cv.line(x + w * 0.3, yr, x + w * 0.3, yr - 30 * R.sc, 1.2, R.wall);
-                cv.line(x + w * 0.3 - 9 * R.sc, yr - 24 * R.sc, x + w * 0.3 + 9 * R.sc, yr - 24 * R.sc, 1.2, R.wall);
+            const bool antenna = rng.uni() < 0.5;
+            if (staticRoofs) {
+                staticRoofs->fillRect(x, ye, w, 400, R.wall);
+                roof(*staticRoofs, x, x + w, ye, yr, 16 * R.sc, rf, R.rf2, MINT, 5 * R.sc, true, 0.30);
+                if (antenna) {
+                    staticRoofs->line(x + w * 0.3, yr, x + w * 0.3, yr - 30 * R.sc, 1.2, R.wall);
+                    staticRoofs->line(x + w * 0.3 - 9 * R.sc, yr - 24 * R.sc, x + w * 0.3 + 9 * R.sc, yr - 24 * R.sc, 1.2, R.wall);
+                }
             }
             const int nw = int(1 + rng.uni() * 3);
             for (int j = 0; j < nw; ++j) {
@@ -649,7 +666,9 @@ void downhillRoofs(Ctx& c, const OsakaState& s, const Life& L) {
                 const double on = h < 0.14 ? -100 : 2.5 + 10.5 * hash2(key, 9.1 + c.seed);
                 const double level = s.chapter || on < 0 ? paneLevel(c, L, on, key % 6, {wx, wy}) : 1.0;
                 warmPane(cw, wx, wy, ww, wh, level, tinted ? &BCYAN : nullptr);
-                if (level > 0.01) lattice(cw, wx, wy, ww, wh, 2, 2, R.wall, 1.0);
+                if (level > 0.01) c.retain(cw, "downhill-lattice-" + std::to_string(key), [&](Canvas& cw) {
+                    lattice(cw, wx, wy, ww, wh, 2, 2, R.wall, 1.0);
+                }, {s.cam});
             }
             x += w + (8 + rng.uni() * 46) * R.sc;
         }
@@ -665,8 +684,10 @@ void rightHouses(Ctx& c, const OsakaState& s, const Life& L) {
     Canvas& w = c.canvas();
     const Col wall(0.014f, 0.046f, 0.037f), rf(0.018f, 0.070f, 0.054f), rf2(0.050f, 0.215f, 0.160f);
     double x0 = 1262 + ox;
-    cv.fillRect(x0, 690, 252, 250, mix(wall, Col(0.03f, 0.13f, 0.10f), 0.5));
-    roof(cv, x0, x0 + 250, 690, 628, 22, mix(rf, Col(0.03f, 0.14f, 0.105f), 0.5), mix(rf2, Col(0.10f, 0.38f, 0.28f), 0.4), RIM, 7);
+    c.retain(cv, "right-house-2", [&](Canvas& cv) {
+        cv.fillRect(x0, 690, 252, 250, mix(wall, Col(0.03f, 0.13f, 0.10f), 0.5));
+        roof(cv, x0, x0 + 250, 690, 628, 22, mix(rf, Col(0.03f, 0.14f, 0.105f), 0.5), mix(rf2, Col(0.10f, 0.38f, 0.28f), 0.4), RIM, 7);
+    }, {s.cam});
     const double h2on[3] = {9.2, 12.0, 5.8};
     const double h2win[3][4] = {{22, 724, 62, 50}, {104, 724, 62, 50}, {24, 826, 96, 74}};
     for (int i = 0; i < 3; ++i) {
@@ -674,16 +695,20 @@ void rightHouses(Ctx& c, const OsakaState& s, const Life& L) {
         const double lv = s.chapter ? paneLevel(c, L, h2on[i] + c.jit(300 + i) * 0.6, (i + 2) % 6, {x0 + q[0], q[1]}) : 1.0;
         if (lv > 0.01) {
             warmPane(w, x0 + q[0], q[1], q[2], q[3], lv);
-            lattice(w, x0 + q[0], q[1], q[2], q[3], 3, 2, INK, 1.2);
+            c.retain(w, "right-house-lattice-" + std::to_string(i), [&](Canvas& w) {
+                lattice(w, x0 + q[0], q[1], q[2], q[3], 3, 2, INK, 1.2);
+            }, {s.cam});
         } else darkPane(w, x0 + q[0], q[1], q[2], q[3]);
     }
     x0 = 1512 + ox;
-    cv.fillRect(x0, 600, 470, 340, wall);
-    roof(cv, x0, x0 + 470, 600, 512, 34, rf, rf2, RIM, 9);
-    cv.color(rf);
-    cv.moveTo(x0 - 44, 770); cv.lineTo(x0 + 480, 770); cv.lineTo(x0 + 480, 786); cv.lineTo(x0 - 52, 786); cv.closePath();
-    cv.fill();
-    cv.line(x0 - 44, 770, x0 + 480, 770, 1.4, RIM, 0.4);
+    c.retain(cv, "right-house-3", [&](Canvas& cv) {
+        cv.fillRect(x0, 600, 470, 340, wall);
+        roof(cv, x0, x0 + 470, 600, 512, 34, rf, rf2, RIM, 9);
+        cv.color(rf);
+        cv.moveTo(x0 - 44, 770); cv.lineTo(x0 + 480, 770); cv.lineTo(x0 + 480, 786); cv.lineTo(x0 - 52, 786); cv.closePath();
+        cv.fill();
+        cv.line(x0 - 44, 770, x0 + 480, 770, 1.4, RIM, 0.4);
+    }, {s.cam});
     struct U { double wx, ww; bool cyan; double on; int band; };
     const U ups[4] = {{30, 96, false, 16.4, 3}, {134, 96, false, 7.5, 1}, {262, 60, true, 4.8, 5}, {330, 110, false, 10.2, 0}};
     double shamisenPane = 0;
@@ -731,7 +756,9 @@ void rightHouses(Ctx& c, const OsakaState& s, const Life& L) {
         sh.line(fx + 24, baseY - 70, fx - 86, baseY - 124, 4.5, SHADOW);
         sh.fillRect(fx + 8, baseY - 88, 34, 30, SHADOW);
         Canvas& mask = c.canvas();
-        mask.fillRect(x0 + 30, 640, 96, 96, Col(1, 1, 1));
+    c.retain(mask, "shamisen-mask", [&](Canvas& mask) {
+            mask.fillRect(x0 + 30, 640, 96, 96, Col(1, 1, 1));
+    }, {s.cam});
         const int lt = c.gpu.layer(sh);
         const int bl = c.gpu.blurred(lt, 2.0);
         const int mk = c.gpu.layer(mask);
@@ -747,7 +774,9 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
         });
     }
     Canvas& f = c.canvas();
-    for (int i = 0; i < 4; ++i) lattice(f, x0 + ups[i].wx, 640, ups[i].ww, 96, ups[i].ww > 70 ? 3 : 2, 3, INK, 1.3);
+    c.retain(f, "izakaya-lattice", [&](Canvas& f) {
+        for (int i = 0; i < 4; ++i) lattice(f, x0 + ups[i].wx, 640, ups[i].ww, 96, ups[i].ww > 70 ? 3 : 2, 3, INK, 1.3);
+    }, {s.cam});
     const double wind = L.wind;
     for (int i = 0; i < 4; ++i) {
         // Noren flutter in the breeze.
@@ -759,7 +788,9 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
         f.closePath();
         f.fill();
     }
-    f.line(x0 + 58, 904, x0 + 252, 904, 5, INK);
+    c.retain(f, "izakaya-counter", [&](Canvas& f) {
+        f.line(x0 + 58, 904, x0 + 252, 904, 5, INK);
+    }, {s.cam});
     // Patrons: lean, gesture and drink, each on their own clock.
     for (int i = 0; i < 3; ++i) {
         const double px = x0 + (i == 0 ? 98 : i == 1 ? 152 : 214);
@@ -787,7 +818,9 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
     }
     // Laundry on the valley side of H2: lifts and snaps in the gust.
     const double bx = 1262 + ox;
-    f.line(bx - 6, 788, bx + 150, 788, 1.2, INK);
+    c.retain(f, "laundry-line", [&](Canvas& f) {
+        f.line(bx - 6, 788, bx + 150, 788, 1.2, INK);
+    }, {s.cam});
     for (int i = 0; i < 5; ++i) {
         const double sw = std::sin(t * 1.6 + i) * 3;
         const double lift = wind * (24 + 8 * std::sin(t * 9 + i * 2.2));
@@ -803,10 +836,14 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
     Canvas& n = c.canvas();
     // Neon 居酒屋 on a dark board, with an occasional stutter; it kicks with the bass.
     const double stutter = (hash1(std::floor(t * 6)) < 0.04) ? 0.35 : 1.0;
-    f.fillRect(x0 + 289, 792, 40, 126, Col(0.016f, 0.035f, 0.03f));
+    c.retain(f, "neon-board", [&](Canvas& f) {
+        f.fillRect(x0 + 289, 792, 40, 126, Col(0.016f, 0.035f, 0.03f));
+    }, {s.cam});
     const Col tube = mix(MAG, Col(1.0f, 0.92f, 0.97f), 0.35);
-    n.color(MAG, 0.9); n.rect(x0 + 291, 794, 36, 122); n.stroke(1.6);
-    for (int j = 0; j < 3; ++j) drawSignGlyph(n, j, x0 + 294, 826 + j * 36, 30, tube, 1.0);
+    c.retain(n, "neon-tubes", [&](Canvas& n) {
+        n.color(MAG, 0.9); n.rect(x0 + 291, 794, 36, 122); n.stroke(1.6);
+        for (int j = 0; j < 3; ++j) drawSignGlyph(n, j, x0 + 294, 826 + j * 36, 30, tube, 1.0);
+    }, {s.cam});
     n.glow(x0 + 309, 856, 120, MAG, 0.30 + 0.25 * c.kick(5));
     for (int i = 0; i < 7; ++i) {
         const double bulb = 0.65 + 0.55 * c.lift(3 + i % 3) * (0.6 + 0.4 * hash2(i, 3));
@@ -822,10 +859,12 @@ void streetSurface(Ctx& c, const OsakaState& s) {
     const double ox = -s.cam * 0.85;
     Canvas& cv = c.canvas();
     const double qx = QUAY - s.cam * 0.85;
-    cv.linear(0, 934, 0, 1080, {{0, Col(0.040f, 0.150f, 0.112f), 1}, {0.18f, Col(0.020f, 0.075f, 0.058f), 1}, {1, Col(0.008f, 0.024f, 0.020f), 1}});
-    cv.rect(-10, 934, std::min(1930.0, qx) + 10, 146);
-    cv.fill();
-    cv.line(0, 934.5, std::min(1920.0, qx), 934.5, 1.2, MINT, 0.30);
+    c.retain(cv, "street-surface", [&](Canvas& cv) {
+        cv.linear(0, 934, 0, 1080, {{0, Col(0.040f, 0.150f, 0.112f), 1}, {0.18f, Col(0.020f, 0.075f, 0.058f), 1}, {1, Col(0.008f, 0.024f, 0.020f), 1}});
+        cv.rect(-10, 934, std::min(1930.0, qx) + 10, 146);
+        cv.fill();
+        cv.line(0, 934.5, std::min(1920.0, qx), 934.5, 1.2, MINT, 0.30);
+    }, {s.cam});
     if (qx < 1930 && s.harbour > 0.01) {
         // Harbour water beyond the quay.
         if (s.harbourFeather > 0) {
@@ -842,18 +881,20 @@ void streetSurface(Ctx& c, const OsakaState& s) {
             cv.line(x, y, x + 30 + k * 2, y, 1.2, MINT, (0.10 + 0.012 * k) * s.harbour);
         }
     }
-    if (qx < 2120) {
-        for (int k = 0; k < 5; ++k) {
-            cv.fillRect(qx + k * 34, 934 + (k + 1) * 26, 36, 300, Col(0.016f + 0.004f * k, 0.060f + 0.012f * k, 0.047f + 0.009f * k));
-            cv.line(qx + k * 34, 934.5 + (k + 1) * 26, qx + k * 34 + 36, 934.5 + (k + 1) * 26, 1.2, MINT, 0.25);
+    c.retain(cv, "street-railing", [&](Canvas& cv) {
+        if (qx < 2120) {
+            for (int k = 0; k < 5; ++k) {
+                cv.fillRect(qx + k * 34, 934 + (k + 1) * 26, 36, 300, Col(0.016f + 0.004f * k, 0.060f + 0.012f * k, 0.047f + 0.009f * k));
+                cv.line(qx + k * 34, 934.5 + (k + 1) * 26, qx + k * 34 + 36, 934.5 + (k + 1) * 26, 1.2, MINT, 0.25);
+            }
+            for (int k = 0; k < 3; ++k) cv.line(qx - 30 - k * 120, 936, qx - 30 - k * 120, 900, 9, INK);
         }
-        for (int k = 0; k < 3; ++k) cv.line(qx - 30 - k * 120, 936, qx - 30 - k * 120, 900, 9, INK);
-    }
-    const double x0 = 575 + ox, x1 = 1262 + ox;
-    for (double xx = x0; xx <= x1 + 1; xx += 62) cv.line(xx, 936, xx, 864, 5, INK);
-    cv.line(x0, 866, x1, 866, 5, INK);
-    cv.line(x0, 896, x1, 896, 3, INK);
-    cv.line(x0, 863, x1, 863, 1.0, MINT, 0.5);
+        const double x0 = 575 + ox, x1 = 1262 + ox;
+        for (double xx = x0; xx <= x1 + 1; xx += 62) cv.line(xx, 936, xx, 864, 5, INK);
+        cv.line(x0, 866, x1, 866, 5, INK);
+        cv.line(x0, 896, x1, 896, 3, INK);
+        cv.line(x0, 863, x1, 863, 1.0, MINT, 0.5);
+    }, {s.cam});
     c.gpu.over(cv);
 }
 
@@ -1025,15 +1066,17 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
     c.gpu.over(b, 1.25f);
     Canvas& p = c.canvas();
     Canvas& l = c.canvas();
-    p.fillRect(yx, 858, 178, 62, INK);
-    for (double wx : {yx + 34, yx + 146}) p.disc(wx, 918, 19, INK);
-    for (double px : {yx + 6, yx + 172}) p.line(px, 860, px, 742, 5, INK);
-    p.color(INK);
-    p.moveTo(yx - 22, 748); p.curveTo(yx + 40, 716, yx + 138, 716, yx + 200, 748); p.lineTo(yx + 200, 757); p.lineTo(yx - 22, 757); p.closePath();
-    p.fill();
-    p.color(MINT, 0.45);
-    p.moveTo(yx - 22, 748); p.curveTo(yx + 40, 716, yx + 138, 716, yx + 200, 748);
-    p.stroke(1.2);
+    c.retain(p, "yatai-frame", [&](Canvas& p) {
+        p.fillRect(yx, 858, 178, 62, INK);
+        for (double wx : {yx + 34, yx + 146}) p.disc(wx, 918, 19, INK);
+        for (double px : {yx + 6, yx + 172}) p.line(px, 860, px, 742, 5, INK);
+        p.color(INK);
+        p.moveTo(yx - 22, 748); p.curveTo(yx + 40, 716, yx + 138, 716, yx + 200, 748); p.lineTo(yx + 200, 757); p.lineTo(yx - 22, 757); p.closePath();
+        p.fill();
+        p.color(MINT, 0.45);
+        p.moveTo(yx - 22, 748); p.curveTo(yx + 40, 716, yx + 138, 716, yx + 200, 748);
+        p.stroke(1.2);
+    }, {s.cam});
     // Cook: ladles in a loop once the cart opens; passes a bowl at 12 s.
     {
         const double cookT=c.schedule->action(Moment::Cook,t,11.4);
@@ -1245,7 +1288,7 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
         c.gpu.pass(st, Blend::Add, [&](Program& q) {
             q.set("u_base", float(yx + 126), 838.f); q.set("u_t", float(t)); q.set("u_amt", float(steam));
             q.set("u_wind", float(L.wind)); q.set("u_puff", float(std::min(1.0, c.kick(3.0))));
-        });
+        }, -1, c.staticGeometry ? QRectF(0,500,1920,342) : QRectF());
     }
 }
 
@@ -1348,9 +1391,12 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
     Canvas& cv = c.canvas();
     Canvas& l = c.canvas();
     Canvas& cone = c.canvas();
+    l.preserveRaster=cone.preserveRaster=true;
     Spans spans = wireRuns(cam);
     const auto outs = osakaOutRuns(cam);
     const double land = clamp01(s.land);
+    Canvas* staticPoles = c.retainedBuilder(cv, far ? "far-poles" : "near-poles", {cam, land});
+    if(staticPoles)staticPoles->preserveRaster=true;
     const Col INSUL(0.55f, 0.66f, 0.58f);
     // Poles: valley poles fade with the land under the fog instead of popping.
     struct Drawn { Pole p; double alpha; };
@@ -1361,38 +1407,41 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
         const Pole& pl = d.p;
         const double px = pl.x - cam * pl.par, sc = pl.sc, al = d.alpha;
         if (px < -120 || px > 2050 || al < 0.01) continue;
-        cv.color(INK, al);
-        cv.moveTo(px - 6 * sc, pl.top); cv.lineTo(px + 6 * sc, pl.top); cv.lineTo(px + 8.5 * sc, pl.base); cv.lineTo(px - 8.5 * sc, pl.base); cv.closePath();
-        cv.fill();
-        cv.line(px - 6 * sc, pl.top, px - 8.5 * sc, pl.base, 1.2, RIM, (0.5 * sc + 0.15) * al);
-        // Climbing steps and a cable bundle down the pole.
-        for (int k = 0; k < 9; ++k) cv.line(px + 6 * sc, pl.top + (240 + k * 58) * sc, px + 15 * sc, pl.top + (236 + k * 58) * sc, 2.2 * sc, INK, al);
-        cv.line(px - 9 * sc, pl.top + 160 * sc, px - 10 * sc, pl.base, 3.2 * sc, INK, al);
-        for (int i = 0; i < 6; ++i) {
-            const double yy = pl.top + 26 * sc + i * 15.5 * sc;
-            cv.line(px - 15 * sc, yy, px + 15 * sc, yy, 3.4 * sc, INK, al);
-            // Insulators catch a little light.
-            for (double dx : {-11.0, 11.0}) {
-                cv.disc(px + dx * sc, yy - 2.6 * sc, 2.3 * sc, INK, al);
-                cv.disc(px + dx * sc - 0.6 * sc, yy - 3.4 * sc, 1.0 * sc, INSUL, 0.7 * al);
+        if (staticPoles) {
+            Canvas& cv = *staticPoles;
+            cv.color(INK, al);
+            cv.moveTo(px - 6 * sc, pl.top); cv.lineTo(px + 6 * sc, pl.top); cv.lineTo(px + 8.5 * sc, pl.base); cv.lineTo(px - 8.5 * sc, pl.base); cv.closePath();
+            cv.fill();
+            cv.line(px - 6 * sc, pl.top, px - 8.5 * sc, pl.base, 1.2, RIM, (0.5 * sc + 0.15) * al);
+            // Climbing steps and a cable bundle down the pole.
+            for (int k = 0; k < 9; ++k) cv.line(px + 6 * sc, pl.top + (240 + k * 58) * sc, px + 15 * sc, pl.top + (236 + k * 58) * sc, 2.2 * sc, INK, al);
+            cv.line(px - 9 * sc, pl.top + 160 * sc, px - 10 * sc, pl.base, 3.2 * sc, INK, al);
+            for (int i = 0; i < 6; ++i) {
+                const double yy = pl.top + 26 * sc + i * 15.5 * sc;
+                cv.line(px - 15 * sc, yy, px + 15 * sc, yy, 3.4 * sc, INK, al);
+                // Insulators catch a little light.
+                for (double dx : {-11.0, 11.0}) {
+                    cv.disc(px + dx * sc, yy - 2.6 * sc, 2.3 * sc, INK, al);
+                    cv.disc(px + dx * sc - 0.6 * sc, yy - 3.4 * sc, 1.0 * sc, INSUL, 0.7 * al);
+                }
             }
+            for (auto [yy, hw] : {std::pair<double, double>{pl.top + 12 * sc, 62}, {pl.top + 124 * sc, 46}}) {
+                cv.line(px - hw * sc, yy, px + hw * sc, yy, 6.5 * sc, INK, al);
+                cv.poly({{px - hw * 0.7 * sc, yy}, {px, yy + 30 * sc}, {px + hw * 0.7 * sc, yy}}, 2.4 * sc, INK, al);
+                for (double dx : {-0.85, -0.45, 0.45, 0.85}) cv.disc(px + dx * hw * sc, yy - 4 * sc, 2.8 * sc, INK, al);
+            }
+            // Transformer drum with a rim of moonlight.
+            const double tx = px + 24 * sc, ty = pl.top + 150 * sc, tw = 15 * sc, th = 50 * sc;
+            cv.fillRect(tx - tw, ty, 2 * tw, th, INK, al);
+            cv.color(INK, al); cv.ellipse(tx, ty, tw, 4 * sc); cv.fill();
+            cv.color(INK, al); cv.ellipse(tx, ty + th, tw, 4 * sc); cv.fill();
+            cv.line(tx - tw + 1.5 * sc, ty + 3 * sc, tx - tw + 1.5 * sc, ty + th - 2 * sc, 1.2, RIM, 0.45 * al);
+            cv.line(px + 8 * sc, ty + 8 * sc, tx - tw, ty + 10 * sc, 2 * sc, INK, al);
         }
-        for (auto [yy, hw] : {std::pair<double, double>{pl.top + 12 * sc, 62}, {pl.top + 124 * sc, 46}}) {
-            cv.line(px - hw * sc, yy, px + hw * sc, yy, 6.5 * sc, INK, al);
-            cv.poly({{px - hw * 0.7 * sc, yy}, {px, yy + 30 * sc}, {px + hw * 0.7 * sc, yy}}, 2.4 * sc, INK, al);
-            for (double dx : {-0.85, -0.45, 0.45, 0.85}) cv.disc(px + dx * hw * sc, yy - 4 * sc, 2.8 * sc, INK, al);
-        }
-        // Transformer drum with a rim of moonlight.
-        const double tx = px + 24 * sc, ty = pl.top + 150 * sc, tw = 15 * sc, th = 50 * sc;
-        cv.fillRect(tx - tw, ty, 2 * tw, th, INK, al);
-        cv.color(INK, al); cv.ellipse(tx, ty, tw, 4 * sc); cv.fill();
-        cv.color(INK, al); cv.ellipse(tx, ty + th, tw, 4 * sc); cv.fill();
-        cv.line(tx - tw + 1.5 * sc, ty + 3 * sc, tx - tw + 1.5 * sc, ty + th - 2 * sc, 1.2, RIM, 0.45 * al);
-        cv.line(px + 8 * sc, ty + 8 * sc, tx - tw, ty + 10 * sc, 2 * sc, INK, al);
         if (sc == 1.0 && pl.x < 2000) {
             const double ly = 596;
             const double flick = 0.92 + 0.08 * std::sin(t * 13) * std::sin(t * 3.7);
-            cv.poly({{px, ly + 22}, {px - 60, ly}, {px - 82, ly + 2}}, 4, INK);
+            if (staticPoles) staticPoles->poly({{px, ly + 22}, {px - 60, ly}, {px - 82, ly + 2}}, 4, INK);
             l.fillRect(px - 96, ly + 3, 26, 6, WARM_B * float(flick));
             l.glow(px - 83, ly + 10, 40, WARM_B, 0.7 * flick);
             cone.linear(0, ly, 0, 1000, {{0, mix(WARM_B, GLOW, 0.35), 0.30f * float(flick)}, {1, mix(WARM_B, GLOW, 0.35), 0}});
@@ -1401,7 +1450,8 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
         }
     }
     // Guy anchors share each support's parallax.
-    if (far) {
+    if (far && staticPoles) {
+        Canvas& cv = *staticPoles;
         for (const Pole& pl : {POLES[0], LAST_POLE, PIER_POLE}) {
             const double px = pl.x - cam * pl.par;
             cv.line(px - 2 * pl.sc, pl.top + 210 * pl.sc, px - 66 * pl.sc, pl.base, 1.1 * pl.sc, INK, 0.85);
@@ -1414,35 +1464,43 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
         const double px = POLES[0].x - cam * 0.9;
         const WireSpan drops[3] = {{{px - 12, 222}, {1452 - cam * 0.9, 668}, 26}, {{px + 14, 226}, {1628 - cam * 0.9, 604}, 22},
                                    {{px + 14, 236}, {1700 - cam * 0.9, 606}, 30}};
-        for (const WireSpan& d : drops) {
+        for (int drop = 0; drop < 3; ++drop) {
+            const WireSpan& d = drops[drop];
             if (std::min(d.p0.x, d.p1.x) > 1960) continue;
             std::vector<V2> pts;
             for (int k = 0; k <= 30; ++k) pts.push_back(wireAt(d, k / 30.0) + V2(0, L.wind * 1.5 * std::sin(t * 2.4) * 4 * (k / 30.0) * (1 - k / 30.0)));
             cv.polyline(pts, 1.0, INK, 0.9);
-            cv.disc(d.p1.x, d.p1.y, 2.4, INK);
+            cv.disc(d.p1.x,d.p1.y,2.4,INK);
         }
     }
-    if (far) {
+    if (far && staticPoles) {
+        Canvas& cv = *staticPoles;
         for (const WireSpan& w : {WireSpan{{1080 - cam * 0.85, 604}, {1318 - cam * 0.5, 587}, 38}}) {
             std::vector<V2> pts;
             for (int k = 0; k <= 40; ++k) pts.push_back(wireAt(w, k / 40.0));
             cv.polyline(pts, 1.4, INK, land * 0.8);
         }
     }
-    // Wire dips where birds have landed.
-    auto dipAt = [&](int wire, double u) {
-        double dy = 0;
-        for (const BirdPlan& b : birds) {
-            if (b.wire != wire) continue;
-            const double age = t - b.land;
-            if (age < 0) continue;
-            const double gone=c.schedule->fireworks>=b.land?clamp01((t-c.schedule->fireworks)/0.3):0;
-            const double weight = 1.4 * (1 - gone) + 3.0 * ring(age, 2.2, 3.5) * (1 - gone);
-            dy += weight * std::exp(-std::pow((u - b.u) / 0.05, 2));
-            if (L.surge.t >= 0 && t > L.surge.t) dy -= 2.5 * ring(t - L.surge.t, 2.6, 2.5) * std::exp(-std::pow((u - b.u) / 0.07, 2));
+    // The weights are constant for this frame; sample only each spatial profile.
+    struct Dip {int wire;double u,weight,surge;};
+    std::vector<Dip> dips;
+    for(const auto& b:birds) {
+        const double age=t-b.land;
+        if(age<0)continue;
+        const double gone=c.schedule->fireworks>=b.land?clamp01((t-c.schedule->fireworks)/0.3):0;
+        const double weight=1.4*(1-gone)+3.0*ring(age,2.2,3.5)*(1-gone);
+        const double surge=L.surge.t>=0 && t>L.surge.t?2.5*ring(t-L.surge.t,2.6,2.5):0;
+        dips.push_back({b.wire,b.u,weight,surge});
+    }
+    auto dipAt=[&](int wire,double u) {
+        double dy=0;
+        for(const auto& b:dips)if(b.wire==wire) {
+            dy+=b.weight*std::exp(-std::pow((u-b.u)/0.05,2));
+            if(b.surge!=0)dy-=b.surge*std::exp(-std::pow((u-b.u)/0.07,2));
         }
         return dy;
     };
+    static const auto tailFade=[] {std::array<double,16> values{};for(int j=0;j<16;++j)values[j]=std::pow(1-j/16.0,1.6);return values;}();
     // Each strand has its own gauge (the bass strand heaviest) and a moonlit
     // upper edge; it hums with a soft glow that follows its band.
     const double gauge[6] = {2.1, 1.9, 1.6, 1.35, 1.15, 0.95};
@@ -1520,7 +1578,7 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
                 if (tj < 0) break;
                 V2 q = wireAt(w, tj);
                 if (si == 1) q.y += dipAt(i, tj);
-                l.disc(q.x, q.y, (2.4 - 1.6 * j / 16) * sc * (0.8 + 0.5 * lvl), PULSE[i], std::pow(1 - j / 16.0, 1.6) * std::min(1.0, lvl));
+                l.disc(q.x, q.y, (2.4 - 1.6 * j / 16) * sc * (0.8 + 0.5 * lvl), PULSE[i], tailFade[j] * std::min(1.0, lvl));
             }
             V2 q = wireAt(w, tt);
             if (si == 1) q.y += dipAt(i, tt);
@@ -1542,7 +1600,7 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
                 const double tj = tt - 0.07 * j / 16;
                 if (tj < 0) break;
                 const V2 q = wireAt(w, tj);
-                l.disc(q.x, q.y, (2.4 - 1.6 * j / 16) * (0.8 + 0.5 * lvl), PULSE[i], std::pow(1 - j / 16.0, 1.6) * std::min(1.0, lvl));
+                l.disc(q.x, q.y, (2.4 - 1.6 * j / 16) * (0.8 + 0.5 * lvl), PULSE[i], tailFade[j] * std::min(1.0, lvl));
             }
             const V2 q = wireAt(w, tt);
             l.glow(q.x, q.y, 13 + 14 * lvl, PULSE[i], 0.9 * std::min(1.0, lvl));
@@ -1712,16 +1770,18 @@ void nearHouse(Ctx& c, const OsakaState& s, const Life& L) {
     Canvas& w = c.canvas();
     const Col wall(0.009f, 0.028f, 0.023f), rf(0.013f, 0.050f, 0.039f), rf2(0.040f, 0.170f, 0.127f);
     const double x0 = -80 + ox, x1 = 540 + ox;
-    cv.fillRect(x0, 250, x1 - x0, 830, wall);
-    roof(cv, x0, x1, 262, 132, 64, rf, rf2, RIM, 11);
-    cv.color(rf);
-    cv.moveTo(x0, 556); cv.lineTo(x1 + 96, 580); cv.lineTo(x1 + 100, 596); cv.lineTo(x0, 596); cv.closePath();
-    cv.fill();
-    cv.line(x0, 556, x1 + 96, 580, 1.5, RIM, 0.45);
-    cv.color(RIM, 0.07);
-    for (double xx = x0 + 30; xx < x1 + 90; xx += 15) { cv.moveTo(xx, 558 + (xx - x0) * 0.037); cv.lineTo(xx + 4, 596); }
-    cv.stroke(1);
-    cv.line(x1, 276, x1, 578, 1.4, RIM, 0.28);
+    c.retain(cv, "near-house", [&](Canvas& cv) {
+        cv.fillRect(x0, 250, x1 - x0, 830, wall);
+        roof(cv, x0, x1, 262, 132, 64, rf, rf2, RIM, 11);
+        cv.color(rf);
+        cv.moveTo(x0, 556); cv.lineTo(x1 + 96, 580); cv.lineTo(x1 + 100, 596); cv.lineTo(x0, 596); cv.closePath();
+        cv.fill();
+        cv.line(x0, 556, x1 + 96, 580, 1.5, RIM, 0.45);
+        cv.color(RIM, 0.07);
+        for (double xx = x0 + 30; xx < x1 + 90; xx += 15) { cv.moveTo(xx, 558 + (xx - x0) * 0.037); cv.lineTo(xx + 4, 596); }
+        cv.stroke(1);
+        cv.line(x1, 276, x1, 578, 1.4, RIM, 0.28);
+    }, {s.cam});
     // Upstairs panes, laid out like a tiling window manager: master + stack.
     struct P { double x, y, w, h; int cols, rows; double on; int band; };
     const P U[4] = {{96, 312, 178, 196, 3, 4, 6.4, 1}, {284, 312, 104, 93, 2, 2, 9.6, 4},
@@ -1807,7 +1867,9 @@ void nearHouse(Ctx& c, const OsakaState& s, const Life& L) {
     }
     if (any) {
         Canvas& mask = c.canvas();
-        for (const P& q : U) mask.fillRect(q.x + ox, q.y, q.w, q.h, Col(1, 1, 1));
+    c.retain(mask, "near-house-mask", [&](Canvas& mask) {
+            for (const P& q : U) mask.fillRect(q.x + ox, q.y, q.w, q.h, Col(1, 1, 1));
+    }, {s.cam});
         const int lt = c.gpu.layer(sh);
         const int bl = c.gpu.blurred(lt, 3.2f);
         const int mk = c.gpu.layer(mask);
@@ -1823,21 +1885,27 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
         });
     }
     Canvas& f = c.canvas();
-    for (const P& q : U) lattice(f, q.x + ox, q.y, q.w, q.h, q.cols, q.rows, INK, 1.6);
+    c.retain(f, "near-house-lattice", [&](Canvas& f) {
+        for (const P& q : U) lattice(f, q.x + ox, q.y, q.w, q.h, q.cols, q.rows, INK, 1.6);
+    }, {s.cam});
     const Col roomCol = mix(WARM_T, INK, 0.62);
-    f.fillRect(214 + ox, 648, 20, 4, roomCol);
-    f.line(270 + ox, 640, 270 + ox, 694, 1.5, roomCol);
+    c.retain(f, "near-house-lamp-hanger", [&](Canvas& f) {
+        f.fillRect(214 + ox, 648, 20, 4, roomCol);
+        f.line(270 + ox, 640, 270 + ox, 694, 1.5, roomCol);
+    }, {s.cam});
     f.color(Col(1.0f, 0.96f, 0.80f) * float(room));
     f.ellipse(270 + ox, 716, 26, 24);
     f.fill();
-    f.fillRect(214 + ox, 890, 118, 9, roomCol, 0.9);
-    for (double lx : {224.0, 322.0}) f.fillRect(lx + ox, 899, 7, 34, roomCol, 0.9);
-    f.fillRect(214 + ox, 934, 256, 34, roomCol, 0.55);
-    lattice(f, 70 + ox, 640, 134, 328, 3, 6, INK, 1.6);
-    lattice(f, 346 + ox, 640, 124, 328, 3, 6, INK, 1.6);
-    f.fillRect(-80 + ox, 968, 720, 14, INK);
-    f.fillRect(-80 + ox, 982, 640, 98, wall);
-    f.line(-80 + ox, 968, 640 + ox, 968, 1.2, RIM, 0.3);
+    c.retain(f, "near-house-deck", [&](Canvas& f) {
+        f.fillRect(214 + ox, 890, 118, 9, roomCol, 0.9);
+        for (double lx : {224.0, 322.0}) f.fillRect(lx + ox, 899, 7, 34, roomCol, 0.9);
+        f.fillRect(214 + ox, 934, 256, 34, roomCol, 0.55);
+        lattice(f, 70 + ox, 640, 134, 328, 3, 6, INK, 1.6);
+        lattice(f, 346 + ox, 640, 124, 328, 3, 6, INK, 1.6);
+        f.fillRect(-80 + ox, 968, 720, 14, INK);
+        f.fillRect(-80 + ox, 982, 640, 98, wall);
+        f.line(-80 + ox, 968, 640 + ox, 968, 1.2, RIM, 0.3);
+    }, {s.cam});
     // Woman on the deck edge: opens her fan at 2 s and fans slowly.
     {
         const double h = 290, x = 260 + ox, y = 968;
@@ -1915,33 +1983,62 @@ void wisteria(Ctx& c, const OsakaState& s, const Life& L) {
     if (std::max(2034.0, 1970.0 + swayBound) + ox < -24) return;
     Canvas& cv = c.canvas();
     Canvas& e = c.canvas();
-    Rng rng(88);
+    cv.batchSpatially=true;cv.preserveRaster=e.preserveRaster=true;
     const Col dark(0.010f, 0.050f, 0.037f);
-    for (int i = 0; i < 15; ++i) cv.disc(1560 + rng.uni() * 400 + ox, rng.uni() * 30 - 14, 34 + rng.uni() * 40, dark);
-    std::vector<double> xs(30);
-    for (double& x : xs) x = 1575 + std::pow(rng.uni(), 0.85) * 370;
-    std::sort(xs.begin(), xs.end());
-    const double glint = 1 + 0.9 * onsetFlash(c, 6);
-    for (int i = 0; i < 30; ++i) {
-        const double xw = xs[std::size_t(i)], x = xw + ox;
-        const double ln = (90 + rng.uni() * 120) + 210 * std::pow((xw - 1575) / 370, 1.4) * (0.6 + 0.4 * rng.uni());
-        const double sway = std::sin(t * 0.9 + i * 0.7) * (4 + ln * 0.035) * (1 + 2.5 * L.wind)
-                            + L.wind * 26 * (0.7 + 0.3 * std::sin(t * 2.7 + i)) + 2.0 * c.a.bass;
-        const double wmax = 9 + rng.uni() * 5;
-        const int n = int(ln / 5);
-        cv.line(x, -10, x + sway * 0.1, ln * 0.3, 1.6, dark);
-        for (int j = 0; j < n; ++j) {
-            const double f = double(j) / n;
-            const double cx = x + sway * f * f, cy = 6 + ln * f;
-            const double wd = wmax * std::sin(std::min(1.0, f * 2.6) * Pi / 2) * std::pow(1 - f, 0.6) + 0.8;
-            for (int side = -1; side <= 1; side += 2) {
-                const double px = cx + side * wd * (0.35 + 0.65 * rng.uni()), py = cy + rng.normal() * 1.6;
-                const double r = 2.3 + 2.0 * (1 - f) * rng.uni();
-                const Col tone = mix(Col(0.03f, 0.26f, 0.18f), MINT, std::pow(f, 1.3) * (0.6 + 0.4 * rng.uni()));
-                cv.color(mix(dark, tone, 0.35 + 0.65 * f));
-                cv.ellipse(px, py, r * 0.8, r * 1.6, side * 0.35); cv.fill();
-                if (f > 0.45 && rng.uni() < 0.5) e.glow(px, py, r * 2.4, rng.uni() < 0.88 ? MINT : MAG, std::min(1.0, 0.55 * f * glint));
+    struct Petal {double f,dx,y,r;Col color,light;bool glow;double rotation;Canvas::PreparedEllipse shape;};
+    struct Raceme {double x,length;std::vector<Petal> petals;};
+    struct Canopy {std::vector<std::array<double,3>> crowns;std::vector<Raceme> racemes;};
+    auto makeCanopy=[&] {
+        Canopy canopy;
+        Rng rng(88);
+        auto crown=[&](double x,double y,double r){canopy.crowns.push_back({x,y,r});};
+        for(int i=0;i<15;++i)crown(1560+rng.uni()*400,rng.uni()*30-14,34+rng.uni()*40);
+        std::vector<double> xs(30);
+        for(double& x:xs)x=1575+std::pow(rng.uni(),0.85)*370;
+        std::sort(xs.begin(),xs.end());
+        for(int i=0;i<30;++i) {
+            const double xw=xs[i];
+            const double ln=(90+rng.uni()*120)+210*std::pow((xw-1575)/370,1.4)*(0.6+0.4*rng.uni());
+            const double wmax=9+rng.uni()*5;
+            const int n=int(ln/5);
+            Raceme raceme{xw,ln,{}};
+            for(int j=0;j<n;++j) {
+                const double f=double(j)/n;
+                const double wd=wmax*std::sin(std::min(1.0,f*2.6)*Pi/2)*std::pow(1-f,0.6)+0.8;
+                for(int side=-1;side<=1;side+=2) {
+                    const double dx=side*wd*(0.35+0.65*rng.uni()),y=6+ln*f+rng.normal()*1.6;
+                    const double r=2.3+2.0*(1-f)*rng.uni();
+                    const Col tone=mix(Col(0.03f,0.26f,0.18f),MINT,std::pow(f,1.3)*(0.6+0.4*rng.uni()));
+                    const Col color=mix(dark,tone,0.35+0.65*f);
+                    const bool glow=f>0.45 && rng.uni()<0.5;
+                    const Col light=glow?(rng.uni()<0.88?MINT:MAG):MINT;
+                    raceme.petals.push_back({f,dx,y,r,color,light,glow,side*0.35,Canvas::prepareEllipse(r*0.8,r*1.6,side*0.35,c.gpu.pixelScale())});
+                }
             }
+            canopy.racemes.push_back(std::move(raceme));
+        }
+        return canopy;
+    };
+    Canopy temporary;
+    Canopy* canopy=nullptr;
+    if(c.staticGeometry) {
+        auto& layout=c.staticGeometry->layouts["wisteria"];
+        if(!layout.has_value())layout=makeCanopy();
+        canopy=&std::any_cast<Canopy&>(layout);
+    } else {temporary=makeCanopy();canopy=&temporary;}
+    for(const auto& crown:canopy->crowns)cv.disc(crown[0]+ox,crown[1],crown[2],dark);
+    const double glint=1+0.9*onsetFlash(c,6);
+    for(std::size_t i=0;i<canopy->racemes.size();++i) {
+        const auto& raceme=canopy->racemes[i];
+        const double x=raceme.x+ox,ln=raceme.length;
+        const double sway=std::sin(t*0.9+i*0.7)*(4+ln*0.035)*(1+2.5*L.wind)
+                          +L.wind*26*(0.7+0.3*std::sin(t*2.7+i))+2.0*c.a.bass;
+        cv.line(x,-10,x+sway*0.1,ln*0.3,1.6,dark);
+        for(const auto& p:raceme.petals) {
+            const double px=(x+sway*p.f*p.f)+p.dx;
+            cv.color(p.color);
+            if(c.staticGeometry)cv.fillEllipsePrepared(px,p.y,p.shape);else {cv.ellipse(px,p.y,p.r*0.8,p.r*1.6,p.rotation);cv.fill();}
+            if(p.glow)e.glow(px,p.y,p.r*2.4,p.light,std::min(1.0,0.55*p.f*glint));
         }
     }
     c.gpu.over(cv, 1, 1.3f);
@@ -1962,7 +2059,7 @@ void reflections(Ctx& c, const OsakaState& s) {
         c.gpu.bindTexture(0, snap, q, "u_img");
         q.set("u_y0", 936.f); q.set("u_qx", 4000.f); q.set("u_t", float(c.t)); q.set("u_gain", float(s.reflection));
         q.set("u_kick", float(std::min(1.0, c.kick(4.5))));
-    });
+    }, -1, c.staticGeometry ? QRectF(0,936,1920,144) : QRectF());
 }
 }  // namespace
 
@@ -2108,5 +2205,6 @@ void drawOsaka(Ctx& c, const OsakaState& s) {
     FinishParams f;
     f.time = float(c.t);
     c.gpu.finish(f,nullptr);
+
 }
 }

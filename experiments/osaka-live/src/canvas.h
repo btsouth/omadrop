@@ -7,8 +7,10 @@
 // round caps and joins. Everything is antialiased by multisampling.
 #include "art.h"
 #include <array>
+#include <cstdint>
 #include <initializer_list>
 #include <vector>
+#include <memory>
 
 namespace Journey {
 struct Vertex {
@@ -27,10 +29,22 @@ struct GradientRow {
 class Canvas {
 public:
     inline static bool useKnownConvex = true;
-    enum class CmdKind { Direct, StencilFill, StencilOnce };
+    enum class CmdKind { Direct, StencilFill, StencilOnce, Cached };
     struct Cmd { CmdKind kind; int first, count, coverFirst, coverCount; };
 
     explicit Canvas(double pixelScale = 1.0) : pixelScale_(pixelScale) { states_.push_back({}); }
+    Canvas(const Canvas&) = delete;
+    Canvas& operator=(const Canvas&) = delete;
+    // Insert an immutable geometry span without copying or changing its place
+    // in the draw stream. The retained canvas must outlive this canvas's frame.
+    void append(const Canvas& retained);
+    const Canvas& retained(int index) const { return *retained_[index]; }
+    std::uint64_t identity() const { return identity_; }
+    std::uint64_t revision() const { return revision_; }
+    void freeze() { frozen_ = true; }
+    bool frozen() const { return frozen_; }
+    bool preserveRaster = false;
+    bool batchSpatially = false;
     void reset(double pixelScale);
     double pixelScale() const { return pixelScale_; }
     bool empty() const { return cmds_.empty(); }
@@ -57,9 +71,14 @@ public:
     void rect(double x, double y, double w, double h);
     void ellipse(double cx, double cy, double rx, double ry, double rotation = 0);
 
+    struct PreparedEllipse {std::vector<V2> points;bool convex=false;bool direct=false;};
+    static PreparedEllipse prepareEllipse(double rx,double ry,double rotation,double pixelScale);
+    void ellipsePrepared(double x,double y,const PreparedEllipse&);
+    void fillEllipsePrepared(double x,double y,const PreparedEllipse&);
+
     void fill();
     void stroke(double width);
-    void newPath() { paths_.clear(); }
+    void newPath() { recyclePaths(); }
 
     // Convenience shapes (each clears the current path).
     void disc(double x, double y, double r, Col c, double a = 1.0);
@@ -87,6 +106,8 @@ private:
     double linearScale() const;
     double tolerance() const { return 0.22 / pixelScale_; }
     Sub& current();
+    void recyclePaths();
+    void addSub();
     void put(V2 p, float u = 0, float v = 0, float mode = 0);
     void putColor(V2 p, float r, float g, float b, float a, float u, float v, float mode, float paint);
     void direct(int first);
@@ -95,14 +116,24 @@ private:
     bool convex(const Sub& s) const;
     void pushRow(const GradientRow& row, bool translucent);
 
+    inline static std::uint64_t nextIdentity_ = 0;
+    const std::uint64_t identity_ = ++nextIdentity_;
+    std::uint64_t revision_ = 1;
+    bool frozen_ = false;
+
+    std::vector<const Canvas*> retained_;
     double pixelScale_;
     std::vector<State> states_;
     Source src_;
     std::vector<Sub> paths_;
+    std::vector<const Sub*> fillSubs_;
+    std::vector<V2> strokePoints_;
+    std::vector<std::vector<V2>> sparePaths_;
     V2 cursor_{}, cursorUser_{};
     bool hasCursor_ = false;
     std::vector<Vertex> verts_;
     std::vector<Cmd> cmds_;
     std::vector<GradientRow> gradients_;
 };
+
 }

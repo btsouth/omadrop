@@ -8,4 +8,5 @@ SOURCES += src/main.cpp src/preview.cpp src/session.cpp src/audio.cpp src/score.
 HEADERS += src/preview.h
 LIBS += -lEGL -lOpenGL -lpthread
 RESOURCES += src/resources.qrc
-QMAKE_CXXFLAGS_RELEASE += -O2
+QMAKE_CXXFLAGS_RELEASE += -O3 -flto=8 -fno-math-errno
+QMAKE_LFLAGS_RELEASE += -flto=8

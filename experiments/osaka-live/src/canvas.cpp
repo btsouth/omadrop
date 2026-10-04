@@ -4,14 +4,25 @@
 
 namespace Journey {
 void Canvas::reset(double pixelScale) {
+    ++revision_;
+    frozen_ = false;
+    preserveRaster=false;batchSpatially=false;
+    retained_.clear();
     pixelScale_ = pixelScale;
     states_.assign(1, {});
     src_ = {};
-    paths_.clear();
+    recyclePaths();
     hasCursor_ = false;
     verts_.clear();
     cmds_.clear();
     gradients_.clear();
+}
+
+
+void Canvas::append(const Canvas& retained) {
+    const int index = int(retained_.size());
+    retained_.push_back(&retained);
+    cmds_.push_back({CmdKind::Cached, index, 0, 0, 0});
 }
 
 void Canvas::translate(double x, double y) {
@@ -51,6 +62,7 @@ void Canvas::color(Col c, double alpha) {
 }
 
 void Canvas::pushRow(const GradientRow& row, bool translucent) {
+    ++revision_;
     gradients_.push_back(row);
     src_ = {1, 1, 1, 1, int(gradients_.size()) - 1, translucent};
 }
@@ -108,16 +120,24 @@ void Canvas::radial(double cx, double cy, double r, std::initializer_list<Stop> 
     pushRow(row, translucent);
 }
 
+void Canvas::recyclePaths() {
+    for(auto& path:paths_) { path.pts.clear(); sparePaths_.push_back(std::move(path.pts)); }
+    paths_.clear();
+}
+void Canvas::addSub() {
+    paths_.push_back({});
+    if(!sparePaths_.empty()) { paths_.back().pts=std::move(sparePaths_.back()); sparePaths_.pop_back(); }
+}
 Canvas::Sub& Canvas::current() {
     if (paths_.empty() || paths_.back().closed) {
-        paths_.push_back({});
+        addSub();
         if (hasCursor_) paths_.back().pts.push_back(cursor_);
     }
     return paths_.back();
 }
 
 void Canvas::moveTo(double x, double y) {
-    paths_.push_back({});
+    addSub();
     cursor_ = apply(x, y);
     cursorUser_ = {x, y};
     hasCursor_ = true;
@@ -185,7 +205,17 @@ void Canvas::ellipse(double cx, double cy, double rx, double ry, double rotation
     rotate(rotation);
     scale(rx, ry);
     hasCursor_ = false;
-    arc(0, 0, 1, 0, Tau);
+    const double rd = std::max(0.5, linearScale() * pixelScale_);
+    const double step = 2 * std::acos(std::max(-1.0, 1 - 0.22 / rd));
+    const int n = std::clamp(int(std::ceil(Tau / std::max(step, 1e-3))), 2, 256);
+    thread_local std::array<std::vector<V2>,257> circles;
+    auto& circle=circles[n];
+    if(circle.empty()) for(int i=0;i<=n;++i) {
+        const double angle=Tau*i/n;
+        circle.push_back({0.0+std::cos(angle),0.0+std::sin(angle)});
+    }
+    moveTo(circle[0].x,circle[0].y);
+    for(std::size_t i=1;i<circle.size();++i) lineTo(circle[i].x,circle[i].y);
     closePath();
     // An affine ellipse is convex. Keep precisely the same points and fan;
     // avoid thousands of per-vertex atan2 checks every rendered frame.
@@ -195,8 +225,47 @@ void Canvas::ellipse(double cx, double cy, double rx, double ry, double rotation
     hasCursor_ = false;
 }
 
+Canvas::PreparedEllipse Canvas::prepareEllipse(double rx,double ry,double rotation,double pixelScale) {
+    Canvas canvas(pixelScale);
+    canvas.ellipse(0,0,rx,ry,rotation);
+    const bool direct=canvas.convex(canvas.paths_.back());
+    return {std::move(canvas.paths_.back().pts),canvas.paths_.back().knownConvex,direct};
+}
+void Canvas::ellipsePrepared(double x,double y,const PreparedEllipse& shape) {
+    // Prepared shapes retain the original double precision affine products.
+    // Their caller uses a translation-only canvas, so only the live origin changes.
+    const V2 origin=apply(x,y);
+    addSub();
+    auto& sub=paths_.back();sub.closed=true;sub.knownConvex=shape.convex;
+    for(const auto& p:shape.points)sub.pts.push_back({p.x+origin.x,p.y+origin.y});
+    hasCursor_=false;
+}
+
+void Canvas::fillEllipsePrepared(double x,double y,const PreparedEllipse& shape) {
+    const V2 origin=apply(x,y);
+    const int first=int(verts_.size());
+    const auto& pts=shape.points;
+    auto moved=[&](V2 p) {return V2(p.x+origin.x,p.y+origin.y);};
+    for(std::size_t i=1;i+1<pts.size();++i) {
+        if(shape.direct) {put(moved(pts[0]));put(moved(pts[i]));put(moved(pts[i+1]));}
+        else {putColor(moved(pts[0]),0,0,0,0,0,0,0,0);putColor(moved(pts[i]),0,0,0,0,0,0,0,0);putColor(moved(pts[i+1]),0,0,0,0,0,0,0,0);}
+    }
+    if(shape.direct)direct(first);
+    else {
+        V2 lo(1e30,1e30),hi(-1e30,-1e30);
+        for(const auto& p:pts) {lo.x=std::min(lo.x,p.x);lo.y=std::min(lo.y,p.y);hi.x=std::max(hi.x,p.x);hi.y=std::max(hi.y,p.y);}
+        lo=moved(lo);hi=moved(hi);
+        const int cover=int(verts_.size());
+        put(lo);put({hi.x,lo.y});put(hi);put(lo);put(hi);put({lo.x,hi.y});
+        cmds_.push_back({CmdKind::StencilFill,first,cover-first,cover,6});
+    }
+    recyclePaths();hasCursor_=false;
+}
+
 void Canvas::putColor(V2 p, float r, float g, float b, float a, float u, float v, float mode, float paint) {
-    verts_.push_back({float(p.x), float(p.y), r, g, b, a, u, v, mode, paint});
+    ++revision_;
+    const float x=float(p.x),y=float(p.y);
+    verts_.push_back({x,y,r,g,b,a,u,v,mode,paint});
 }
 
 void Canvas::put(V2 p, float u, float v, float mode) {
@@ -249,7 +318,7 @@ bool Canvas::convex(const Sub& s) const {
 }
 
 void Canvas::fill() {
-    std::vector<const Sub*> subs;
+    auto& subs=fillSubs_;subs.clear();
     for (auto& s : paths_) if (s.pts.size() >= 3) subs.push_back(&s);
     if (!subs.empty()) {
         if (subs.size() == 1 && convex(*subs[0])) {
@@ -278,7 +347,7 @@ void Canvas::fill() {
             cmds_.push_back({CmdKind::StencilFill, first, cover - first, cover, 6});
         }
     }
-    paths_.clear();
+    recyclePaths();
     hasCursor_ = false;
 }
 
@@ -296,7 +365,7 @@ void Canvas::fanArc(V2 c, double hw, double a0, double a1) {
 }
 
 void Canvas::strokeGeometry(const Sub& s, double hw) {
-    std::vector<V2> p;
+    auto& p=strokePoints_;p.clear();
     for (const V2& q : s.pts)
         if (p.empty() || (q - p.back()).len() > 1e-6) p.push_back(q);
     if (s.closed && p.size() > 2 && (p.front() - p.back()).len() < 1e-6) p.pop_back();
@@ -355,7 +424,7 @@ void Canvas::stroke(double width) {
         else direct(first);
     }
     src_ = saved;
-    paths_.clear();
+    recyclePaths();
     hasCursor_ = false;
 }
 

@@ -15,6 +15,7 @@
 #include <QTimer>
 #include <chrono>
 #include <thread>
+#include <time.h>
 #include <cmath>
 
 int main(int argc,char** argv) {
@@ -34,6 +35,7 @@ int main(int argc,char** argv) {
     parser.addOptions({{"record","Real-time headless capture to MP4.","path"},
         {"probe","Measure streaming response without rendering."},
         {"bench","Measure rendering without encoding or framebuffer readback."},
+        {"uncapped","Run a bounded throughput benchmark without frame pacing."},
         {"verify-render","Compare optimized drawing with accepted canvas output."},
         {"seconds","Bounded recording/probe length; preview loops when omitted.","number","60"},
         {"fps","Recording frames per second.","number","30"},
@@ -42,7 +44,7 @@ int main(int argc,char** argv) {
     parser.process(*app);
     bool ok=false;
     const double seconds=parser.value("seconds").toDouble(&ok);
-    if(!ok || !std::isfinite(seconds) || seconds<=0 || seconds>300) return 2;
+    if(!ok || !std::isfinite(seconds) || seconds<=0 || seconds>600) return 2;
     const int fps=parser.value("fps").toInt(&ok);
     if(!ok || fps<1 || fps>60) return 2;
     const int w=parser.value("width").toInt(&ok);
@@ -64,6 +66,8 @@ int main(int argc,char** argv) {
     if(parser.isSet("verify-render")) {
         QString error;
         if(!context.create(error) || !world.init(error)) { QTextStream(stderr)<<error<<'\n'; return 1; }
+        int pose=0;
+        const std::uint64_t accepted[]={0xaa567941bb8e05b6ull,0x467f84c75c484f98ull,0x741e31c9603638ebull};
         for(double t:{8.0,14.0,28.0}) {
             Journey::LiveFrame f;
             f.schedule.advance(t,{},f.score);
@@ -71,13 +75,16 @@ int main(int argc,char** argv) {
             f.schedule.fireworkStrength=0.8;
             f.schedule.finale={{t-0.4,0.8,1}};
             std::vector<unsigned char> before,after;
+            world.setGeometryCacheEnabled(false);
             Journey::Canvas::useKnownConvex=false;
             world.render(w,h,t,f.audio,f.score,f.schedule); world.gpu().readRgb(before);
+            world.setGeometryCacheEnabled(true);
             Journey::Canvas::useKnownConvex=true;
             world.render(w,h,t,f.audio,f.score,f.schedule); world.gpu().readRgb(after);
             if(before!=after) {
                 std::size_t changed=0; int maximum=0;
                 for(std::size_t i=0;i<before.size();++i) {
+                    if(before[i]!=after[i] && changed<8) QTextStream(stderr)<<"diff pixel "<<(i/3)%w<<","<<(i/3)/w<<" channel "<<i%3<<" "<<int(before[i])<<"/"<<int(after[i])<<"\n";
                     changed+=before[i]!=after[i]; maximum=std::max(maximum,std::abs(int(before[i])-int(after[i])));
                 }
                 QTextStream(stderr)<<"canvas image differs: "<<changed<<" channels, max "<<maximum<<'\n';
@@ -86,15 +93,17 @@ int main(int argc,char** argv) {
             std::uint64_t hash=14695981039346656037ull;
             for(auto byte:after) { hash^=byte; hash*=1099511628211ull; }
             QTextStream(stdout)<<t<<" RGB hash "<<QString::number(hash,16)<<'\n';
+            if(w==1920 && h==1080 && context.renderer().contains("RTX 4070 SUPER") && hash!=accepted[pose]) {QTextStream(stderr)<<"accepted M1 RGB hash differs\n";return 1;}
+            ++pose;
         }
-        QTextStream(stdout)<<"PASS: optimized canvas matches accepted RGB exactly at 8, 14 and 28 seconds\n";
+        QTextStream(stdout)<<"PASS: retained geometry and optimized canvas match uncached RGB exactly at 8, 14 and 28 seconds\n";
         return 0;
     }
     const bool record=parser.isSet("record");
     const bool render=record || parser.isSet("bench");
     QString error;
     if(render && (!context.create(error) || !world.init(error))) { QTextStream(stderr)<<error<<'\n'; return 1; }
-    if(render) QTextStream(stderr)<<"GPU: "<<context.renderer()<<'\n';
+    if(render) QTextStream(stderr)<<"GPU: "<<context.renderer()<<"; OpenGL "<<reinterpret_cast<const char*>(glGetString(GL_VERSION))<<'\n';
     QProcess encoder;
     if(record) {
         encoder.setProcessChannelMode(QProcess::ForwardedErrorChannel);
@@ -107,15 +116,20 @@ int main(int argc,char** argv) {
     QFile stats(parser.value("stats"));
     if(parser.isSet("stats") && !stats.open(QIODevice::WriteOnly|QIODevice::Truncate)) return 1;
     QTextStream csv(&stats);
-    if(stats.isOpen()) csv<<"seconds,render_ms,submit_ms,gain,bass,accent,surge,band0,band1,band2,band3,band4,band5,onsets,bass_hits,mid_peaks,firework_at,finale_count,train_age,cyclist_age\n";
+    if(stats.isOpen()) csv<<"seconds,render_ms,submit_ms,thread_cpu_ms,gain,bass,accent,surge,band0,band1,band2,band3,band4,band5,onsets,bass_hits,mid_peaks,firework_at,finale_count,train_age,cyclist_age,static_builds,static_uploads,vertex_upload_bytes\n";
     const auto start=std::chrono::steady_clock::now();
     std::vector<unsigned char> rgb;
     const int frames=int(std::ceil(seconds*fps));
+    const bool uncapped=parser.isSet("uncapped") && parser.isSet("bench");
+    int renderedFrames=0;
     double maxMs=0,totalMs=0;
-    for(int i=0;i<frames;++i) {
+    for(int i=0;uncapped ? std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count()<seconds : i<frames;++i) {
+        ++renderedFrames;
         const auto deadline=start+std::chrono::microseconds(std::llround(i*1e6/fps));
-        std::this_thread::sleep_until(deadline);
+        if(!uncapped)std::this_thread::sleep_until(deadline);
         const auto f=session.snapshot();
+        timespec cpuStart{},cpuEnd{};clock_gettime(CLOCK_THREAD_CPUTIME_ID,&cpuStart);
+        const auto previousBytes=world.gpu().geometryStats().vertexBytes;
         QElapsedTimer timer; timer.start();
         double submit=0;
         if(render) {
@@ -124,13 +138,17 @@ int main(int argc,char** argv) {
             glFinish();
         }
         const double ms=timer.nsecsElapsed()/1e6;
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID,&cpuEnd);
+        const double cpuMs=(cpuEnd.tv_sec-cpuStart.tv_sec)*1000.0+(cpuEnd.tv_nsec-cpuStart.tv_nsec)/1e6;
         maxMs=std::max(maxMs,ms); totalMs+=ms;
         if(stats.isOpen()) {
-            csv<<f.seconds<<','<<ms<<','<<submit<<','<<f.gain<<','<<f.audio.bass<<','<<f.audio.accent<<','<<f.audio.surge;
+            csv<<f.seconds<<','<<ms<<','<<submit<<','<<cpuMs<<','<<f.gain<<','<<f.audio.bass<<','<<f.audio.accent<<','<<f.audio.surge;
             for(double b:f.audio.bands) csv<<','<<b;
             csv<<','<<f.score.onsets.size()<<','<<f.score.bassHits.size()<<','<<f.score.midPeaks.size()
                 <<','<<f.schedule.fireworks<<','<<f.schedule.finale.size()
-                <<','<<f.schedule.age(Journey::Moment::Train,f.seconds)<<','<<f.schedule.age(Journey::Moment::Cyclist,f.seconds)<<'\n';
+                <<','<<f.schedule.age(Journey::Moment::Train,f.seconds)<<','<<f.schedule.age(Journey::Moment::Cyclist,f.seconds)
+                <<','<<world.staticBuilds()<<','<<world.gpu().geometryStats().staticUploads
+                <<','<<world.gpu().geometryStats().vertexBytes-previousBytes<<'\n';
         }
         if(record) {
             world.gpu().readRgb(rgb);
@@ -139,7 +157,7 @@ int main(int argc,char** argv) {
         }
     }
     const double elapsed=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
-    QTextStream(stderr)<<QString::asprintf("%d frames, %.3f wall seconds; render mean %.3f max %.3f ms\n",frames,elapsed,totalMs/frames,maxMs);
+    QTextStream(stderr)<<QString::asprintf("%d frames, %.3f wall seconds; render mean %.3f max %.3f ms\n",renderedFrames,elapsed,totalMs/renderedFrames,maxMs);
     if(record) {
         encoder.closeWriteChannel();
         if(!encoder.waitForFinished(30000) || encoder.exitCode()!=0) return 1;

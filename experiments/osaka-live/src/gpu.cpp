@@ -3,7 +3,6 @@
 #include <QTextStream>
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
 
 namespace Journey {
 namespace {
@@ -213,12 +212,15 @@ void Program::setArray(const char* n, const float* v, int count, int components)
     }
 }
 
+Gpu::Gpu() = default;
 Gpu::~Gpu() {
     release();
+    clearGeometryCache();
     if (vbo_) glDeleteBuffers(1, &vbo_);
     if (vao_) glDeleteVertexArrays(1, &vao_);
     if (quadVao_) glDeleteVertexArrays(1, &quadVao_);
     if (paints_) glDeleteTextures(1, &paints_);
+    if (zeroPaints_) glDeleteTextures(1, &zeroPaints_);
 }
 
 bool Gpu::init(QString& error) {
@@ -245,6 +247,11 @@ bool Gpu::init(QString& error) {
     glBindTexture(GL_TEXTURE_2D, paints_);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glGenTextures(1,&zeroPaints_);glBindTexture(GL_TEXTURE_2D,zeroPaints_);
+    const GradientRow zero;
+    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA32F,16,1,0,GL_RGBA,GL_FLOAT,&zero);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
     return true;
 }
 
@@ -286,7 +293,7 @@ void Gpu::allocate() {
     make(main_, GL_RGBA16F);
     make(layer_, GL_RGBA16F);
     make(alt_, GL_RGBA16F);
-    make(out_, GL_RGBA8);
+
     glGenTextures(1, &outTex_);
     glBindTexture(GL_TEXTURE_2D, outTex_);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w_, h_, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
@@ -363,23 +370,78 @@ void Gpu::setBlend(Blend blend, float gain) {
     }
 }
 
+void Gpu::clearGeometryCache() {
+    for (auto& entry : geometry_) {
+        auto& g = entry.second;
+        glDeleteBuffers(1, &g.vbo);
+        glDeleteVertexArrays(1, &g.vao);
+        glDeleteTextures(1, &g.paints);
+    }
+    geometry_.clear();
+}
+
+void Gpu::bindGeometry(const Canvas& c) {
+    Geometry* retained = nullptr;
+    GLuint vao = vao_, vbo = vbo_, paints = paints_;
+    if (cacheGeometry_) {
+        retained = &geometry_[c.identity()];
+        if (!retained->vao) {
+            glGenVertexArrays(1, &retained->vao);
+            glGenBuffers(1, &retained->vbo);
+            glBindVertexArray(retained->vao);
+            glBindBuffer(GL_ARRAY_BUFFER, retained->vbo);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(0));
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(8));
+            glEnableVertexAttribArray(2);
+            glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void*>(24));
+
+        }
+        if(c.frozen() || !c.preserveRaster) {vao = retained->vao; vbo = retained->vbo;}
+        if(c.gradients().empty())paints=zeroPaints_;
+        else {
+            if(!retained->paints) {
+                glGenTextures(1,&retained->paints);glBindTexture(GL_TEXTURE_2D,retained->paints);
+                glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+            }
+            paints=retained->paints;
+        }
+    }
+    glBindVertexArray(vao);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, paints);
+    const bool retainedVertices=retained && (c.frozen() || !c.preserveRaster);
+    if (retainedVertices ? retained->revision != c.revision() : dynamicVertexId_!=c.identity() || dynamicVertexRevision_!=c.revision()) {
+        const auto& v = c.vertices();
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(v.size() * sizeof(Vertex)), v.data(),
+                     c.frozen() ? GL_STATIC_DRAW : GL_STREAM_DRAW);
+        ++geometryStats_.uploads;
+        geometryStats_.staticUploads += c.frozen();
+        geometryStats_.vertexBytes += v.size() * sizeof(Vertex);
+        if (retainedVertices) retained->revision = c.revision();
+        else {dynamicVertexId_=c.identity();dynamicVertexRevision_=c.revision();}
+    }
+    if(paints!=zeroPaints_ && (retained ? retained->paintRevision!=c.revision() : dynamicPaintId_!=c.identity() || dynamicPaintRevision_!=c.revision())) {
+        const auto& g = c.gradients();
+        geometryStats_.paintBytes += std::max<std::size_t>(1, g.size()) * sizeof(GradientRow);
+        static const GradientRow zero;
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 16, GLsizei(std::max<std::size_t>(1, g.size())),
+                     0, GL_RGBA, GL_FLOAT, g.empty() ? &zero : g.data());
+        if(retained) retained->paintRevision=c.revision();
+        else {dynamicPaintId_=c.identity();dynamicPaintRevision_=c.revision();}
+    }
+
+
+}
+
 void Gpu::drawCanvas(const Canvas& c) {
     if (c.empty()) return;
     glUseProgram(canvas_.id);
-    glBindVertexArray(vao_);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-    const auto& v = c.vertices();
-    glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(v.size() * sizeof(Vertex)), v.data(), GL_STREAM_DRAW);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, paints_);
-    const auto& g = c.gradients();
-    if (!g.empty())
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 16, GLsizei(g.size()), 0, GL_RGBA, GL_FLOAT, g.data());
-    else {
-        static const GradientRow zero;
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 16, 1, 0, GL_RGBA, GL_FLOAT, &zero);
-    }
     canvas_.set("u_paints", 0);
+    bool bound = false;
     bool stencil=false;
     glDisable(GL_STENCIL_TEST);
     auto setStencil=[&](bool enabled) {
@@ -387,8 +449,102 @@ void Gpu::drawCanvas(const Canvas& c) {
         if(enabled) glEnable(GL_STENCIL_TEST); else glDisable(GL_STENCIL_TEST);
         stencil=enabled;
     };
-    for (const auto& cmd : c.commands()) {
+    if(cacheGeometry_ && c.batchSpatially) {
+        // Sharing a screen cell creates a dependency. A later shape can only
+        // move before an earlier one when their padded coverage is disjoint.
+        // Keep each original triangle and its original vertex index.
+        bindGeometry(c);
+        constexpr int cell=8,cols=256,rows=160;
+        std::vector<unsigned> occupied(cols*rows,0);
+        std::vector<std::vector<const Canvas::Cmd*>> levels(1);
+        for(const auto& cmd:c.commands()) {
+            std::array<float,4> box{1e30f,1e30f,-1e30f,-1e30f};
+            const int first=cmd.kind==Canvas::CmdKind::StencilFill?cmd.coverFirst:cmd.first;
+            const int count=cmd.kind==Canvas::CmdKind::StencilFill?cmd.coverCount:cmd.count;
+            for(int k=first;k<first+count;++k) {const auto& v=c.vertices()[k];box[0]=std::min(box[0],v.x);box[1]=std::min(box[1],v.y);box[2]=std::max(box[2],v.x);box[3]=std::max(box[3],v.y);}
+            const float pad=1/c.pixelScale();
+            int x0=std::clamp(int(std::floor((box[0]-pad)/cell)),0,cols-1),x1=std::clamp(int(std::floor((box[2]+pad)/cell)),0,cols-1);
+            int y0=std::clamp(int(std::floor((box[1]-pad)/cell))+16,0,rows-1),y1=std::clamp(int(std::floor((box[3]+pad)/cell))+16,0,rows-1);
+            unsigned level=0;
+            for(int y=y0;y<=y1;++y)for(int x=x0;x<=x1;++x)level=std::max(level,occupied[y*cols+x]);
+            for(int y=y0;y<=y1;++y)for(int x=x0;x<=x1;++x)occupied[y*cols+x]=level+1;
+            if(levels.size()<=level)levels.resize(level+1);
+            levels[level].push_back(&cmd);
+        }
+        std::vector<GLint> firsts,covers;
+        std::vector<GLsizei> counts,coverCounts;
+        for(const auto& level:levels)for(auto kind:{Canvas::CmdKind::Direct,Canvas::CmdKind::StencilFill,Canvas::CmdKind::StencilOnce}) {
+            firsts.clear();counts.clear();covers.clear();coverCounts.clear();
+            for(const auto* cmd:level)if(cmd->kind==kind) {firsts.push_back(cmd->first);counts.push_back(cmd->count);covers.push_back(cmd->coverFirst);coverCounts.push_back(cmd->coverCount);}
+            if(firsts.empty())continue;
+            if(kind==Canvas::CmdKind::Direct) {setStencil(false);glMultiDrawArrays(GL_TRIANGLES,firsts.data(),counts.data(),firsts.size());}
+            else if(kind==Canvas::CmdKind::StencilFill) {
+                setStencil(true);glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);glStencilFunc(GL_ALWAYS,0,0xff);
+                glStencilOpSeparate(GL_FRONT,GL_KEEP,GL_KEEP,GL_INCR_WRAP);glStencilOpSeparate(GL_BACK,GL_KEEP,GL_KEEP,GL_DECR_WRAP);
+                glMultiDrawArrays(GL_TRIANGLES,firsts.data(),counts.data(),firsts.size());
+                glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);glStencilFunc(GL_NOTEQUAL,0,0xff);glStencilOp(GL_ZERO,GL_ZERO,GL_ZERO);
+                glMultiDrawArrays(GL_TRIANGLES,covers.data(),coverCounts.data(),covers.size());
+            } else {
+                setStencil(true);glStencilFunc(GL_EQUAL,0,0xff);glStencilOp(GL_KEEP,GL_KEEP,GL_INCR);
+                glMultiDrawArrays(GL_TRIANGLES,firsts.data(),counts.data(),firsts.size());
+                glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);glStencilFunc(GL_ALWAYS,0,0xff);glStencilOp(GL_ZERO,GL_ZERO,GL_ZERO);
+                glMultiDrawArrays(GL_TRIANGLES,firsts.data(),counts.data(),firsts.size());glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
+            }
+        }
+        setStencil(false);glBindVertexArray(0);return;
+    }
+    const auto& commands=c.commands();
+    std::vector<GLint> starts,covers;
+    std::vector<GLsizei> counts,coverCounts;
+    std::vector<std::array<float,4>> boxes;
+    for (std::size_t ci=0;ci<commands.size();++ci) {
+        const auto& cmd=commands[ci];
+        if (cmd.kind == Canvas::CmdKind::Cached) {
+            setStencil(false);
+            drawCanvas(c.retained(cmd.first));
+            glUseProgram(canvas_.id);
+            bound = false;
+            continue;
+        }
+        if (!bound) { bindGeometry(c); bound = true; }
+        // Independent stencil operations can share a submission while keeping
+        // their original fans, cover triangles and paint order. Padded bounds
+        // must be disjoint, including multisample edge coverage.
+        if(cacheGeometry_ && !c.preserveRaster && (cmd.kind==Canvas::CmdKind::StencilFill || cmd.kind==Canvas::CmdKind::StencilOnce)) {
+            starts.clear();counts.clear();covers.clear();coverCounts.clear();boxes.clear();
+            for(std::size_t j=ci;j<commands.size() && commands[j].kind==cmd.kind;++j) {
+                const auto& part=commands[j];
+                std::array<float,4> box{1e30f,1e30f,-1e30f,-1e30f};
+                const int first=cmd.kind==Canvas::CmdKind::StencilFill?part.coverFirst:part.first;
+                const int count=cmd.kind==Canvas::CmdKind::StencilFill?part.coverCount:part.count;
+                for(int k=first;k<first+count;++k) {const auto& v=c.vertices()[k];box[0]=std::min(box[0],v.x);box[1]=std::min(box[1],v.y);box[2]=std::max(box[2],v.x);box[3]=std::max(box[3],v.y);}
+                const float pad=1.0f/c.pixelScale();
+                bool overlap=false;
+                for(const auto& b:boxes) if(box[0]<=b[2]+pad && box[2]+pad>=b[0] && box[1]<=b[3]+pad && box[3]+pad>=b[1]){overlap=true;break;}
+                if(overlap) break;
+                boxes.push_back(box);starts.push_back(part.first);counts.push_back(part.count);
+                covers.push_back(part.coverFirst);coverCounts.push_back(part.coverCount);
+            }
+            if(starts.size()>1) {
+                setStencil(true);
+                if(cmd.kind==Canvas::CmdKind::StencilFill) {
+                    glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);glStencilFunc(GL_ALWAYS,0,0xff);
+                    glStencilOpSeparate(GL_FRONT,GL_KEEP,GL_KEEP,GL_INCR_WRAP);glStencilOpSeparate(GL_BACK,GL_KEEP,GL_KEEP,GL_DECR_WRAP);
+                    glMultiDrawArrays(GL_TRIANGLES,starts.data(),counts.data(),GLsizei(starts.size()));
+                    glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);glStencilFunc(GL_NOTEQUAL,0,0xff);glStencilOp(GL_ZERO,GL_ZERO,GL_ZERO);
+                    for(std::size_t k=0;k<covers.size();++k)glDrawArrays(GL_TRIANGLES,covers[k],coverCounts[k]);
+                } else {
+                    glStencilFunc(GL_EQUAL,0,0xff);glStencilOp(GL_KEEP,GL_KEEP,GL_INCR);
+                    for(std::size_t k=0;k<starts.size();++k)glDrawArrays(GL_TRIANGLES,starts[k],counts[k]);
+                    glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);glStencilFunc(GL_ALWAYS,0,0xff);glStencilOp(GL_ZERO,GL_ZERO,GL_ZERO);
+                    glMultiDrawArrays(GL_TRIANGLES,starts.data(),counts.data(),GLsizei(starts.size()));
+                    glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
+                }
+                ci+=starts.size()-1;continue;
+            }
+        }
         switch (cmd.kind) {
+        case Canvas::CmdKind::Cached: break; // handled above
         case Canvas::CmdKind::Direct:
             setStencil(false);
             glDrawArrays(GL_TRIANGLES, cmd.first, cmd.count);
@@ -535,7 +691,7 @@ Program& Gpu::effect(const std::string& name, const char* body) {
     return p;
 }
 
-void Gpu::pass(Program& p, Blend blend, const std::function<void(Program&)>& setup, int target) {
+void Gpu::pass(Program& p, Blend blend, const std::function<void(Program&)>& setup, int target, const QRectF& clip) {
     int w = w_, h = h_;
     if (target >= 0) {
         glBindFramebuffer(GL_FRAMEBUFFER, pool_[target].fbo);
@@ -547,7 +703,15 @@ void Gpu::pass(Program& p, Blend blend, const std::function<void(Program&)>& set
     p.set("u_scale", float(pixelScale()));
     if (setup) setup(p);
     setBlend(blend, 1);
+    if(!clip.isEmpty()) {
+        const int x0=std::clamp(int(std::floor(clip.left()*w/1920.0))-1,0,w);
+        const int x1=std::clamp(int(std::ceil(clip.right()*w/1920.0))+1,0,w);
+        const int y0=std::clamp(int(std::floor((1080-clip.bottom())*h/1080.0))-1,0,h);
+        const int y1=std::clamp(int(std::ceil((1080-clip.top())*h/1080.0))+1,0,h);
+        glEnable(GL_SCISSOR_TEST);glScissor(x0,y0,x1-x0,y1-y0);
+    }
     fullscreen();
+    if(!clip.isEmpty())glDisable(GL_SCISSOR_TEST);
 }
 
 void Gpu::beginOffscreen(bool transparent) {
@@ -596,7 +760,7 @@ void Gpu::finish(const FinishParams& f, const Canvas* overlay) {
         b1 = blurred(bright, 22);
         b2 = blurred(bright, 70);
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, out_.fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, outFbo_);
     glViewport(0, 0, w_, h_);
     glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -623,10 +787,10 @@ void Gpu::finish(const FinishParams& f, const Canvas* overlay) {
         setBlend(Blend::Over, 1);
         drawCanvas(*overlay);
     }
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, out_.fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, outFbo_);
-    glBlitFramebuffer(0, 0, w_, h_, 0, 0, w_, h_, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
 }
+
+
 
 void Gpu::present(GLuint framebuffer) {
     glBindFramebuffer(GL_READ_FRAMEBUFFER, outFbo_);
