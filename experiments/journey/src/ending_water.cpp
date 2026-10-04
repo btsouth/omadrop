@@ -68,9 +68,9 @@ double printLift(const Ctx& c,double x,double y) {
     const int band=std::clamp(int((1-z)*5),0,5);
     const double drift=c.score?.95*c.score->integral(band,c.t):0;
     const double pull=sstep(54,65.3,c.t)*(1-sstep(65.3,67.3,c.t));
-    const double a=x/(140+180*z)-c.t*.52-drift+z*6+pull*1.1;
+    const double a=x/(55+115*z)-c.t*.52-drift+z*6+pull*1.1;
     const double churn=age>0?22*z*std::exp(-age*.30)*std::sin(x*.014-age*3.3+z*9):0;
-    return (5+48*std::pow(z,1.15))*(std::sin(a)+.23*std::sin(a*2.1+.6))+churn;
+    return (7+83*std::pow(z,1.15))*(std::sin(a)+.23*std::sin(a*2.1+.6))+churn;
 }
 void printSea(Ctx& c,double opacity) {
     const Col teal=hex(0x7397a4),blue=hex(0x285579);
@@ -84,20 +84,26 @@ void printSea(Ctx& c,double opacity) {
         cv.color(mix(hex(0x376582),hex(0x102657),z*.9));
         cv.moveTo(-30,1140);for(V2 q:crest)cv.lineTo(q.x,q.y);cv.lineTo(2000,1140);cv.closePath();cv.fill();
         cv.polyline(crest,1.2+1.5*z,hex(0x143154),.9);
-        // Foam occupies unequal crest patches with broad roots and split ends.
-        for(int k=0;k<9;++k) {
-            const double x0=k*235-150+40*hash2(k,row)+50*std::sin(c.t*.19+row);
-            const double span=72+110*hash2(k,row+38);
-            cv.color(mix(teal,cream,.90),.78);
-            cv.moveTo(x0,top(x0));
-            for(int j=1;j<=16;++j){double x=x0+j*span/16;cv.lineTo(x,top(x));}
-            for(int j=16;j>=0;--j){double u=j/16.0,x=x0+u*span;cv.lineTo(x,top(x)+(3+13*z)*std::pow(std::sin(Pi*u),.7)*(1+.3*noise1(u*9,row)));}
+        // Broken foam is rooted on the high side of a moving swell.
+        const int band=std::clamp(int((1-clamp01((y-614)/500))*5),0,5);
+        const double drift=c.score?.95*c.score->integral(band,c.t):0;
+        const double depth=clamp01((y-614)/500),waveScale=55+115*depth;
+        const double pull=sstep(54,65.3,c.t)*(1-sstep(65.3,67.3,c.t));
+        for(int k=-8;k<12;++k) {
+            const double middle=(-Pi/2+2*Pi*k+c.t*.52+drift-depth*6-pull*1.1)*waveScale;
+            if(middle<-200 || middle>2100)continue;
+            const double span=54+150*depth*(.65+.35*hash2(k,row+38));
+            const double x0=middle-span*.42;
+            cv.color(cream,.96);cv.moveTo(x0,top(x0));
+            for(int j=1;j<=22;++j){double x=x0+j*span/22;cv.lineTo(x,top(x));}
+            for(int j=22;j>=0;--j){double u=j/22.0,x=x0+u*span;cv.lineTo(x,top(x)+(4+27*depth)*std::pow(std::sin(Pi*u),.7)*(1+.24*noise1(u*7,row)));}
             cv.closePath();cv.fill();
-            for(int j=0;j<4;++j) {
-                const double x=x0+span*(.12+j*.22),yy=top(x);
-                const double ln=(5+14*z)*(1+.7*hash2(j+k,row));
-                cv.color(cream,.88);cv.moveTo(x-4*z,yy+3);cv.curveTo(x-7*z,yy-ln,x+8*z,yy-ln*1.2,x+11*z,yy-ln*.4);
-                cv.curveTo(x+5*z,yy-ln*.8,x+4*z,yy+5,x+9*z,yy+6);cv.closePath();cv.fill();
+            for(int j=0;j<5;++j) {
+                const double x=x0+span*(.48+j*.095),yy=top(x);
+                const double ln=(6+20*depth)*(1+.4*hash2(j+k,row));
+                cv.color(cream,.96);cv.moveTo(x-3,yy+4);
+                cv.curveTo(x+ln*.45,yy-4,x+ln*1.1,yy+2,x+ln,yy+ln*.65);
+                cv.curveTo(x+ln*.75,yy+ln*.12,x+ln*.3,yy+10,x-3,yy+4);cv.closePath();cv.fill();
             }
         }
         for(int j=0;j<3;++j) {
@@ -106,16 +112,15 @@ void printSea(Ctx& c,double opacity) {
             cv.polyline(water,1+j*.3,teal,.20);
         }
     }
-    // A few seconds of opaque broken foam keep the impact sea unsettled.
     if(age>0 && age<4.5) {
         const double a=sstep(0,.25,age)*(1-sstep(2.8,4.5,age));
-        for(int k=0;k<23;++k) {
-            const double x=220+hash2(k,311)*1650,y=770+hash2(k,312)*270;
-            const double xx=x-35*age,yy=y+12*std::sin(age*2.4+k),w=25+75*hash2(k,313);
-            cv.color(cream,a*.88);cv.moveTo(xx-w,yy);
-            cv.curveTo(xx-w*.5,yy-24,xx+w*.4,yy-12,xx+w,yy+5);
-            cv.curveTo(xx+w*.3,yy+17,xx-w*.4,yy+13,xx-w,yy);cv.closePath();cv.fill();
-            cv.line(xx-w*.5,yy+6,xx+w*.5,yy+7,1.7,blue,a*.65);
+        for(int k=0;k<17;++k) {
+            const double x=220+hash2(k,311)*1650-35*age,y=820+hash2(k,312)*240;
+            const double w=(20+70*hash2(k,313))*a;
+            cv.color(cream);cv.moveTo(x-w,y);
+            cv.curveTo(x-w*.6,y-10*a,x-w*.2,y-29*a,x+w*.3,y-10*a);
+            cv.curveTo(x+w*.7,y-22*a,x+w,y-9*a,x+w,y+5*a);
+            cv.curveTo(x+w*.2,y+12*a,x-w*.5,y+10*a,x-w,y);cv.closePath();cv.fill();
         }
     }
     c.gpu.over(cv,1,0,float(opacity));
@@ -254,7 +259,7 @@ void studyWave(Ctx& c,double growth) {
         const Cubic& q=crown[seg];std::vector<V2> rim,inside;
         for(int j=0;j<=90;++j) {
             const double u=j/90.0;V2 n=unit(q.tangent(u));n={-n.y,n.x};
-            const double w=(seg==0?30:62)*(1+.45*fbm1(u*17,seg+10))*(.45+.55*growth);
+            const double w=(seg==0?45:92)*(1+.45*fbm1(u*17,seg+10))*(.45+.55*growth);
             rim.push_back(map(q.at(u)-n*(5+6*noise1(u*20,seg))));inside.push_back(map(q.at(u)+n*w));
         }
         auto band=rim;for(auto it=inside.rbegin();it!=inside.rend();++it)band.push_back(*it);
@@ -264,33 +269,21 @@ void studyWave(Ctx& c,double growth) {
             const double u=(k+.22+.50*hash2(k,seg+48))/(seg==0?4:6);
             const V2 tangent=map(q.at(std::min(1.0,u+.005)))-map(q.at(std::max(0.0,u-.005)));
             const double ang=std::atan2(tangent.y,tangent.x);
-            const V2 root=map(q.at(u));
+            V2 normal=unit(q.tangent(u));normal={-normal.y,normal.x};
+            const V2 root=map(q.at(u)+normal*35);
             const double len=(55+95*hash2(k,seg+30))*(.05+.95*growth)*(1+.25*c.hit(4));
             for(int branch=0;branch<6;++branch) {
-                const double a=ang+.45+branch*.23+.3*hash2(k*6+branch,seg+94),ln=len*(.30+.65*hash2(k*6+branch,seg+51)),w=(6+9*hash2(k*6+branch,seg))*(.08+.92*growth);
+                const double a=ang+.95+branch*.10+.20*hash2(k*6+branch,seg+94),ln=len*(.48+.42*hash2(k*6+branch,seg+51)),w=(10+12*hash2(k*6+branch,seg))*(.08+.92*growth);
                 const V2 start=root+V2(std::cos(ang),std::sin(ang))*(branch-2.5)*10;
-                const double curl=.25+1.1*hash2(k*6+branch,seg+77);
+                const double curl=.45+.75*hash2(k*6+branch,seg+77);
                 tendril(foam,start+V2(3,5),a,ln+5,w+3,curl,blue,.9);
                 tendril(foam,start,a,ln,w,curl+.1,cream,1);
-                const V2 fork=start+V2(std::cos(a+.20),std::sin(a+.20))*ln*.52;
-                tendril(foam,fork,a-.65,ln*.40,w*.42,-1.15,cream,1);
-                if(branch%2==1)tendril(foam,fork,a+.55,ln*.35,w*.36,1.2,cream,1);
+                const V2 fork=start+V2(std::cos(a+.20),std::sin(a+.20))*ln*.76;
+                if(branch%2==0)tendril(foam,fork,a-.35,ln*.25,w*.40,-.8,cream,1);
+                if(branch%2==1)tendril(foam,fork,a+.55,ln*.24,w*.40,.85,cream,1);
             }
         }
-        // Blue cavities in the foam read as lace rather than outlined beads.
-        for(int k=0;k<68;++k) {
-            const double u=(k+.5)/68;V2 n=unit(q.tangent(u));n={-n.y,n.x};
-            const V2 p=map(q.at(u)+n*(7+16*hash2(k,seg+90)));
-            const double a=std::atan2(n.y,n.x)+.7;
-            foam.save();foam.translate(p.x,p.y);foam.rotate(a);ellipseFill(foam,0,0,2+3*hash2(k,seg+2),4+5*hash2(k,seg+3),blue,.85);foam.restore();
-        }
-    }
-    for(int k=0;k<8;++k) {
-        const double u=(k+.25)/8;
-        const V2 q=map(crown[1].at(u));
-        const V2 tangent=map(crown[1].at(u+.005))-map(crown[1].at(std::max(0.0,u-.005)));
-        const double ang=std::atan2(tangent.y,tangent.x);
-        tendril(foam,q,ang-.9,25+30*hash2(k,82),5+4*hash2(k,83),-1.8,cream,.94);
+
     }
     // Foam follows the same waterline feather as the face. The remaining
     // crest breaks into the existing impact spray rather than blinking out.
@@ -397,15 +390,15 @@ void impact(Ctx& c,double age) {
     if(erupt>0) {
         for(int mass=0;mass<7;++mass) {
             const double x=830+mass*155+28*std::sin(age*2+mass);
-            const double w=(140+65*hash2(mass,281))*erupt;
-            const double h=(260+240*hash2(mass,282))*erupt;
+            const double w=(240+75*hash2(mass,281))*erupt;
+            const double h=(330+260*hash2(mass,282))*erupt;
             std::vector<V2> edge={{x-w,1140}};
             for(int j=0;j<=46;++j) {
                 const double u=j/46.0,xx=x-w+2*w*u;
-                const double top=1060-h*std::pow(std::sin(Pi*u),.7)-25*erupt*noise1(u*18,mass+64);
+                const double top=1060-h*std::pow(std::sin(Pi*u),.7)-45*erupt*noise1(u*18,mass+64);
                 edge.push_back({xx,top});
             }
-            edge.push_back({x+w,1140});polyfill(cv,edge,mass%2?cream:mix(cream,teal,.10));
+            edge.push_back({x+w,1140});polyfill(cv,edge,cream);
             for(int k=0;k<8;++k) {
                 const double u=.10+.80*hash2(k,mass+285),xx=x-w+2*w*u;
                 const double yy=1060-h*std::pow(std::sin(Pi*u),.7);
@@ -413,8 +406,9 @@ void impact(Ctx& c,double age) {
                     tendril(cv,{xx+finger*8,yy+12},-1.5+finger*.3,erupt*(25+55*hash2(k,mass+288)),5+4*hash2(k,mass+289),.5+finger*.25,cream,1);
             }
             for(int k=0;k<3;++k) {
-                cv.color(teal,.55);cv.moveTo(x-w*.4,1050-k*35);
-                cv.curveTo(x-w*.55,1010-k*42,x+w*.1,1005-k*45,x+w*.4,1035-k*38);cv.stroke(3+4*erupt);
+                const double dx=(hash2(k,mass+299)-.5)*w,yy=1020-h*(.08+.42*hash2(k,mass+301));
+                cv.color(teal,.60);cv.moveTo(x+dx,yy+34*erupt);
+                cv.curveTo(x+dx-24*erupt,yy+7*erupt,x+dx+30*erupt,yy-14*erupt,x+dx+44*erupt,yy-31*erupt);cv.stroke(2+3*erupt);
             }
         }
     }
@@ -527,7 +521,7 @@ void drawEndingBearer(Ctx& c) {
         const double u=sstep(impactAt+.8,70.7,c.t);
         const double tumble=1-sstep(69.8,70.7,c.t);
         const V2 p=lerp(V2(1560,932),V2(1100,1010),u)+V2(0,12*std::sin(age*2.3)*tumble);
-        const double turn=(1.55+.85*std::sin(age*4.7))*tumble;
+        const double turn=(2.25+.55*std::sin(age*4.7))*tumble;
         const double roll=-.6+.2*std::sin(c.t*2);
         auto rotate=[&](V2 q){return V2(q.x*std::cos(roll)-q.y*std::sin(roll),q.x*std::sin(roll)+q.y*std::cos(roll));};
         RigIn r;r.h=105;r.hat=true;r.garment=Garment::Jacket;r.hip=p+rotate({0,-30});r.facing=1;

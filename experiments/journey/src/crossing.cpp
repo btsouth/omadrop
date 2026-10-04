@@ -60,7 +60,7 @@ void crossingStrands(Ctx& c, double t) {
     const auto outs = osakaOutRuns(cam);
     const auto target = waveStrands(t, 0.0);
     const double morph = easeInOut((t - T::crossingEnd) / 3.5);
-    const double g = sstep(37.0, 51.0, t);
+    const double g = lerp(sstep(37.0,51.0,t),1.0,kanagawaPaperWeight(t));
     Canvas& cv = c.canvas();
     for (int i = 0; i < 6; ++i) {
         Rng rng(900 + i);
@@ -122,7 +122,7 @@ void drawCrossing(Ctx& c) {
     const double fogTop = 610 - 70 * sstep(29.4, 33.6, t);
     const double fogBottom = lerp(1400.0, 560.0, sstep(39.0, 48.0, t));
     const double k = sstep(33.4, 46.0, t);
-    const double g = sstep(37.0, 51.0, t);
+    const double g = lerp(sstep(37.0,51.0,t),1.0,kanagawaPaperWeight(t));
 
     // The disc and the mountain sit behind the valley (ridges, city, trees),
     // exactly as in Osaka, so nothing is painted over the town at the handover.
