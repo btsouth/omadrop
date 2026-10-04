@@ -82,7 +82,7 @@ void studyWave(Ctx& c,double growth) {
         const double forward=470*std::pow(std::min(1.4,plunge),1.65);
         const double fall=320*std::pow(std::min(1.4,plunge),2.0);
         return V2(p.x*sx+dx+bend+forward*lip,
-            1080+(p.y-1080)*sy-40*pressure*crest*growth+fall*crest);
+            1080+(p.y-1080)*sy-75*pressure*crest*growth+fall*crest);
     };
     auto move=[&](Canvas& cv,double x,double y){V2 p=map({x,y});cv.moveTo(p.x,p.y);};
     auto curve=[&](Canvas& cv,double ax,double ay,double bx,double by,double dx,double dy) {
@@ -123,8 +123,8 @@ void studyWave(Ctx& c,double growth) {
     // brighten water along the flow instead of displacing the whole sea.
     for(int band=0;band<6;++band) {
         const double clock=c.score?c.score->integral(band,c.t):0;
-        const double f=.06+band*.145+.025*std::sin(clock*4.5+c.t*.7+band);
-        flow.color(mix(blue,teal,.40+.08*band),.12+.55*c.lift(band)+.20*c.hit(4));
+        const double f=.06+band*.145+.055*std::sin(clock*5.8+c.t*.7+band);
+        flow.color(mix(blue,teal,.40+.08*band),.12+.70*c.lift(band)+.27*c.hit(4));
         stream(f);flow.stroke(38+16*c.band(band));
         flow.color(teal,.2+.24*c.lift(band));stream(f+.013);flow.stroke(3.1);
     }
