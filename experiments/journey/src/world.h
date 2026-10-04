@@ -14,7 +14,7 @@ namespace T {
 constexpr double osakaEnd = 28.0;      // glide begins
 constexpr double kanagawaDelay = 8.0; // additional travel before the dawn chapter
 constexpr double crossingEnd = 40.0 + kanagawaDelay;
-constexpr double kanagawaEnd = 78.0; // short wave, recovery, landing and first mountain-road bend
+constexpr double kanagawaEnd = 87.0; // travelling wave, wreck, washed bearer and mountain-road ending
 }
 
 struct Ctx {

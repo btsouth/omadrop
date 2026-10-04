@@ -145,13 +145,13 @@ int exportFrames(const Options& options, const Journey::AudioTimeline& audio, co
         return 0;
     }
 
-    const int count = int(std::ceil(options.duration * options.fps - 1e-9));
+    const int count = int(std::ceil((options.duration-options.start) * options.fps - 1e-9));
     if (!options.video.isEmpty()) {
         // Raw RGB frames into ffmpeg; audio is muxed from the analysed fixture.
         // --start renders a segment [start, duration) of the movie.
         const double length = options.duration - options.start;
         const int frames = int(std::ceil(length * options.fps - 1e-9));
-        QString cmd = QStringLiteral("ffmpeg -v error -y -f rawvideo -pix_fmt rgb24 -s %1x%2 -r %3 -i - ")
+        QString cmd = QStringLiteral("ffmpeg -nostdin -v error -y -f rawvideo -pix_fmt rgb24 -s %1x%2 -r %3 -i - ")
             .arg(options.width).arg(options.height).arg(options.fps);
         if (!options.audio.isEmpty())
             cmd += QStringLiteral("-f f32le -ar 44100 -ac 2 -ss %1 -t %2 -i '%3' ")
@@ -202,7 +202,7 @@ int exportFrames(const Options& options, const Journey::AudioTimeline& audio, co
     if (!directory.exists() && !QDir().mkpath(directory.absolutePath()))
         return fail(QStringLiteral("Cannot create export directory: %1").arg(directory.absolutePath()));
     for (int frame = 0; frame < count; ++frame) {
-        const double seconds = double(frame) / options.fps;
+        const double seconds = options.start + double(frame) / options.fps;
         const QImage image = frameImage(world, options, audio, seconds, rgb);
         const QString target = framePath(directory, frame);
         QSaveFile file(target);
@@ -233,7 +233,7 @@ int main(int argc, char* argv[]) {
         {QStringLiteral("paused"), QStringLiteral("Start native playback paused.")},
         {QStringLiteral("export-dir"), QStringLiteral("Headless JPEG export destination."), QStringLiteral("path")},
         {QStringLiteral("video"), QStringLiteral("Headless H.264 export (audio muxed from --audio)."), QStringLiteral("path")},
-        {QStringLiteral("start"), QStringLiteral("--video: first movie second of the rendered segment."), QStringLiteral("seconds"), QStringLiteral("0")},
+        {QStringLiteral("start"), QStringLiteral("Headless video/JPEG: first movie second of the rendered segment."), QStringLiteral("seconds"), QStringLiteral("0")},
         {QStringLiteral("fade-in"), QStringLiteral("--video: fade from black, seconds (0 disables)."), QStringLiteral("seconds"), QStringLiteral("0.6")},
         {QStringLiteral("fade-out"), QStringLiteral("--video: fade to black, seconds (0 disables)."), QStringLiteral("seconds"), QStringLiteral("1.2")},
         {QStringLiteral("stills"), QStringLiteral("Comma-separated movie times to export as PNG."), QStringLiteral("times")},
