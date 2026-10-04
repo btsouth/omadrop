@@ -153,20 +153,15 @@ void tendril(Canvas& cv,V2 root,double angle,double length,double width,double t
 
 // Blunt, hooked foam digits have rounded ends, unlike hairline crescents.
 void foamDigit(Canvas& cv,V2 root,double angle,double length,double width,double turn,Col col,double alpha) {
-    std::vector<V2> l,r;V2 q=root;
-    for(int j=0;j<=22;++j) {
-        const double u=j/22.0,a=angle+turn*std::pow(u,1.4);
-        const V2 n={-std::sin(a),std::cos(a)};
-        const double w=width*(.20+.80*std::pow(1-u,.85));
-        l.push_back(q+n*w);r.push_back(q-n*w);
-        if(j<22)q=q+V2(std::cos(a),std::sin(a))*(length/22);
-    }
-    const V2 end={std::cos(angle+turn),std::sin(angle+turn)};
-    cv.color(col,alpha);cv.moveTo(l[0].x,l[0].y);
-    for(V2 v:l)cv.lineTo(v.x,v.y);
-    const V2 a=l.back()+end*width*.36,b=r.back()+end*width*.36;
-    cv.curveTo(a.x,a.y,b.x,b.y,r.back().x,r.back().y);
-    for(auto it=r.rbegin();it!=r.rend();++it)cv.lineTo(it->x,it->y);
+    const V2 d={std::cos(angle),std::sin(angle)},n={-d.y,d.x};
+    auto point=[&](double x,double y){return root+d*x+n*y;};
+    auto curve=[&](V2 a,V2 b,V2 q){cv.curveTo(a.x,a.y,b.x,b.y,q.x,q.y);};
+    const double bend=length*turn*.28;
+    V2 start=point(0,-width);cv.color(col,alpha);cv.moveTo(start.x,start.y);
+    curve(point(length*.25,-width*1.2),point(length*.57,bend-width),point(length*.84,bend));
+    curve(point(length*.99,bend-width*.2),point(length*1.10,bend+width*.55),point(length*1.04,bend+width*1.45));
+    curve(point(length*.99,bend+width*.55),point(length*.90,bend+width*.6),point(length*.83,bend+width*.95));
+    curve(point(length*.60,bend+width),point(length*.30,width),point(0,width));
     cv.closePath();cv.fill();
 }
 
@@ -299,7 +294,6 @@ void studyWave(Ctx& c,double growth) {
                 const double a=ang+1.05+branch*.06+.20*hash2(k*6+branch,seg+94),ln=len*(.48+.42*hash2(k*6+branch,seg+51)),w=(10+12*hash2(k*6+branch,seg))*(.08+.92*growth);
                 const V2 start=root+V2(std::cos(ang),std::sin(ang))*(branch-2.5)*13;
                 const double curl=-.35+.95*hash2(k*6+branch,seg+77);
-                foamDigit(foam,start+V2(2,3),a,ln+3,w+2,curl,navy,1);
                 foamDigit(foam,start,a,ln,w,curl+.1,cream,1);
                 const V2 fork=start+V2(std::cos(a+.20),std::sin(a+.20))*ln*.76;
                 if(branch==1 || branch==4)foamDigit(foam,fork,a-.55,ln*.32,w*.45,-.55,cream,1);
