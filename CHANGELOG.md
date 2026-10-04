@@ -14,6 +14,13 @@
 - Osaka lowers its internal resolution on slower GPUs, such as integrated
   Intel graphics, and restores it when there is headroom. Set
   `OMADROP_OSAKA_SCALE` to a value from 0.5 to 1 to fix the scale.
+- Osaka keeps reacting at low playback volume. Quiet desktop audio is
+  lifted before analysis, so bass hits, moon rings and the full firework show
+  no longer depend on your playback volume.
+- The mouse pointer hides as soon as the visuals start, without needing a
+  nudge, and reappears briefly when you move it.
+- "This screen" plays on the monitor you are using rather than the first one
+  Hyprland lists.
 - The Omarchy tab in the controls shows an Osaka Jade preview.
 - Remove the ttfx terminal effects, the effect browser and their terminal
   dependencies. Upgrades clean up the old screensaver commands and launcher.
