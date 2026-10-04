@@ -204,10 +204,10 @@ void studyWave(Ctx& c,double growth) {
 
 void studyBoat(Ctx& c,V2 at,double scale,double tilt,bool bearer,bool rescue=false) {
     Canvas& body=c.canvas();Canvas& light=c.canvas();
-    const double sc=scale/.90;
+    const double sc=scale/(400.0/450.0);
     // Keep the crossing's hull, rowers, hands, oar pivots and bearer pose.
     // Fine wood structure develops with the dawn, without swapping the rig.
-    drawBoat(c,body,light,at,450*scale,tilt,bearer?5:6,1,bearer?sc:scale/.57*.7,bearer,rowingClock(c));
+    drawBoat(c,body,light,at,450*scale,tilt,bearer?5:6,sstep(37,51,c.t),bearer?sc:scale/(250.0/450.0)*.7,bearer,rowingClock(c)+(bearer?0:.3));
     c.gpu.over(body);c.gpu.over(light,1.5);c.gpu.add(light,.35,12);
     Canvas& trim=c.canvas();trim.save();trim.translate(at.x,at.y);trim.rotate(tilt);
     const double detail=sstep(48,53,c.t),half=225*scale;
@@ -229,26 +229,26 @@ void studyBoat(Ctx& c,V2 at,double scale,double tilt,bool bearer,bool rescue=fal
 
 void studyWreck(Ctx& c,V2 rescueBoat,double boatScale) {
     Canvas& cv=c.canvas();
-    const double age=c.t-(kanagawaBreak(c).t+.60),settle=sstep(0,2.0,age);
+    const double age=c.t-(kanagawaBreak(c).t+.60),settle=sstep(0,2.0,age),pan=sstep(68.9,71.7,c.t);
     cv.save();cv.translate(0,-75*std::sin(Pi*settle)+5*std::sin(age*1.8));
     // Settled halves and scattered structural timbers, well separated crew.
     for(int half=0;half<2;++half) {
-        cv.save();cv.translate(lerp(1385.0,850.0,settle)+half*lerp(300.0,470.0,settle),865+20*settle+half*28*settle);cv.rotate((half?.16:-.11)*sstep(0,.5,age));
+        cv.save();cv.translate(lerp(1385.0,850.0,settle)+half*lerp(300.0,470.0,settle)-950*pan,865+20*settle+half*28*settle);cv.rotate((half?.16:-.11)*sstep(0,.5,age));
         cv.color(wood);cv.moveTo(-120,-14);cv.curveTo(-95,20,50,30,112,1);
         cv.lineTo(97,-13);cv.lineTo(85,-4);cv.lineTo(65,-12);cv.lineTo(55,-3);cv.lineTo(34,-13);
         cv.curveTo(-30,1,-100,-3,-120,-14);cv.closePath();cv.fill();
         cv.polyline({{-107,-7},{-70,9},{0,14},{75,1}},2,gold,.7);cv.restore();
     }
     for(int i=0;i<13;++i) {
-        const double x=740+hash2(i,110)*820,y=824+hash2(i,111)*170;
+        const double x=740+hash2(i,110)*820-950*pan,y=824+hash2(i,111)*170;
         const double l=30+45*hash2(i,112),a=(hash2(i,113)-.5)*.65;
         cv.line(x,y,x+l*std::cos(a),y+l*std::sin(a),i%3?5:3,wood);cv.line(x,y-1,x+l*std::cos(a),y+l*std::sin(a)-1,1,gold,.65);
     }
     const V2 crew[5]={{970,865},{1100,915},{1230,876},{1370,945},{1510,831}};
     for(int i=0;i<5;++i) {
-        const double tow=sstep(70.4+i*.12,72.2+i*.12,c.t);
+        const double tow=sstep(68.35+i*.12,69.15+i*.12,c.t);
         const V2 aboard=rescueBoat+V2((i-2)*55*boatScale,18*boatScale);
-        const V2 q=lerp(crew[i],aboard,tow);
+        const V2 q=lerp(crew[i]+V2(-950*pan,0),aboard,tow);
         const double x=q.x,y=q.y+3*std::sin(c.t*1.7+i);
         const double side=i%2?1:-1;
         cv.capsule({x,y+7},{x-3*side,y-19},7.5,9,ink);
@@ -281,9 +281,10 @@ void impact(Ctx& c,double age) {
         // A spreading crown with ragged capillaries at its edge. The print
         // stays cream, but dark lacy channels break up the body of the foam.
         std::vector<V2> edge={{120,1140}};
-        for(int j=0;j<=160;++j) {
-            const double a=-Pi+j*Pi/160;
-            const double radius=(290+190*std::pow(std::sin(-a),2)+65*fbm1(j*.15,278)+18*noise1(j*.8,277));
+        auto crownRadius=[&](double a){return 290+190*std::pow(std::sin(-a),2)+40*fbm1((a+Pi)*4.5,278);};
+        for(int j=0;j<=300;++j) {
+            const double a=-Pi+j*Pi/300;
+            const double radius=crownRadius(a);
             edge.push_back({1260+radius*1.85*std::cos(a)*erupt,1040+radius*1.13*std::sin(a)*erupt});
         }
         edge.push_back({2120,1140});polyfill(sheet,edge,cream,erupt);
@@ -296,15 +297,15 @@ void impact(Ctx& c,double age) {
                 q.x+=.35*sin(q.y*1.7-u_age*2.0);
                 float n=fbm(q*3.4+vec2(u_age*.45,-u_age*.8),4);
                 float fine=fbm(q*12.0+vec2(u_age*.7,-u_age),3);
-                float lace=1.0-smoothstep(.045,.085,abs(n-.50));
+                float lace=1.0-smoothstep(.012,.028,abs(n-.50));
                 float holes=smoothstep(.55,.70,n)*smoothstep(.50,.65,fine);
-                vec3 col=mix(vec3(.88,.85,.73),vec3(.36,.52,.61),.23*lace+.42*holes);
+                vec3 col=mix(vec3(.88,.85,.73),vec3(.36,.52,.61),.14*lace+.20*holes+.08*smoothstep(650.0,1080.0,p.y));
                 o=vec4(col*a.a,a.a);
             }
         )");
         c.gpu.pass(foam,Blend::Over,[&](Program& p){c.gpu.bindTexture(0,mask,p,"u_tex");p.set("u_age",float(age));p.set("u_t",float(c.t));});
         for(int j=0;j<44;++j) {
-            const double a=-Pi+Pi*hash2(j,213),radius=340+110*std::sin(-a)+40*hash2(j,216);
+            const double a=-Pi+Pi*hash2(j,213),radius=crownRadius(a)-5;
             const V2 root={1260+radius*1.85*std::cos(a)*erupt,1040+radius*1.13*std::sin(a)*erupt};
             const double ln=(32+75*hash2(j,217))*erupt,w=5+7*hash2(j,218),curl=1.1+1.5*hash2(j,219);
             tendril(cv,root,a,ln,w,curl,cream,erupt);
@@ -321,14 +322,22 @@ void impact(Ctx& c,double age) {
         const V2 d=unit(v),n={-d.y,d.x};const double w=1.1+3.4*hash2(i,223),alpha=(1-sstep(1.2,1.85,a));
         polyfill(cv,{p+d*(w*4),p+n*w,p-d*w*2,p-n*w},cream,alpha);
     }
-    // The leading wash travels toward the foreground, then drains to lace.
-    for(int k=0;k<9;++k) {
-        const double u=age-.12*k;if(u<0)continue;
-        const double y=790+125*u+14*k,alpha=(1-sstep(1.2,3.8,u))*.65;
-        if(y>1150)continue;
-        cv.color(cream,alpha);cv.moveTo(-100,y);
-        cv.curveTo(470,y-65-30*std::sin(u*2),1080,y+55,2020,y-35);cv.stroke(lerp(22,3,sstep(.4,2.8,u)));
-        cv.color(teal,alpha*.8);cv.moveTo(-100,y+16);cv.curveTo(440,y-25,1310,y+43,2020,y+3);cv.stroke(2.0);
+    // Expanding, curved fronts carry foam toward the viewer from contact.
+    // Each has thin ends, so no bright straight line cuts across the frame.
+    for(int k=0;k<7;++k) {
+        const double u=age-.16*k;if(u<0)continue;
+        const double radius=220+640*u,cy=860+35*u;
+        const double alpha=(1-sstep(1.0,3.7,u))*.5;
+        if(cy+radius*.24>1300)continue;
+        std::vector<V2> front;
+        for(int j=0;j<=72;++j) {
+            const double a=j*Pi/72;
+            front.push_back({1310+radius*std::cos(a),cy+radius*.24*std::sin(a)+5*std::sin(a*9-u*3)});
+        }
+        for(int j=1;j<=72;++j) {
+            const double w=(3+13*(1-sstep(.3,2.3,u)))*std::pow(std::sin(j*Pi/73),.6);
+            cv.line(front[j-1].x,front[j-1].y,front[j].x,front[j].y,w,cream,alpha);
+        }
     }
     c.gpu.over(cv);
     if(age<.22) {Canvas& flash=c.canvas();flash.fillRect(0,0,1920,1080,cream,.88*window(age,0,.016,.095,.07));c.gpu.over(flash);}
@@ -376,14 +385,14 @@ void drawEndingWater(Ctx& c) {
     };
     if(age<.65)studyWave(c,growth);
     BoatPose far=pose(false),near=pose(true);
-    const double rescue=sstep(impactAt+2,72,c.t),recede=sstep(71.5,76,c.t);
-    far.at=lerp(far.at,V2(1330,808),rescue);
+    const double rescue=sstep(impactAt+.7,68.4,c.t),recede=sstep(68.9,71.7,c.t);
+    far.at=lerp(far.at,V2(1330,842),rescue);
     far.at=lerp(far.at,V2(380,810),recede);
     if(age<=.025) {studyBoat(c,far.at,lerp(250.0/450,.57,sstep(48,53,c.t)),far.tilt,false);studyBoat(c,near.at,lerp(400.0/450,.90,sstep(48,53,c.t)),near.tilt,true);}
     else {
         // Broken halves are exposed before/after the dense spray crown.
-        if(age>.025)studyWreck(c,far.at,lerp(.57,.40,recede));
-        studyBoat(c,far.at,lerp(.57,.40,recede),far.tilt*(1-.7*rescue),false,rescue>.5);
+        if(age>.025)studyWreck(c,far.at,lerp(lerp(.57,.8,rescue),.40,recede));
+        studyBoat(c,far.at,lerp(lerp(.57,.8,rescue),.40,recede),far.tilt*(1-.7*rescue),false,rescue>.5);
         impact(c,age);flyingTimbers(c,age);
     }
 }

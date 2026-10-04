@@ -144,7 +144,7 @@ Bearer bearerAt(const Ctx& c,const CarPose& car) {
         // a frame boundary jump in scale, head, ankles or wrists.
         const V2 p=endingBearerWashAt(70.7);
         const double roll=-.6+.2*std::sin(70.7*2);
-        RigIn washed=lying;washed.h=105;washed.lean=roll;
+        RigIn washed=lying;washed.h=105;washed.lean=roll;washed.headTilt=roll;
         washed.hip=p+rotate({0,-30},roll);
         washed.footF=p+rotate({30,8},roll);washed.footB=p+rotate({-20,10},roll);
         washed.handF=p+rotate({40,-63},roll);washed.handB=p+rotate({-26,-27},roll);
@@ -163,6 +163,7 @@ Bearer bearerAt(const Ctx& c,const CarPose& car) {
         out.rig.footF={st.footF.x,walkingGround(st.footF.x)+st.footF.y};
         out.rig.footB={st.footB.x,walkingGround(st.footB.x)+st.footB.y};
         out.rig.handF={x+28,out.rig.hip.y+3};
+        out.rig.handF.y-=68*sstep(75.0,75.7,c.t);
         out.rig.handB={x-20+5*std::sin(Tau*st.phase),out.rig.hip.y+5};
         // Lower the hip only as much as IK requires. Stance ankles stay fixed.
         for(V2 foot:{out.rig.footF,out.rig.footB}) {
@@ -173,24 +174,28 @@ Bearer bearerAt(const Ctx& c,const CarPose& car) {
         if(c.t>=75.8) {
             RigIn duck=out.rig;
             const V2 sill=carPoint(car,-.73,-1.04,.34);
-            duck.hip=sill+V2(-34,-12);duck.lean=.9;duck.headTilt=-.2;
+            duck.hip=sill+V2(-34,-12);duck.lean=.55;duck.headTilt=-.2;
             duck.footF=sill+V2(-7,2);duck.footB=out.rig.footB;
-            duck.handF=carPoint(car,-.20,-.94,.71);duck.handB=sill+V2(-5,-20);
+            // Lift the real carrying wrist before the lantern crosses the
+            // sill: its hanging paper body must clear the opaque door belt.
+            duck.handF=duck.hip+V2(std::sin(duck.lean),-std::cos(duck.lean))*(.275*h)+V2(18,-47);
+            duck.handB=sill+V2(-5,-20);
             RigIn seated=duck;seated.h=130*car.scale/110;seated.hat=true;
             seated.hip=carPoint(car,-.43,-.64,.48);seated.lean=.17;
             seated.footF=carPoint(car,.34,-.65,.34);
             seated.footB=carPoint(car,.26,-.47,.34);
-            seated.handF=carPoint(car,-.08,-.49,.66);
+            seated.handF=carPoint(car,-.31,-.77,1.07);
             seated.handB=carPoint(car,.16,-.62,.74);
             out.rig=c.t<76.45?blendRig(out.rig,duck,sstep(75.8,76.45,c.t))
                                   :blendRig(duck,seated,sstep(76.45,77.3,c.t));
             out.grounded=c.t<76.45;
-            const double inside=sstep(76.05,77.3,c.t);
-            // Sorted between the interior and near door/sill, with no fade or
-            // removed pose. The lantern follows the same wrist into the cabin.
-            out.depth=lerp(2.25,.65,inside);
         }
     }
+    // Cabin depth turns with the coupe. Exterior portions are composited
+    // separately across the actual rear doorway edge, rather than switching
+    // the complete silhouette to a different owner on a timed frame.
+    out.depth=(.40*std::cos(car.angle)+.94*std::sin(car.angle))*(-.43)
+             +(.40*std::sin(car.angle)-.94*std::cos(car.angle))*(-.64)+.03*.48;
     const Body body=solve(out.rig);
     out.lanternHand=actualHand(body);out.lanternSize=out.rig.h/146;
     // Continuous path from the exact last water lantern to its resting
@@ -204,7 +209,45 @@ Bearer bearerAt(const Ctx& c,const CarPose& car) {
     out.bright=1+.12*(c.score?Score::envelope(c.score->onsets,c.t,5):0);
     return out;
 }
-void drawBearer(Ctx& c,const Bearer& bearer) {
+void bearerLayer(Ctx& c,const Canvas& cv,int side,V2 bottom,V2 top,
+                 Blend blend=Blend::Over,float gain=1,float blur=0,V2 beltA={},V2 beltB={}) {
+    if(!side) {
+        if(blend==Blend::Add)c.gpu.add(cv,gain,blur);
+        else c.gpu.over(cv,gain,blur);
+        return;
+    }
+    int tex=c.gpu.layer(cv);if(blur>0)tex=c.gpu.blurred(tex,blur);
+    static const char* shader=R"(
+        uniform sampler2D u_tex;
+        uniform vec4 u_edge;
+        uniform vec4 u_belt;
+        uniform float u_side;
+        uniform float u_gain;
+        void main() {
+            vec2 p=design();
+            float x=u_edge.x+(p.y-u_edge.y)*(u_edge.z-u_edge.x)/(u_edge.w-u_edge.y);
+            float inside=step(x,p.x);
+            // The carried lantern remains outside until it clears the window
+            // belt, then enters the same cabin layer without a frame switch.
+            if(abs(u_side)>1.5) {
+                float y=u_belt.y+(p.x-u_belt.x)*(u_belt.w-u_belt.y)/(u_belt.z-u_belt.x);
+                inside*=step(p.y,y);
+            }
+            float mask=u_side>0.0 ? inside : 1.0-inside;
+            o=texture(u_tex,v_uv)*mask*u_gain;
+        }
+    )";
+    Program& p=c.gpu.effect("endingBearerDoorway",shader);
+    c.gpu.pass(p,blend,[&](Program& q) {
+        c.gpu.bindTexture(0,tex,q,"u_tex");
+        q.set("u_edge",float(bottom.x-c.cameraX),float(bottom.y),
+              float(top.x-c.cameraX),float(top.y));
+        q.set("u_belt",float(beltA.x-c.cameraX),float(beltA.y),
+              float(beltB.x-c.cameraX),float(beltB.y));
+        q.set("u_side",float(side));q.set("u_gain",gain);
+    });
+}
+void drawBearer(Ctx& c,const Bearer& bearer,int side=0,V2 bottom={},V2 top={},V2 beltA={},V2 beltB={}) {
     if(!bearer.visible)return;
     Canvas& cv=c.canvas();
     if(bearer.grounded) {
@@ -215,10 +258,11 @@ void drawBearer(Ctx& c,const Bearer& bearer) {
     const double s=bearer.rig.h/155;
     cv.line(b.shoulder.x,b.shoulder.y,b.chest.x+5*s,b.chest.y+15*s,2.2*s,teal,.65);
     cv.line(b.head.x-18*s,b.head.y-9*s,b.head.x+20*s,b.head.y-9*s,1.1*s,gold,.6);
-    c.gpu.over(cv);
+    bearerLayer(c,cv,side,bottom,top);
     Canvas& light=c.canvas();
     drawBearerLantern(light,light,bearer.lanternHand,bearer.swing,bearer.lanternSize,bearer.bright);
-    c.gpu.over(light,1.15);c.gpu.add(light,.15,float(8*s));
+    bearerLayer(c,light,side*2,bottom,top,Blend::Over,1.15,0,beltA,beltB);
+    bearerLayer(c,light,side*2,bottom,top,Blend::Add,.15,float(8*s),beltA,beltB);
 }
 void roadLandscape(Ctx& c) {
     Canvas& cv=c.canvas();
@@ -413,9 +457,14 @@ void endingCar(Ctx& c, const CarPose& pose, const Bearer& bearer) {
     });
     bool drewBearer=false;
     const double bearerDepth=bearer.depth;
+    const V2 entryBottom=project({-1.01,-.91,.32});
+    const V2 entryTop=project({-1.01,-.64,1.17});
+    const V2 beltA=project({-1.01,-.91,.73}),beltB=project({.64,-.91,.73});
     auto occupant=[&] {
         if(drewBearer || !bearer.visible)return;
-        c.gpu.over(cv);drawBearer(c,bearer);cv.reset(c.gpu.pixelScale());
+        c.gpu.over(cv);
+        drawBearer(c,bearer,c.t<77.3?1:0,entryBottom,entryTop,beltA,beltB);
+        cv.reset(c.gpu.pixelScale());
         cv.translate(-c.cameraX,0);drewBearer=true;
     };
     for(const Face& f:faces) {
@@ -458,6 +507,10 @@ void endingCar(Ctx& c, const CarPose& pose, const Bearer& bearer) {
     cv.capsule(mp,tip,4*pose.scale/110,5*pose.scale/110,paint);
     cv.line(mp.x,mp.y-2*pose.scale/110,tip.x,tip.y-2*pose.scale/110,.9*pose.scale/110,chrome,.7);
     c.gpu.over(cv);
+    // The near-side walker, including feet and the carried prop, stays in
+    // front of panels, wheels and trim. Each pixel crosses into cabin sorting
+    // at the projected doorway edge as the solved pose physically enters.
+    if(c.t<77.3)drawBearer(c,bearer,-1,entryBottom,entryTop,beltA,beltB);
     Canvas& glow=c.canvas();
     const V2 poolA=project({2.8,-.55,.005});
     glow.glowEllipse(poolA.x,poolA.y,96*pose.scale/110,17*pose.scale/110,gold,.18);
@@ -482,22 +535,6 @@ void washFoam(Ctx& c) {
     }
     c.gpu.over(cv);
 }
-void reveal(Ctx& c,int tex) {
-    static const char* shader=R"(
-        uniform sampler2D u_tex;
-        uniform float u_arrival;
-        void main() {
-            vec2 p=design();
-            float offset=mix(1920.0,0.0,u_arrival);
-            vec2 uv=v_uv-vec2(offset/1920.0,0.0);
-            o=(uv.x<0.0 || uv.x>1.0) ? vec4(0.0) : texture(u_tex,uv);
-        }
-    )";
-    Program& p=c.gpu.effect("endingRoadArrival",shader);
-    c.gpu.pass(p,Blend::Over,[&](Program& q) {
-        c.gpu.bindTexture(0,tex,q,"u_tex");q.set("u_arrival",float(.58*sstep(69,70.7,c.t)+.42*sstep(70.7,73,c.t)));
-    });
-}
 } // namespace
 
 V2 endingBearerWashAt(double t) {
@@ -508,7 +545,11 @@ V2 endingBearerWashAt(double t) {
 void drawEndingRoad(Ctx& c) {
     if(c.t<68.8)return;
     const CarPose car=carPose(c.t);const Bearer bearer=bearerAt(c,car);
-    if(c.t<73)c.gpu.beginOffscreen(true);
+    // Translate complete vector geometry before tessellation/frame clipping.
+    // The road is fully settled at the water-to-bank contact handoff.
+    const double camera=c.cameraX;
+    const double offset=1920*(1-sstep(68.8,70.7,c.t));
+    c.cameraX=-offset;
     roadLandscape(c);
     // A quiet warm strip above the guardrail links the storm wash to the
     // violet slope without moving or tinting the untouched sea horizon.
@@ -517,14 +558,15 @@ void drawEndingRoad(Ctx& c) {
     bank.curveTo(927,981,1022,960,1120,940);
     bank.curveTo(1060,984,960,1002,870,990);bank.closePath();bank.fill();
     c.gpu.over(bank);
-    if(c.t<73)reveal(c,c.gpu.endOffscreen());
+    c.cameraX=camera;
     washFoam(c);
     // Early bearer belongs to water until the explicit 70.7-second handoff.
-    // Later, depth sorting inside the car owns the single boarding silhouette.
-    if(c.t<75.8)drawBearer(c,bearer);
-    if(c.t<73)c.gpu.beginOffscreen(true);
-    endingCar(c,car,c.t>=75.8?bearer:Bearer{});
-    if(c.t<73)reveal(c,c.gpu.endOffscreen());
+    // Once the road has arrived, one doorway split owns both the approach
+    // and boarding. There is no 75.8-second render-ownership handoff.
+    if(c.t<73)drawBearer(c,bearer);
+    c.cameraX=-offset;
+    endingCar(c,car,c.t>=73?bearer:Bearer{});
+    c.cameraX=camera;
 }
 
 void drawEndingRoadTitle(Canvas& overlay,double t) {
