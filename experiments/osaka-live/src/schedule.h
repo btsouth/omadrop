@@ -28,6 +28,8 @@ struct Schedule {
 private:
     int seed_;
     std::uint64_t eventSerial_=0, fireworksCount_=0;
+    struct Cycle { std::uint64_t index; double age, period; };
+    Cycle cycleAt(double age,double key,double lo,double hi) const;
     double cyclePhase(double now,double key,double phaseKey,double lo,double hi,bool pane) const;
     double varied(double key,std::uint64_t cycle,double lo,double hi) const;
 };

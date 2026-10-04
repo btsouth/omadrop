@@ -82,23 +82,27 @@ double Schedule::parameter(Moment m,double key,double lo,double hi,double origin
     const auto cycle=moments[int(m)].cycle;
     return cycle<=1 ? original : varied(300+int(m)*19+key,cycle,lo,hi);
 }
+Schedule::Cycle Schedule::cycleAt(double age,double key,double lo,double hi) const {
+    // Periods come in pairs that sum to lo+hi, so the current cycle is found
+    // in constant time however long the session has been running.
+    const double pair=lo+hi, n=std::floor(age/pair);
+    age-=n*pair;
+    const auto index=std::uint64_t(n)*2+1;
+    const double period=varied(key,index,lo,hi);
+    if(age<period) return {index,age,period};
+    return {index+1,age-period,pair-period};
+}
 double Schedule::cyclePhase(double now,double key,double phaseKey,double lo,double hi,bool isPane) const {
     const double first=varied(key,0,lo,hi);
     const double offset=isPane ? first-phaseKey : varied(phaseKey,0,0,first);
     // Retain the complete original opening, including its initial phase.
     const double opening=2*first-offset;
     if(now<opening) return std::fmod(now+offset,first);
-    double age=now-opening;
-    for(std::uint64_t cycle=1;;++cycle) {
-        const double period=varied(key,cycle,lo,hi);
-        if(age<period) {
-            // Gestures begin from rest, after a seeded idle interval, and
-            // finish before the next boundary. Panes restart their flicker.
-            const double delay=isPane ? 0 : varied(phaseKey,cycle,0,period-12);
-            return age-delay;
-        }
-        age-=period;
-    }
+    const Cycle cycle=cycleAt(now-opening,key,lo,hi);
+    // Gestures begin from rest, after a seeded idle interval, and finish
+    // before the next boundary. Panes restart their flicker.
+    const double delay=isPane ? 0 : varied(phaseKey,cycle.index,0,cycle.period-12);
+    return cycle.age-delay;
 }
 double Schedule::gesture(double now,double a,double in,double b,double out) const {
     return window(cyclePhase(now,a*31.7,a*17.0,28,53,false),0,in,b-a,out);
@@ -106,15 +110,7 @@ double Schedule::gesture(double now,double a,double in,double b,double out) cons
 double Schedule::pane(double now,double key) const {
     const double first=varied(key*91.0,0,31,67);
     const double opening=first+key;
-    double period=first;
-    if(now>=opening) {
-        double age=now-opening;
-        for(std::uint64_t cycle=1;;++cycle) {
-            period=varied(key*91.0,cycle,31,67);
-            if(age<period) break;
-            age-=period;
-        }
-    }
+    const double period=now<opening ? first : cycleAt(now-opening,key*91.0,31,67).period;
     const double age=cyclePhase(now,key*91.0,key,31,67,true);
     if(age<0.6) return age<0.05?0.55:age<0.11?0.08:age<0.17?0.8:age<0.22?0.35:0.75+0.25*sstep(0.22,0.6,age);
     return 1-0.8*window(age,period-4,1.2,period,0.7);
