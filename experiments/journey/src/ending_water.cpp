@@ -257,8 +257,8 @@ void studyWreck(Ctx& c,V2 rescueBoat,double boatScale) {
         cv.capsule({x-22,y-3},{x-35,y+5},3,2.5,ink);
         cv.capsule({x+6,y-16},{x+20,y-4},3.5,3,ink);
         cv.capsule({x+20,y-4},{x+32,y+6},3,2.5,ink);
-        cv.line(x-44,y+9,x+44,y+11,8,wood);cv.line(x-40,y+7,x+40,y+9,1.7,gold,.75);
-        cv.color(teal,.6);cv.moveTo(x-49,y+13);cv.curveTo(x-20,y+23,x+25,y+22,x+48,y+15);cv.stroke(1.7);
+        cv.line(x-44,y+9,x+44,y+11,8,wood,1-tow);cv.line(x-40,y+7,x+40,y+9,1.7,gold,.75*(1-tow));
+        cv.color(teal,.6*(1-tow));cv.moveTo(x-49,y+13);cv.curveTo(x-20,y+23,x+25,y+22,x+48,y+15);cv.stroke(1.7);
     }
     cv.restore();c.gpu.over(cv);
     Canvas& foam=c.canvas();
@@ -364,6 +364,7 @@ void drawEndingWater(Ctx& c) {
     const double impactAt=kanagawaBreak(c).t+.60,age=c.t-impactAt;
     kanagawaSea(c);studySea(c,age>=0);
     kanagawaPlovers(c,1);
+    if(c.t<51.0)drawFlock(c,Col(0.008f,0.026f,0.022f),1,1-sstep(48,51,c.t));
     if(c.t<52) {
         c.gpu.beginOffscreen(true);kanagawaEntryFront(c);
         c.gpu.composite(c.gpu.endOffscreen(),Blend::Over,1,float(1-sstep(48,52,c.t)));
