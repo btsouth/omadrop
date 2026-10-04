@@ -363,7 +363,8 @@ void flyingTimbers(Ctx& c,double age) {
 
 void drawEndingWater(Ctx& c) {
     const double impactAt=kanagawaBreak(c).t+.60,age=c.t-impactAt;
-    kanagawaSea(c);studySea(c,age>=0);
+    if(c.t<50)kanagawaSea(c);else kanagawaHorizon(c);
+    studySea(c,age>=0);
     kanagawaPlovers(c,1);
     if(c.t<51.0)drawFlock(c,Col(0.008f,0.026f,0.022f),1,1-sstep(48,51,c.t));
     if(c.t<52) {

@@ -666,6 +666,20 @@ void kanagawaSky(Ctx& c) {
 }
 void kanagawaMist(Ctx& c) { mistBars(c, c.t); }
 void kanagawaSea(Ctx& c) { sea(c, c.t); }
+void kanagawaHorizon(Ctx& c) {
+    // The ending water is opaque below HZ. Keep the original exposed horizon
+    // exactly, without solving and drawing the six fully covered depth rows.
+    Canvas& cv=c.canvas();std::vector<V2> ys;
+    for(double x=c.cameraX-20;x<=c.cameraX+1941;x+=6)
+        ys.push_back({x,rawSwellY(x,0,c.t,&c)});
+    const Col col=mix(mix(MID,GOLD,.25),DEEP,0);
+    cv.color(col);cv.moveTo(c.cameraX-20,1080);
+    for(const V2& p:ys)cv.lineTo(p.x,p.y);
+    cv.lineTo(c.cameraX+1941,1080);cv.closePath();cv.fill();
+    const double fast=.50+.7*c.band(5)+.75*c.lift(5);
+    const double crest=.75*lerp(fast,.50+1.25*fluidBand(c,5),sstep(48,51.8,c.t));
+    cv.polyline(ys,1.2,mix(PAPER,BLUE,.3),std::min(1.0,crest));c.gpu.over(cv);
+}
 
 void gradeComposite(Ctx& c, int tex, double grade, double opacity) {
     Program& p = c.gpu.effect("gradeComposite", gradeCompositeFs);

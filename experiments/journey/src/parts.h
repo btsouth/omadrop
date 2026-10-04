@@ -69,6 +69,7 @@ struct KState {
 void kanagawaSky(Ctx& c);
 void kanagawaMist(Ctx& c);
 void kanagawaSea(Ctx& c);
+void kanagawaHorizon(Ctx& c);
 void kanagawaSun(Ctx& c);
 void kanagawaFuji(Ctx& c, double grade);
 void kanagawaPlovers(Ctx& c, double grade);
