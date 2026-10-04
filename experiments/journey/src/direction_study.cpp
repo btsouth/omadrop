@@ -82,7 +82,12 @@ void studyWave(Ctx& c,double growth) {
     body.curveTo(660,410,655,590,850,735);
     body.curveTo(1040,880,1230,875,1440,1040);
     body.curveTo(1040,1170,250,1190,-180,1100);body.closePath();body.fill();body.restore();
-    const int mask=c.gpu.layer(body);c.gpu.over(body);
+    const int mask=c.gpu.layer(body);
+    Program& surface=c.gpu.effect("directionWaveFoot",R"(
+        uniform sampler2D u_tex;
+        void main(){o=texture(u_tex,v_uv)*(1.0-smoothstep(970.0,1100.0,design().y));}
+    )");
+    c.gpu.pass(surface,Blend::Over,[&](Program& p){c.gpu.bindTexture(0,mask,p,"u_tex");});
     Canvas& flow=c.canvas();
     flow.save();flow.translate(dx,1080);flow.scale(sx,sy);flow.translate(0,-1080);
     // Nested material curves share one family of flow coordinates. Their
@@ -113,7 +118,7 @@ void studyWave(Ctx& c,double growth) {
     const int details=c.gpu.layer(flow);
     Program& clipped=c.gpu.effect("directionClip",R"(
         uniform sampler2D u_tex,u_mask;
-        void main(){vec4 a=texture(u_tex,v_uv);o=a*texture(u_mask,v_uv).a;}
+        void main(){vec4 a=texture(u_tex,v_uv);o=a*texture(u_mask,v_uv).a*(1.0-smoothstep(970.0,1100.0,design().y));}
     )");
     c.gpu.pass(clipped,Blend::Over,[&](Program& p){c.gpu.bindTexture(0,details,p,"u_tex");c.gpu.bindTexture(1,mask,p,"u_mask");});
     Canvas& foam=c.canvas();
