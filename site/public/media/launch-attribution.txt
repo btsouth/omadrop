@@ -1,0 +1,13 @@
+Music: “We Can Fix Everything” by Kevin Koontz (@koozeex1)
+Artist: https://x.com/koozeex1
+
+This preview is the 53-second excerpt of the released Omadrop v0.5.0 launch
+film, transcoded for web playback without its opening and ending cards.
+Full film: https://github.com/btsouth/omadrop/releases/download/v0.5.0/omadrop-v0.5.0-demo.mp4
+
+The film shows actual Omadrop playback. Scene and preset-author credits
+appear in the film; complete preset and dependency notices are at:
+https://github.com/btsouth/omadrop/blob/master/THIRD_PARTY_NOTICES.md
+
+Music is not installed in the runtime package. Presets and textures retain
+their original authors’ rights.
