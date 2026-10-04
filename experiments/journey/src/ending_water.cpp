@@ -41,7 +41,7 @@ void studySea(Ctx& c,bool aftermath) {
             const double age=c.t-(kanagawaBreak(c).t+.60);
             const double energy=c.score ? (c.score->integral(row%6,c.t)-c.score->integral(row%6,c.t-.8))/.8 : 0;
             const double swell=aftermath ? 35*z*std::exp(-std::max(0.0,age)*.35)*std::sin(x*.010-z*12-age*3) : 15*z*energy*std::sin(x*.006-c.t*.7+row);
-            
+
             p.push_back({x,y+amp*std::sin(x*.0055+row*.82-c.t*.55)+swell+2*noise1(x*.012,row)});
         }
         cv.polyline(p,row%7==0?1.65:.65,mix(teal,cream,.18),.11+.17*z*(row%3==0));
@@ -78,8 +78,8 @@ void studyWave(Ctx& c,double growth) {
     auto map=[&](V2 p) {
         const double crest=1-sstep(580,1080,p.y),lip=sstep(540,1040,p.x)*crest;
         const double bend=30*std::sin((c.t-51)*.33)*growth*crest;
-        const double forward=310*std::pow(std::min(1.4,plunge),1.65);
-        const double fall=660*std::pow(std::min(1.4,plunge),2.0);
+        const double forward=470*std::pow(std::min(1.4,plunge),1.65);
+        const double fall=320*std::pow(std::min(1.4,plunge),2.0);
         return V2(p.x*sx+dx+bend+forward*lip,
             1080+(p.y-1080)*sy-14*pressure*crest*growth+fall*crest);
     };
@@ -293,9 +293,26 @@ void impact(Ctx& c,double age) {
         cv.curveTo(280,770,580,880,690,730);cv.curveTo(760,570,940,610,1080,720);
         cv.curveTo(1190,430,1430,445,1530,760);cv.curveTo(1710,640,1880,830,1990,1060);
         cv.lineTo(1990,1120);cv.closePath();cv.fill();
-        for(int j=0;j<14;++j) {
-            const double x=440+j*107,y=850-260*std::sin(j*.21+age*1.4);
-            tendril(cv,{x,y},-1.2+j*.035,90+100*hash2(j,213),18+20*hash2(j,214),1.7,cream,erupt);
+        // Structured branching crown. Dark channels expose depth inside
+        // the dense white sheet; nested tips follow the outward velocity.
+        for(int j=0;j<38;++j) {
+            const double f=j/37.0,x=430+f*1460;
+            const double y=920-160*std::sin(Pi*f)-140*std::sin(f*Pi*3)*std::sin(f*Pi*3);
+            const double a=-2.35+f*1.7,ln=(120+170*hash2(j,213))*erupt;
+            tendril(cv,{x+6,y+10},a,ln,12+15*hash2(j,214),.55,blue,erupt*.85);
+            tendril(cv,{x,y},a,ln,9+10*hash2(j,214),.6,cream,erupt);
+            const V2 fork={x+std::cos(a)*ln*.55,y+std::sin(a)*ln*.55};
+            for(int b=0;b<3;++b)tendril(cv,fork,a+(b-1)*.45,ln*.45,4+2*hash2(j,b),.65,cream,erupt);
+        }
+        for(int j=0;j<27;++j) {
+            const double x=340+j*60,y=1010-170*std::sin(j*.10);
+            const double a=-1.4+.35*std::sin(j*.8);
+            tendril(cv,{x,y},a,60+130*hash2(j,231),3+6*hash2(j,232),.6,teal,erupt*.65);
+            tendril(cv,{x+4,y},a+.18,50+100*hash2(j,231),2+4*hash2(j,232),.8,blue,erupt*.5);
+        }
+        for(int j=0;j<12;++j) {
+            cv.color(teal,erupt*.45);cv.moveTo(150+j*80,1060);
+            cv.curveTo(600+j*60,950,1100+j*30,1050,2010,900+j*17);cv.stroke(1.4+j*.1);
         }
     }
     // Spray follows a launch velocity with ballistic gravity, never bead discs.
