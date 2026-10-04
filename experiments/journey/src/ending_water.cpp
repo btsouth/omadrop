@@ -81,7 +81,7 @@ void studyWave(Ctx& c,double growth) {
         const double crest=1-sstep(580,1080,p.y),lip=sstep(540,1040,p.x)*crest;
         const double bend=30*std::sin((c.t-51)*.33)*growth*crest;
         const double forward=470*std::pow(std::min(1.4,plunge),1.65);
-        const double fall=320*std::pow(std::min(1.4,plunge),2.0);
+        const double fall=320*std::pow(std::min(2.4,plunge),2.0);
         return V2(p.x*sx+dx+bend+forward*lip,
             1080+(p.y-1080)*sy-140*pressure*crest*growth+fall*crest);
     };
