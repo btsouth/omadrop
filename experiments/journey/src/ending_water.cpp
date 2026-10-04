@@ -203,54 +203,28 @@ void studyWave(Ctx& c,double growth) {
 }
 
 void studyBoat(Ctx& c,V2 at,double scale,double tilt,bool bearer,bool rescue=false) {
-    Canvas& cv=c.canvas();Canvas& light=c.canvas();
-    cv.save();cv.translate(at.x,at.y);cv.rotate(tilt);cv.scale(scale,scale);
-    // Rounded tapered fishing hull with distinct inside, rim, side and keel.
-    cv.linear(0,-15,0,40,{{0,gold,1},{.3f,wood,1},{1,hex(0x563f30),1}});
-    cv.moveTo(-225,-18);cv.curveTo(-140,20,120,25,224,-18);
-    cv.curveTo(207,20,166,41,38,45);cv.curveTo(-120,47,-192,22,-225,-18);cv.closePath();cv.fill();
-    cv.color(hex(0x493929));cv.moveTo(-212,-16);cv.curveTo(-102,7,115,9,212,-15);
-    cv.curveTo(92,22,-96,21,-212,-16);cv.closePath();cv.fill();
-    cv.color(gold);cv.moveTo(-225,-18);cv.curveTo(-134,12,139,15,224,-18);cv.stroke(4);
-    cv.color(hex(0xd0a56e));cv.moveTo(-222,-14);cv.curveTo(-138,33,144,39,220,-14);cv.stroke(2.4);
-    cv.color(hex(0x644a35));cv.moveTo(-202,4);cv.curveTo(-123,38,122,42,202,4);cv.stroke(1.1);
-    for(int j=0;j<5;++j) {
-        const double x=-148+j*70;cv.line(x,-4,x+7,13,6,wood);cv.line(x,-4,x+7,13,1.2,gold,.6);
+    Canvas& body=c.canvas();Canvas& light=c.canvas();
+    const double sc=scale/.90;
+    // Keep the crossing's hull, rowers, hands, oar pivots and bearer pose.
+    // Fine wood structure develops with the dawn, without swapping the rig.
+    drawBoat(c,body,light,at,450*scale,tilt,bearer?5:6,1,bearer?sc:scale/.57*.7,bearer,rowingClock(c));
+    c.gpu.over(body);c.gpu.over(light,1.5);c.gpu.add(light,.35,12);
+    Canvas& trim=c.canvas();trim.save();trim.translate(at.x,at.y);trim.rotate(tilt);
+    const double detail=sstep(48,53,c.t),half=225*scale;
+    for(int j=0;j<3;++j) {
+        trim.color(j==1?gold:wood,detail*(j==1?.5:.55));trim.moveTo(-half+12,3+j*5);
+        trim.curveTo(-half*.5,17+j*3,half*.5,18+j*3,half-13,-2+j*3);trim.stroke(j==1?1.1:.7);
     }
-    // Oars originate at each rower's hands, pivot through the rim, with blades.
-    for(int j=0;j<5;++j) {
-        const double x=-130+j*65,brace=window(c.t,63.2,.7,66.4,.5);
-        const double stroke=c.t*.65+2*(c.score?c.score->integral(0,c.t):0),phase=stroke+j*.02;
-        const double row=std::sin(phase)*(1-brace);
-        const V2 hand={x+19+13*row,-23+8*brace},lock={x+27,13},tip={x+50+45*row,65+14*std::cos(phase)};
-        cv.line(hand.x,hand.y,tip.x,tip.y,3,gold);
-        cv.capsule(tip,tip+unit(tip-lock)*23,4.5,6,wood);
-        cv.disc(lock.x,lock.y,2.5,ink);
-        RigIn r;r.h=61;r.hip={x,-13};r.facing=1;r.garment=Garment::Jacket;r.hair=Hair::Short;
-        r.lean=.34*brace+.10*row;r.footF={x+26,-1};r.footB={x+6,1};r.handF=hand;r.handB={x+13,-25+8*brace};
-        const Body b=solve(r);drawBody(cv,b,ink);cv.line(b.shoulder.x,b.shoulder.y,b.chest.x,b.chest.y+8,1.5,teal,.5);
-        // Restrained faces and kerchiefs catch the horizon light.
-        cv.capsule(b.head+V2(2,-2),b.head+V2(3,1),2.4,2,gold,.6);
-    }
-    if(bearer) {
-        RigIn r;r.h=94;r.hat=true;r.garment=Garment::Jacket;r.facing=1;
-        r.hip={172,-47};r.lean=-.10;r.footF={182,2};r.footB={158,1};r.handF={191,-54};r.handB={157,-41};
-        Body b=solve(r);drawBody(cv,b,ink);cv.line(b.shoulder.x,b.shoulder.y,b.chest.x,b.chest.y+15,2,teal,.7);
-        light.save();light.translate(at.x,at.y);light.rotate(tilt);light.scale(scale,scale);
-        drawBearerLantern(light,light,r.handF,0,.64,1);light.restore();
+    for(int j=0;j<9;++j) {
+        const double x=-half*.78+j*half*.17;
+        trim.line(x,10+4*std::sin(j*.3),x+6,17+5*std::sin(j*.3),.6,hex(0x513b2b),detail*.65);
     }
     if(rescue) {
-        // One rescuer leans over the gunwale toward a survivor below.
-        RigIn r;r.h=75;r.hip={180,-14};r.facing=-1;r.lean=-.45;r.garment=Garment::Jacket;
-        r.footF={173,15};r.footB={195,11};r.handF={213,23};r.handB={194,11};drawBody(cv,solve(r),ink);
+        RigIn r;r.h=66*scale/.57;r.hip={half*.72,-11};r.facing=1;r.lean=.65;
+        r.garment=Garment::Jacket;r.footF={half*.87,7};r.footB={half*.70,7};
+        r.handF={half+9,21};r.handB={half-2,11};drawBody(trim,solve(r),ink);
     }
-    cv.restore();c.gpu.over(cv);c.gpu.over(light,1.3);c.gpu.add(light,.18,8);
-    Canvas& wake=c.canvas();
-    for(int k=0;k<4;++k) {
-        wake.color(k?teal:cream,.35/(k+1));wake.moveTo(at.x-230*scale-k*15,at.y+23*scale+k*6);
-        wake.curveTo(at.x-115*scale,at.y+54*scale+k*6,at.x+135*scale,at.y+48*scale+k*7,at.x+225*scale,at.y+2*scale+k*5);wake.stroke(k?1:2);
-    }
-    c.gpu.over(wake);
+    trim.restore();c.gpu.over(trim);
 }
 
 void studyWreck(Ctx& c,V2 rescueBoat,double boatScale) {
@@ -320,8 +294,8 @@ void impact(Ctx& c,double age) {
                 vec2 p=design();vec4 a=texture(u_tex,v_uv);
                 vec2 q=vec2((p.x-1260.0)/160.0,(1040.0-p.y)/115.0);
                 q.x+=.35*sin(q.y*1.7-u_age*2.0);
-                float n=fbm(q*3.4+vec2(u_age*.45,-u_age*.8));
-                float fine=fbm(q*12.0+vec2(u_age*.7,-u_age));
+                float n=fbm(q*3.4+vec2(u_age*.45,-u_age*.8),4);
+                float fine=fbm(q*12.0+vec2(u_age*.7,-u_age),3);
                 float lace=1.0-smoothstep(.045,.085,abs(n-.50));
                 float holes=smoothstep(.55,.70,n)*smoothstep(.50,.65,fine);
                 vec3 col=mix(vec3(.88,.85,.73),vec3(.36,.52,.61),.23*lace+.42*holes);
@@ -357,7 +331,7 @@ void impact(Ctx& c,double age) {
         cv.color(teal,alpha*.8);cv.moveTo(-100,y+16);cv.curveTo(440,y-25,1310,y+43,2020,y+3);cv.stroke(2.0);
     }
     c.gpu.over(cv);
-    if(age<.22) {Canvas& flash=c.canvas();flash.fillRect(0,0,1920,1080,cream,.75*window(age,.025,.035,.13,.07));c.gpu.over(flash);}
+    if(age<.22) {Canvas& flash=c.canvas();flash.fillRect(0,0,1920,1080,cream,.88*window(age,0,.016,.095,.07));c.gpu.over(flash);}
 }
 void flyingTimbers(Ctx& c,double age) {
     if(age<0 || age>2.5)return;
@@ -380,6 +354,11 @@ void flyingTimbers(Ctx& c,double age) {
 void drawEndingWater(Ctx& c) {
     const double impactAt=kanagawaBreak(c).t+.60,age=c.t-impactAt;
     kanagawaSea(c);studySea(c,age>=0);
+    kanagawaPlovers(c,1);
+    if(c.t<52) {
+        c.gpu.beginOffscreen(true);kanagawaEntryFront(c);
+        c.gpu.composite(c.gpu.endOffscreen(),Blend::Over,1,float(1-sstep(48,52,c.t)));
+    }
     if(c.t<69)crossingStrands(c,std::min(49.8,c.t));
     const double growth=sstep(50.0,impactAt-.52,c.t);
     // Boats draw back together and sample the same travelling swell.
@@ -400,10 +379,10 @@ void drawEndingWater(Ctx& c) {
     const double rescue=sstep(impactAt+2,72,c.t),recede=sstep(71.5,76,c.t);
     far.at=lerp(far.at,V2(1330,808),rescue);
     far.at=lerp(far.at,V2(380,810),recede);
-    if(age<0) {studyBoat(c,far.at,.57,far.tilt,false);studyBoat(c,near.at,.90,near.tilt,true);}
+    if(age<=.025) {studyBoat(c,far.at,lerp(250.0/450,.57,sstep(48,53,c.t)),far.tilt,false);studyBoat(c,near.at,lerp(400.0/450,.90,sstep(48,53,c.t)),near.tilt,true);}
     else {
         // Broken halves are exposed before/after the dense spray crown.
-        if(age>.08)studyWreck(c,far.at,lerp(.57,.40,recede));
+        if(age>.025)studyWreck(c,far.at,lerp(.57,.40,recede));
         studyBoat(c,far.at,lerp(.57,.40,recede),far.tilt*(1-.7*rescue),false,rescue>.5);
         impact(c,age);flyingTimbers(c,age);
     }
@@ -416,10 +395,13 @@ void drawEndingBearer(Ctx& c) {
         Canvas& body=c.canvas();Canvas& light=c.canvas();
         const double u=sstep(impactAt+.8,70.7,c.t);
         const V2 p=lerp(V2(1560,932),V2(1100,1010),u);
-        body.save();body.translate(p.x,p.y);body.rotate(-.6+.2*std::sin(c.t*2));
-        RigIn r;r.h=105;r.hat=true;r.garment=Garment::Jacket;r.hip={0,-30};r.facing=1;
-        r.footF={30,8};r.footB={-20,10};r.handF={40,-63};r.handB={-26,-27};
-        drawBody(body,solve(r),ink);body.restore();c.gpu.over(body);
+        const double roll=-.6+.2*std::sin(c.t*2);
+        auto rotate=[&](V2 q){return V2(q.x*std::cos(roll)-q.y*std::sin(roll),q.x*std::sin(roll)+q.y*std::cos(roll));};
+        RigIn r;r.h=105;r.hat=true;r.garment=Garment::Jacket;r.hip=p+rotate({0,-30});r.facing=1;
+        r.lean=roll;r.headTilt=roll;
+        r.footF=p+rotate({30,8});r.footB=p+rotate({-20,10});
+        r.handF=p+rotate({40,-63});r.handB=p+rotate({-26,-27});
+        drawBody(body,solve(r),ink);c.gpu.over(body);
         V2 hand=p+V2(30,-65);drawBearerLantern(light,light,hand,.15,105.0/146,1);
         c.gpu.over(light,1.3);c.gpu.add(light,.2,8);
     }
