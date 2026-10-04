@@ -34,7 +34,6 @@ ApplicationWindow {
         if (app.focusedIndex < 0) return
         var item = app.visibleItems[app.focusedIndex]
         if (item.scene) backend.toggleSceneHidden(item.number)
-        else backend.toggleHidden(String(item.key))
     }
 
     // Everything is derived from the live Omarchy theme and fades on a switch.
@@ -78,20 +77,11 @@ ApplicationWindow {
     readonly property string modeName: backend.mode ? String(backend.mode).toLowerCase() : "milkdrop"
     readonly property bool milkdropMode: app.modeName === "milkdrop"
     readonly property bool omarchyMode: app.modeName === "omarchy"
-    readonly property var effects: backend.effects ? backend.effects : []
     readonly property var scenes: backend.scenes ? backend.scenes : []
     readonly property bool hasError: backend.error ? String(backend.error).length > 0 : false
     readonly property bool typing: searchField.activeFocus
 
-    readonly property int enabledCount: {
-        var n = 0
-        for (var i = 0; i < app.effects.length; i++)
-            if (!app.effects[i].hidden) n++
-        return n
-    }
-
-    // One card model for both modes: MilkDrop scenes and Omarchy effects differ
-    // only in how a card is played and whether it can be favorited.
+    // MilkDrop cards. Osaka is one indefinitely looping scene.
     readonly property var items: {
         var out = []
         if (app.milkdropMode) {
@@ -102,17 +92,7 @@ ApplicationWindow {
                            name: s.label ? String(s.label) : ("Scene " + s.number),
                            description: s.description ? String(s.description) : "",
                            thumbnail: s.thumbnail ? String(s.thumbnail) : "",
-                           hidden: !!s.hidden, favorite: false, scene: true })
-            }
-        } else {
-            for (var j = 0; j < app.effects.length; j++) {
-                var e = app.effects[j]
-                if (!e) continue
-                out.push({ key: e.slug, number: 0,
-                           name: e.name ? String(e.name) : String(e.slug),
-                           description: e.description ? String(e.description) : "",
-                           thumbnail: e.thumbnail ? String(e.thumbnail) : "",
-                           hidden: !!e.hidden, favorite: !!e.favorite, scene: false })
+                           hidden: !!s.hidden, scene: true })
             }
         }
         return out
@@ -129,26 +109,22 @@ ApplicationWindow {
         }
         out.sort(function(a, b) {
             if (a.hidden !== b.hidden) return a.hidden ? 1 : -1
-            if (a.favorite !== b.favorite) return a.favorite ? -1 : 1
             return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
         })
         return out
     }
 
     readonly property string emptyHint: {
-        if (app.items.length === 0) return app.milkdropMode ? qsTr("No scenes were found.")
-                                                          : qsTr("No effects were found.")
+        if (app.omarchyMode) return qsTr("Osaka Jade\nA living street, listening to your music. Press Play.")
+        if (app.items.length === 0) return qsTr("No scenes were found.")
         if (app.query.length > 0) return qsTr("Nothing matches your search.")
         return qsTr("Nothing is available.")
     }
 
     readonly property bool playEnabled: app.milkdropMode
                                         ? backend.milkdropAvailable
-                                        : (backend.omarchyAvailable && app.enabledCount > 0)
-    readonly property string rotationSummary: app.milkdropMode
-                                              ? qsTr("%1 scenes").arg(app.scenes.length)
-                                              : qsTr("%1 of %2 effects in rotation")
-                                                .arg(app.enabledCount).arg(app.effects.length)
+                                        : backend.omarchyAvailable
+    readonly property string rotationSummary: app.milkdropMode ? qsTr("%1 scenes").arg(app.scenes.length) : qsTr("Osaka Jade")
     readonly property string modeReason: {
         if (!backend.milkdropAvailable && !backend.omarchyAvailable)
             return qsTr("MilkDrop and Omarchy aren't installed")
@@ -174,7 +150,6 @@ ApplicationWindow {
     function openItem(item) {
         if (!item) return
         if (app.milkdropMode) backend.playScene(item.number)
-        else backend.preview(String(item.key))
     }
 
     Connections {
@@ -236,10 +211,6 @@ ApplicationWindow {
         if (app.focusedIndex >= 0) app.openItem(app.visibleItems[app.focusedIndex])
     } }
     Shortcut { sequence: "H"; enabled: !app.typing; onActivated: app.hideFocused() }
-    Shortcut { sequence: "F"; enabled: !app.typing; onActivated: {
-        if (app.omarchyMode && app.focusedIndex >= 0)
-            backend.toggleFavorite(String(app.visibleItems[app.focusedIndex].key))
-    } }
 
     MouseArea {
         anchors.fill: parent
@@ -434,7 +405,8 @@ ApplicationWindow {
         TextField {
             id: searchField
             Layout.fillWidth: true
-            placeholderText: app.milkdropMode ? qsTr("Search scenes") : qsTr("Search effects")
+            visible: app.milkdropMode
+            placeholderText: qsTr("Search scenes")
             color: app.cText
             placeholderTextColor: app.cTextMute
             font.pixelSize: 13
@@ -748,32 +720,7 @@ ApplicationWindow {
                             anchors.top: parent.top
                             anchors.margins: 6
                             spacing: 6
-                            visible: cardHover.hovered || starHover.hovered || eyeHover.hovered
-
-                            Rectangle {
-                                visible: modelData && !modelData.scene
-                                width: 28; height: 28; radius: 8
-                                color: starHover.hovered ? app.cPanelHover : app.accentAlpha(0.22)
-                                border.width: 1
-                                border.color: app.accentAlpha(0.5)
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: (modelData && modelData.favorite) ? "★" : "☆"
-                                    color: (modelData && modelData.favorite) ? app.cAccent : app.cTextDim
-                                    font.pixelSize: 15
-                                }
-                                HoverHandler { id: starHover }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: if (modelData && modelData.key) backend.toggleFavorite(String(modelData.key))
-                                }
-                                ToolTip.visible: starHover.hovered
-                                ToolTip.delay: 450
-                                ToolTip.text: (modelData && modelData.favorite)
-                                              ? qsTr("Remove from favorites")
-                                              : qsTr("Add to favorites")
-                            }
+                            visible: cardHover.hovered || eyeHover.hovered
 
                             Rectangle {
                                 width: 28; height: 28; radius: 8
@@ -793,7 +740,6 @@ ApplicationWindow {
                                     onClicked: {
                                         if (!modelData) return
                                         if (modelData.scene) backend.toggleSceneHidden(modelData.number)
-                                        else backend.toggleHidden(String(modelData.key))
                                     }
                                 }
                                 ToolTip.visible: eyeHover.hovered

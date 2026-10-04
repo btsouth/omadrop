@@ -31,17 +31,11 @@ install_root=$scratch/root
 mkdir -p "$install_root/bin" "$HOME/.local/bin"
 cp "$product/bin/omadrop" "$install_root/bin/omadrop"
 install -m755 "$here/fixtures/fake-backend" "$install_root/bin/omadrop-milkdrop"
-install -m755 "$here/fixtures/fake-backend" "$install_root/bin/omadrop-screensaver"
-install -m755 "$here/fixtures/fake-ttfx" "$install_root/bin/ttfx-music"
-install -m755 "$here/fixtures/fake-ttfx" "$scratch/ttfx-music"
-export OMADROP_EFFECTS_BINARY=$scratch/ttfx-music
+install -m755 "$here/fixtures/fake-backend" "$install_root/bin/omadrop-osaka"
 
 mode_file=$XDG_CONFIG_HOME/omadrop/mode.conf
-preferences_file=$XDG_CONFIG_HOME/omadrop/preferences.conf
-effects_conf=$XDG_CONFIG_HOME/omadrop/effects.conf
 scenes_conf=$XDG_CONFIG_HOME/omadrop/scenes.conf
 launcher=$install_root/bin/omadrop
-effects_helper=$product/bin/omadrop-effects
 
 reset_logs() { : >"$OMADROP_TEST_BACKEND_LOG"; : >"$OMADROP_TEST_HYPR_LOG"; : >"$OMADROP_TEST_CLIENTS"; }
 fail() { echo "product test: $*" >&2; exit 1; }
@@ -93,7 +87,7 @@ grep -q '^args=$' "$OMADROP_TEST_BACKEND_LOG" || fail "default launch forwarded 
 # Selecting a mode remembers it and launches that backend.
 reset_logs
 "$launcher" --mode omarchy
-grep -q '^backend=omadrop-screensaver$' "$OMADROP_TEST_BACKEND_LOG" || fail "omarchy mode launched the wrong backend"
+grep -q '^backend=omadrop-osaka$' "$OMADROP_TEST_BACKEND_LOG" || fail "omarchy mode launched the wrong backend"
 grep -qx 'mode=omarchy' "$mode_file" || fail "mode was not remembered"
 [[ $("$launcher" --current-mode) == omarchy ]] || fail "--current-mode printed wrong mode"
 [[ $("$launcher" --mode milkdrop && "$launcher" --current-mode) == milkdrop ]] || fail "milkdrop mode was not remembered"
@@ -130,7 +124,7 @@ if "$launcher" --bogus; then fail "unknown option succeeded"; else (($? == 2)) |
 reset_logs
 printf 'mode=omarchy\n' >"$mode_file"
 "$launcher" --all
-grep -q '^backend=omadrop-screensaver$' "$OMADROP_TEST_BACKEND_LOG" || fail "--all did not use omarchy"
+grep -q '^backend=omadrop-osaka$' "$OMADROP_TEST_BACKEND_LOG" || fail "--all did not use omarchy"
 grep -q '^args=--all$' "$OMADROP_TEST_BACKEND_LOG" || fail "--all not forwarded to omarchy"
 reset_logs
 printf 'mode=milkdrop\n' >"$mode_file"
@@ -243,124 +237,5 @@ grep -qx 'mode=omarchy' "$mode_file" || fail "missing backend changed the mode"
 [[ ! -s $OMADROP_TEST_BACKEND_LOG && ! -s $OMADROP_TEST_HYPR_LOG ]] \
   || fail "missing backend stopped the current session"
 if "$launcher" --original; then fail "--original was ignored in Omarchy mode"; fi
-
-# --- Effects helper: discovery and noninteractive prefs ---------------------
-
-# Discovery reads ttfx-music --help only; it must not create state.
-[[ $("$effects_helper" --list | cut -f1 | paste -sd, -) == beams,matrix,rain,swarm ]] \
-  || fail "--list did not discover the effects"
-[[ ! -e $effects_conf ]] || fail "--list created state"
-
-# Favorites and hidden write a versioned, 600 file.
-"$effects_helper" --favorite beams >/dev/null
-grep -qx 'version=1' "$effects_conf" || fail "effects.conf has no version"
-grep -qx 'favorites=beams' "$effects_conf" || fail "--favorite did not write"
-[[ $(stat -c '%a' "$effects_conf") == 600 ]] || fail "effects.conf is not mode 600"
-"$effects_helper" --hide swarm >/dev/null
-grep -qx 'hidden=swarm' "$effects_conf" || fail "--hide did not write"
-[[ $("$effects_helper" --list | grep '^beams' | cut -f3) == favorite ]] \
-  || fail "--list did not report the favorite"
-"$effects_helper" --favorite beams >/dev/null
-grep -qx 'favorites=' "$effects_conf" || fail "--favorite did not toggle off"
-
-# Unknown effects and the last hidden effect are refused without a write.
-printf 'version=1\nfavorites=beams\nhidden=beams,matrix,rain\n' >"$effects_conf"
-chmod 600 "$effects_conf"
-if "$effects_helper" --hide swarm 2>/dev/null; then fail "hid every effect"; fi
-grep -qx 'hidden=beams,matrix,rain' "$effects_conf" || fail "all-hidden changed state"
-if "$effects_helper" --favorite bogus 2>/dev/null; then fail "unknown effect accepted"; fi
-grep -qx 'favorites=beams' "$effects_conf" || fail "unknown effect changed state"
-
-# A future version fails without clobbering the file.
-printf 'version=2\nfavorites=NULL\nhidden=\n' >"$effects_conf"
-if "$effects_helper" --favorite beams 2>/dev/null; then fail "future version accepted"; fi
-grep -qx 'favorites=NULL' "$effects_conf" || fail "future version was clobbered"
-rm -f "$effects_conf"
-
-# --- Product launcher: --effect and --preview-effect ------------------------
-
-reset_logs
-printf 'mode=milkdrop\n' >"$mode_file"
-"$launcher" --effect beams
-grep -q '^backend=omadrop-screensaver$' "$OMADROP_TEST_BACKEND_LOG" \
-  || fail "--effect did not launch the Omarchy backend"
-grep -q '^args=--effect beams$' "$OMADROP_TEST_BACKEND_LOG" \
-  || fail "--effect was not forwarded to the backend"
-grep -qx 'mode=omarchy' "$mode_file" || fail "--effect did not remember Omarchy"
-
-# Invalid selections fail before any state or session change.
-reset_logs
-printf 'mode=omarchy\n' >"$mode_file"
-if "$launcher" --effect bogus; then fail "--effect bogus succeeded"; else (($? == 2)) || fail "--effect bogus status"; fi
-if "$launcher" --effect beams --mode milkdrop; then fail "--effect with --mode milkdrop succeeded"; else (($? == 2)) || fail; fi
-if "$launcher" --preview-effect beams --mode omarchy; then fail "--preview-effect with --mode succeeded"; else (($? == 2)) || fail; fi
-grep -qx 'mode=omarchy' "$mode_file" || fail "invalid effect changed the mode"
-[[ ! -s $OMADROP_TEST_BACKEND_LOG && ! -s $OMADROP_TEST_HYPR_LOG ]] \
-  || fail "invalid effect ran side effects"
-
-# Ambiguous previews fail before touching processes or preferences.
-reset_logs
-for flags in '--effect beams' '--all' '--ascii' '--stop' '--mode omarchy' '--scene 2'; do
-  if "$launcher" --preview-effect beams $flags 2>/dev/null; then
-    fail "ambiguous preview accepted: $flags"
-  fi
-done
-[[ ! -s $OMADROP_TEST_BACKEND_LOG && ! -s $OMADROP_TEST_HYPR_LOG ]] || fail "ambiguous preview had side effects"
-
-# Preview plays one effect on one display without writing mode or display.
-reset_logs
-printf 'mode=milkdrop\n' >"$mode_file"
-printf 'version=4\ndisplay=all\n' >"$preferences_file"
-"$launcher" --preview-effect beams
-grep -q '^backend=omadrop-screensaver$' "$OMADROP_TEST_BACKEND_LOG" \
-  || fail "preview did not use the Omarchy backend"
-grep -q '^args=--single --effect beams$' "$OMADROP_TEST_BACKEND_LOG" \
-  || fail "preview did not request a single-display effect"
-grep -q '^persist=0$' "$OMADROP_TEST_BACKEND_LOG" || fail "preview would persist the display"
-grep -qx 'mode=milkdrop' "$mode_file" || fail "preview changed the remembered mode"
-grep -qx 'display=all' "$preferences_file" || fail "preview changed the display choice"
-[[ ! -s $OMADROP_TEST_HYPR_LOG ]] || fail "preview stopped a running session"
-
-# A preview replaces our current screensaver, leaving the stock class alone.
-reset_logs
-screensaver_running
-"$launcher" --preview-effect beams
-grep -q "pid:99999999" "$OMADROP_TEST_HYPR_LOG" || fail "preview did not stop our screensaver"
-if grep -q "pid:99999998" "$OMADROP_TEST_HYPR_LOG"; then fail "preview stopped stock screensaver"; fi
-reset_logs
-
-# --- Screensaver launcher: --effect through the compositor exec -------------
-
-saver_src=$product/bin/omadrop-screensaver
-saver_dir=$scratch/saver
-stub_dir=$scratch/stubs
-mkdir -p "$saver_dir" "$stub_dir"
-cp "$saver_src" "$saver_dir/omadrop-screensaver"
-install -m755 "$here/fixtures/fake-ttfx" "$saver_dir/ttfx-music"
-ln -sfn "$here/fixtures/fake-hyprctl" "$stub_dir/hyprctl"
-printf '#!/bin/sh\necho MON1\n' >"$stub_dir/omarchy-hyprland-monitor-focused"
-printf '#!/bin/sh\necho ghostty\n' >"$stub_dir/xdg-terminal-exec"
-printf '#!/bin/sh\nexit 0\n' >"$stub_dir/socat"
-printf '#!/bin/sh\nexit 1\n' >"$stub_dir/pgrep"
-chmod +x "$stub_dir/omarchy-hyprland-monitor-focused" "$stub_dir/xdg-terminal-exec" \
-  "$stub_dir/socat" "$stub_dir/pgrep"
-
-: >"$scratch/saver-hypr.log"
-PATH="$stub_dir:$PATH" OMADROP_TEST_HYPR_LOG=$scratch/saver-hypr.log \
-  "$saver_dir/omadrop-screensaver" --effect beams
-grep -q 'OMADROP_EFFECT=beams' "$scratch/saver-hypr.log" \
-  || fail "--effect was not injected into the compositor exec"
-grep -q 'omadrop-screensaver-run' "$scratch/saver-hypr.log" \
-  || fail "the runner was not launched with the effect"
-
-invalid_log=$scratch/saver-invalid-hypr.log
-: >"$invalid_log"
-if PATH="$stub_dir:$PATH" OMADROP_TEST_HYPR_LOG=$invalid_log \
-    "$saver_dir/omadrop-screensaver" --effect bogus 2>/dev/null; then
-  fail "the screensaver launcher accepted an unknown effect"
-else
-  (($? == 2)) || fail "the screensaver launcher used the wrong status"
-fi
-[[ ! -s $invalid_log ]] || fail "an invalid effect opened a session"
 
 echo "product launcher: all checks passed"

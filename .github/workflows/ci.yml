@@ -16,7 +16,7 @@ jobs:
         shell: bash
     steps:
       - name: Install test dependencies
-        run: pacman -Syu --noconfirm --needed base-devel git python jq qt6-base qt6-declarative rust
+        run: pacman -Syu --noconfirm --needed base-devel git python jq qt6-base qt6-declarative fftw cmake
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
@@ -36,10 +36,11 @@ jobs:
       - name: Product tests
         run: |
           bash tests/product/product-test
-          python3 tests/product/preferences-test.py
       - name: Controller tests
         working-directory: app
         run: bash tests/run-tests.sh
-      - name: ttfx tests
-        working-directory: screensaver/ttfx
-        run: cargo test --locked
+      - name: Osaka tests
+        run: |
+          cmake -S experiments/osaka-live/tests -B /tmp/osaka-tests
+          cmake --build /tmp/osaka-tests -j2
+          ctest --test-dir /tmp/osaka-tests --output-on-failure

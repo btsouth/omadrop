@@ -33,7 +33,7 @@ if git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 else
   tar --exclude='./.git' --exclude='./cache' --exclude='./dist' \
     --exclude='./lib' --exclude='./presets/pilot' --exclude='./presets/pilot.txt' \
-    --exclude='./screensaver/ttfx/target' --exclude='./app/build' \
+    --exclude='./experiments/osaka-live/build*' --exclude='./app/build' \
     --exclude='./site/node_modules' --exclude='./site/dist' --exclude='./site/.astro' \
     --exclude='./.github' --exclude='./packaging/omadrop-*.tar.gz' \
     --exclude='./packaging/*.pkg.tar.*' --exclude='./packaging/src' --exclude='./packaging/pkg' \

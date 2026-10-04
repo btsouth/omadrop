@@ -4,6 +4,9 @@
 #include "preview.h"
 #include <QCoreApplication>
 #include <QGuiApplication>
+#include <QScreen>
+#include <QSettings>
+#include <QStandardPaths>
 #include <QCommandLineParser>
 #include <QElapsedTimer>
 #include <QFile>
@@ -32,7 +35,8 @@ int main(int argc,char** argv) {
     QCommandLineParser parser;
     parser.setApplicationDescription("Osaka Jade live milestone. Existing system capture; no file analysis or film chapters.");
     parser.addHelpOption();
-    parser.addOptions({{"record","Real-time headless capture to MP4.","path"},
+    parser.addOptions({{"single","Play on one display and remember the choice."},
+        {"all","Play on every display and remember the choice."},{"record","Real-time headless capture to MP4.","path"},
         {"probe","Measure streaming response without rendering."},
         {"bench","Measure rendering without encoding or framebuffer readback."},
         {"uncapped","Run a bounded throughput benchmark without frame pacing."},
@@ -56,8 +60,31 @@ int main(int argc,char** argv) {
         OsakaItem::session=&session;
         qmlRegisterType<OsakaItem>("Osaka",1,0,"OsakaItem");
         QQmlApplicationEngine engine;
-        engine.load(QUrl(QStringLiteral("qrc:/Main.qml")));
-        if(engine.rootObjects().isEmpty()) return 1;
+        const QString config=QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
+        QSettings preferences(config+"/omadrop/preferences.conf",QSettings::IniFormat);
+        QString display=preferences.value("display","all").toString();
+        if(parser.isSet("single")) display="single";
+        if(parser.isSet("all")) display="all";
+        // Preserve MilkDrop's forward-version guard when saving display choice.
+        if((parser.isSet("single") || parser.isSet("all"))
+            && preferences.value("version",0).toInt()<=4) {
+            preferences.setValue("version",4); preferences.setValue("display",display);
+            preferences.sync();
+        }
+        QGuiApplication::setDesktopFileName(qEnvironmentVariable("OMADROP_SCREENSAVER_CLASS",
+                                                                "org.omadrop.screensaver"));
+        const auto screens=QGuiApplication::screens();
+        const int count=display=="single"?std::min(1,int(screens.size())):int(screens.size());
+        for(int i=0;i<count;++i) {
+            engine.load(QUrl(QStringLiteral("qrc:/Main.qml")));
+            if(engine.rootObjects().size()!=i+1) return 1;
+            auto* window=qobject_cast<QQuickWindow*>(engine.rootObjects().back());
+            if(!window) return 1;
+            window->setScreen(screens[i]);
+            window->setPosition(screens[i]->geometry().topLeft());
+            window->showFullScreen();
+        }
+        if(!count) return 1;
         if(parser.isSet("seconds")) QTimer::singleShot(int(seconds*1000),app.get(),&QCoreApplication::quit);
         return app->exec();
     }
