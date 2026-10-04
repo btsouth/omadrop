@@ -63,11 +63,16 @@ void calmSea(Ctx& c,bool aftermath) {
 
 // One continuous support field supplies both the printed crests and boats.
 // Depth controls scale; integrated band energy supplies the existing flow.
+double printDrift(const Ctx& c,double z) {
+    if(!c.score)return 0;
+    const double role=(1-z)*5;
+    const int lo=std::min(4,int(role));
+    return .95*lerp(c.score->integral(lo,c.t),c.score->integral(lo+1,c.t),role-lo);
+}
 double printLift(const Ctx& c,double x,double y) {
     const double z=clamp01((y-614)/500),age=c.t-(kanagawaBreak(c).t+.60);
-    const int band=std::clamp(int((1-z)*5),0,5);
-    const double drift=c.score?.95*c.score->integral(band,c.t):0;
-    const double pull=sstep(54,65.3,c.t)*(1-sstep(65.3,67.3,c.t));
+    const double drift=printDrift(c,z);
+    const double pull=(sstep(54,65.3,c.t)+3*sstep(61.5,65.3,c.t))*(1-sstep(65.3,67.3,c.t));
     const double a=x/(55+115*z)-c.t*.52-drift+z*6+pull*1.1;
     const double churn=age>0?22*z*std::exp(-age*.30)*std::sin(x*.014-age*3.3+z*9):0;
     return (7+83*std::pow(z,1.15))*(std::sin(a)+.23*std::sin(a*2.1+.6))+churn;
@@ -85,10 +90,9 @@ void printSea(Ctx& c,double opacity) {
         cv.moveTo(-30,1140);for(V2 q:crest)cv.lineTo(q.x,q.y);cv.lineTo(2000,1140);cv.closePath();cv.fill();
         cv.polyline(crest,1.2+1.5*z,hex(0x143154),.9);
         // Broken foam is rooted on the high side of a moving swell.
-        const int band=std::clamp(int((1-clamp01((y-614)/500))*5),0,5);
-        const double drift=c.score?.95*c.score->integral(band,c.t):0;
+        const double drift=printDrift(c,clamp01((y-614)/500));
         const double depth=clamp01((y-614)/500),waveScale=55+115*depth;
-        const double pull=sstep(54,65.3,c.t)*(1-sstep(65.3,67.3,c.t));
+        const double pull=(sstep(54,65.3,c.t)+3*sstep(61.5,65.3,c.t))*(1-sstep(65.3,67.3,c.t));
         for(int k=-8;k<12;++k) {
             const double middle=(-Pi/2+2*Pi*k+c.t*.52+drift-depth*6-pull*1.1)*waveScale;
             if(middle<-200 || middle>2100)continue;
