@@ -112,18 +112,24 @@ struct StreamingAudio::Impl {
     Audio current;
     std::array<float, hop * 2> pending{};
     int used = 0;
-    double gain = 1, reference = 0.02, rms = 0;
+    double gain = 1, reference = 0.02, rms = 0, listening = 0;
     void analyze() {
         std::array<std::array<float, hop * 2>, 2> mono{};
         double power = 0;
+        for (float v : pending) power += double(v)*v;
+        rms = std::sqrt(power / (hop * 2));
+        // Capture level follows each machine's player and output volume, often
+        // 30 dB below a loud master, which starves the absolute bass and surge
+        // thresholds. Lift a quiet listening level, never cut, hold in silence.
+        if (rms > 0.001) listening = listening > 0 ? smooth(listening, rms, step, 0.3, 12.0) : rms;
+        const float lift = listening > 0 ? float(std::clamp(0.35 / listening, 1.0, 40.0)) : 1.0f;
+        for (float& v : pending) v *= lift;
         for (int i = 0; i < hop; ++i) {
             for (int ch = 0; ch < 2; ++ch) {
                 const float v = pending[2*i + ch];
                 mono[ch][2*i] = mono[ch][2*i+1] = v;
-                power += double(v)*v;
             }
         }
-        rms = std::sqrt(power / (hop * 2));
         current.preGainLevel = smooth(current.preGainLevel, rms, step, 3.0, 3.0);
         const auto& l = left.processStereo(mono[0].data(), hop);
         const auto& r = right.processStereo(mono[1].data(), hop);
@@ -141,6 +147,7 @@ struct StreamingAudio::Impl {
         }
         const double bass = std::sqrt((double(l.bassBody)*l.bassBody + double(r.bassBody)*r.bassBody)*0.5)*audible;
         current.bass = smooth(current.bass, std::clamp(bass, 0.0, 1.0), step);
+        current.bassLevel = smooth(current.bassLevel, current.bass, step, 3.0, 3.0);
         const double impact = std::max({double(l.kickImpact),double(l.snareImpact),double(l.hatImpact),
             double(r.kickImpact),double(r.snareImpact),double(r.hatImpact)}) / 1.35 * audible;
         current.accent = smooth(current.accent, std::clamp(impact,0.0,1.0), step, 0.025,0.13);

@@ -34,6 +34,14 @@ int main() {
         require(std::abs(small[k].bands[b]-large[k].bands[b])<1e-12,"chunking changed causal bands");
     require(small[180].bands[1]>0.05,"opposite-phase stereo erased music");
     for(double b:small.back().bands) require(b<0.001,"silence did not release bands");
+    // Music at a measured desktop capture level (RMS about .006) keeps its bass
+    // body for hits and shows.
+    std::vector<float> softPcm(pcm);
+    for(float& v:softPcm) v/=8;
+    const auto lifted=analyze(softPcm,4096);
+    double peakLoud=0,peakQuiet=0;
+    for(std::size_t k=0;k<large.size();++k) { peakLoud=std::max(peakLoud,large[k].bass); peakQuiet=std::max(peakQuiet,lifted[k].bass); }
+    require(peakQuiet>0.5*peakLoud,"quiet playback starved the bass body");
     std::vector<float> prefix(pcm.begin(),pcm.begin()+rate*2*2);
     const auto before=analyze(prefix,4096);
     for(std::size_t k=0;k<before.size();++k) {
@@ -50,7 +58,7 @@ int main() {
     for(int k=0;k<8*3600*60;++k) {
         const double t=k/60.0;
         Audio a;
-        a.preGainLevel=0.112;
+        a.bassLevel=0.35;
         if(k<3600 || k>=7200) {
             for(int b=0;b<6;++b) a.bands[b]=0.15+0.12*std::sin(t*(1.5+b*0.17));
             a.bass=0.25+0.20*std::sin(t*6.5);
@@ -76,26 +84,26 @@ int main() {
     // Strong measured events remain required, even for loud material.
     // Gymnopedie gets one small shell and cannot add follow-ups; Sneaky and
     // Volatile keep the full authored show. Test the latched show separately.
-    for(double level:{0.066,0.112,0.375}) {
+    for(double level:{0.12,0.35,0.6}) {
         Schedule shows(1); Score events; Audio a;
-        a.bands.fill(0.2); a.preGainLevel=level;
+        a.bands.fill(0.2); a.bassLevel=level;
         for(int k=0;k<300;++k) {
             const double t=10+k/60.0;
             events.onsets.push_back({t,0.8,std::uint64_t(k+1)});
             shows.advance(t,a,events);
-            require(shows.fullFireworkShow==(level>=0.09),"pre-gain show gate failed");
-            if(level<0.09) require(shows.finale.empty(),"quiet input produced a volley");
+            require(shows.fullFireworkShow==(level>=0.25),"bass show gate failed");
+            if(level<0.25) require(shows.finale.empty(),"quiet input produced a volley");
         }
         require(shows.fireworks==10,"show restarted inside cooldown");
-        if(level>=0.09) require(!shows.finale.empty(),"loud show lost follow-ups");
+        if(level>=0.25) require(!shows.finale.empty(),"loud show lost follow-ups");
     }
     for(bool initialFull:{false,true}) for(bool nextFull:{false,true}) {
         Schedule shows(1); Score events; Audio a;
-        a.bands.fill(0.2); a.preGainLevel=initialFull?0.375:0.066;
+        a.bands.fill(0.2); a.bassLevel=initialFull?0.6:0.12;
         events.onsets.push_back({10,0.8,1}); shows.advance(10,a,events);
         require(shows.fireworkReady>=55 && shows.fireworkReady<=100,"quiet cooldown range failed");
         if(!initialFull) require(shows.fullFireworkReady>=28 && shows.fullFireworkReady<=35,"full cooldown range failed");
-        a.preGainLevel=nextFull?0.375:0.066;
+        a.bassLevel=nextFull?0.6:0.12;
         events.onsets.push_back({40,0.8,2}); shows.advance(40,a,events);
         require(shows.fireworks==(!initialFull && nextFull?40:10),"separate show cooldown failed");
         if(!initialFull && nextFull) require(shows.fullFireworkShow,"quiet then loud lost full show");

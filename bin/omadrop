@@ -95,6 +95,17 @@ omarchy_running() {
   [[ -n $(screensaver_pids) ]]
 }
 
+# Hyprland gives a newly mapped window pointer focus only once the pointer
+# moves, so a renderer's hidden cursor stays drawn until then. Warp the pointer
+# to where it already is.
+settle_pointer() {
+  local position
+  position=$("$hyprctl_command" cursorpos 2>/dev/null) || return 0
+  [[ $position =~ ^(-?[0-9]+),\ (-?[0-9]+)$ ]] || return 0
+  "$hyprctl_command" eval "hl.dispatch(hl.dsp.cursor.move({ x = ${BASH_REMATCH[1]}, y = ${BASH_REMATCH[2]} }))" \
+    >/dev/null 2>&1 || true
+}
+
 stop_omarchy() {
   local pid attempt
   while read -r pid; do
@@ -245,7 +256,19 @@ case $target_mode in
     ;;
   omarchy)
     require_backend "$omarchy_backend"
-    exec "$omarchy_backend" "${display_args[@]}"
+    "$omarchy_backend" "${display_args[@]}" &
+    world=$!
+    trap 'kill -TERM "$world" 2>/dev/null' TERM INT HUP
+    for ((attempt = 0; attempt < 250; attempt++)); do
+      if "$hyprctl_command" clients -j 2>/dev/null | jq -e --arg class "$screensaver_class" \
+        'any(.[]; .class == $class and .fullscreen != 0)' >/dev/null 2>&1; then
+        settle_pointer
+        break
+      fi
+      kill -0 "$world" 2>/dev/null || break
+      sleep 0.02
+    done
+    wait "$world"
     ;;
   *) die "unknown mode: $target_mode" ;;
 esac

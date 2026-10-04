@@ -123,7 +123,8 @@ double paneLevel(const Ctx& c, const Life& L, double onTime, int band, V2 centre
     if (on <= 0) return 0;
     // Absolute level keeps the room warm; the relative lift makes each pane
     // visibly answer its own frequency role in dense mixes.
-    double level = on * (0.74 - 0.20 * L.hush + 0.30 * c.band(band) + 0.62 * c.lift(band));
+    // A shared bass kick lets the whole town blink together on the beat.
+    double level = on * (0.74 - 0.20 * L.hush + 0.30 * c.band(band) + 0.62 * c.lift(band) + 0.22 * c.kick(6));
     for (const Shell& sh : L.shells) {
         const double arrive = sh.burst + (centre - sh.at).len() / 1500.0;
         if (c.t > arrive) level += 1.1 * sh.size * sh.strength * std::exp(-(c.t - arrive) * 3.2) * on;
@@ -1521,7 +1522,8 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
         // Bound the continuous core, not the travelling band accents. A drop
         // must not turn a whole conductor into an opaque white stroke.
         const double lift = c.lift(i);
-        double hum = (0.035 + 0.11 * c.band(i) + 0.26 * lift) / (1 + 0.7 * lift) * alpha * (far ? 0.20 : 1.0);
+        const double thump = (i < 2 ? 0.14 : 0.06) * c.kick(7);
+        double hum = (0.035 + 0.11 * c.band(i) + 0.26 * lift + thump) / (1 + 0.7 * lift) * alpha * (far ? 0.20 : 1.0);
         double width = 1.25 + 0.35 * clamp01(lift);
         // Retain the established quay-to-water instrument as it enters view.
         // The house/moon span and diagonal valley bundle remain restrained.
@@ -2110,7 +2112,8 @@ void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain, co
         d.col = d.col2 = mix(CREAM, hex(0xe2703a), s.moonWarm) * float(1.22 * rise);
         d.halo = Col(0.55f, 0.95f, 0.74f) * float(rise);
         d.ring = CREAM;
-        d.energy = (0.35 + 0.6 * c.a.bass + 0.2 * c.a.surge) * rise;
+        // The halo swells on each bass hit as well as with the bass body.
+        d.energy = (0.35 + 0.6 * c.a.bass + 0.2 * c.a.surge + 0.5 * c.kick(6)) * rise;
         drawDisc(c, d, s.cam);
     }
     if (hooks && hooks->mountain) hooks->mountain();

@@ -9,5 +9,14 @@ Window {
     color: "black"
     title: "Omadrop Osaka Jade"
     OsakaItem { anchors.fill: parent }
+    // Hide the pointer over the world unless it has moved recently.
+    MouseArea {
+        anchors.fill: parent
+        hoverEnabled: true
+        acceptedButtons: Qt.NoButton
+        cursorShape: pointerMoved.running ? Qt.ArrowCursor : Qt.BlankCursor
+        onPositionChanged: pointerMoved.restart()
+        Timer { id: pointerMoved; interval: 1500 }
+    }
     Shortcut { sequence: "Escape"; context: Qt.ApplicationShortcut; onActivated: Qt.quit() }
 }
