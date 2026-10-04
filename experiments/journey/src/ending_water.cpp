@@ -74,14 +74,17 @@ void tendril(Canvas& cv,V2 root,double angle,double length,double width,double t
 
 void studyWave(Ctx& c,double growth) {
     // Low, broad gathering mass evolves into a thick hollow breaker.
-    const double release=kanagawaBreak(c).t, plunge=std::max(0.0,(c.t-release)/.60);
+    const double impactAt=kanagawaBreak(c).t+.60;
+    const double release=impactAt-.90, plunge=std::max(0.0,(c.t-release)/.90);
+    // Continuous acceleration carries the lip into the hit. It keeps moving
+    // through contact, instead of rushing a quadratic fall in the last .6 s.
+    const double forward=620*plunge*plunge/(plunge*plunge+.75);
+    const double fall=850*plunge*plunge/(plunge+.65);
     const double pressure=c.score ? (c.score->integral(0,c.t)-c.score->integral(0,c.t-.9))/.9 : 0;
     const double sx=lerp(.62,1.0,growth),sy=lerp(.035,1.0,growth),dx=lerp(-520,0,growth);
     auto map=[&](V2 p) {
         const double crest=1-sstep(580,1080,p.y),lip=sstep(540,1040,p.x)*crest;
         const double bend=30*std::sin((c.t-51)*.33)*growth*crest;
-        const double forward=470*std::pow(std::min(1.4,plunge),1.65);
-        const double fall=320*std::pow(std::min(2.4,plunge),2.0);
         return V2(p.x*sx+dx+bend+forward*lip,
             1080+(p.y-1080)*sy-140*pressure*crest*growth+fall*crest);
     };
@@ -127,7 +130,8 @@ void studyWave(Ctx& c,double growth) {
         const double f=.06+band*.145+.085*std::sin(clock*5.8+c.t*.7+band);
         flow.color(mix(blue,teal,.40+.08*band),.12+.95*c.lift(band)+.30*c.hit(4));
         stream(f);flow.stroke(38+16*c.band(band));
-        flow.color(teal,.2+.24*c.lift(band));stream(f+.013);flow.stroke(3.1);
+        flow.color(mix(teal,cream,.16),.2+.36*c.lift(band)+.18*c.hit(5));
+        stream(f+.013);flow.stroke(3.1+2.2*c.lift(band));
     }
     for(int line=0;line<64;++line) {
         const int band=line%6;
@@ -162,7 +166,9 @@ void studyWave(Ctx& c,double growth) {
         polyfill(foam,band,cream);
         // Unequal clusters: rounded curling limbs rooted in the cream sheet.
         for(int k=0;k<(seg==0?4:8);++k) {
-            const double u=(k+.3)/(seg==0?4:8),ang=std::atan2(q.tangent(u).y,q.tangent(u).x);
+            const double u=(k+.3)/(seg==0?4:8);
+            const V2 tangent=map(q.at(std::min(1.0,u+.005)))-map(q.at(std::max(0.0,u-.005)));
+            const double ang=std::atan2(tangent.y,tangent.x);
             const V2 root=map(q.at(u));
             const double len=(55+95*hash2(k,seg+30))*(.05+.95*growth)*(1+.25*c.hit(4));
             for(int branch=0;branch<3;++branch) {
@@ -187,10 +193,24 @@ void studyWave(Ctx& c,double growth) {
     for(int k=0;k<8;++k) {
         const double u=(k+.25)/8;
         const V2 q=map(crown[1].at(u));
-        const double ang=std::atan2(crown[1].tangent(u).y,crown[1].tangent(u).x);
+        const V2 tangent=map(crown[1].at(u+.005))-map(crown[1].at(std::max(0.0,u-.005)));
+        const double ang=std::atan2(tangent.y,tangent.x);
         tendril(foam,q,ang-.9,25+30*hash2(k,82),5+4*hash2(k,83),-1.8,cream,.94);
     }
-    c.gpu.over(foam,float(1+.32*c.hit(5)));
+    // Foam follows the same waterline feather as the face. The remaining
+    // crest breaks into the existing impact spray rather than blinking out.
+    const int foamLayer=c.gpu.layer(foam);
+    Program& feather=c.gpu.effect("directionFoamFoot",R"(
+        uniform sampler2D u_tex;
+        uniform float u_gain,u_clear;
+        void main(){o=texture(u_tex,v_uv)*u_gain*u_clear*
+            (1.0-smoothstep(955.0,1090.0,design().y));}
+    )");
+    c.gpu.pass(feather,Blend::Over,[&](Program& p){
+        c.gpu.bindTexture(0,foamLayer,p,"u_tex");
+        p.set("u_gain",float(1+.40*c.hit(5)));
+        p.set("u_clear",float(1-sstep(impactAt+.25,impactAt+.65,c.t)));
+    });
     Canvas& spray=c.canvas();
     for(int i=0;i<95;++i) {
         const double u=hash2(i,64),a=.25+.55*u;
@@ -200,7 +220,7 @@ void studyWave(Ctx& c,double growth) {
         const V2 p=source+V2(-dist*.72,-dist*.60-15*hash2(i,69));
         spray.line(p.x,p.y,p.x+speed,p.y+speed*.44,.6+hash2(i,65),cream,(.15+.7*c.hit(4))*(1-phase)*growth);
     }
-    c.gpu.over(spray);
+    c.gpu.over(spray,1,0,float(1-sstep(impactAt+.25,impactAt+.65,c.t)));
 }
 
 void studyBoat(Ctx& c,V2 at,double scale,double tilt,bool bearer,bool rescue=false) {
@@ -418,9 +438,29 @@ void drawEndingBearer(Ctx& c) {
         c.gpu.over(light,1.3);c.gpu.add(light,.2,8);
     }
 }
+// One wind-driven summit event, confined to the ending chapter. The snow
+// stays attached to Fuji and thins into long wisps instead of particle dots.
+void endingSummitWind(Ctx& c) {
+    double accent=58.6,strength=0;
+    if(c.score)for(const auto& e:c.score->onsets)
+        if(e.t>=57 && e.t<=60 && e.strength>strength){accent=e.t;strength=e.strength;}
+    const double age=c.t-accent;
+    if(age<-.35 || age>2.1)return;
+    const double visibility=sstep(-.35,.12,age)*(1-sstep(1.15,2.1,age));
+    Canvas& cv=c.canvas();
+    for(int j=0;j<7;++j) {
+        const double y=477+j*2.4,travel=std::max(0.0,age)*(24+5*j);
+        cv.color(cream,visibility*(.17-.015*j));
+        cv.moveTo(1085+j*2,y);
+        cv.curveTo(1107+travel*.35,y-8-j,1131+travel*.75,y-7-j,1150+travel,y-2-j);
+        cv.stroke(1.1+.35*j);
+    }
+    c.gpu.over(cv);
+}
+
 void drawJourneyEnding(Ctx& c) {
     c.cameraX=0;
-    kanagawaSky(c);kanagawaSun(c);kanagawaFuji(c,1);
+    kanagawaSky(c);kanagawaSun(c);kanagawaFuji(c,1);endingSummitWind(c);
     drawEndingWater(c);
     drawEndingRoad(c);
     drawEndingBearer(c);
