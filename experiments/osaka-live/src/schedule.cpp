@@ -34,12 +34,13 @@ void Schedule::advance(double t,const Audio& a,const Score& score) {
         }
     }
     const bool strong=trigger && trigger->strength>=0.55 && energy>=0.035;
-    if(strong && t>=fireworkReady) {
+    if(strong && t>=(a.preGainLevel>=0.09 ? fullFireworkReady : fireworkReady)) {
         fireworks=t; fireworkStrength=trigger->strength;
         // Fixture RMS means: Gymnopedie .066, Sneaky .112, Volatile .375.
         // .09 separates quiet music from a full show; latch for the volley.
         fullFireworkShow=a.preGainLevel>=0.09;
         fireworkReady=t+varied(90,++fireworksCount_,45,90);
+        fullFireworkReady=fullFireworkShow ? fireworkReady : t+varied(91,fireworksCount_,18,25);
         finale.clear();
         // Birds have time to scatter and leave before returning independently.
         for(int i=0;i<15;++i) birdReturn[i]=t+varied(100+i,fireworksCount_,13,24);

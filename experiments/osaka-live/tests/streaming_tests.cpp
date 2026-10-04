@@ -88,6 +88,17 @@ int main() {
         require(shows.fireworks==10,"show restarted inside cooldown");
         if(level>=0.09) require(!shows.finale.empty(),"loud show lost follow-ups");
     }
+    for(bool initialFull:{false,true}) for(bool nextFull:{false,true}) {
+        Schedule shows(1); Score events; Audio a;
+        a.bands.fill(0.2); a.preGainLevel=initialFull?0.375:0.066;
+        events.onsets.push_back({10,0.8,1}); shows.advance(10,a,events);
+        require(shows.fireworkReady>=55 && shows.fireworkReady<=100,"quiet cooldown range failed");
+        if(!initialFull) require(shows.fullFireworkReady>=28 && shows.fullFireworkReady<=35,"full cooldown range failed");
+        a.preGainLevel=nextFull?0.375:0.066;
+        events.onsets.push_back({40,0.8,2}); shows.advance(40,a,events);
+        require(shows.fireworks==(!initialFull && nextFull?40:10),"separate show cooldown failed");
+        if(!initialFull && nextFull) require(shows.fullFireworkShow,"quiet then loud lost full show");
+    }
     // Shared gain must not enter the independent pre-gain level measurement.
     require(small[180].preGainLevel==large[180].preGainLevel,"chunking changed pre-gain level");
     Schedule silent(7); Score quiet;

@@ -19,7 +19,7 @@ struct Schedule {
     double pane(double now,double key) const;
     std::array<Recurrence,int(Moment::Count)> moments{};
     std::array<double,15> birdLand{}, birdReturn{};
-    double fireworks=-1, fireworkStrength=0, fireworkReady=10;
+    double fireworks=-1, fireworkStrength=0, fireworkReady=10, fullFireworkReady=10;
     bool fullFireworkShow = true;
     std::deque<Event> finale;
 private:
