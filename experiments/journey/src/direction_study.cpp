@@ -21,9 +21,6 @@ struct Cubic {
     }
 };
 V2 unit(V2 p) {return p*(1/std::max(.001,p.len()));}
-void path(Canvas& cv,const Cubic& p) {
-    cv.moveTo(p.a.x,p.a.y);cv.curveTo(p.b.x,p.b.y,p.c.x,p.c.y,p.d.x,p.d.y);
-}
 void polyfill(Canvas& cv,const std::vector<V2>& p,Col col,double alpha=1) {
     if(p.empty())return;
     cv.color(col,alpha);cv.moveTo(p[0].x,p[0].y);
@@ -88,33 +85,29 @@ void studyWave(Ctx& c,double growth) {
     const int mask=c.gpu.layer(body);c.gpu.over(body);
     Canvas& flow=c.canvas();
     flow.save();flow.translate(dx,1080);flow.scale(sx,sy);flow.translate(0,-1080);
-    // Sparse broad tonal planes establish volume, never six uniform stripes.
-    for(int k=0;k<7;++k) {
-        const double a=k/6.0;
-        flow.color(mix(blue,teal,.3),.055+.055*hash2(k,18));
-        flow.moveTo(-110+a*1000,1150);
-        flow.curveTo(-80+a*590,745,-85+a*550,290,280+a*510,205+a*128);
-        flow.curveTo(550+a*185,20+a*235,920-a*60,175+a*90,1045-a*48,420+a*88);
-        flow.curveTo(990-a*60,400+a*30,875-a*35,350+a*32,810-a*20,430+a*18);
-        flow.curveTo(600+a*55,580,880+a*50,920,1450,1100);
-        flow.lineTo(-110+a*1000,1150);flow.closePath();flow.fill();
+    // Nested material curves share one family of flow coordinates. Their
+    // order stays intact through the curl, so no spirograph crossings form.
+    auto stream=[&](double f) {
+        flow.moveTo(-155+f*1540,1120);
+        flow.curveTo(-230+f*1170,825,-145+f*700,245+f*325,240+f*475,158+f*306);
+        flow.curveTo(480+f*200,-1+f*456,840-f*58,81+f*350,993-f*88,280+f*244);
+        flow.curveTo(1090-f*134,386+f*182,1096-f*210,485+f*104,1017-f*190,536+f*106);
+    };
+    // Thick shoulder shadow and inner-barrel light describe water's volume.
+    flow.radial(460,400,680,{{0,hex(0x233856),.55f},{.6f,navy,.18f},{1,navy,0}});
+    flow.rect(-200,0,1600,1120);flow.fill();
+    flow.radial(870,534,245,{{0,teal,.40f},{.6f,blue,.14f},{1,blue,0}});
+    flow.rect(420,250,900,750);flow.fill();
+    for(int line=0;line<64;++line) {
+        const double f=(line+.15*hash2(line,17))/64.0;
+        flow.color(mix(teal,cream,line%12==0?.35:.02),.11+.20*hash2(line,16));
+        stream(f);flow.stroke(line%12==0?2.1:.55+hash2(line,13)*.7);
     }
-    for(int line=0;line<92;++line) {
-        const double f=(line+.22*hash2(line,17))/92.0;
-        const double x=-230+f*1130;
-        flow.color(mix(teal,cream,line%11==0?.46:.02),(.13+.27*hash2(line,16))*(line%9==0?1:.65));
-        flow.moveTo(x,1140);
-        flow.curveTo(-160+f*770,730,-95+f*640,250+f*62,260+f*560,172+f*178);
-        flow.curveTo(530+f*220,25+f*247,930-f*35,155+f*105,1045-f*70,392+f*92);
-        flow.stroke(line%13==0?2.4:.65+hash2(line,13)*.85);
-    }
-    // Long face lace bends with the body instead of crossing it as scratches.
-    for(int line=0;line<19;++line) {
-        const double f=line/18.0;
-        flow.color(cream,.14+.12*hash2(line,22));
-        flow.moveTo(-60+f*810,1130);
-        flow.curveTo(-70+f*600,800,30+f*380,310,335+f*380,260+f*110);
-        flow.curveTo(540+f*120,155+f*95,805+f*130,240+f*90,920+f*60,430+f*85);flow.stroke(.9);
+    // Broken flowing lace on the face. It follows these same curves and is
+    // concentrated beside foam rather than covering the whole face.
+    for(int line=0;line<12;++line) {
+        const double f=(line+.5)/29.0;
+        flow.color(cream,.12+.12*hash2(line,22));stream(f);flow.stroke(.8);
     }
     flow.restore();
     const int details=c.gpu.layer(flow);
@@ -130,33 +123,40 @@ void studyWave(Ctx& c,double growth) {
         const Cubic& q=crown[seg];std::vector<V2> rim,inside;
         for(int j=0;j<=90;++j) {
             const double u=j/90.0;V2 n=unit(q.tangent(u));n={-n.y,n.x};
-            const double w=(seg==0?18:30)*(1+.18*noise1(u*22,seg+10))*(.45+.55*growth);
+            const double w=(seg==0?17:35)*(1+.45*fbm1(u*17,seg+10))*(.45+.55*growth);
             rim.push_back(map(q.at(u)-n*(5+6*noise1(u*20,seg))));inside.push_back(map(q.at(u)+n*w));
         }
         auto band=rim;for(auto it=inside.rbegin();it!=inside.rend();++it)band.push_back(*it);
         polyfill(foam,band,cream);
         // Unequal clusters: rounded curling limbs rooted in the cream sheet.
-        for(int k=0;k<(seg==0?5:13);++k) {
-            const double u=(k+.3)/(seg==0?5:13),ang=std::atan2(q.tangent(u).y,q.tangent(u).x);
+        for(int k=0;k<(seg==0?4:8);++k) {
+            const double u=(k+.3)/(seg==0?4:8),ang=std::atan2(q.tangent(u).y,q.tangent(u).x);
             const V2 root=map(q.at(u));
-            const double len=(28+62*hash2(k,seg+30))*(.6+.4*growth);
+            const double len=(55+95*hash2(k,seg+30))*(.55+.45*growth);
             for(int branch=0;branch<3;++branch) {
-                const double a=ang+.65+branch*.34,ln=len*(.68+.16*branch),w=6+5*hash2(k*3+branch,seg);
+                const double a=ang+.95+branch*.37,ln=len*(.64+.19*branch),w=10+10*hash2(k*3+branch,seg);
                 const V2 start=root+V2(std::cos(ang),std::sin(ang))*(branch-1)*8;
-                tendril(foam,start+V2(2,4),a,ln+4,w+2,1.9,blue,.9);
-                tendril(foam,start,a,ln,w,2.25,cream,1);
+                const double curl=1.05+1.3*hash2(k*3+branch,seg+77);
+                tendril(foam,start+V2(3,5),a,ln+5,w+3,curl,blue,.9);
+                tendril(foam,start,a,ln,w,curl+.1,cream,1);
                 const V2 fork=start+V2(std::cos(a+.20),std::sin(a+.20))*ln*.52;
                 tendril(foam,fork,a-.65,ln*.48,w*.35,-1.95,cream,1);
                 if(branch==1)tendril(foam,fork,a+.55,ln*.4,w*.31,2.45,cream,1);
             }
         }
         // Blue cavities in the foam read as lace rather than outlined beads.
-        for(int k=0;k<38;++k) {
-            const double u=(k+.5)/38;V2 n=unit(q.tangent(u));n={-n.y,n.x};
+        for(int k=0;k<68;++k) {
+            const double u=(k+.5)/68;V2 n=unit(q.tangent(u));n={-n.y,n.x};
             const V2 p=map(q.at(u)+n*(7+16*hash2(k,seg+90)));
             const double a=std::atan2(n.y,n.x)+.7;
-            tendril(foam,p,a,7+15*hash2(k,seg+2),1.4+1.8*hash2(k,seg+3),2.9,blue,.95);
+            tendril(foam,p,a,7+19*hash2(k,seg+2),1.2+2.5*hash2(k,seg+3),2.9,blue,.95);
         }
+    }
+    for(int k=0;k<8;++k) {
+        const double u=(k+.25)/8;
+        const V2 q=map(crown[1].at(u));
+        const double ang=std::atan2(crown[1].tangent(u).y,crown[1].tangent(u).x);
+        tendril(foam,q,ang-.9,25+30*hash2(k,82),5+4*hash2(k,83),-1.8,cream,.94);
     }
     c.gpu.over(foam);
     Canvas& spray=c.canvas();
@@ -234,12 +234,18 @@ void studyWreck(Ctx& c) {
         const double l=30+45*hash2(i,112),a=(hash2(i,113)-.5)*.65;
         cv.line(x,y,x+l*std::cos(a),y+l*std::sin(a),i%3?5:3,wood);cv.line(x,y-1,x+l*std::cos(a),y+l*std::sin(a)-1,1,gold,.65);
     }
+    const V2 crew[4]={{970,865},{1100,915},{1230,876},{1510,831}};
     for(int i=0;i<4;++i) {
-        const double x=970+i*128,y=838+(i%2)*66;
-        RigIn r;r.h=65;r.hip={x,y+16};r.garment=Garment::Jacket;r.facing=i%2?1:-1;r.hair=Hair::Short;
-        r.footF={x+15,y+47};r.footB={x-13,y+50};r.handF={x+29,y+3};r.handB={x-24,y+3};
-        drawBody(cv,solve(r),ink);cv.line(x-44,y+9,x+44,y+11,8,wood);cv.line(x-40,y+7,x+40,y+9,1.7,gold,.75);
-        cv.color(blue);cv.moveTo(x-43,y+14);cv.curveTo(x-20,y+23,x+25,y+22,x+47,y+16);cv.stroke(4);
+        const double x=crew[i].x,y=crew[i].y;
+        const double side=i%2?1:-1;
+        cv.capsule({x,y+7},{x-3*side,y-19},7.5,9,ink);
+        cv.capsule({x-3*side,y-24},{x-3*side,y-32},5,5.2,ink);
+        cv.capsule({x-8,y-16},{x-22,y-3},3.5,3,ink);
+        cv.capsule({x-22,y-3},{x-35,y+5},3,2.5,ink);
+        cv.capsule({x+6,y-16},{x+20,y-4},3.5,3,ink);
+        cv.capsule({x+20,y-4},{x+32,y+6},3,2.5,ink);
+        cv.line(x-44,y+9,x+44,y+11,8,wood);cv.line(x-40,y+7,x+40,y+9,1.7,gold,.75);
+        cv.color(teal,.6);cv.moveTo(x-49,y+13);cv.curveTo(x-20,y+23,x+25,y+22,x+48,y+15);cv.stroke(1.7);
     }
     c.gpu.over(cv);
     Canvas& foam=c.canvas();
@@ -263,11 +269,11 @@ std::vector<V2> smooth(const std::vector<V2>& p) {
     out.push_back(p.back());return out;
 }
 void pine(Canvas& cv,V2 root,double h) {
-    cv.line(root.x,root.y,root.x-4,root.y-h,2.5,ink);
-    for(int j=0;j<5;++j) {
-        const double y=root.y-h+j*h*.17,w=h*(.08+j*.035);
-        cv.color(ink);cv.moveTo(root.x-4,y-6);cv.curveTo(root.x-w*.5,y+2,root.x-w,y+8,root.x-w*1.1,y+12);
-        cv.lineTo(root.x+w*.9,y+8);cv.lineTo(root.x+2,y-5);cv.closePath();cv.fill();
+    cv.line(root.x,root.y,root.x,root.y-h,1.3,ink);
+    for(int j=0;j<4;++j) {
+        const double y=root.y-h+j*h*.18,w=h*(.15+j*.045);
+        polyfill(cv,{{root.x,y-3},{root.x-w,y+h*.31},{root.x-2,y+h*.24},
+            {root.x+w*.85,y+h*.28}},ink);
     }
 }
 void studyRoad(Ctx& c) {
@@ -288,7 +294,11 @@ void studyRoad(Ctx& c) {
     const auto center=smooth({{80,1120},{620,1010},{1270,931},{1660,800},{1490,683},{1770,590},{2130,540}});
     std::vector<V2> l,r;std::vector<double> width;
     for(int i=0;i<int(center.size());++i) {
-        const double u=i/double(center.size()-1),w=lerp(145,3.5,std::pow(u,.78));
+        const double u=i/double(center.size()-1);
+        const V2 before=center[i]-center[std::max(0,i-1)],after=center[std::min(i+1,int(center.size())-1)]-center[i];
+        const double turn=std::abs(std::atan2(before.x*after.y-before.y*after.x,before.x*after.x+before.y*after.y));
+        const double radius=(before.len()+after.len())*.5/std::max(.001,turn);
+        const double w=std::min(lerp(145,3.5,std::pow(u,.78)),radius*.52);
         V2 d=unit(center[std::min(i+1,int(center.size())-1)]-center[std::max(0,i-1)]),n(-d.y,d.x);
         l.push_back(center[i]+n*w);r.push_back(center[i]-n*w);width.push_back(w);
     }
@@ -345,21 +355,21 @@ void studyCar(Ctx& c) {
         cv.disc(x+3,y,4,hex(0x6c788b));
     }
     // Roof, rear glass, far window and closed far-side door.
-    fill({{-210,-51},{-137,-148},{42,-160},{104,-71}},hex(0x93a0b5));
-    fill({{-207,-50},{-139,-138},{-58,-117},{-85,-31}},hex(0x1d283b));
-    cv.line(-136,-140,-58,-117,2,gold,.5);cv.line(-201,-53,-85,-31,2,hex(0xa4b0c1));
-    fill({{-128,-144},{39,-154},{108,-69},{-50,-94}},hex(0x768ca8));
-    fill({{-48,-114},{32,-145},{90,-76},{-38,-43}},hex(0x212b40));
-    fill({{-32,-104},{31,-130},{73,-79},{-26,-53}},hex(0x5d5060));
-    cv.line(-42,-115,31,-145,2,gold,.75);
+    fill({{-210,-51},{-137,-125},{42,-134},{104,-71}},hex(0x93a0b5));
+    fill({{-207,-50},{-139,-118},{-58,-103},{-85,-31}},hex(0x1d283b));
+    cv.line(-136,-120,-58,-103,2,gold,.5);cv.line(-201,-53,-85,-31,2,hex(0xa4b0c1));
+    fill({{-128,-122},{39,-131},{108,-69},{-50,-94}},hex(0x768ca8));
+    fill({{-48,-101},{32,-122},{90,-76},{-38,-43}},hex(0x212b40));
+    fill({{-32,-104},{31,-112},{73,-79},{-26,-53}},hex(0x5d5060));
+    cv.line(-42,-102,31,-122,2,gold,.75);
     // Warm empty passenger compartment and simple seat silhouette.
     fill({{-45,-40},{92,-76},{124,31},{-41,61}},hex(0x3f2e2d));
     fill({{-33,-27},{28,-51},{60,6},{-4,30}},hex(0xa97d60));
     fill({{-4,30},{62,5},{74,23},{8,50}},hex(0xc49c70));
     cv.line(-30,-25,23,-46,2,gold,.7);
     // Windshield and long wedge hood, no melted or ambiguous panels.
-    fill({{40,-158},{104,-71},{153,-61},{92,-132}},hex(0x29384e));
-    cv.line(42,-158,92,-132,2,hex(0xb0bac5));
+    fill({{40,-133},{104,-71},{153,-61},{92,-101}},hex(0x29384e));
+    cv.line(42,-133,92,-101,2,hex(0xb0bac5));
     fill({{107,-69},{153,-61},{242,-20},{125,3}},hex(0x8294af));
     cv.line(117,-61,231,-22,2,gold,.7);cv.line(145,-49,206,-34,1,hex(0x546680));
     cv.line(241,-16,244,11,5,cream,.9);cv.line(244,23,211,29,5,ink);
@@ -369,9 +379,9 @@ void studyCar(Ctx& c) {
     fill({{92,-76},{160,-45},{180,68},{124,31}},hex(0x7088a5));
     fill({{99,-65},{155,-41},{173,59},{127,25}},hex(0x423b42));
     fill({{105,-6},{155,13},{166,52},{128,24}},hex(0xa48065));
-    fill({{95,-78},{87,-148},{148,-119},{160,-46}},hex(0x28384f));
-    fill({{98,-78},{92,-137},{143,-113},{153,-52}},hex(0x526078));
-    cv.line(91,-145,147,-120,2,gold,.6);cv.line(160,-45,180,68,2,hex(0xb3c0cd),.8);
+    fill({{95,-78},{87,-125},{148,-105},{160,-46}},hex(0x28384f));
+    fill({{98,-78},{92,-118},{143,-100},{153,-52}},hex(0x526078));
+    cv.line(91,-122,147,-120,2,gold,.6);cv.line(160,-45,180,68,2,hex(0xb3c0cd),.8);
     cv.line(118,-12,138,-5,3,gold,.8);cv.line(128,9,150,17,3,hex(0x3c3438));
     cv.restore();c.gpu.over(cv);
     Canvas& light=c.canvas();
@@ -408,9 +418,9 @@ void drawDirectionStudy(Ctx& c) {
     } else if(after) {
         studyWreck(c);
         // The rear boat has approached the survivors after riding the surge.
-        studyBoat(c,{1465,764},.72,.045,false,true);
-        Canvas& wake=c.canvas();wake.color(cream,.5);wake.moveTo(1705,800);
-        wake.curveTo(1780,811,1815,797,1900,805);wake.stroke(2);c.gpu.over(wake);
+        studyBoat(c,{1330,808},.80,.045,false,true);
+        Canvas& wake=c.canvas();wake.color(cream,.5);wake.moveTo(1545,847);
+        wake.curveTo(1650,861,1740,844,1810,854);wake.stroke(2);c.gpu.over(wake);
     } else {
         const double growth=sstep(54,64.2,c.t);
         studyWave(c,growth);
