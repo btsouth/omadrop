@@ -86,8 +86,15 @@ linked system libraries retain their respective package licenses.
 ## Fonts and media
 
 No font files are shipped. The controls and website use installed system fonts.
-Naming a font in the CSS does not bundle it. The Omarchy logo is read from the
-user's Omarchy installation, rather than copied into the package.
+Naming a font in the CSS does not bundle it. The Osaka Jade signs draw seven
+glyphs (居酒屋 and らーめん) as fixed vector outlines derived from Noto Sans
+CJK JP Bold, Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved
+Font Name 'Source', licensed under the SIL Open Font License 1.1. The license
+text is in `noto-sans-cjk-OFL.txt` beside this file in the package, and in
+`experiments/osaka-live/src/caption-assets/OFL.txt` in the source.
+
+The Omarchy logo is read from the user's Omarchy installation, rather than
+copied into the package.
 
 Scene screenshots and the website's `collection.mp4` show credited MilkDrop
 presets and textures; these images retain the underlying artists' rights.

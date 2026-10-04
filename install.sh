@@ -107,6 +107,7 @@ stage_from_repo() {
   done
   install -Dm644 "$root/LICENSE" "$dest/licenses/LICENSE"
   install -Dm644 "$root/THIRD_PARTY_NOTICES.md" "$dest/licenses/THIRD_PARTY_NOTICES.md"
+  install -Dm644 "$root/experiments/osaka-live/src/caption-assets/OFL.txt" "$dest/licenses/noto-sans-cjk-OFL.txt"
   for file in "$root"/third-party/projectm/*; do
     install -Dm644 "$file" "$dest/licenses/projectm-$(basename "$file")"
   done

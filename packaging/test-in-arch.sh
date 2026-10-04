@@ -56,7 +56,7 @@ docker exec "$container" bash -euc '
     bin/omadrop bin/omadrop-ui bin/omadrop-milkdrop bin/omadrop-osaka \
     bin/mpris-state bin/art-fetch bin/omadrop-doctor bin/omadrop-close-window \
     experiments/projectm-ascii/projectm-ascii-live experiments/projectm-ascii/run-collection.sh \
-    presets/pilot.txt VERSION licenses/THIRD_PARTY_NOTICES.md \
+    presets/pilot.txt VERSION licenses/THIRD_PARTY_NOTICES.md licenses/noto-sans-cjk-OFL.txt \
     shaders/native scene-api/1; do
     [[ -e "$root/$f" ]] || { echo "missing: $root/$f" >&2; exit 1; }
   done
