@@ -151,6 +151,25 @@ void tendril(Canvas& cv,V2 root,double angle,double length,double width,double t
     polyfill(cv,l,col,alpha);
 }
 
+// Blunt, hooked foam digits have rounded ends, unlike hairline crescents.
+void foamDigit(Canvas& cv,V2 root,double angle,double length,double width,double turn,Col col,double alpha) {
+    std::vector<V2> l,r;V2 q=root;
+    for(int j=0;j<=22;++j) {
+        const double u=j/22.0,a=angle+turn*std::pow(u,1.4);
+        const V2 n={-std::sin(a),std::cos(a)};
+        const double w=width*(.20+.80*std::pow(1-u,.85));
+        l.push_back(q+n*w);r.push_back(q-n*w);
+        if(j<22)q=q+V2(std::cos(a),std::sin(a))*(length/22);
+    }
+    const V2 end={std::cos(angle+turn),std::sin(angle+turn)};
+    cv.color(col,alpha);cv.moveTo(l[0].x,l[0].y);
+    for(V2 v:l)cv.lineTo(v.x,v.y);
+    const V2 a=l.back()+end*width*.36,b=r.back()+end*width*.36;
+    cv.curveTo(a.x,a.y,b.x,b.y,r.back().x,r.back().y);
+    for(auto it=r.rbegin();it!=r.rend();++it)cv.lineTo(it->x,it->y);
+    cv.closePath();cv.fill();
+}
+
 void printWaveFoot(Ctx& c,double growth,bool shadow) {
     const double impactAt=kanagawaBreak(c).t+.60;
     const double a=growth*(1-sstep(impactAt+.1,impactAt+.65,c.t));
@@ -274,17 +293,17 @@ void studyWave(Ctx& c,double growth) {
             const V2 tangent=map(q.at(std::min(1.0,u+.005)))-map(q.at(std::max(0.0,u-.005)));
             const double ang=std::atan2(tangent.y,tangent.x);
             V2 normal=unit(q.tangent(u));normal={-normal.y,normal.x};
-            const V2 root=map(q.at(u)+normal*35);
+            const V2 root=map(q.at(u)+normal*65);
             const double len=(55+95*hash2(k,seg+30))*(.05+.95*growth)*(1+.25*c.hit(4));
             for(int branch=0;branch<6;++branch) {
-                const double a=ang+.95+branch*.10+.20*hash2(k*6+branch,seg+94),ln=len*(.48+.42*hash2(k*6+branch,seg+51)),w=(10+12*hash2(k*6+branch,seg))*(.08+.92*growth);
-                const V2 start=root+V2(std::cos(ang),std::sin(ang))*(branch-2.5)*10;
-                const double curl=.45+.75*hash2(k*6+branch,seg+77);
-                tendril(foam,start+V2(3,5),a,ln+5,w+3,curl,blue,.9);
-                tendril(foam,start,a,ln,w,curl+.1,cream,1);
+                const double a=ang+1.05+branch*.06+.20*hash2(k*6+branch,seg+94),ln=len*(.48+.42*hash2(k*6+branch,seg+51)),w=(10+12*hash2(k*6+branch,seg))*(.08+.92*growth);
+                const V2 start=root+V2(std::cos(ang),std::sin(ang))*(branch-2.5)*13;
+                const double curl=-.35+.95*hash2(k*6+branch,seg+77);
+                foamDigit(foam,start+V2(2,3),a,ln+3,w+2,curl,navy,1);
+                foamDigit(foam,start,a,ln,w,curl+.1,cream,1);
                 const V2 fork=start+V2(std::cos(a+.20),std::sin(a+.20))*ln*.76;
-                if(branch%2==0)tendril(foam,fork,a-.35,ln*.25,w*.40,-.8,cream,1);
-                if(branch%2==1)tendril(foam,fork,a+.55,ln*.24,w*.40,.85,cream,1);
+                if(branch==1 || branch==4)foamDigit(foam,fork,a-.55,ln*.32,w*.45,-.55,cream,1);
+                if(branch==2)foamDigit(foam,fork,a+.55,ln*.30,w*.40,.6,cream,1);
             }
         }
 
@@ -407,7 +426,7 @@ void impact(Ctx& c,double age) {
                 const double u=.10+.80*hash2(k,mass+285),xx=x-w+2*w*u;
                 const double yy=1060-h*std::pow(std::sin(Pi*u),.7);
                 for(int finger=0;finger<3;++finger)
-                    tendril(cv,{xx+finger*8,yy+12},-1.5+finger*.3,erupt*(25+55*hash2(k,mass+288)),5+4*hash2(k,mass+289),.5+finger*.25,cream,1);
+                    foamDigit(cv,{xx+finger*8,yy+12},-1.5+finger*.3,erupt*(25+55*hash2(k,mass+288)),5+4*hash2(k,mass+289),.5+finger*.25,cream,1);
             }
             for(int k=0;k<3;++k) {
                 const double dx=(hash2(k,mass+299)-.5)*w,yy=1020-h*(.08+.42*hash2(k,mass+301));
