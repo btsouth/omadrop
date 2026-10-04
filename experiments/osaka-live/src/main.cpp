@@ -13,6 +13,9 @@
 #include <QProcess>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QSurfaceFormat>
 #include <QTextStream>
 #include <QTimer>
@@ -25,6 +28,20 @@
 
 // Hyprland gives a new window pointer focus only once the pointer moves, so the
 // blank cursor stays drawn until then. Nudge it one pixel and back.
+// "This screen" is the focused monitor, not the compositor's first one.
+static QScreen* focusedScreen() {
+    QProcess query;
+    query.start(qEnvironmentVariable("OMADROP_HYPRCTL","hyprctl"),{"monitors","-j"});
+    if(!query.waitForFinished(500)) { query.kill(); query.waitForFinished(100); return nullptr; }
+    for(const auto& value:QJsonDocument::fromJson(query.readAllStandardOutput()).array()) {
+        const auto monitor=value.toObject();
+        if(!monitor.value("focused").toBool()) continue;
+        for(auto* screen:QGuiApplication::screens())
+            if(screen->name()==monitor.value("name").toString()) return screen;
+    }
+    return nullptr;
+}
+
 static void settlePointer() {
     const QString hyprctl=qEnvironmentVariable("OMADROP_HYPRCTL","hyprctl");
     auto run=[&](const QStringList& args) {
@@ -107,7 +124,9 @@ int main(int argc,char** argv) {
         }
         QGuiApplication::setDesktopFileName(qEnvironmentVariable("OMADROP_SCREENSAVER_CLASS",
                                                                 "org.omadrop.screensaver"));
-        const auto screens=QGuiApplication::screens();
+        auto screens=QGuiApplication::screens();
+        if(display=="single")
+            if(auto* focused=focusedScreen()) screens={focused};
         const int count=display=="single"?std::min(1,int(screens.size())):int(screens.size());
         for(int i=0;i<count;++i) {
             engine.load(QUrl(QStringLiteral("qrc:/Main.qml")));

@@ -285,6 +285,12 @@ export OMADROP_FULLSCREEN=${OMADROP_FULLSCREEN:-1}
 export OMADROP_RANDOM_SEED=${OMADROP_RANDOM_SEED:-$(((RANDOM << 16) ^ RANDOM))}
 if [[ $monitor_mode == single ]]; then
   export OMADROP_DISPLAY_INDEX=${OMADROP_DISPLAY_INDEX:-0}
+  # "This screen" is the focused monitor, not the compositor's first one.
+  if [[ -z ${OMADROP_DISPLAY_NAME:-} ]]; then
+    OMADROP_DISPLAY_NAME=$("$hyprctl_command" monitors -j 2>/dev/null \
+      | jq -r 'first(.[] | select(.focused) | .name) // empty' 2>/dev/null || true)
+    export OMADROP_DISPLAY_NAME
+  fi
   display_count=1
   [[ $OMADROP_FULLSCREEN == 0 ]] || settle_pointer_when_fullscreen &
   if "$runner" "$@"; then
