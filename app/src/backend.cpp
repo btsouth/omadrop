@@ -125,11 +125,9 @@ Backend::Backend(QObject* parent) : QObject(parent) {
     m_root = QFileInfo(appDir).dir().absolutePath();
 
     m_controllerPath = envOr("OMADROP_CONTROLLER_BACKEND", appDir + QStringLiteral("/omadrop"));
-    m_effectsHelper = envOr("OMADROP_EFFECTS_HELPER", appDir + QStringLiteral("/omadrop-effects"));
-    m_effectsBinary = envOr("OMADROP_EFFECTS_BINARY", appDir + QStringLiteral("/ttfx-music"));
     m_rendererPath = envOr("OMADROP_MILKDROP_LIVE",
                            m_root + QStringLiteral("/experiments/projectm-ascii/projectm-ascii-live"));
-    m_omarchyBackend = envOr("OMADROP_OMARCHY_BACKEND", appDir + QStringLiteral("/omadrop-screensaver"));
+    m_omarchyBackend = envOr("OMADROP_OMARCHY_BACKEND", appDir + QStringLiteral("/omadrop-osaka"));
     m_hyprctl = envOr("OMADROP_HYPRCTL", QStringLiteral("hyprctl"));
     m_screensaverClass = envOr("OMADROP_SCREENSAVER_CLASS", QStringLiteral("org.omadrop.screensaver"));
 
@@ -170,12 +168,11 @@ Backend::Backend(QObject* parent) : QObject(parent) {
     m_hiddenScenes = readHiddenScenes();
     loadScenes();
     m_status = QStringLiteral("Ready");
-    refreshEffects();
 }
 
 Backend::~Backend() {
     // waitForFinished can synchronously emit finished. Disable our callbacks
-    // before teardown so a completed listing cannot spawn a description query
+    // before teardown so completed queries cannot start another process
     // while the QObject children are being destroyed.
     for (QProcess* process : findChildren<QProcess*>()) {
         disconnect(process, nullptr, this, nullptr);
@@ -395,7 +392,6 @@ void Backend::play() {
     if (m_mode == QLatin1String("milkdrop")) {
         arguments << (m_ascii ? QStringLiteral("--ascii") : QStringLiteral("--no-ascii"));
     }
-    m_previewing = false;
     beginSession(arguments, QStringLiteral("renderer"));
 }
 
@@ -411,18 +407,7 @@ void Backend::playScene(int number) {
               << (m_display == QLatin1String("single") ? QStringLiteral("--single")
                                                        : QStringLiteral("--all"))
               << (m_ascii ? QStringLiteral("--ascii") : QStringLiteral("--no-ascii"));
-    m_previewing = false;
     beginSession(arguments, QStringLiteral("renderer"));
-}
-
-void Backend::preview(const QString& slug) {
-    clearError();
-    if (slug.isEmpty()) {
-        failStart(QStringLiteral("No effect was selected to preview."));
-        return;
-    }
-    m_previewing = true;
-    beginSession({QStringLiteral("--preview-effect"), slug}, QStringLiteral("preview"));
 }
 
 void Backend::stop() {
@@ -773,131 +758,6 @@ int Backend::countSessionWindows(const QJsonArray& clients) const {
     return count;
 }
 
-void Backend::refreshEffects() {
-    if (m_effectsRefreshing) {
-        m_effectsDirty = true;
-        return;
-    }
-    if (!QFileInfo(m_effectsHelper).isExecutable()) {
-        setError(QStringLiteral("The effects helper is missing: %1").arg(m_effectsHelper));
-        return;
-    }
-    m_effectsRefreshing = true;
-    QProcess* process = new QProcess(this);
-    m_effectsProcess = process;
-    QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
-    environment.insert(QStringLiteral("OMADROP_EFFECTS_BINARY"), m_effectsBinary);
-    process->setProcessEnvironment(environment);
-    onProcessSettled(process, this, [this, process](bool success, const QByteArray& listing, const QString& detail) {
-        if (m_effectsProcess == process) m_effectsProcess = nullptr;
-        if (!success) {
-            setError(QStringLiteral("Could not load effects: %1").arg(detail));
-            finishEffectsRefresh();
-            return;
-        }
-        m_pendingListing = listing;
-        fetchEffectDescriptions();
-    });
-    boundProcess(process, m_queryTimeoutMs);
-    process->start(m_effectsHelper, {QStringLiteral("--list")});
-}
-
-void Backend::fetchEffectDescriptions() {
-    if (!QFileInfo(m_effectsBinary).isExecutable()) {
-        setError(QStringLiteral("The effects binary is missing: %1").arg(m_effectsBinary));
-        buildEffects(m_pendingListing, QByteArray());
-        finishEffectsRefresh();
-        return;
-    }
-    QProcess* process = new QProcess(this);
-    m_effectsProcess = process;
-    QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
-    environment.insert(QStringLiteral("OMADROP_EFFECTS_BINARY"), m_effectsBinary);
-    process->setProcessEnvironment(environment);
-    onProcessSettled(process, this, [this](bool success, const QByteArray& help, const QString& detail) {
-        if (!success) setError(QStringLiteral("Could not load effect descriptions: %1").arg(detail));
-        buildEffects(m_pendingListing, success ? help : QByteArray());
-        finishEffectsRefresh();
-    });
-    boundProcess(process, m_queryTimeoutMs);
-    process->start(m_effectsBinary, {QStringLiteral("--help")});
-}
-
-void Backend::buildEffects(const QByteArray& listing, const QByteArray& help) {
-    QMap<QString, QString> descriptions;
-    bool inCommands = false;
-    for (const QByteArray& raw : help.split('\n')) {
-        const QByteArray line = raw;
-        if (line.startsWith("Commands:")) {
-            inCommands = true;
-            continue;
-        }
-        if (!inCommands) {
-            continue;
-        }
-        if (!line.startsWith("  ")) {
-            break;
-        }
-        const QByteArray trimmed = line.trimmed();
-        const int space = trimmed.indexOf(' ');
-        const QString slug = QString::fromUtf8(space < 0 ? trimmed : trimmed.left(space));
-        if (slug.isEmpty() || slug == QLatin1String("help")) {
-            continue;
-        }
-        descriptions.insert(slug, space < 0 ? QString() : QString::fromUtf8(trimmed.mid(space + 1)).trimmed());
-    }
-
-    QVariantList effects;
-    for (const QByteArray& raw : listing.split('\n')) {
-        const QString line = QString::fromUtf8(raw);
-        if (line.trimmed().isEmpty()) {
-            continue;
-        }
-        const QStringList fields = line.split(QLatin1Char('\t'));
-        if (fields.size() < 3) {
-            continue;
-        }
-        const QString slug = fields.at(0).trimmed();
-        if (slug.isEmpty()) {
-            continue;
-        }
-        const QString name = fields.at(1).trimmed().isEmpty() ? slug : fields.at(1).trimmed();
-        const QString status = fields.at(2).trimmed().toLower();
-        QString description = descriptions.value(slug);
-        if (description.isEmpty()) {
-            description = name;
-        }
-        QVariantMap effect;
-        effect.insert(QStringLiteral("slug"), slug);
-        effect.insert(QStringLiteral("name"), name);
-        effect.insert(QStringLiteral("description"), description);
-        effect.insert(QStringLiteral("favorite"), status.contains(QLatin1String("favorite")));
-        effect.insert(QStringLiteral("hidden"), status.contains(QLatin1String("hidden")));
-        const QString thumbnail = QStringLiteral(":/assets/effects/%1.jpg").arg(slug);
-        effect.insert(QStringLiteral("thumbnail"),
-                      QFile::exists(thumbnail) ? QStringLiteral("qrc") + thumbnail : QString());
-        effects.append(effect);
-    }
-    std::stable_sort(effects.begin(), effects.end(), [](const QVariant& left, const QVariant& right) {
-        const auto a = left.toMap(), b = right.toMap();
-        if (a.value("hidden").toBool() != b.value("hidden").toBool()) return !a.value("hidden").toBool();
-        if (a.value("favorite").toBool() != b.value("favorite").toBool()) return a.value("favorite").toBool();
-        return QString::compare(a.value("name").toString(), b.value("name").toString(), Qt::CaseInsensitive) < 0;
-    });
-    m_effects = effects;
-    if (effects.isEmpty()) setError(QStringLiteral("The effects helper returned no usable effects."));
-    emit effectsChanged();
-}
-
-void Backend::finishEffectsRefresh() {
-    m_effectsProcess = nullptr;
-    m_effectsRefreshing = false;
-    if (m_effectsDirty) {
-        m_effectsDirty = false;
-        QTimer::singleShot(0, this, &Backend::refreshEffects);
-    }
-}
-
 void Backend::boundProcess(QProcess* process, int timeoutMs) {
     process->setChildProcessModifier([] { ::setsid(); });
     auto* timer = new QTimer(process);
@@ -911,34 +771,6 @@ void Backend::boundProcess(QProcess* process, int timeoutMs) {
     });
     connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), timer, &QTimer::stop);
     timer->start(timeoutMs);
-}
-
-void Backend::toggleFavorite(const QString& slug) {
-    runEffectToggle({QStringLiteral("--favorite"), slug});
-}
-
-void Backend::toggleHidden(const QString& slug) {
-    runEffectToggle({QStringLiteral("--hide"), slug});
-}
-
-void Backend::runEffectToggle(const QStringList& arguments) {
-    if (arguments.size() < 2 || arguments.at(1).isEmpty()) {
-        return;
-    }
-    if (!QFileInfo(m_effectsHelper).isExecutable()) {
-        setError(QStringLiteral("The effects helper is missing: %1").arg(m_effectsHelper));
-        return;
-    }
-    QProcess* process = new QProcess(this);
-    QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
-    environment.insert(QStringLiteral("OMADROP_EFFECTS_BINARY"), m_effectsBinary);
-    process->setProcessEnvironment(environment);
-    onProcessSettled(process, this, [this](bool success, const QByteArray&, const QString& detail) {
-        if (!success) setError(QStringLiteral("Could not update the effect: %1").arg(detail));
-        refreshEffects();
-    });
-    boundProcess(process, m_queryTimeoutMs);
-    process->start(m_effectsHelper, arguments);
 }
 
 QString Backend::sceneManifestPath() const {

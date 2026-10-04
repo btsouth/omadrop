@@ -2,9 +2,9 @@
 Type=Application
 Name=Omadrop
 GenericName=Music visuals
-Comment=Music-reactive visuals in any app, plus the Omarchy music screensaver
+Comment=Music visuals for Omarchy: MilkDrop scenes and the living Osaka Jade world
 Exec=omadrop
 Icon=omadrop
 Terminal=false
 Categories=AudioVideo;
-Keywords=music;visualizer;visuals;screensaver;
+Keywords=music;visualizer;visuals;milkdrop;omarchy;

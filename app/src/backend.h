@@ -16,9 +16,8 @@ class QLocalSocket;
 //
 // One persistent process around the preserved renderers. It drives the legacy
 // `omadrop` dispatcher (sibling of this executable, or OMADROP_CONTROLLER_BACKEND)
-// without ever calling it bare or recursively, discovers effects through the
-// `omadrop-effects` helper, and watches Hyprland clients to learn when the
-// session has actually mapped or gone away.
+// without ever calling it bare or recursively, and watches Hyprland clients
+// to learn when the session has actually mapped or gone away.
 class Backend : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString mode READ mode NOTIFY stateChanged)
@@ -33,7 +32,6 @@ class Backend : public QObject {
     Q_PROPERTY(bool busy READ busy NOTIFY stateChanged)
     Q_PROPERTY(bool milkdropAvailable READ milkdropAvailable NOTIFY stateChanged)
     Q_PROPERTY(bool omarchyAvailable READ omarchyAvailable NOTIFY stateChanged)
-    Q_PROPERTY(QVariantList effects READ effects NOTIFY effectsChanged)
     Q_PROPERTY(QVariantList scenes READ scenes NOTIFY scenesChanged)
 
 public:
@@ -52,7 +50,6 @@ public:
     bool busy() const { return m_busy; }
     bool milkdropAvailable() const { return m_milkdropAvailable; }
     bool omarchyAvailable() const { return m_omarchyAvailable; }
-    QVariantList effects() const { return m_effects; }
     QVariantList scenes() const { return m_scenes; }
 
     Q_INVOKABLE void setMode(const QString& mode);
@@ -61,10 +58,7 @@ public:
     Q_INVOKABLE void setAscii(bool ascii);
     Q_INVOKABLE void play();
     Q_INVOKABLE void playScene(int number);
-    Q_INVOKABLE void preview(const QString& slug);
     Q_INVOKABLE void stop();
-    Q_INVOKABLE void toggleFavorite(const QString& slug);
-    Q_INVOKABLE void toggleHidden(const QString& slug);
     Q_INVOKABLE void toggleSceneHidden(int number);
     Q_INVOKABLE void clearError();
 
@@ -75,7 +69,6 @@ public:
 signals:
     void showControls();
     void stateChanged();
-    void effectsChanged();
     void scenesChanged();
     void stopCompleted();
 
@@ -83,10 +76,6 @@ private:
     void loadPreferences();
     void persistPreferences();
     void loadScenes();
-    void refreshEffects();
-    void fetchEffectDescriptions();
-    void buildEffects(const QByteArray& listing, const QByteArray& help);
-    void runEffectToggle(const QStringList& arguments);
 
     QString sceneManifestPath() const;
     QString scenesConfPath() const;
@@ -105,7 +94,6 @@ private:
     void finishStop();
     void sessionExited();
     void connectEvents();
-    void finishEffectsRefresh();
     void boundProcess(QProcess* process, int timeoutMs);
     int countSessionWindows(const QJsonArray& clients) const;
 
@@ -124,14 +112,11 @@ private:
     bool m_busy = false;
     bool m_milkdropAvailable = false;
     bool m_omarchyAvailable = false;
-    QVariantList m_effects;
     QVariantList m_scenes;
 
     // Resolved paths.
     QString m_root;
     QString m_controllerPath;
-    QString m_effectsHelper;
-    QString m_effectsBinary;
     QString m_rendererPath;
     QString m_omarchyBackend;
     QString m_hyprctl;
@@ -143,7 +128,6 @@ private:
 
     // Session lifecycle.
     bool m_sessionSeen = false;
-    bool m_previewing = false;
     QString m_pendingLabel;
     int m_startupTimeoutMs = 12000;
     int m_pollIntervalMs = 50;
@@ -163,9 +147,4 @@ private:
     QSet<qint64> m_preexistingPids;
     int m_queryTimeoutMs = 1500;
 
-    // Effects discovery.
-    QByteArray m_pendingListing;
-    QPointer<QProcess> m_effectsProcess;
-    bool m_effectsRefreshing = false;
-    bool m_effectsDirty = false;
 };

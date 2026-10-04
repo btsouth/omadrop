@@ -2,23 +2,22 @@
 
 Run `omadrop` or open Omadrop from the launcher. The controls show MilkDrop and
 Omarchy, display selection, thumbnails, and the MilkDrop ASCII option. Press
-Play for a rotation or click a card to start at that scene or preview that effect.
-Hide cards to exclude them from rotation. Omarchy favorites receive priority;
-every enabled effect still gets a turn each round. A hidden effect can be previewed.
+Play for a MilkDrop rotation or click a card to start at that scene.
+Hide scenes to exclude them from rotation. Omarchy plays Osaka Jade indefinitely.
 
 ## During playback
 
 | Key | MilkDrop | Omarchy |
 | --- | --- | --- |
 | Esc | Return to controls | Return to controls |
-| N / P, Right / Left | Next / previous scene (N / P) | Next / previous effect |
+| N / P, Right / Left | Next / previous scene (N / P) | No equivalent |
 | A | Toggle ASCII dot filter | No equivalent |
 | O | Toggle Omadrop's added audio response | No equivalent |
-| [ / ] | Move saved audio timing earlier / later by 10 ms | Uses saved output timing |
-| F11 | Toggle fullscreen | Uses the terminal's fullscreen window |
-| Q | No playback shortcut | Return to controls |
+| [ / ] | Move saved audio timing earlier / later by 10 ms | No equivalent |
+| F11 | Toggle fullscreen | Always fullscreen |
+| Q | No playback shortcut | No equivalent |
 
-In Omarchy mode Esc and Q return to the controls, N or Right moves to the next effect, and P or Left goes back. Other keys are ignored.
+In Omarchy mode Esc closes all Osaka windows and returns to the controls.
 
 In the controls, `/` focuses search. Esc closes the controls; Q also closes them
 when you are not typing. The user installer adds Super + Shift + V to open
@@ -29,11 +28,9 @@ are available. Package installs do not add Hyprland shortcuts.
 
 ```sh
 omadrop --controls               # open controls
-omadrop --effects                # open controls in Omarchy mode
 omadrop --mode milkdrop          # start MilkDrop directly
 omadrop --mode omarchy           # start Omarchy directly
 omadrop --scene 6                # start MilkDrop at scene 6 (1..21)
-omadrop --preview-effect beams   # preview one effect
 omadrop --single                 # remember one display
 omadrop --all                    # remember all displays
 omadrop --stop                   # stop playback

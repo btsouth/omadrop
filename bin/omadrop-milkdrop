@@ -256,16 +256,55 @@ if [[ -n $running ]]; then
 fi
 [[ ${1:-} == --stop ]] && exit 0
 
+# Hyprland gives a newly mapped window pointer focus only once the pointer
+# moves, so a renderer's hidden cursor stays drawn until then. Nudge the
+# pointer one pixel and back; Qt needs real motion, not a warp in place.
+settle_pointer() {
+  local position x y
+  position=$(timeout 1 "$hyprctl_command" cursorpos 2>/dev/null) || return 0
+  [[ $position =~ ^(-?[0-9]+),\ (-?[0-9]+)$ ]] || return 0
+  x=${BASH_REMATCH[1]} y=${BASH_REMATCH[2]}
+  timeout 1 "$hyprctl_command" eval "hl.dispatch(hl.dsp.cursor.move({ x = $((x + 1)), y = $y }))" >/dev/null 2>&1 || true
+  timeout 1 "$hyprctl_command" eval "hl.dispatch(hl.dsp.cursor.move({ x = $x, y = $y }))" >/dev/null 2>&1 || true
+}
+
+# The single-display runner owns the foreground, so settle from a bounded watcher.
+settle_pointer_when_fullscreen() {
+  local attempt
+  for ((attempt = 0; attempt < 250; attempt++)); do
+    if timeout 1 "$hyprctl_command" clients -j 2>/dev/null | jq -e \
+      'any(.[]; .class == "org.omadrop.milkdrop" and .fullscreen != 0)' >/dev/null 2>&1; then
+      settle_pointer
+      return 0
+    fi
+    sleep 0.04
+  done
+}
+
 export OMADROP_FULLSCREEN=${OMADROP_FULLSCREEN:-1}
 export OMADROP_RANDOM_SEED=${OMADROP_RANDOM_SEED:-$(((RANDOM << 16) ^ RANDOM))}
 if [[ $monitor_mode == single ]]; then
   export OMADROP_DISPLAY_INDEX=${OMADROP_DISPLAY_INDEX:-0}
+  # "This screen" is the focused monitor, not the compositor's first one.
+  if [[ -z ${OMADROP_DISPLAY_NAME:-} ]]; then
+    OMADROP_DISPLAY_NAME=$(timeout 1 "$hyprctl_command" monitors -j 2>/dev/null \
+      | jq -r 'first(.[] | select(.focused) | .name) // empty' 2>/dev/null || true)
+    export OMADROP_DISPLAY_NAME
+  fi
   display_count=1
+  settle_watcher=
+  if [[ $OMADROP_FULLSCREEN != 0 ]]; then
+    settle_pointer_when_fullscreen &
+    settle_watcher=$!
+  fi
   if "$runner" "$@"; then
-    exit 0
+    renderer_status=0
   else
     renderer_status=$?
   fi
+  # A renderer that exits early must not leave the watcher for the next session.
+  [[ -z $settle_watcher ]] || kill "$settle_watcher" 2>/dev/null || true
+  ((renderer_status != 0)) || exit 0
   if ((renderer_status != 130 && renderer_status != 143)); then
     write_crash_report "$renderer_status"
   fi
@@ -397,6 +436,7 @@ launch_renderers() {
         return 1
       fi
     done
+    [[ $OMADROP_FULLSCREEN == 0 ]] || settle_pointer
   fi
 }
 

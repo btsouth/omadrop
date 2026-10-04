@@ -3,7 +3,7 @@
 #
 # One command, two modes:
 #   milkdrop  the accepted MilkDrop collection (omadrop-milkdrop)
-#   omarchy   the music screensaver (omadrop-screensaver)
+#   omarchy   live Osaka Jade (omadrop-osaka)
 #
 # The remembered mode lives in its own file so the C++ renderer's
 # preferences.conf, which it rewrites in full, is never touched.
@@ -25,26 +25,27 @@ here=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
 config_home=${XDG_CONFIG_HOME:-$HOME/.config}
 mode_file=${OMADROP_MODE_FILE:-$config_home/omadrop/mode.conf}
 milkdrop_backend=${OMADROP_MILKDROP_BACKEND:-$here/omadrop-milkdrop}
-omarchy_backend=${OMADROP_OMARCHY_BACKEND:-$here/omadrop-screensaver}
+# Theme-to-world choice lives here. Every theme uses Osaka Jade today.
+# Add a future world's binary here when its scene is ready.
+omarchy_world_backend() {
+  printf '%s' "$here/omadrop-osaka"
+}
+omarchy_backend=${OMADROP_OMARCHY_BACKEND:-$(omarchy_world_backend)}
 milkdrop_root=$(dirname "$(dirname "$milkdrop_backend")")
 milkdrop_live=${OMADROP_MILKDROP_LIVE:-${OMADROP_LIVE_EXECUTABLE:-$milkdrop_root/experiments/projectm-ascii/projectm-ascii-live}}
 hyprctl_command=${OMADROP_HYPRCTL:-hyprctl}
 screensaver_class=${OMADROP_SCREENSAVER_CLASS:-org.omadrop.screensaver}
-effects_binary=${OMADROP_EFFECTS_BINARY:-$here/ttfx-music}
 
 # The native app owns normal launches; explicit engine flags stay compatible.
 native_ui=${OMADROP_NATIVE_UI:-$here/omadrop-ui}
 if [[ -x $native_ui ]]; then
-  export OMADROP_EFFECTS_BINARY=$effects_binary
   export OMADROP_OMARCHY_BACKEND=$omarchy_backend OMADROP_MILKDROP_BACKEND=$milkdrop_backend
   export OMADROP_CONTROLLER_BACKEND=$here/omadrop
-  export OMADROP_EFFECTS_HELPER=$here/omadrop-effects
   case ${1:-} in
     "") exec "$native_ui" --controls ;;
     --play) shift; exec "$native_ui" --play "$@" ;;
     --app) shift; exec "$native_ui" "$@" ;;
     --controls) exec "$native_ui" --controls ;;
-    --effects) export OMADROP_UI_MODE=omarchy; exec "$native_ui" --controls ;;
   esac
 fi
 
@@ -118,22 +119,6 @@ stop_all() {
   stop_milkdrop
 }
 
-# Effect slugs are the real ttfx subcommands, validated from the installed
-# ttfx-music --help before anything is stopped or remembered, so a typo never
-# disturbs the running session.
-effect_names() {
-  [[ -x $effects_binary ]] || return 1
-  "$effects_binary" --help 2>/dev/null | awk '
-    /^Commands:/ { commands = 1; next }
-    commands && /^  / { print $1; next }
-    commands { exit }
-  ' | grep -vx 'help'
-}
-
-valid_effect() {
-  effect_names | grep -qx -- "$1"
-}
-
 # Legacy invocations forward verbatim to the accepted MilkDrop backend.
 case ${1:-} in
   --version|--display-mode|--toggle-secondary|calibrate|pack)
@@ -148,9 +133,6 @@ Usage: omadrop [--controls|--play]
        omadrop [--mode milkdrop|omarchy] [--single|--all]
        omadrop --mode milkdrop --scene N
        omadrop --controls
-       omadrop --effects
-       omadrop --effect NAME
-       omadrop --preview-effect NAME
        omadrop [--ascii|--no-ascii] [--mode milkdrop]
        omadrop [--current-mode|--stop|--version]
 
@@ -162,11 +144,6 @@ MilkDrop controls, calibration and pack commands remain available.
 --scene N starts the MilkDrop collection on scene number N (1..21), honoring
 hidden scenes from omadrop/scenes.conf.
 
---effects opens the effect browser: preview, favorite and hide the Omarchy
-screensaver effects, manage the lists in bulk, or start a rotation.
---effect NAME launches one Omarchy effect and remembers Omarchy mode.
---preview-effect NAME plays one effect on one display without changing the
-remembered mode or display choice.
 EOF
   exit 0
 fi
@@ -175,8 +152,6 @@ mode_arg=
 current=0
 stop=0
 play=0
-effect=
-preview_effect=
 scene=
 scene_set=0
 ascii_override=
@@ -201,16 +176,6 @@ while (($#)); do
       scene_set=1
       shift 2
       ;;
-    --effect)
-      (($# >= 2)) || die "--effect requires an effect name"
-      effect=$2
-      shift 2
-      ;;
-    --preview-effect)
-      (($# >= 2)) || die "--preview-effect requires an effect name"
-      preview_effect=$2
-      shift 2
-      ;;
     --play) play=1; shift ;;
     --current-mode) current=1; shift ;;
     --ascii) ascii_override=1; ascii_set=1; shift ;;
@@ -222,27 +187,6 @@ while (($#)); do
   esac
 done
 
-# A preview has one purpose; reject ambiguous options before side effects.
-if [[ -n $preview_effect ]] && { [[ -n $effect || -n $mode_arg ]] ||
-    ((current || stop || play || ascii_set || scene_set)) ||
-    ((${#display_args[@]} || ${#passthrough[@]})); }; then
-  die "--preview-effect must be used on its own"
-fi
-if [[ -n $effect ]] && ((current || stop || scene_set)); then
-  die "--effect cannot be combined with a query, stop or scene"
-fi
-
-# Validate the requested effect before anything is stopped or remembered.
-if [[ -n $effect || -n $preview_effect ]]; then
-  if [[ -n $mode_arg && $mode_arg != omarchy ]]; then
-    die "--effect and --preview-effect help the Omarchy mode only"
-  fi
-  [[ -x $effects_binary ]] \
-    || die "cannot validate effects: effects binary not found: $effects_binary"
-  valid_effect "${effect:-$preview_effect}" \
-    || die "unknown effect: ${effect:-$preview_effect}"
-fi
-
 if ((stop)); then
   stop_all
   exit 0
@@ -251,19 +195,6 @@ fi
 if ((current)); then
   printf '%s\n' "$(load_mode)"
   exit 0
-fi
-
-# A preview plays one effect on one display and leaves the remembered mode and
-# display choice alone, so the browser can come back to where it was.
-if [[ -n $preview_effect ]]; then
-  require_backend "$omarchy_backend"
-  export OMADROP_PERSIST_DISPLAY=0 OMADROP_MONITORS=single
-  stop_all
-  exec "$omarchy_backend" --single --effect "$preview_effect"
-fi
-
-if [[ -n $effect ]]; then
-  mode_arg=omarchy
 fi
 
 launch_requested=$play
@@ -314,11 +245,7 @@ case $target_mode in
     ;;
   omarchy)
     require_backend "$omarchy_backend"
-    if [[ -n $effect ]]; then
-      exec "$omarchy_backend" "${display_args[@]}" --effect "$effect"
-    else
-      exec "$omarchy_backend" "${display_args[@]}"
-    fi
+    exec "$omarchy_backend" "${display_args[@]}"
     ;;
   *) die "unknown mode: $target_mode" ;;
 esac
