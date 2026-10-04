@@ -79,7 +79,8 @@ void studyWave(Ctx& c,double growth) {
     // Continuous acceleration carries the lip into the hit. It keeps moving
     // through contact, instead of rushing a quadratic fall in the last .6 s.
     const double forward=620*plunge*plunge/(plunge*plunge+.75);
-    const double fall=850*plunge*plunge/(plunge+.65);
+    const double followThrough=std::max(0.0,plunge-1);
+    const double fall=650*plunge*plunge/(plunge+.85)+700*followThrough*followThrough;
     const double pressure=c.score ? (c.score->integral(0,c.t)-c.score->integral(0,c.t-.9))/.9 : 0;
     const double sx=lerp(.62,1.0,growth),sy=lerp(.035,1.0,growth),dx=lerp(-520,0,growth);
     auto map=[&](V2 p) {
@@ -449,11 +450,11 @@ void endingSummitWind(Ctx& c) {
     const double visibility=sstep(-.35,.12,age)*(1-sstep(1.15,2.1,age));
     Canvas& cv=c.canvas();
     for(int j=0;j<7;++j) {
-        const double y=477+j*2.4,travel=std::max(0.0,age)*(24+5*j);
-        cv.color(cream,visibility*(.17-.015*j));
+        const double y=477+j*2.4,travel=std::max(0.0,age)*(42+7*j);
+        cv.color(cream,visibility*(.27-.025*j));
         cv.moveTo(1085+j*2,y);
         cv.curveTo(1107+travel*.35,y-8-j,1131+travel*.75,y-7-j,1150+travel,y-2-j);
-        cv.stroke(1.1+.35*j);
+        cv.stroke(1.8+.45*j);
     }
     c.gpu.over(cv);
 }
