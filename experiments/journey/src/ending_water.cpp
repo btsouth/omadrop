@@ -39,11 +39,12 @@ void studySea(Ctx& c,bool aftermath) {
         const double amp=2+22*z*z;
         std::vector<V2> p;
         const double energy=c.score ? (c.score->integral(row%6,c.t)-c.score->integral(row%6,c.t-.8))/.8 : 0;
+        const double drift=c.score ? .95*c.score->integral(row%6,c.t) : 0;
         for(int j=0;j<=110;++j) {
             const double x=j*18.0;
-            const double swell=aftermath ? 35*z*std::exp(-std::max(0.0,age)*.35)*std::sin(x*.010-z*12-age*3) : 15*z*energy*std::sin(x*.006-c.t*.7+row);
+            const double swell=aftermath ? 35*z*std::exp(-std::max(0.0,age)*.35)*std::sin(x*.010-z*12-age*3-drift*.35) : 15*z*energy*std::sin(x*.006-c.t*.7+row);
 
-            p.push_back({x,y+amp*std::sin(x*.0055+row*.82-c.t*.55)+swell+2*noise1(x*.012,row)});
+            p.push_back({x,y+amp*std::sin(x*.0055+row*.82-c.t*.55-drift)+swell+2*noise1(x*.012,row)});
         }
         cv.polyline(p,row%7==0?1.65:.65,mix(teal,cream,.18),.11+.17*z*(row%3==0));
     }
@@ -82,7 +83,7 @@ void studyWave(Ctx& c,double growth) {
         const double forward=470*std::pow(std::min(1.4,plunge),1.65);
         const double fall=320*std::pow(std::min(1.4,plunge),2.0);
         return V2(p.x*sx+dx+bend+forward*lip,
-            1080+(p.y-1080)*sy-75*pressure*crest*growth+fall*crest);
+            1080+(p.y-1080)*sy-95*pressure*crest*growth+fall*crest);
     };
     auto move=[&](Canvas& cv,double x,double y){V2 p=map({x,y});cv.moveTo(p.x,p.y);};
     auto curve=[&](Canvas& cv,double ax,double ay,double bx,double by,double dx,double dy) {
