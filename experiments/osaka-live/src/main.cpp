@@ -29,6 +29,7 @@ int main(int argc,char** argv) {
         || QString::fromLocal8Bit(argv[i])=="--probe" || QString::fromLocal8Bit(argv[i])=="--bench"
         || QString::fromLocal8Bit(argv[i])=="--verify-render") headless=true;
     QSurfaceFormat format; format.setVersion(3,3); format.setProfile(QSurfaceFormat::CoreProfile);
+    format.setRenderableType(QSurfaceFormat::OpenGL); // Wayland EGL on NVIDIA defaults to OpenGL ES
     QSurfaceFormat::setDefaultFormat(format);
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     std::unique_ptr<QCoreApplication> app;
