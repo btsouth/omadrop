@@ -331,64 +331,156 @@ void studyRoad(Ctx& c) {
 }
 
 void studyCar(Ctx& c) {
-    Canvas& cv=c.canvas();cv.save();cv.translate(1390,895);cv.scale(.92,.92);
-    // Left rear three-quarter view; one front-hinged passenger door.
-    cv.glowEllipse(-20,73,320,32,ink,.8);
-    auto fill=[&](std::initializer_list<V2> pts,Col col) {polyfill(cv,std::vector<V2>(pts),col);};
-    fill({{-292,8},{135,-42},{240,-20},{244,36},{-215,110},{-292,65}},hex(0x344154));
-    cv.linear(-120,-45,120,95,{{0,hex(0x8699b1),1},{.48f,hex(0x5b708b),1},{1,hex(0x35445d),1}});
-    cv.moveTo(-292,8);cv.lineTo(-208,-54);cv.lineTo(104,-71);cv.lineTo(242,-20);cv.lineTo(244,22);
-    cv.lineTo(-205,98);cv.lineTo(-292,60);cv.closePath();cv.fill();
-    // Rear face and bumper close the body consistently at the same corner.
-    fill({{-292,8},{-205,35},{-205,100},{-292,66}},hex(0x455267));
-    fill({{-292,60},{-205,87},{-205,99},{-292,73}},ink);
-    cv.line(-291,59,-205,86,3,hex(0xa3a9b3),.8);
-    fill({{-284,22},{-259,29},{-259,51},{-284,43}},hex(0xb54848));
-    fill({{-234,35},{-210,41},{-210,65},{-234,58}},hex(0xbd4946));
-    cv.line(-282,32,-260,39,2.3,gold,.65);cv.line(-230,48,-213,53,2.3,gold,.6);
-    fill({{-253,33},{-238,38},{-238,60},{-253,54}},ink);
-    // Wheels share the side's projected baseline and remain attached.
-    for(int front=0;front<2;++front) {
-        const double x=front?166:-158,y=front?43:96;
-        cv.color(ink);cv.ellipse(x,y,29,37,-.10);cv.fill();
-        cv.color(hex(0x838ea2));cv.ellipse(x+2,y,19,27,-.10);cv.fill();
-        cv.color(hex(0x333e51));cv.ellipse(x+3,y,13,20,-.10);cv.fill();
-        for(int j=0;j<8;++j)cv.line(x+3,y,x+3+16*std::cos(j*Tau/8),y+24*std::sin(j*Tau/8),1.4,hex(0xa4afbd));
-        cv.disc(x+3,y,4,hex(0x6c788b));
+    // One coherent model-space coupe. Every panel, wheel and door uses the
+    // same projection; proportions are a low roof, long hood and wide track.
+    struct P {double x,y,z;};
+    struct Face {std::vector<P> pts;Col color;bool metal=false;double alpha=1;};
+    std::vector<Face> faces;
+    auto project=[](P p) {return V2(1405+110*(.94*p.x+.40*p.y),891+110*(-.23*p.x-.12*p.y-p.z));};
+    auto depth=[](P p) {return .40*p.x-.94*p.y+.03*p.z;};
+    auto panel=[&](std::initializer_list<P> p,Col color,bool metal=false,double alpha=1) {
+        faces.push_back({std::vector<P>(p),color,metal,alpha});
+    };
+    const Col paint=hex(0x44496d),lit=hex(0x6f7299),trim=hex(0x101422),glass=hex(0x1b2037);
+    const Col chrome=hex(0x9fa6bf),warm=hex(0xdbb78d),seat=hex(0x635065);
+    Canvas& cv=c.canvas();
+    cv.glowEllipse(1380,935,300,24,ink,.7);
+    auto line=[&](P a,P b,double w,Col color,double alpha=1) {
+        const V2 u=project(a),v=project(b);cv.line(u.x,u.y,v.x,v.y,w,color,alpha);
+    };
+    auto wheel=[&](double x,double y,bool near) {
+        auto ring=[&](double radius,Col color,double yy) {
+            std::vector<V2> p;
+            for(int j=0;j<64;++j) {
+                const double a=j*Tau/64;
+                p.push_back(project({x+radius*std::cos(a),yy,.33+radius*std::sin(a)}));
+            }
+            polyfill(cv,p,color);
+        };
+        ring(.345,hex(0x080c16),y);
+        if(!near)return;
+        ring(.292,hex(0x20273a),y-.009);
+        ring(.230,hex(0xadb0c3),y-.018);
+        ring(.197,hex(0x282d43),y-.024);
+        // Deep dish and clean five-spoke period alloys, all on the wheel plane.
+        for(int j=0;j<5;++j) {
+            const double a=j*Tau/5;
+            std::vector<V2> spoke;
+            for(auto q:std::array<V2,4>{{{.06,a-.35},{.205,a-.14},{.205,a+.12},{.07,a+.32}}})
+                spoke.push_back(project({x+q.x*std::cos(q.y),y-.027,.33+q.x*std::sin(q.y)}));
+            polyfill(cv,spoke,chrome);
+        }
+        ring(.066,hex(0x727b94),y-.030);
+        const V2 center=project({x,y-.031,.33});cv.disc(center.x,center.y,3.4,trim);
+        // A fine rim highlight catches the purple sky, not a white cartoon ring.
+        std::vector<V2> edge;
+        for(int j=0;j<=28;++j) {
+            const double a=.14+j*Pi/28;
+            edge.push_back(project({x+.251*std::cos(a),y-.032,.33+.251*std::sin(a)}));
+        }
+        cv.polyline(edge,1.0,hex(0xc0a6cc),.72);
+    };
+    wheel(-1.43,.86,false);wheel(1.48,.86,false);
+    // Far side, rear deck, low broad wedge hood and rear face.
+    panel({{-2.30,.88,.29},{2.32,.88,.29},{2.32,.88,.54},{.64,.88,.73},{-1.55,.88,.72},{-2.30,.88,.60}},paint,true);
+    panel({{-2.30,-.88,.60},{-1.55,-.88,.72},{-1.55,.88,.72},{-2.30,.88,.60}},lit,true);
+    panel({{.64,-.88,.73},{2.30,-.88,.55},{2.30,.88,.55},{.64,.88,.73}},lit,true);
+    panel({{-2.30,-.88,.29},{-2.30,.88,.29},{-2.30,.88,.60},{-2.30,-.88,.60}},paint,true);
+    // Near side is cut around the two wheel arches instead of painting wheels
+    // over a rectangular body. A narrow sill gives it a planted low stance.
+    std::vector<P> side={{-2.30,-.90,.29},{-2.30,-.90,.60},{-1.55,-.90,.72},
+        {.64,-.90,.73},{2.30,-.90,.55},{2.33,-.90,.29}};
+    for(double x:{1.48,-1.43}) {
+        for(int j=0;j<=32;++j) {
+            const double a=j*Pi/32;side.push_back({x+.385*std::cos(a),-.90,.29+.385*std::sin(a)});
+        }
     }
-    // Roof, rear glass, far window and closed far-side door.
-    fill({{-210,-51},{-137,-125},{42,-134},{104,-71}},hex(0x93a0b5));
-    fill({{-207,-50},{-139,-118},{-58,-103},{-85,-31}},hex(0x1d283b));
-    cv.line(-136,-120,-58,-103,2,gold,.5);cv.line(-201,-53,-85,-31,2,hex(0xa4b0c1));
-    fill({{-128,-122},{39,-131},{108,-69},{-50,-94}},hex(0x768ca8));
-    fill({{-48,-101},{32,-122},{90,-76},{-38,-43}},hex(0x212b40));
-    fill({{-32,-104},{31,-112},{73,-79},{-26,-53}},hex(0x5d5060));
-    cv.line(-42,-102,31,-122,2,gold,.75);
-    // Warm empty passenger compartment and simple seat silhouette.
-    fill({{-45,-40},{92,-76},{124,31},{-41,61}},hex(0x3f2e2d));
-    fill({{-33,-27},{28,-51},{60,6},{-4,30}},hex(0xa97d60));
-    fill({{-4,30},{62,5},{74,23},{8,50}},hex(0xc49c70));
-    cv.line(-30,-25,23,-46,2,gold,.7);
-    // Windshield and long wedge hood, no melted or ambiguous panels.
-    fill({{40,-133},{104,-71},{153,-61},{92,-101}},hex(0x29384e));
-    cv.line(42,-133,92,-101,2,hex(0xb0bac5));
-    fill({{107,-69},{153,-61},{242,-20},{125,3}},hex(0x8294af));
-    cv.line(117,-61,231,-22,2,gold,.7);cv.line(145,-49,206,-34,1,hex(0x546680));
-    cv.line(241,-16,244,11,5,cream,.9);cv.line(244,23,211,29,5,ink);
-    cv.line(-198,73,117,20,3,ink,.8);cv.line(-198,69,117,17,1.2,hex(0xc1c2c3),.7);
-    cv.line(-167,89,-100,79,1.5,hex(0x8398b1));
-    // Near door projects toward the viewer, front hinge exactly at cabin edge.
-    fill({{92,-76},{160,-45},{180,68},{124,31}},hex(0x7088a5));
-    fill({{99,-65},{155,-41},{173,59},{127,25}},hex(0x423b42));
-    fill({{105,-6},{155,13},{166,52},{128,24}},hex(0xa48065));
-    fill({{95,-78},{87,-125},{148,-105},{160,-46}},hex(0x28384f));
-    fill({{98,-78},{92,-118},{143,-100},{153,-52}},hex(0x526078));
-    cv.line(91,-122,147,-120,2,gold,.6);cv.line(160,-45,180,68,2,hex(0xb3c0cd),.8);
-    cv.line(118,-12,138,-5,3,gold,.8);cv.line(128,9,150,17,3,hex(0x3c3438));
-    cv.restore();c.gpu.over(cv);
-    Canvas& light=c.canvas();
-    light.glowEllipse(1515,935,84,19,gold,.23);light.glowEllipse(1610,878,115,28,gold,.17);
-    c.gpu.add(light,.4,18);
+    side.push_back({-2.30,-.90,.29});faces.push_back({side,paint,true});
+    // Fastback glazing, a low cabin and defined pillars.
+    panel({{-1.55,.87,.73},{-.89,.64,1.17},{-.06,.64,1.19},{.64,.87,.73}},paint,true);
+    panel({{-1.55,.81,.74},{-.88,.59,1.14},{-.09,.59,1.16},{.55,.81,.75}},glass);
+    panel({{-.89,-.64,1.17},{-.06,-.64,1.19},{-.06,.64,1.19},{-.89,.64,1.17}},lit,true);
+    panel({{-1.55,-.88,.73},{-.89,-.64,1.17},{-.89,.64,1.17},{-1.55,.88,.73}},paint,true);
+    panel({{-1.48,-.78,.76},{-.91,-.57,1.135},{-.91,.57,1.135},{-1.48,.78,.76}},glass);
+    panel({{-.06,-.64,1.19},{.64,-.88,.73},{.64,.88,.73},{-.06,.64,1.19}},paint,true);
+    panel({{.01,-.59,1.15},{.59,-.80,.75},{.59,.80,.75},{.01,.59,1.15}},glass);
+    // Near rear quarter glass and passenger doorway stay physically separate.
+    panel({{-1.55,-.90,.73},{-.89,-.64,1.17},{-1.02,-.64,1.17},{-1.02,-.90,.72}},paint,true);
+    panel({{-1.46,-.873,.755},{-.95,-.655,1.10},{-1.08,-.66,1.10},{-1.09,-.873,.755}},glass);
+    panel({{-1.01,-.91,.32},{.69,-.91,.32},{.64,-.91,.73},{-.06,-.64,1.19},{-1.01,-.64,1.17}},hex(0x161727));
+    // The warm seat is compact and sits inside the cabin, not on the body side.
+    panel({{-.60,-.76,.46},{-.60,-.37,.46},{-.77,-.37,.94},{-.77,-.76,.94}},seat);
+    panel({{-.58,-.77,.47},{-.05,-.77,.47},{-.05,-.36,.47},{-.58,-.36,.47}},hex(0x8c6c77));
+    panel({{.27,-.78,.70},{.58,-.80,.70},{.58,.80,.70},{.27,.74,.70}},trim);
+    // Small black spoiler on the rear deck. It does not change the silhouette
+    // into a racing caricature or use enormous contemporary bodywork.
+    panel({{-2.19,-.89,.69},{-2.05,-.89,.71},{-2.05,.89,.71},{-2.19,.89,.69}},trim);
+    panel({{-2.19,-.88,.60},{-2.19,-.88,.69},{-2.05,-.88,.71},{-2.05,-.88,.62}},paint);
+    // Rectangular front bumper and period pop-up headlamps.
+    panel({{2.33,-.90,.27},{2.33,.90,.27},{2.33,.90,.48},{2.33,-.90,.48}},trim);
+    panel({{2.339,-.65,.31},{2.339,-.32,.31},{2.339,-.32,.40},{2.339,-.65,.40}},hex(0xa8a493));
+    panel({{2.339,.32,.31},{2.339,.65,.31},{2.339,.65,.40},{2.339,.32,.40}},hex(0xa8a493));
+    panel({{2.34,-.23,.31},{2.34,.23,.31},{2.34,.23,.41},{2.34,-.23,.41}},hex(0x293047));
+    for(double y:{-.55,.55}) {
+        panel({{1.73,y-.19,.61},{1.98,y-.19,.61},{1.98,y+.19,.61},{1.73,y+.19,.61}},paint,true);
+        panel({{1.98,y-.19,.61},{1.98,y+.19,.61},{1.94,y+.19,.87},{1.94,y-.19,.87}},trim);
+        panel({{1.985,y-.155,.655},{1.985,y+.155,.655},{1.955,y+.155,.83},{1.955,y-.155,.83}},cream);
+        panel({{1.73,y-.19,.61},{1.94,y-.19,.87},{1.94,y+.19,.87},{1.73,y+.19,.61}},lit,true);
+    }
+    // One front-hinged passenger door, rotated in model space as a real panel.
+    auto door=[](P p) {
+        constexpr double a=Pi*.32,hx=.69,hy=-.91;
+        const double x=p.x-hx,y=p.y-hy;
+        return P{hx+x*std::cos(a)-y*std::sin(a),hy+x*std::sin(a)+y*std::cos(a),p.z};
+    };
+    auto doorPanel=[&](std::initializer_list<P> pts,Col col,bool metal=false) {
+        std::vector<P> p;for(P q:pts)p.push_back(door(q));faces.push_back({p,col,metal});
+    };
+    doorPanel({{-.99,-.91,.32},{.69,-.91,.32},{.64,-.91,.73},{-.99,-.91,.72}},paint,true);
+    doorPanel({{-.92,-.918,.39},{.57,-.918,.39},{.54,-.918,.67},{-.92,-.918,.66}},hex(0x343047));
+    doorPanel({{-.86,-.922,.42},{.45,-.922,.42},{.44,-.922,.54},{-.86,-.922,.54}},seat);
+    doorPanel({{-.99,-.91,.72},{.64,-.91,.73},{-.06,-.91,1.19},{-.99,-.91,1.17}},trim);
+    doorPanel({{-.91,-.918,.76},{.51,-.918,.77},{-.10,-.918,1.13},{-.91,-.918,1.11}},hex(0x50526e),true);
+    // Sort all panels together, including the open door, by camera depth.
+    std::stable_sort(faces.begin(),faces.end(),[&](const Face& a,const Face& b) {
+        double aa=0,bb=0;for(P p:a.pts)aa+=depth(p);for(P p:b.pts)bb+=depth(p);
+        return aa/a.pts.size()<bb/b.pts.size();
+    });
+    for(const Face& f:faces) {
+        std::vector<V2> p;for(P q:f.pts)p.push_back(project(q));
+        if(f.metal) {
+            double top=2000,bottom=0;for(V2 q:p){top=std::min(top,q.y);bottom=std::max(bottom,q.y);}
+            cv.linear(1300,top,1360,bottom+1,{{0,mix(f.color,hex(0xbb9aba),.25),float(f.alpha)},
+                {.48f,f.color,float(f.alpha)},{1,mix(f.color,trim,.25),float(f.alpha)}});
+            cv.moveTo(p[0].x,p[0].y);for(V2 q:p)cv.lineTo(q.x,q.y);cv.closePath();cv.fill();
+        } else polyfill(cv,p,f.color,f.alpha);
+    }
+    wheel(-1.43,-.945,true);wheel(1.48,-.945,true);
+    // Precisely projected trim and fine reflections, rather than heavy outlines.
+    line({-2.24,-.905,.46},{2.25,-.905,.43},2.1,trim,.8);
+    line({-2.22,-.909,.49},{1.08,-.909,.48},.85,chrome,.7);
+    line({-.89,-.64,1.17},{-.06,-.64,1.19},1.2,warm,.85);
+    line({-.06,-.64,1.19},{.64,-.88,.73},1.2,chrome,.8);
+    line({.71,-.83,.73},{2.24,-.83,.56},1.1,warm,.75);
+    line({.72,.80,.73},{2.24,.80,.56},.7,chrome,.5);
+    line({-1.42,-.78,.78},{-.94,-.57,1.12},1.0,hex(0xc0a0ba),.55);
+    line({.04,-.50,1.13},{.43,-.67,.80},.9,hex(0x8887ac),.65);
+    line({.83,-.57,.72},{1.64,-.57,.64},.9,trim,.6);
+    line({.83,.57,.72},{1.64,.57,.64},.9,trim,.6);
+    line({2.345,-.86,.46},{2.345,.86,.46},1.2,chrome,.55);
+    line(door({-.94,-.924,.74}),door({.56,-.924,.75}),1.0,warm,.8);
+    line(door({-.88,-.925,.62}),door({-.56,-.925,.62}),2.8,chrome,.85);
+    line(door({-.78,-.925,.55}),door({.23,-.925,.55}),3.8,trim,.9);
+    // Door mirror is attached near the hinge and follows the same rotation.
+    const P m=door({.48,-1.02,.78});const V2 mp=project(m);
+    cv.capsule(mp,mp+V2(15,-1),4,5,paint);cv.line(mp.x+5,mp.y-2,mp.x+14,mp.y-3,.9,chrome,.7);
+    c.gpu.over(cv);
+    Canvas& glow=c.canvas();
+    const V2 lampA=project({1.985,-.55,.74}),lampB=project({1.985,.55,.74});
+    glow.glowEllipse(lampA.x+55,lampA.y+65,96,17,gold,.18);
+    glow.glowEllipse(lampB.x+55,lampB.y+65,84,15,gold,.13);
+    glow.glowEllipse(1250,957,65,16,hex(0xd4a5ba),.12);
+    c.gpu.add(glow,.4,12);
 }
 void studyWalker(Ctx& c) {
     const double h=155,x=1055,y=1004,distance=29;
