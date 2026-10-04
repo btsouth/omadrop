@@ -54,6 +54,7 @@ public:
     bool init(QString& error);
     // Prepare the main image for a w x h output. Clears it to black.
     void begin(int width, int height);
+    void setOutputSize(int w,int h) { outputW_=w; outputH_=h; }
     int width() const { return w_; }
     int height() const { return h_; }
     double pixelScale() const { return w_ / 1920.0; }
@@ -113,6 +114,9 @@ private:
     Target main_, layer_, out_, alt_;
     Target* current_ = &main_;
     GLuint outTex_ = 0, outFbo_ = 0;
+    GLuint scaledTex_=0,scaledFbo_=0;
+    int outputW_=0,outputH_=0,allocatedOutputW_=0,allocatedOutputH_=0;
+    GLuint finishedFbo() const { return scaledFbo_ ? scaledFbo_ : outFbo_; }
     std::vector<Tex> pool_;
     GLuint vao_ = 0, vbo_ = 0, quadVao_ = 0, paints_ = 0, zeroPaints_ = 0;
     Program canvas_, compositeP_, blurP_, downP_, brightP_, finishP_;

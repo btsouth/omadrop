@@ -46,6 +46,7 @@ int main(int argc,char** argv) {
         {"seconds","Bounded recording/probe length; preview loops when omitted.","number","60"},
         {"fps","Recording frames per second.","number","30"},
         {"width","Frame width.","number","1920"},{"height","Frame height.","number","1080"},
+        {"scale","Internal resolution scale: auto, or 0.5 to 1.0.","value"},
         {"seed","Schedule seed (live default random; headless default 1).","number"},
         {"stats","Per-frame response and timing CSV.","path"}});
     parser.process(*app);
@@ -58,6 +59,13 @@ int main(int argc,char** argv) {
     if(!ok || w<320 || w>3840) return 2;
     const int h=parser.value("height").toInt(&ok);
     if(!ok || h<180 || h>2160) return 2;
+    const QString scaleOption=parser.isSet("scale") ? parser.value("scale") : qEnvironmentVariable("OMADROP_OSAKA_SCALE","auto");
+    double fixedScale=0;
+    if(scaleOption!="auto") {
+        fixedScale=scaleOption.toDouble(&ok);
+        if(!ok || !std::isfinite(fixedScale) || fixedScale<0.5 || fixedScale>1) return 2;
+    }
+    OsakaItem::fixedScale=fixedScale;
     int seed=1;
     if(parser.isSet("seed")) {
         seed=parser.value("seed").toInt(&ok); if(!ok || seed<0) return 2;
@@ -98,7 +106,9 @@ int main(int argc,char** argv) {
     }
     Journey::HeadlessContext context;
     Journey::World world(1);
+    if(fixedScale>0) world.setScale(fixedScale);
     if(parser.isSet("verify-render")) {
+        world.setScale(1);
         QString error;
         if(!context.create(error) || !world.init(error)) { QTextStream(stderr)<<error<<'\n'; return 1; }
         int pose=0;
@@ -151,7 +161,7 @@ int main(int argc,char** argv) {
     QFile stats(parser.value("stats"));
     if(parser.isSet("stats") && !stats.open(QIODevice::WriteOnly|QIODevice::Truncate)) return 1;
     QTextStream csv(&stats);
-    if(stats.isOpen()) csv<<"seconds,render_ms,submit_ms,thread_cpu_ms,gain,bass,accent,surge,band0,band1,band2,band3,band4,band5,onsets,bass_hits,mid_peaks,firework_at,finale_count,train_age,cyclist_age,static_builds,static_uploads,vertex_upload_bytes,pre_gain_level,full_firework_show,train_cycle,cyclist_cycle,train_speed,cyclist_speed,combinations\n";
+    if(stats.isOpen()) csv<<"seconds,render_ms,submit_ms,thread_cpu_ms,gain,bass,accent,surge,band0,band1,band2,band3,band4,band5,onsets,bass_hits,mid_peaks,firework_at,finale_count,train_age,cyclist_age,static_builds,static_uploads,vertex_upload_bytes,pre_gain_level,full_firework_show,train_cycle,cyclist_cycle,train_speed,cyclist_speed,combinations,scale,gpu_ms\n";
     const auto start=std::chrono::steady_clock::now();
     std::vector<unsigned char> rgb;
     const int frames=int(std::ceil(seconds*fps));
@@ -188,7 +198,7 @@ int main(int argc,char** argv) {
                 <<','<<f.schedule.moments[0].cycle<<','<<f.schedule.moments[1].cycle
                 <<','<<f.schedule.parameter(Journey::Moment::Train,0,0.85,1.15,1)
                 <<','<<f.schedule.parameter(Journey::Moment::Cyclist,0,0.85,1.15,1)
-                <<','<<f.schedule.combinations<<'\n';
+                <<','<<f.schedule.combinations<<','<<world.scale()<<','<<world.gpuMilliseconds()<<'\n';
         }
         if(record) {
             world.gpu().readRgb(rgb);

@@ -7,5 +7,6 @@ class OsakaItem:public QQuickFramebufferObject {
 public:
     explicit OsakaItem(QQuickItem* parent=nullptr):QQuickFramebufferObject(parent) { setMirrorVertically(true); }
     static Journey::LiveSession* session;
+    static double fixedScale;
     Renderer* createRenderer() const override;
 };

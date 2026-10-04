@@ -6,6 +6,7 @@
 #include <memory>
 
 Journey::LiveSession* OsakaItem::session=nullptr;
+double OsakaItem::fixedScale=0;
 namespace {
 class Renderer:public QQuickFramebufferObject::Renderer {
 public:
@@ -15,6 +16,7 @@ public:
     void render() override {
         if(!world_) {
             world_=std::make_unique<Journey::World>(1);
+            if(OsakaItem::fixedScale>0) world_->setScale(OsakaItem::fixedScale);
             QString error;
             if(!world_->init(error)) { QTextStream(stderr)<<error<<'\n'; return; }
         }

@@ -266,6 +266,9 @@ void Gpu::release() {
     if (outFbo_) glDeleteFramebuffers(1, &outFbo_);
     if (outTex_) glDeleteTextures(1, &outTex_);
     outFbo_ = outTex_ = 0;
+    if(scaledFbo_) glDeleteFramebuffers(1,&scaledFbo_);
+    if(scaledTex_) glDeleteTextures(1,&scaledTex_);
+    scaledFbo_=scaledTex_=0;
     for (Tex& t : pool_) { glDeleteFramebuffers(1, &t.fbo); glDeleteTextures(1, &t.tex); }
     pool_.clear();
 }
@@ -302,6 +305,16 @@ void Gpu::allocate() {
     glGenFramebuffers(1, &outFbo_);
     glBindFramebuffer(GL_FRAMEBUFFER, outFbo_);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, outTex_, 0);
+    allocatedOutputW_=outputW_ ? outputW_ : w_;
+    allocatedOutputH_=outputH_ ? outputH_ : h_;
+    if(allocatedOutputW_!=w_ || allocatedOutputH_!=h_) {
+        glGenTextures(1,&scaledTex_); glBindTexture(GL_TEXTURE_2D,scaledTex_);
+        glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,allocatedOutputW_,allocatedOutputH_,0,GL_RGBA,GL_UNSIGNED_BYTE,nullptr);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+        glGenFramebuffers(1,&scaledFbo_); glBindFramebuffer(GL_FRAMEBUFFER,scaledFbo_);
+        glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,scaledTex_,0);
+    }
 }
 
 int Gpu::acquire(int w, int h) {
@@ -325,7 +338,7 @@ int Gpu::acquire(int w, int h) {
 }
 
 void Gpu::begin(int width, int height) {
-    if (width != w_ || height != h_ || !main_.fbo) {
+    if (width != w_ || height != h_ || !main_.fbo || (outputW_ && outputW_!=allocatedOutputW_) || (outputH_ && outputH_!=allocatedOutputH_)) {
         release();
         w_ = width; h_ = height;
         allocate();
@@ -787,28 +800,33 @@ void Gpu::finish(const FinishParams& f, const Canvas* overlay) {
         setBlend(Blend::Over, 1);
         drawCanvas(*overlay);
     }
+    if(scaledFbo_) {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER,outFbo_);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER,scaledFbo_);
+        glBlitFramebuffer(0,0,w_,h_,0,0,allocatedOutputW_,allocatedOutputH_,GL_COLOR_BUFFER_BIT,GL_LINEAR);
+    }
 
 }
 
 
 
 void Gpu::present(GLuint framebuffer) {
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, outFbo_);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, finishedFbo());
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
-    glBlitFramebuffer(0, 0, w_, h_, 0, 0, w_, h_, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebuffer(0, 0, allocatedOutputW_, allocatedOutputH_, 0, 0, allocatedOutputW_, allocatedOutputH_, GL_COLOR_BUFFER_BIT, GL_LINEAR);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 }
 
 void Gpu::readRgb(std::vector<unsigned char>& rgb) {
-    std::vector<unsigned char> rgba(std::size_t(w_) * h_ * 4);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, outFbo_);
+    std::vector<unsigned char> rgba(std::size_t(allocatedOutputW_) * allocatedOutputH_ * 4);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, finishedFbo());
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glReadPixels(0, 0, w_, h_, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
-    rgb.resize(std::size_t(w_) * h_ * 3);
-    for (int y = 0; y < h_; ++y) {
-        const unsigned char* s = rgba.data() + std::size_t(h_ - 1 - y) * w_ * 4;
-        unsigned char* d = rgb.data() + std::size_t(y) * w_ * 3;
-        for (int x = 0; x < w_; ++x) { d[0] = s[0]; d[1] = s[1]; d[2] = s[2]; d += 3; s += 4; }
+    glReadPixels(0, 0, allocatedOutputW_, allocatedOutputH_, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+    rgb.resize(std::size_t(allocatedOutputW_) * allocatedOutputH_ * 3);
+    for (int y = 0; y < allocatedOutputH_; ++y) {
+        const unsigned char* s = rgba.data() + std::size_t(allocatedOutputH_ - 1 - y) * allocatedOutputW_ * 4;
+        unsigned char* d = rgb.data() + std::size_t(y) * allocatedOutputW_ * 3;
+        for (int x = 0; x < allocatedOutputW_; ++x) { d[0] = s[0]; d[1] = s[1]; d[2] = s[2]; d += 3; s += 4; }
     }
 }
 }

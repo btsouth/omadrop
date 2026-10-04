@@ -2,6 +2,8 @@
 #include "gpu.h"
 #include "score.h"
 #include "schedule.h"
+#include "resolution.h"
+#include <chrono>
 #include <QString>
 #include <array>
 #include <any>
@@ -87,7 +89,11 @@ void drawSignGlyph(Canvas&,int,double,double,double,Col,double alpha=1);
 class World {
 public:
     explicit World(int seed):seed_(seed) {}
-    bool init(QString& error) { return gpu_.init(error); }
+    ~World();
+    bool init(QString& error);
+    void setScale(double fixed) { resolution_.fixed(fixed); }
+    double scale() const { return renderedScale_; }
+    double gpuMilliseconds() const { return gpuMs_; }
     void render(int width,int height,double time,const Audio&,const Score&,const Schedule&);
     Gpu& gpu() { return gpu_; }
     void setGeometryCacheEnabled(bool enabled);
@@ -95,6 +101,13 @@ public:
     std::size_t staticSpanCount() const { return staticGeometry_.canvases.size(); }
 private:
     Gpu gpu_;
+    Resolution resolution_;
+    struct TimerQuery { GLuint id=0; bool pending=false; };
+    std::array<TimerQuery,4> queries_{};
+    unsigned queryIndex_=0;
+    bool gpuTiming_=false;
+    double renderedScale_=1,gpuMs_=-1;
+    std::chrono::steady_clock::time_point sampledAt_{};
     int seed_;
     std::vector<std::unique_ptr<Canvas>> canvases_;
     StaticGeometry staticGeometry_;

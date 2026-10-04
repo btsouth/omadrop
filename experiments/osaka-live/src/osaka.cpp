@@ -803,7 +803,9 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
         const double toastAge=c.schedule->action(Moment::Toast,t,0);
         const double order=c.schedule->parameter(Moment::Toast,1,0,2,0);
         const double delay=std::fmod(i+std::floor(order),3.0)*0.08;
-        const double toast=window(toastAge,delay,0.24,0.7,0.35);
+        const double toast=c.schedule->moments[int(Moment::Toast)].cycle<=1
+            ? window(t,toastAt+i*0.08,0.24,toastAt+0.7,0.35)
+            : window(toastAge,delay,0.24,0.7,0.35);
         const double drink = std::max(toast, std::pow(std::max(0.0, std::sin(ph)), 6) * (1 - L.hush));
         const double laugh = std::max(0.0, std::sin(t * 0.43 + i * 1.9)) * 0.08;
         RigIn r;

@@ -1,6 +1,7 @@
 #include "../src/audio.h"
 #include "../src/score.h"
 #include "../src/schedule.h"
+#include "../src/resolution.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -101,6 +102,18 @@ int main() {
     }
     // Shared gain must not enter the independent pre-gain level measurement.
     require(small[180].preGainLevel==large[180].preGainLevel,"chunking changed pre-gain level");
+    Resolution resolution;
+    for(int i=0;i<120;++i) resolution.sample(7,1.0/60);
+    require(resolution.scale()==1,"fast GPU lost full resolution");
+    for(int i=0;i<360;++i) resolution.sample(70*resolution.scale()*resolution.scale(),1.0/60);
+    require(resolution.scale()==0.5,"slow GPU did not scale down");
+    for(int i=0;i<3600;++i) resolution.sample(18,1.0/60);
+    require(resolution.scale()==0.5,"reduced resolution oscillated");
+    for(int i=0;i<2100;++i) resolution.sample(2*resolution.scale()*resolution.scale(),1.0/60);
+    require(resolution.scale()==1,"sustained GPU headroom did not restore resolution");
+    resolution.fixed(0.75);
+    for(int i=0;i<600;++i) resolution.sample(100,1.0/60);
+    require(resolution.scale()==0.75,"fixed scale override changed");
     Schedule one(1), same(1), two(2); Score noEvents;
     bool different=false;
     for(int k=0;k<36000;++k) {
