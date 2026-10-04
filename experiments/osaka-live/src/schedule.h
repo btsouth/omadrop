@@ -14,7 +14,10 @@ struct Schedule {
     explicit Schedule(int seed=1);
     void advance(double now, const Audio& a, const Score& score);
     double age(Moment m, double now) const { return now-moments[int(m)].start; }
-    double action(Moment m,double now,double authoredStart) const { return authoredStart+age(m,now); }
+    double action(Moment m,double now,double authoredStart) const { return authoredStart+age(m,now)*parameter(m,0,0.85,1.15,1); }
+    double parameter(Moment m,double key,double lo,double hi,double original) const;
+    double combinationAt=0;
+    std::uint64_t combinations=0;
     double gesture(double now,double authoredStart,double in,double end,double out) const;
     double pane(double now,double key) const;
     std::array<Recurrence,int(Moment::Count)> moments{};
@@ -25,6 +28,7 @@ struct Schedule {
 private:
     int seed_;
     std::uint64_t eventSerial_=0, fireworksCount_=0;
+    double cyclePhase(double now,double key,double phaseKey,double lo,double hi,bool pane) const;
     double varied(double key,std::uint64_t cycle,double lo,double hi) const;
 };
 }

@@ -95,7 +95,7 @@ Life lifeAt(const Ctx& c) {
     Life L;
     L.t = c.t;
     const double t = c.t;
-    const double gust=window(c.schedule->age(Moment::Gust,t),0,0.7,7.3,2.6);
+    const double gust=window((c.schedule->action(Moment::Gust,t,0)),0,0.7,7.3,2.6);
     L.wind=0.12+0.06*fbm1(t*0.6,3)+gust*(0.85+0.15*fbm1(t*2.3,9));
     if(c.schedule->fireworks>=0 && t-c.schedule->fireworks<12) {
         L.surge={c.schedule->fireworks,c.schedule->fireworkStrength,false};
@@ -800,7 +800,10 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
         const double ph = t * (0.7 + 0.13 * i) + i * 2.1;
         // A shared toast starts on the first strong onset in this phrase.
         const double toastAt=c.schedule->moments[int(Moment::Toast)].start;
-        const double toast=window(t,toastAt+i*0.08,0.24,toastAt+0.7,0.35);
+        const double toastAge=c.schedule->action(Moment::Toast,t,0);
+        const double order=c.schedule->parameter(Moment::Toast,1,0,2,0);
+        const double delay=std::fmod(i+std::floor(order),3.0)*0.08;
+        const double toast=window(toastAge,delay,0.24,0.7,0.35);
         const double drink = std::max(toast, std::pow(std::max(0.0, std::sin(ph)), 6) * (1 - L.hush));
         const double laugh = std::max(0.0, std::sin(t * 0.43 + i * 1.9)) * 0.08;
         RigIn r;
@@ -1084,7 +1087,8 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
         const double cookT=c.schedule->action(Moment::Cook,t,11.4);
         const double step=window(cookT,11.4,0.75,13.3,0.7);
         const double cx = yx + 72 + 68 * step;
-        const double ph = std::fmod(std::max(0.0, t - 5.6), 2.6) / 2.6;
+        const double cadence=c.schedule->parameter(Moment::Cook,1,2.3,2.9,2.6);
+        const double ph = std::fmod(std::max(0.0, t - 5.6), cadence) / cadence;
         V2 hand;
         // Hand targets sit where the ladle tip (hand + 18, 20) meets the pot
         // or the bowl, so the elbow stays bent instead of pointing.
@@ -1952,7 +1956,7 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
     }
     {
         // Wind chime under the eave swings in the gust.
-        const double swing = std::sin(t * 2) * 0.05 + 0.35 * ring(c.schedule->age(Moment::Gust,t),1.3,0.7) + 0.06 * L.wind * std::sin(t * 4.7);
+        const double swing = std::sin(t * 2) * 0.05 + 0.35 * ring((c.schedule->action(Moment::Gust,t,0)),1.3,0.7) + 0.06 * L.wind * std::sin(t * 4.7);
         const V2 top(606 + ox, 596), bell = top + V2(std::sin(swing) * 38, std::cos(swing) * 38);
         f.line(top.x, top.y, bell.x, bell.y - 4, 1.2, INK);
         f.disc(bell.x, bell.y, 7, INK);
@@ -2070,11 +2074,12 @@ double bearerX(double t) { return bearerAt(t).x; }
 // A shooting star crosses the upper sky on the first strong onset after
 // 15.5 s (timed fallback at 16.8 s): one small thing to catch on a rewatch.
 void shootingStar(Ctx& c, const OsakaState& s) {
-    const double at=c.schedule->moments[int(Moment::Star)].start;
-    const double age = c.t - at;
+    const double age = c.schedule->action(Moment::Star,c.t,0);
     if (age < 0 || age > 0.9) return;
     const double u = easeOut(age / 0.75);
-    const V2 from(470 - s.cam * 0.02, 70), to(150 - s.cam * 0.02, 205);
+    const double dx=c.schedule->parameter(Moment::Star,1,-80,480,0);
+    const double dy=c.schedule->parameter(Moment::Star,2,-20,35,0);
+    const V2 from(470+dx - s.cam * 0.02, 70+dy), to(150+dx - s.cam * 0.02, 205+dy);
     const V2 head = lerp(from, to, u);
     const double fade = 1 - sstep(0.55, 0.9, age);
     Canvas& cv = c.canvas();

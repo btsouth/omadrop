@@ -11,6 +11,7 @@ double Schedule::varied(double key,std::uint64_t cycle,double lo,double hi) cons
     return lo+(hi-lo)*hash2(key+seed_*71.0,double(cycle));
 }
 Schedule::Schedule(int seed):seed_(seed) {
+    combinationAt=varied(200,0,240,360);
     for(int i=0;i<int(Moment::Count);++i) {
         auto& m=moments[i]; m.duration=durations[i];
         m.start=-1000; m.next=varied(i,0,2,14);
@@ -59,23 +60,62 @@ void Schedule::advance(double t,const Audio& a,const Score& score) {
         m.start=t;
         m.next=t+gaps[i]+varied(10+i,++m.cycle,0,gaps[i]*0.65);
     }
+    if(t>=combinationAt) {
+        // Keep each participant's full exit before the next pass. These are
+        // existing actions only; music still independently gates fireworks.
+        const int partner=varied(201,combinations,0,1)<0.5 ? int(Moment::Gust) : int(Moment::Cyclist);
+        const auto idle=[&](int i) { return t-moments[i].start>durations[i]/0.85+4; };
+        if(idle(int(Moment::Train)) && idle(partner)) {
+            for(int i:{int(Moment::Train),partner}) {
+                auto& m=moments[i]; m.start=t; ++m.cycle;
+                m.next=t+gaps[i]+varied(10+i,m.cycle,0,gaps[i]*0.65);
+            }
+            combinationAt=t+varied(200,++combinations,240,360);
+        }
+    }
     for(int i=0;i<15;++i) if(birdReturn[i]>=0 && t>=birdReturn[i]) {
         // Start the approach now, not in the past of a newly detected beat.
         birdLand[i]=t+1.15; birdReturn[i]=-1;
     }
 }
+double Schedule::parameter(Moment m,double key,double lo,double hi,double original) const {
+    const auto cycle=moments[int(m)].cycle;
+    return cycle<=1 ? original : varied(300+int(m)*19+key,cycle,lo,hi);
+}
+double Schedule::cyclePhase(double now,double key,double phaseKey,double lo,double hi,bool isPane) const {
+    const double first=varied(key,0,lo,hi);
+    const double offset=isPane ? first-phaseKey : varied(phaseKey,0,0,first);
+    // Retain the complete original opening, including its initial phase.
+    const double opening=2*first-offset;
+    if(now<opening) return std::fmod(now+offset,first);
+    double age=now-opening;
+    for(std::uint64_t cycle=1;;++cycle) {
+        const double period=varied(key,cycle,lo,hi);
+        if(age<period) {
+            // Gestures begin from rest, after a seeded idle interval, and
+            // finish before the next boundary. Panes restart their flicker.
+            const double delay=isPane ? 0 : varied(phaseKey,cycle,0,period-12);
+            return age-delay;
+        }
+        age-=period;
+    }
+}
 double Schedule::gesture(double now,double a,double in,double b,double out) const {
-    // Independent seeded periods for small authored gestures. No whole-scene
-    // rewind, and every gesture returns to its resting pose before recurrence.
-    const double period=varied(a*31.7,0,28,53);
-    const double phase=std::fmod(now+varied(a*17.0,0,0,period),period);
-    return window(phase,0,in,b-a,out);
+    return window(cyclePhase(now,a*31.7,a*17.0,28,53,false),0,in,b-a,out);
 }
 double Schedule::pane(double now,double key) const {
-    const double period=varied(key*91.0,0,31,67);
-    const double age=std::fmod(now+period-key,period);
-    // Most of each window's life is lit; a soft settling interval and the
-    // original flicker-on can recur without resetting the entire street.
+    const double first=varied(key*91.0,0,31,67);
+    const double opening=first+key;
+    double period=first;
+    if(now>=opening) {
+        double age=now-opening;
+        for(std::uint64_t cycle=1;;++cycle) {
+            period=varied(key*91.0,cycle,31,67);
+            if(age<period) break;
+            age-=period;
+        }
+    }
+    const double age=cyclePhase(now,key*91.0,key,31,67,true);
     if(age<0.6) return age<0.05?0.55:age<0.11?0.08:age<0.17?0.8:age<0.22?0.35:0.75+0.25*sstep(0.22,0.6,age);
     return 1-0.8*window(age,period-4,1.2,period,0.7);
 }

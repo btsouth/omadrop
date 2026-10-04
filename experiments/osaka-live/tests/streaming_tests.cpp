@@ -101,6 +101,25 @@ int main() {
     }
     // Shared gain must not enter the independent pre-gain level measurement.
     require(small[180].preGainLevel==large[180].preGainLevel,"chunking changed pre-gain level");
+    Schedule one(1), same(1), two(2); Score noEvents;
+    bool different=false;
+    for(int k=0;k<36000;++k) {
+        const double t=k/60.0;
+        one.advance(t,{},noEvents); same.advance(t,{},noEvents); two.advance(t,{},noEvents);
+        for(int i=0;i<int(Moment::Count);++i) {
+            require(one.moments[i].start==same.moments[i].start && one.moments[i].next==same.moments[i].next,"seed not deterministic");
+            different|=one.moments[i].start!=two.moments[i].start;
+            const double speed=one.parameter(Moment(i),0,0.85,1.15,1);
+            require(speed>=0.85 && speed<=1.15,"moment speed outside authored range");
+            if(one.moments[i].cycle<=1) require(speed==1,"opening occurrence changed");
+        }
+        require(one.gesture(t,9,0.4,11,0.6)==same.gesture(t,9,0.4,11,0.6),"gesture not deterministic");
+        require(one.pane(t,3)==same.pane(t,3),"pane not deterministic");
+    }
+    require(different,"different seeds produced identical timelines");
+    require(one.combinations>=1 && one.combinations<=2,"rare combinations outside expected frequency");
+    require(one.gesture(100,9,0.4,11,0.6)!=one.gesture(100+hash2(9*31.7+71,0)*25+28,9,0.4,11,0.6)
+        || one.pane(100,3)!=one.pane(100+hash2(3*91+71,0)*36+31,3),"fixed gesture/pane loops survived");
     Schedule silent(7); Score quiet;
     for(int k=0;k<18000;++k) { quiet.advance({},k/60.0,1.0/60); silent.advance(k/60.0,{},quiet); }
     require(silent.fireworks<0,"timed fallback fireworks survived");
