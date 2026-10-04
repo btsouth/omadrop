@@ -170,17 +170,6 @@
     "air",
     "energy"
   ],
-  "historical_user_feedback": {
-    "Cloud Cubes": "Decent; wants expansion and different musical roles for each cube.",
-    "Fractal Caves": "Not visibly responsive enough; rejected unless much more lively.",
-    "other_three": "Okay; preserve.",
-    "direction": "Clean, smooth musical movement. Do not reduce the engine to bass thumps."
-  },
-  "user_feedback": {
-    "revision_4": "they are noticeably better.",
-    "revision_5": "im pretty happy with them.",
-    "current_request": "just add the rest and lets finish this"
-  },
   "format": 1,
   "revision": 6
 }
