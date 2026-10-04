@@ -46,7 +46,8 @@ static void settlePointer() {
     const QString hyprctl=qEnvironmentVariable("OMADROP_HYPRCTL","hyprctl");
     auto run=[&](const QStringList& args) {
         QProcess p; p.start(hyprctl,args);
-        if(!p.waitForFinished(500)) { p.kill(); p.waitForFinished(100); return QString(); }
+        // Bounded: this runs once on the GUI thread as the first frames land.
+        if(!p.waitForFinished(250)) { p.kill(); p.waitForFinished(100); return QString(); }
         return QString::fromUtf8(p.readAllStandardOutput()).trimmed();
     };
     const QStringList at=run({"cursorpos"}).split(", ");
