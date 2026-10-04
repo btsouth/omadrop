@@ -23,6 +23,23 @@
 #include <random>
 #include <limits>
 
+// Hyprland gives a new window pointer focus only once the pointer moves, so the
+// blank cursor stays drawn until then. Nudge it one pixel and back.
+static void settlePointer() {
+    const QString hyprctl=qEnvironmentVariable("OMADROP_HYPRCTL","hyprctl");
+    auto run=[&](const QStringList& args) {
+        QProcess p; p.start(hyprctl,args);
+        if(!p.waitForFinished(500)) { p.kill(); p.waitForFinished(100); return QString(); }
+        return QString::fromUtf8(p.readAllStandardOutput()).trimmed();
+    };
+    const QStringList at=run({"cursorpos"}).split(", ");
+    bool okX=false, okY=false;
+    const int x=at.size()==2?at[0].toInt(&okX):0, y=at.size()==2?at[1].toInt(&okY):0;
+    if(!okX || !okY) return;
+    for(int dx:{1,0})
+        run({"eval",QString("hl.dispatch(hl.dsp.cursor.move({ x = %1, y = %2 }))").arg(x+dx).arg(y)});
+}
+
 int main(int argc,char** argv) {
     bool headless=false;
     for(int i=1;i<argc;++i) if(QString::fromLocal8Bit(argv[i])=="--record"
@@ -99,7 +116,14 @@ int main(int argc,char** argv) {
             if(!window) return 1;
             window->setScreen(screens[i]);
             window->setPosition(screens[i]->geometry().topLeft());
+            // Main.qml shows the pointer only while it moves; start hidden.
+            window->setCursor(Qt::BlankCursor);
             window->showFullScreen();
+            // Qt takes pointer focus only once it has drawn.
+            if(i==0) QObject::connect(window,&QQuickWindow::frameSwapped,app.get(),[] {
+                static int frames=0;
+                if(++frames==3) settlePointer();
+            },Qt::QueuedConnection);
         }
         if(!count) return 1;
         if(parser.isSet("seconds")) QTimer::singleShot(int(seconds*1000),app.get(),&QCoreApplication::quit);
