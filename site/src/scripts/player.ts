@@ -94,9 +94,14 @@ if (video && playback && milkdropPanel && omarchyPanel && modeSwitch && milkdrop
     omarchyTab.tabIndex = isMilkdrop ? -1 : 0;
     milkdropPanel.hidden = !isMilkdrop;
     omarchyPanel.hidden = isMilkdrop;
-    previewKind.textContent = isMilkdrop ? "Recorded playback / 53 seconds" : "Osaka Jade / 24 seconds, no sound";
+    previewKind.textContent = isMilkdrop ? "Recorded playback / 53 seconds" : "Osaka Jade / 26 seconds";
     if (isMilkdrop) previewDescription.replaceChildren(...Array.from(milkdropDescription.cloneNode(true).childNodes));
-    else previewDescription.textContent = "Recorded from Omadrop v0.6.0 with music playing. In the app, the street reacts to whatever you play.";
+    else {
+      const credits = document.createElement("a");
+      credits.href = "/media/osaka-attribution.txt";
+      credits.textContent = "Music credits";
+      previewDescription.replaceChildren("Recorded from Omadrop v0.6.0. Turn on sound to hear the music it follows. In the app, the street reacts to whatever you play. ", credits, ".");
+    }
     status.textContent = "";
     reconcilePlayback();
     if (osakaVideo) {
