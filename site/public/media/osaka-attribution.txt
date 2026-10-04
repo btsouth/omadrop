@@ -1,0 +1,8 @@
+Music: “We Can Fix Everything” by Kevin Koontz (@koozeex1)
+Artist: https://x.com/koozeex1
+
+This preview is 26 seconds of Omadrop v0.6.0 Osaka Jade playback, recorded
+from the released renderer while the track played from its start. The
+visuals react live to the music; nothing was edited to match it.
+
+Music is not installed in the runtime package.
