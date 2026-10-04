@@ -63,7 +63,7 @@ ApplicationWindow {
     readonly property color cWarn: app.tRed
     readonly property color cErrorBg: app.mix(app.tBg, app.tRed, 0.14)
     readonly property color cErrorBorder: app.mix(app.tBg, app.tRed, 0.45)
-    readonly property color cErrorText: app.mix(app.tRed, app.tFg, 0.35)
+    readonly property color cErrorText: app.cText
     readonly property color cAccent: app.tAccent
     // Text drawn on an accent fill.
     readonly property color cOnAccent: (0.2126 * app.tAccent.r + 0.7152 * app.tAccent.g
@@ -342,47 +342,78 @@ ApplicationWindow {
             border.color: app.cErrorBorder
 
             RowLayout {
-                anchors.fill: parent
-                anchors.margins: 13
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 14
+                anchors.rightMargin: 14
+                height: 32
                 spacing: 12
 
                 Label {
                     Layout.fillWidth: true
-                    Layout.maximumHeight: 32
+                    Layout.fillHeight: true
                     text: backend.error || ""
                     color: app.cErrorText
                     font.pixelSize: 13
-                    wrapMode: Text.WordWrap
-                    maximumLineCount: 2
+                    renderType: Text.NativeRendering
                     elide: Text.ElideRight
                     verticalAlignment: Text.AlignVCenter
                 }
 
                 Button {
+                    id: errorDetailsButton
+                    Layout.preferredHeight: 32
+                    Layout.alignment: Qt.AlignVCenter
                     visible: !!backend.errorDetails
                     text: qsTr("Details")
+                    leftPadding: 12
+                    rightPadding: 12
+                    contentItem: Text {
+                        text: errorDetailsButton.text
+                        color: app.cErrorText
+                        font.pixelSize: 13
+                        renderType: Text.NativeRendering
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle {
+                        radius: 8
+                        color: errorDetailsButton.down ? app.mix(app.cErrorBg, app.cText, 0.12)
+                               : errorDetailsButton.hovered ? app.mix(app.cErrorBg, app.cText, 0.08)
+                               : "transparent"
+                        border.width: 1
+                        border.color: errorDetailsButton.visualFocus ? app.cAccent : app.cErrorBorder
+                    }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
                     onClicked: app.detailsOpen = !app.detailsOpen
                 }
 
-                Rectangle {
-                    Layout.preferredWidth: 28
-                    Layout.preferredHeight: 28
-                    radius: 8
-                    color: errCloseHover.hovered ? app.cErrorBorder : "transparent"
-                    border.width: 1
-                    border.color: app.cErrorBorder
-                    Text {
-                        anchors.centerIn: parent
+                Button {
+                    id: errorCloseButton
+                    Layout.preferredWidth: 32
+                    Layout.preferredHeight: 32
+                    Layout.alignment: Qt.AlignVCenter
+                    padding: 0
+                    Accessible.name: qsTr("Dismiss error")
+                    contentItem: Text {
                         text: "×"
                         color: app.cErrorText
-                        font.pixelSize: 16
+                        font.pixelSize: 18
+                        renderType: Text.NativeRendering
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
-                    HoverHandler { id: errCloseHover }
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: backend.clearError()
+                    background: Rectangle {
+                        radius: 8
+                        color: errorCloseButton.down ? app.mix(app.cErrorBg, app.cText, 0.12)
+                               : errorCloseButton.hovered ? app.mix(app.cErrorBg, app.cText, 0.08)
+                               : "transparent"
+                        border.width: 1
+                        border.color: errorCloseButton.visualFocus ? app.cAccent : app.cErrorBorder
                     }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    onClicked: backend.clearError()
                 }
             }
         }
@@ -392,13 +423,22 @@ ApplicationWindow {
             Layout.preferredHeight: 140
             visible: app.hasError && app.detailsOpen && !!backend.errorDetails
             clip: true
+            background: Rectangle {
+                radius: 12
+                color: app.cErrorBg
+                border.width: 1
+                border.color: app.cErrorBorder
+            }
             TextArea {
                 text: backend.errorDetails
                 readOnly: true
                 selectByMouse: true
                 wrapMode: TextEdit.Wrap
                 color: app.cErrorText
-                font.pixelSize: 11
+                font.pixelSize: 12
+                renderType: Text.NativeRendering
+                padding: 14
+                background: Item {}
             }
         }
 
