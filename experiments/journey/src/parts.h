@@ -66,6 +66,10 @@ struct KState {
     double breakAt = -1; // wave break time
     bool sun = true, boats = true, wave = true, plovers = true;
 };
+struct BoatPose;
+double kanagawaPaperWeight(double t);
+void kanagawaPrintSea(Ctx& c, double opacity=1);
+BoatPose kanagawaPrintSupport(const Ctx& c, BoatPose pose, double half);
 void kanagawaSky(Ctx& c);
 void kanagawaMist(Ctx& c);
 void kanagawaSea(Ctx& c);

@@ -154,7 +154,12 @@ void drawCrossing(Ctx& c) {
             d.veil = 1 - warm; d.tex = 1 - warm;
             d.energy = 0.35 + 0.6 * c.a.bass + warm * (0.55 * c.lift(0) + 0.35 * c.kick(5));
             d.restRings = lerp(1.0, 1.6, warm);
-            drawDisc(c, d, cam);
+            const double paper=kanagawaPaperWeight(t);
+            if(paper<.999) {
+                if(paper>0)c.gpu.beginOffscreen(true);
+                drawDisc(c,d,cam);
+                if(paper>0)c.gpu.composite(c.gpu.endOffscreen(),Blend::Over,1,float(1-paper));
+            }
         }
     };
     bh.mountain = [&] {

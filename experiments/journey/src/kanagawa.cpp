@@ -62,7 +62,7 @@ void foamFinger(Canvas& cv,V2 root,double angle,double length,double width,doubl
 }
 
 const char* kanagawaSkyFs = R"(
-uniform float u_grade,u_arrival;
+uniform float u_grade,u_arrival,u_paper;
 vec3 ramp(float l) {
     vec3 c0 = vec3(0.008, 0.026, 0.022), c1 = vec3(0.022, 0.150, 0.112), c2 = vec3(0.110, 0.520, 0.370);
     vec3 c3 = vec3(0.42, 0.93, 0.68), c4 = vec3(0.97, 0.91, 0.70);
@@ -86,6 +86,8 @@ void main() {
     vec3 sunset=mix(vec3(.23,.11,.37),vec3(.98,.47,.39),smoothstep(100.0,560.0,y));
     sunset=mix(sunset,vec3(1.0,.72,.46),smoothstep(490.0,612.0,y));
     c=mix(c,sunset,u_arrival);
+    vec3 paper=mix(vec3(.91,.855,.725),vec3(.64,.645,.615),smoothstep(190.0,640.0,y));
+    c=mix(c,paper,u_paper);
     o = vec4(mix(ramp(l), c, u_grade), 1.0);
 }
 )";
@@ -450,7 +452,7 @@ BoatPose seaBoatPose(const Ctx& c, bool near) {
     const double left = surface(x - half), right = surface(x + half);
     const double y = (left + 2 * surface(x) + right) * 0.25 - 9;
     const double tilt = std::clamp(std::atan2(right - left, 2 * half), -0.13, 0.13);
-    return {{x, y}, tilt};
+    return kanagawaPrintSupport(c,{{x,y},tilt},half);
 }
 
 void drawBoat(Ctx& c, Canvas& cv, Canvas& light, V2 at, double ln, double tilt, int crew, double style, double sc,
@@ -662,10 +664,14 @@ Surge kanagawaBreak(const Ctx& c) {
 
 void kanagawaSky(Ctx& c) {
     Program& sky = c.gpu.effect("kanagawaSky", kanagawaSkyFs);
-    c.gpu.pass(sky, Blend::Replace, [&](Program& q) { q.set("u_grade", 1.f);q.set("u_arrival",float(sstep(68,78,c.t))); });
+    c.gpu.pass(sky, Blend::Replace, [&](Program& q) { q.set("u_grade", 1.f);q.set("u_arrival",float(sstep(68,78,c.t)));q.set("u_paper",float(kanagawaPaperWeight(c.t))); });
 }
 void kanagawaMist(Ctx& c) { mistBars(c, c.t); }
-void kanagawaSea(Ctx& c) { sea(c, c.t); }
+void kanagawaSea(Ctx& c) {
+    const double paper=kanagawaPaperWeight(c.t);
+    if(paper<.999)sea(c,c.t);
+    if(paper>0)kanagawaPrintSea(c,paper);
+}
 void kanagawaHorizon(Ctx& c) {
     // The ending water is opaque below HZ. Keep the original exposed horizon
     // exactly, without solving and drawing the six fully covered depth rows.
@@ -709,6 +715,9 @@ void kanagawaFuji(Ctx& c, double grade) {
 }
 
 void kanagawaSun(Ctx& c) {
+    const double paper=kanagawaPaperWeight(c.t);
+    if(paper>=.999)return;
+    if(paper>0)c.gpu.beginOffscreen(true);
     DiscLook d;
     d.pos = {1310 - .34*c.cameraX, 512 - 12 * sstep(T::crossingEnd, T::crossingEnd + 10, c.t)+95*sstep(69,83,c.t)};
     d.r = 112;
@@ -719,6 +728,7 @@ void kanagawaSun(Ctx& c) {
     d.energy = 0.35 + 0.6 * c.a.bass + 0.55 * c.lift(0) + 0.35 * c.kick(5);
     d.restRings = 1.6;
     drawDisc(c, d, 0);
+    if(paper>0)c.gpu.composite(c.gpu.endOffscreen(),Blend::Over,1,float(1-paper));
 }
 
 namespace {
