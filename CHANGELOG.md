@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1
+
+- Fix MilkDrop mode not starting with "This screen" selected. Omadrop now
+  matches Hyprland's monitor names to the names SDL reports, such as
+  `DP-2 27"`, which also fixes MilkDrop on all displays where the names differ.
+
 ## 0.6.0
 
 - Omarchy mode is now Osaka Jade, a living street that reacts to your music.

@@ -261,7 +261,16 @@ int main(int argc, char** argv) {
         bool found = false;
         for (int index = 0; index < SDL_GetNumVideoDisplays(); ++index) {
             const char* name = SDL_GetDisplayName(index);
-            if (name && std::string_view(name) == output) {
+            // Hyprland says "DP-2"; SDL says "DP-2 27\"" under X11 and
+            // "Dell ... (DP-2)" under Wayland.
+            const std::string_view sdl = name ? std::string_view(name) : std::string_view();
+            const std::string_view want(output);
+            const bool matches = sdl == want
+                || (sdl.size() > want.size() && sdl.substr(0, want.size()) == want
+                    && sdl[want.size()] == ' ')
+                || (sdl.size() > want.size() + 2 && sdl.back() == ')'
+                    && sdl.substr(sdl.size() - want.size() - 2) == "(" + std::string(want) + ")");
+            if (matches) {
                 displayIndex = index;
                 found = true;
                 break;
