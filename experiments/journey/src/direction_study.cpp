@@ -109,25 +109,6 @@ void studyWave(Ctx& c,double growth) {
         const double f=(line+.5)/29.0;
         flow.color(cream,.12+.12*hash2(line,22));stream(f);flow.stroke(.8);
     }
-    // Intermittent cream drainage and branching lace give the face authored
-    // structure without filling it with a second uniform contour system.
-    for(int lace=0;lace<13;++lace) {
-        const double f=.10+.060*lace;
-        const Cubic q={{-155+f*1540,1120},{-230+f*1170,825},
-            {-145+f*700,245+f*325},{240+f*475,158+f*306}};
-        const double begin=.22+.40*hash2(lace,190),end=std::min(.97,begin+.15+.22*hash2(lace,191));
-        std::vector<V2> vein;
-        for(int j=0;j<=40;++j) {
-            const double u=lerp(begin,end,j/40.0);const V2 d=unit(q.tangent(u)),n(-d.y,d.x);
-            vein.push_back(q.at(u)+n*(2.8*noise1(u*57,lace)));
-        }
-        flow.polyline(vein,1.6+2.1*hash2(lace,192),cream,.42);
-        for(int twig=0;twig<7;++twig) {
-            const double u=lerp(begin,end,(twig+.5)/7.0);const V2 root=q.at(u),d=unit(q.tangent(u));
-            const double angle=std::atan2(d.y,d.x),side=twig%2?1:-1;
-            tendril(flow,root,angle+side*.50,18+26*hash2(twig,lace+200),1.6+1.6*hash2(twig,lace+201),side*1.8,cream,.65);
-        }
-    }
     flow.restore();
     const int details=c.gpu.layer(flow);
     Program& clipped=c.gpu.effect("directionClip",R"(
@@ -329,9 +310,9 @@ void studyRoad(Ctx& c) {
     for(int side=0;side<2;++side) {
         const auto& edge=side?l:r;std::vector<V2> rail;
         for(int i=0;i<int(edge.size());++i) {
-            const double u=i/double(edge.size()-1),h=lerp(29,2.5,std::pow(u,.77));
+            const double u=i/double(edge.size()-1),h=29*std::pow(1-u,3.5)+1.5;
             rail.push_back(edge[i]+V2(0,-h));
-            if(i%7==0)cv.line(edge[i].x,edge[i].y,edge[i].x,edge[i].y-h,lerp(3,.6,u),hex(0x79758d));
+            if(i%7==0 && i<85)cv.line(edge[i].x,edge[i].y,edge[i].x,edge[i].y-h,lerp(3,.6,u),hex(0x79758d));
             if(i>90 && i%27==0)cv.glow(edge[i].x,edge[i].y-h-2,7,gold,.55);
         }
         cv.polyline(rail,2.9,side?gold:hex(0x8b819b),.7);
