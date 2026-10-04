@@ -9,8 +9,8 @@ ApplicationWindow {
     title: qsTr("Omadrop")
     width: 1120
     height: 720
-    minimumWidth: 1120
-    minimumHeight: 720
+    minimumWidth: 900
+    minimumHeight: 640
     maximumWidth: 1120
     maximumHeight: 720
     color: app.cBg
@@ -419,10 +419,15 @@ ApplicationWindow {
         }
 
         ScrollView {
+            id: errorDetailsPanel
             Layout.fillWidth: true
-            Layout.preferredHeight: 140
+            // Keep short messages compact; long logs scroll within a bounded panel.
+            Layout.preferredHeight: Math.min(errorDetailsText.implicitHeight, app.height * 0.25)
+            Layout.minimumHeight: Layout.preferredHeight
+            Layout.maximumHeight: Layout.preferredHeight
             visible: app.hasError && app.detailsOpen && !!backend.errorDetails
             clip: true
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
             background: Rectangle {
                 radius: 12
                 color: app.cErrorBg
@@ -430,6 +435,8 @@ ApplicationWindow {
                 border.color: app.cErrorBorder
             }
             TextArea {
+                id: errorDetailsText
+                width: errorDetailsPanel.availableWidth
                 text: backend.errorDetails
                 readOnly: true
                 selectByMouse: true
@@ -478,8 +485,9 @@ ApplicationWindow {
 
             Rectangle {
                 anchors.centerIn: parent
-                width: Math.min(parent.width - 40, 640)
-                height: osakaPreview.implicitHeight
+                // Leave room for the captions when the error details reduce the viewport.
+                width: Math.min(parent.width - 40, 640, Math.max(240, (parent.height - 80) * 16 / 9 + 16))
+                height: Math.min(parent.height, osakaPreview.implicitHeight)
                 visible: app.omarchyMode
                 radius: 12
                 color: app.cCard
@@ -490,13 +498,19 @@ ApplicationWindow {
                     id: osakaPreview
                     anchors.left: parent.left
                     anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
                     anchors.margins: 8
+                    anchors.topMargin: 0
+                    anchors.bottomMargin: 0
                     spacing: 6
 
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.topMargin: 8
                         Layout.preferredHeight: (osakaPreview.width) * 9 / 16
+                        Layout.fillHeight: true
+                        Layout.minimumHeight: 0
                         radius: 8
                         clip: true
                         color: app.cPanel
