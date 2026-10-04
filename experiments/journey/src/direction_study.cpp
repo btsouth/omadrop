@@ -109,6 +109,25 @@ void studyWave(Ctx& c,double growth) {
         const double f=(line+.5)/29.0;
         flow.color(cream,.12+.12*hash2(line,22));stream(f);flow.stroke(.8);
     }
+    // Intermittent cream drainage and branching lace give the face authored
+    // structure without filling it with a second uniform contour system.
+    for(int lace=0;lace<13;++lace) {
+        const double f=.10+.060*lace;
+        const Cubic q={{-155+f*1540,1120},{-230+f*1170,825},
+            {-145+f*700,245+f*325},{240+f*475,158+f*306}};
+        const double begin=.22+.40*hash2(lace,190),end=std::min(.97,begin+.15+.22*hash2(lace,191));
+        std::vector<V2> vein;
+        for(int j=0;j<=40;++j) {
+            const double u=lerp(begin,end,j/40.0);const V2 d=unit(q.tangent(u)),n(-d.y,d.x);
+            vein.push_back(q.at(u)+n*(2.8*noise1(u*57,lace)));
+        }
+        flow.polyline(vein,1.6+2.1*hash2(lace,192),cream,.42);
+        for(int twig=0;twig<7;++twig) {
+            const double u=lerp(begin,end,(twig+.5)/7.0);const V2 root=q.at(u),d=unit(q.tangent(u));
+            const double angle=std::atan2(d.y,d.x),side=twig%2?1:-1;
+            tendril(flow,root,angle+side*.50,18+26*hash2(twig,lace+200),1.6+1.6*hash2(twig,lace+201),side*1.8,cream,.65);
+        }
+    }
     flow.restore();
     const int details=c.gpu.layer(flow);
     Program& clipped=c.gpu.effect("directionClip",R"(
@@ -234,8 +253,8 @@ void studyWreck(Ctx& c) {
         const double l=30+45*hash2(i,112),a=(hash2(i,113)-.5)*.65;
         cv.line(x,y,x+l*std::cos(a),y+l*std::sin(a),i%3?5:3,wood);cv.line(x,y-1,x+l*std::cos(a),y+l*std::sin(a)-1,1,gold,.65);
     }
-    const V2 crew[4]={{970,865},{1100,915},{1230,876},{1510,831}};
-    for(int i=0;i<4;++i) {
+    const V2 crew[5]={{970,865},{1100,915},{1230,876},{1370,945},{1510,831}};
+    for(int i=0;i<5;++i) {
         const double x=crew[i].x,y=crew[i].y;
         const double side=i%2?1:-1;
         cv.capsule({x,y+7},{x-3*side,y-19},7.5,9,ink);
@@ -279,7 +298,7 @@ void pine(Canvas& cv,V2 root,double h) {
 void studyRoad(Ctx& c) {
     Canvas& cv=c.canvas();
     // Layered curved hills with restrained geological seams and distant pines.
-    const std::array<Col,4> colors={hex(0x625878),hex(0x635477),hex(0x514465),hex(0x302c49)};
+    const std::array<Col,4> colors={hex(0x8a749b),hex(0x71628b),hex(0x514767),hex(0x302c49)};
     for(int k=0;k<4;++k) {
         const double y=590+k*69;
         cv.linear(1200,y,1500,1080,{{0,colors[k],1},{1,mix(colors[k],ink,.30),1}});
@@ -292,15 +311,12 @@ void studyRoad(Ctx& c) {
         }
     }
     const auto center=smooth({{80,1120},{620,1010},{1270,931},{1660,800},{1490,683},{1770,590},{2130,540}});
-    std::vector<V2> l,r;std::vector<double> width;
+    std::vector<V2> l,r;
     for(int i=0;i<int(center.size());++i) {
         const double u=i/double(center.size()-1);
-        const V2 before=center[i]-center[std::max(0,i-1)],after=center[std::min(i+1,int(center.size())-1)]-center[i];
-        const double turn=std::abs(std::atan2(before.x*after.y-before.y*after.x,before.x*after.x+before.y*after.y));
-        const double radius=(before.len()+after.len())*.5/std::max(.001,turn);
-        const double w=std::min(lerp(145,3.5,std::pow(u,.78)),radius*.52);
+        const double w=3.5+145*std::pow(1-u,2.45);
         V2 d=unit(center[std::min(i+1,int(center.size())-1)]-center[std::max(0,i-1)]),n(-d.y,d.x);
-        l.push_back(center[i]+n*w);r.push_back(center[i]-n*w);width.push_back(w);
+        l.push_back(center[i]+n*w);r.push_back(center[i]-n*w);
     }
     auto surface=l;for(auto it=r.rbegin();it!=r.rend();++it)surface.push_back(*it);
     polyfill(cv,surface,hex(0x242435));
@@ -414,6 +430,12 @@ void drawDirectionStudy(Ctx& c) {
     const bool road=c.t>=74,after=c.t>=66;
     studySea(c,after);
     if(road) {
+        // Small rescue remains visible below the road, closing the water story.
+        studyBoat(c,{380,810},.40,.025,false,true);
+        Canvas& distant=c.canvas();distant.capsule({474,829},{474,814},3.5,4,ink);
+        distant.disc(474,807,3.5,ink);distant.line(454,833,496,834,4,wood);
+        distant.line(453,837,497,838,1,cream,.5);
+        distant.line(250,861,317,865,5,wood);distant.line(269,857,311,860,1.2,gold,.6);c.gpu.over(distant);
         studyRoad(c);studyCar(c);studyWalker(c);
     } else if(after) {
         studyWreck(c);
