@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Omarchy mode now plays live Osaka Jade on every theme and returns to controls
+  with Escape. MilkDrop and its ASCII option remain the default experience.
+- Retain static Osaka geometry between frames. Fireworks use a seeded 45 to 90
+  second cooldown; quiet music gets a small single shell.
+- Remove the ttfx screensaver, effect browser and terminal dependencies.
+
+
 ## 0.5.0
 
 - One app with controls first and a compact thumbnail browser.

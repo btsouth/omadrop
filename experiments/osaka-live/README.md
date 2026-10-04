@@ -1,12 +1,13 @@
 # Osaka Jade live renderer
 
-Standalone integration candidate extracted from Journey commit `4c2d413` onto
+Live Osaka renderer extracted from Journey commit `4c2d413` onto
 `product`. It includes Osaka, the vector canvas, compositor, rigs and sign
 outlines. It contains no crossing, Kanagawa, road ending or chapter titles.
-The product controller, dispatcher, MilkDrop, ttfx and packaging are unchanged.
+The dispatcher installs this as bin/omadrop-osaka and uses it for Omarchy mode
+on every theme. MilkDrop remains the default.
 
 Build on devbox with `qmake6 osaka.pro` in a build directory, then `make -j8`.
-Run GUI previews only in omabox. Escape closes this standalone preview.
+Run GUI previews only in omabox. Escape closes all Osaka windows and returns to the app controls.
 Launching it without a duration runs indefinitely.
 
 Audio uses the existing `PipeWireCapture` at 44100 Hz stereo. The analyser
@@ -20,8 +21,12 @@ event history and strand phases are bounded.
 The camera stays in Osaka. Train, cyclist, gust, tea, cooking, toast and small
 sky actions have separate seeded schedules. Smaller gestures and window wakes
 have independent periods. Strong newly measured onsets, bass attacks or surges
-can launch the existing fireworks after an 18 to 30 second cooldown. Follow-up
-shells also require new measured events. There is no silent fireworks fallback.
+can launch the existing fireworks after a seeded 45 to 90 second cooldown. A three-second smoothed RMS
+before the quiet-music gain chooses the show size: below 0.09 gets one shell
+at 35% radius, without the secondary shell or follow-ups. At 0.09 and above,
+the full show retains follow-ups requiring newly measured events. This
+threshold separates fixture means of 0.066 (Gymnopedie), 0.112 (Sneaky Snitch)
+and 0.375 (Volatile Reaction). There is no silent fireworks fallback.
 Birds fly away, leave the viewport and return separately. Ambient movement
 continues through silence. A monotonic double clock never rewinds the scene;
 the strand phases wrap only at their common continuous repeat period.
@@ -39,5 +44,7 @@ eight simulated hours of bounded state, event cooldowns and the original
 canvas geometry digest. `--verify-render` checks exact RGB compatibility of
 the canvas optimization on three controlled poses, including fireworks.
 
-This is milestone 1. App integration, ttfx removal, a fresh package install
-and a capture of the installed app require Brandon's review of the live loop.
+--single uses the first display, as MilkDrop does; --all uses every Qt screen.
+The explicit choice shares MilkDrop display preferences and preserves newer
+preference versions. Windows share one live audio session and loop indefinitely.
+Real audio devices and physical multi-monitor behavior require hardware testing.

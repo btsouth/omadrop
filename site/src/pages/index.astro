@@ -2,7 +2,7 @@
 import "../styles/global.css";
 
 const title = "Omadrop | See the music";
-const description = "Music visuals for Omarchy: 21 curated MilkDrop scenes and 37 music-driven terminal effects in one app, with controls first and local PipeWire capture.";
+const description = "Music visuals for Omarchy: 21 curated MilkDrop scenes and live Osaka Jade in one app, with controls first and local PipeWire capture.";
 const scenes = [
   [
     "collection-01",
@@ -110,156 +110,7 @@ const scenes = [
     "Tripgnosis - Firesticks"
   ]
 ];
-const effects = [
-  [
-    "beams",
-    "Beams"
-  ],
-  [
-    "binarypath",
-    "Binary Path"
-  ],
-  [
-    "blackhole",
-    "Black Hole"
-  ],
-  [
-    "bouncyballs",
-    "Bouncy Balls"
-  ],
-  [
-    "bubbles",
-    "Bubbles"
-  ],
-  [
-    "burn",
-    "Burn"
-  ],
-  [
-    "colorshift",
-    "Color Shift"
-  ],
-  [
-    "crumble",
-    "Crumble"
-  ],
-  [
-    "decrypt",
-    "Decrypt"
-  ],
-  [
-    "errorcorrect",
-    "Error Correct"
-  ],
-  [
-    "expand",
-    "Expand"
-  ],
-  [
-    "fireworks",
-    "Fireworks"
-  ],
-  [
-    "highlight",
-    "Highlight"
-  ],
-  [
-    "laseretch",
-    "Laser Etch"
-  ],
-  [
-    "matrix",
-    "Matrix"
-  ],
-  [
-    "middleout",
-    "Middle Out"
-  ],
-  [
-    "orbittingvolley",
-    "Orbitting Volley"
-  ],
-  [
-    "overflow",
-    "Overflow"
-  ],
-  [
-    "pour",
-    "Pour"
-  ],
-  [
-    "print",
-    "Print"
-  ],
-  [
-    "rain",
-    "Rain"
-  ],
-  [
-    "randomsequence",
-    "Random Sequence"
-  ],
-  [
-    "rings",
-    "Rings"
-  ],
-  [
-    "scattered",
-    "Scattered"
-  ],
-  [
-    "slice",
-    "Slice"
-  ],
-  [
-    "slide",
-    "Slide"
-  ],
-  [
-    "smoke",
-    "Smoke"
-  ],
-  [
-    "spotlights",
-    "Spotlights"
-  ],
-  [
-    "spray",
-    "Spray"
-  ],
-  [
-    "swarm",
-    "Swarm"
-  ],
-  [
-    "sweep",
-    "Sweep"
-  ],
-  [
-    "synthgrid",
-    "Synth Grid"
-  ],
-  [
-    "thunderstorm",
-    "Thunderstorm"
-  ],
-  [
-    "unstable",
-    "Unstable"
-  ],
-  [
-    "vhstape",
-    "VHS Tape"
-  ],
-  [
-    "waves",
-    "Waves"
-  ],
-  [
-    "wipe",
-    "Wipe"
-  ]
-];
+
 ---
 
 <!doctype html>
@@ -316,7 +167,7 @@ const effects = [
         <div class="hero__copy" id="top">
           <p class="eyebrow">music visuals for omarchy</p>
           <h1 id="hero-title">see the<br />music.</h1>
-          <p class="lede">21 MilkDrop scenes. 37 terminal effects. One app.</p>
+          <p class="lede">21 MilkDrop scenes. A living Osaka street. One app.</p>
           <a class="button" href="#story">Choose your mode <span aria-hidden="true">↓</span></a>
         </div>
 
@@ -331,7 +182,7 @@ const effects = [
           Open Omadrop to a compact panel with a thumbnail grid. Choose MilkDrop
           for 21 curated presets with added audio response, blended
           transitions and an optional ASCII dot filter. Choose Omarchy for the
-          screensaver's 37 ttfx effects, driven by your music. Press Play or
+          living Osaka Jade street, driven by your music. Press Play or
           click a card to start. Esc brings you back to the controls.
         </p>
       </section>
@@ -357,57 +208,15 @@ const effects = [
         </video>
       </dialog>
 
-      <section class="worlds" id="worlds" aria-labelledby="worlds-title">
-        <div class="worlds__intro">
-          <p class="section-id">03 / THE COLLECTION</p>
-          <h2 id="worlds-title">21 curated<br />MilkDrop scenes.</h2>
-          <p>
-            Authored by MilkDrop artists, selected for variety, and adapted for
-            Omadrop. These are actual frames from the collection.
-          </p>
-        </div>
-        <div class="worlds__grid">
-          {scenes.map(([slug, name, family], index) => (
-            <figure class="scene-card">
-              <img
-                src={`/media/scenes/${slug}.jpg`}
-                alt={`${name}, a curated MilkDrop preset in Omadrop`}
-                width="960"
-                height="540"
-                loading="lazy"
-                decoding="async"
-              />
-              <figcaption>
-                <span>{String(index + 1).padStart(2, "0")} / {name}</span>
-                <small>{family}</small>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-      </section>
-
       <section class="worlds" id="effects" aria-labelledby="effects-title">
         <div class="worlds__intro">
           <p class="section-id">04 / OMARCHY MODE</p>
-          <h2 id="effects-title">37 effects.<br />Your music sets the pace.</h2>
+          <h2 id="effects-title">Osaka Jade.<br />A living street.</h2>
           <p>
-            The ttfx terminal effects from the Omarchy screensaver, with music
-            driving their movement. Browse, favorite, hide or preview effects
-            in the controls. Every enabled effect gets a turn in the rotation.
-            These thumbnails show the actual effects.
+            Lights, residents and measured-event fireworks respond to your music.
+            The street loops indefinitely with every Omarchy theme.
+            Press Play to enter Osaka; Esc brings you back to the controls.
           </p>
-        </div>
-        <div class="worlds__grid">
-          {effects.map(([slug, name], index) => (
-            <figure class="scene-card">
-              <img src={`/media/effects/${slug}.jpg`} alt={`${name}, a ttfx terminal effect`}
-                width="480" height="270" loading="lazy" decoding="async" />
-              <figcaption>
-                <span>{String(index + 1).padStart(2, "0")} / {name}</span>
-                <small>ttfx / TerminalTextEffects</small>
-              </figcaption>
-            </figure>
-          ))}
         </div>
       </section>
 
@@ -435,7 +244,7 @@ const effects = [
         <p class="close__status">From source: <code>packaging/makepkg.sh -si</code> or <code>./install.sh</code>.</p>
         <p class="close__status">Requires Omarchy, Hyprland and PipeWire on Arch Linux.</p>
         <a class="button" href="https://github.com/btsouth/omadrop/releases">View releases <span aria-hidden="true">↗</span></a>
-        <p class="close__status"><a href="https://github.com/btsouth/omadrop/blob/master/THIRD_PARTY_NOTICES.md">Preset credits and licenses</a>. Omadrop code is MIT licensed. Built with projectM, MilkDrop artists, ttfx and TerminalTextEffects. Presets keep their authors' rights. <a href="https://github.com/btsouth/omadrop/issues/new/choose">Request a correction or removal</a>.</p>
+        <p class="close__status"><a href="https://github.com/btsouth/omadrop/blob/master/THIRD_PARTY_NOTICES.md">Preset credits and licenses</a>. Omadrop code is MIT licensed. Built with projectM, MilkDrop artists, Osaka Jade and TerminalTextEffects. Presets keep their authors' rights. <a href="https://github.com/btsouth/omadrop/issues/new/choose">Request a correction or removal</a>.</p>
       </section>
     </main>
 

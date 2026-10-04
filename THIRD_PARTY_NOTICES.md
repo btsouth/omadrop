@@ -74,17 +74,6 @@ Aderrasi, Geiss, Martin, Tokyo, Unchained, Rovastar, fiShbRaiN, Krash and their
 collaborators. They retain their authors' rights and are not MIT licensed by
 Omadrop. The three Omadrop adaptations retain the underlying preset credits.
 
-## Terminal text effects (ttfx)
-
-Omarchy mode uses Omadrop's music-driven fork of [ttfx](https://github.com/omacom/ttfx),
-based on v0.5.0, commit `112ebb310b848d8f1251a5c2919a9cd5a5c78e18`.
-Copyright (c) 2026 37signals / omacom-io. ttfx ports the effects and engine of
-[TerminalTextEffects](https://github.com/ChrisBuilds/terminaltexteffects),
-copyright (c) 2023 ChrisBuilds. Both are MIT licensed. The full license and
-attribution notice are in `screensaver/ttfx/LICENSE` and `screensaver/ttfx/NOTICE`,
-installed as `licenses/ttfx-LICENSE` and `licenses/ttfx-NOTICE`. Fork changes are
-described in `screensaver/ttfx/OMADROP-PROVENANCE.md`.
-
 ## Qt and system libraries
 
 The controls dynamically link to system Qt 6 libraries from Arch's `qt6-base`
@@ -102,7 +91,6 @@ user's Omarchy installation, rather than copied into the package.
 
 Scene screenshots and the website's `collection.mp4` show credited MilkDrop
 presets and textures; these images retain the underlying artists' rights.
-Effect thumbnails show ttfx / TerminalTextEffects output and keep those credits.
 The Omadrop icon and site graphics are covered by Omadrop's MIT license.
 
 The test fixture `tests/fixtures/collection-music.ogg` and the website video use

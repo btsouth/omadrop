@@ -45,8 +45,9 @@ Esc brings you back to the controls.
 </p>
 <p><sub>Liquid Ice · Neon Orbits in ASCII</sub></p>
 
-Omadrop also includes an **early Omarchy mode** with 37 music-driven terminal
-effects from the Omarchy screensaver. MilkDrop is the main attraction in this release.
+**Omarchy mode** plays Osaka Jade: a living street with music-reactive lights,
+residents and measured-event fireworks. It loops indefinitely, with every
+Omarchy theme. MilkDrop stays the default; Esc returns to controls in either mode.
 
 ## Controls
 
@@ -72,7 +73,7 @@ packaging/makepkg.sh -si
 Or use `./install.sh` for a user installation. See
 [building and testing](docs/building.md) and [contributing](CONTRIBUTING.md).
 Omadrop needs Hyprland, PipeWire and an OpenGL 3.3 capable GPU. Omarchy mode
-uses Ghostty by default; other supported terminals are listed in the package.
+plays the fixed Osaka Jade artwork on one display or all displays.
 
 ## Credits
 
@@ -83,6 +84,6 @@ their original authors' rights. Neon Orbits is based on Serge + martin's
 The launch video uses **“We Can Fix Everything” by Kevin Koontz
 ([@koozeex1](https://x.com/koozeex1))**.
 
-Full preset credits and notices for projectM, ttfx, TerminalTextEffects and
+Full preset credits and notices for projectM and
 other dependencies are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 [Report a bug or request a credit correction](https://github.com/btsouth/omadrop/issues).
