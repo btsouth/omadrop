@@ -104,3 +104,14 @@ qmake6 ../tests/audio_tests.pro && make -j4 && ./journey-audio-tests
 
 No live PipeWire, product backend, website, installer or desktop
 configuration is changed by this study.
+
+## Direction stills
+
+`--direction-study --stills 56.8,64.2,69.5,77.5` previews four proposed
+compositions in the same live Canvas/GPU renderer: wave buildup, peak curl,
+crew rescue after the wreck, and the bearer approaching a retro coupe with
+its passenger door open. Use the usual audio offset, output directory and
+1080p settings. These studies are available only for stills and benchmarks;
+they do not implement the crash, rescue, camera or pickup animation. Ordinary
+playback and exports retain the existing film. The flag also preserves the
+opening and crossing before movie second 48.
