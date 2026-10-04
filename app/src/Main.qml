@@ -436,10 +436,59 @@ ApplicationWindow {
                 ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
             }
 
+            Rectangle {
+                anchors.centerIn: parent
+                width: Math.min(parent.width - 40, 640)
+                height: osakaPreview.implicitHeight
+                visible: app.omarchyMode
+                radius: 12
+                color: app.cCard
+                border.width: 1
+                border.color: app.cBorder
+
+                ColumnLayout {
+                    id: osakaPreview
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.margins: 8
+                    spacing: 6
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.topMargin: 8
+                        Layout.preferredHeight: (osakaPreview.width) * 9 / 16
+                        radius: 8
+                        clip: true
+                        color: app.cPanel
+                        Image {
+                            anchors.fill: parent
+                            source: "qrc:/assets/osaka-jade.jpg"
+                            fillMode: Image.PreserveAspectCrop
+                            smooth: true
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("Osaka Jade")
+                        color: app.cText
+                        font.pixelSize: 15
+                        font.weight: Font.DemiBold
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.bottomMargin: 12
+                        text: qsTr("A living street, listening to your music. Press Play.")
+                        color: app.cTextMute
+                        font.pixelSize: 13
+                        wrapMode: Text.WordWrap
+                    }
+                }
+            }
+
             Label {
                 anchors.centerIn: parent
                 width: parent.width - 40
-                visible: app.visibleItems.length === 0
+                visible: !app.omarchyMode && app.visibleItems.length === 0
                 text: app.emptyHint
                 color: app.cTextMute
                 font.pixelSize: 13

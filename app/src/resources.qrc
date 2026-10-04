@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>Main.qml</file>
+        <file alias="assets/osaka-jade.jpg">../assets/osaka-jade.jpg</file>
         <file alias="assets/scenes-ascii/collection-01.png">../assets/scenes-ascii/collection-01.png</file>
         <file alias="assets/scenes-ascii/collection-02.png">../assets/scenes-ascii/collection-02.png</file>
         <file alias="assets/scenes-ascii/collection-03.png">../assets/scenes-ascii/collection-03.png</file>
