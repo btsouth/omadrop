@@ -537,14 +537,7 @@ void rightHouses(Ctx& c, const OsakaState& s, const Life& L) {
         } else darkPane(w, x0 + q[0], q[1], q[2], q[3]);
     }
     x0 = 1512 + ox;
-    c.retain(cv, "right-house-3", [&](Canvas& cv) {
-        cv.fillRect(x0, 600, 470, 340, wall);
-        roof(cv, x0, x0 + 470, 600, 512, 34, rf, rf2, RIM, 9);
-        cv.color(rf);
-        cv.moveTo(x0 - 44, 770); cv.lineTo(x0 + 480, 770); cv.lineTo(x0 + 480, 786); cv.lineTo(x0 - 52, 786); cv.closePath();
-        cv.fill();
-        cv.line(x0 - 44, 770, x0 + 480, 770, 1.4, RIM, 0.4);
-    }, {s.cam});
+    Kit::OsakaRightHouse3V1::draw(c, s, cv, x0, wall, rf, rf2);
     struct U { double wx, ww; bool cyan; double on; int band; };
     const U ups[4] = {{30, 96, false, 16.4, 3}, {134, 96, false, 7.5, 1}, {262, 60, true, 4.8, 5}, {330, 110, false, 10.2, 0}};
     double shamisenPane = 0;
