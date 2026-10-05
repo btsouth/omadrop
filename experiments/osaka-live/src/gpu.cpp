@@ -111,11 +111,16 @@ void main() {
     int r = min(int(ceil(u_sigma * 3.0)), 24);
     vec4 s = texture(u_tex, v_uv);
     float wsum = 1.0;
-    for (int i = 1; i <= 24; ++i) {
+    // Adjacent Gaussian taps share one linear-filtered fetch. Keep the
+    // original finite support, including an unpaired last tap for odd radii.
+    for (int i = 1; i <= 24; i += 2) {
         if (i > r) break;
-        float w = exp(-0.5 * float(i * i) / (u_sigma * u_sigma));
-        s += w * (texture(u_tex, v_uv + u_dir * float(i)) + texture(u_tex, v_uv - u_dir * float(i)));
-        wsum += 2.0 * w;
+        float w0 = exp(-0.5 * float(i * i) / (u_sigma * u_sigma));
+        float w1 = i + 1 <= r ? exp(-0.5 * float((i+1)*(i+1)) / (u_sigma*u_sigma)) : 0.0;
+        float weight = w0 + w1;
+        float offset = float(i) + w1 / weight;
+        s += weight * (texture(u_tex, v_uv + u_dir * offset) + texture(u_tex, v_uv - u_dir * offset));
+        wsum += 2.0 * weight;
     }
     o = s / wsum;
 }
