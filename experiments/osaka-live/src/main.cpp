@@ -232,7 +232,15 @@ int main(int argc,char** argv) {
         if(!context.create(error) || !world.init(error)) { QTextStream(stderr)<<error<<'\n'; return 1; }
         int pose=0;
         bool allExact=true;
-        const std::uint64_t accepted[]={0xaa567941bb8e05b6ull,0x467f84c75c484f98ull,0x741e31c9603638ebull};
+        // RGBA16F RGB after intentional precision revert ad97946, retaining
+        // b4c2984, d7b8cb0 and e98b80b filters plus 0ae962c effect fusion.
+        // Both observed 8-second MSAA rounding histories retain exact hash gates.
+        // Evidence: round4/golden-capture-verify-{1,2,3}.log under
+        // /home/bts/Projects/_evidence/omadrop/igpu-speedups-2026-10-04/.
+        const std::uint64_t accepted[][2]={
+            {0xc2497d0e78e4a478ull,0x7be1177005405f5cull},
+            {0x5697914307884b97ull,0x5697914307884b97ull},
+            {0xb3c1e9ea42c7968ull,0xb3c1e9ea42c7968ull}};
         for(double t:{8.0,14.0,28.0}) {
             Journey::LiveFrame f;
             f.schedule.advance(t,{},f.score);
@@ -257,7 +265,7 @@ int main(int argc,char** argv) {
             std::uint64_t hash=14695981039346656037ull;
             for(auto byte:after) { hash^=byte; hash*=1099511628211ull; }
             QTextStream(stdout)<<t<<" RGB hash "<<QString::number(hash,16)<<'\n';
-            if(w==1920 && h==1080 && context.renderer().contains("RTX 4070 SUPER") && hash!=accepted[pose]) {QTextStream(stderr)<<"accepted M1 RGB hash differs\n";return 1;}
+            if(w==1920 && h==1080 && context.renderer().contains("RTX 4070 SUPER") && hash!=accepted[pose][0] && hash!=accepted[pose][1]) {QTextStream(stderr)<<"accepted M1 RGB hash differs\n";return 1;}
             ++pose;
         }
         QTextStream(stdout)<<"PASS: retained geometry and optimized canvas match uncached RGB "
