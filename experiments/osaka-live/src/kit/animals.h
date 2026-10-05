@@ -19,4 +19,9 @@ struct OsakaSillCatV1 {
     static void draw(const OsakaLegacyLife& L, Canvas& sh, double t, double ox);
 };
 
+struct OsakaVerandaCatV1 {
+    static constexpr const char* name = "osaka-veranda-cat-v1";
+    static void draw(Ctx& c, const OsakaState& s, const OsakaLegacyLife& L, Canvas& f, double t, double ox);
+};
+
 }

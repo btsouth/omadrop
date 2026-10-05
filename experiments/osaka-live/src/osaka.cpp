@@ -1448,15 +1448,7 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
         f.restore();
     }
     {
-        // Veranda cat flicks its tail at 2 s, then sways it lazily.
-        CatPose cp;
-        const double greet = c.gesture(13.05, 0.25, 14.25, 0.4);
-        cp.pos = {420 + ox, 968}; cp.s = 27; cp.facing = 1; cp.sit = 1 - 0.8 * greet;
-        cp.crouch = 0.3 * greet;
-        const double flick = s.chapter ? ring(t - 2.0, 2.4, 2.2) : 0;
-        cp.tailWave = 0.18 + 0.9 * flick + 0.45 * greet; cp.tailPhase = t * 2.0 + flick * 4;
-        cp.look = 0.25 * std::max(0.0, std::sin(t * 0.37)) + 1.1 * L.look + 0.6 * greet;
-        drawCat(f, cp, INK);
+        OsakaVerandaCatV1::draw(c, s, L, f, t, ox);
     }
     {
         // Wind chime under the eave swings in the gust.

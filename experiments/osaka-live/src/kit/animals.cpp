@@ -56,4 +56,16 @@ void OsakaSillCatV1::draw(const Life& L, Canvas& sh, double t, double ox) {
         drawCat(sh, cp, SHADOW);
 }
 
+void OsakaVerandaCatV1::draw(Ctx& c, const OsakaState& s, const Life& L, Canvas& f, double t, double ox) {
+        // Veranda cat flicks its tail at 2 s, then sways it lazily.
+        CatPose cp;
+        const double greet = c.gesture(13.05, 0.25, 14.25, 0.4);
+        cp.pos = {420 + ox, 968}; cp.s = 27; cp.facing = 1; cp.sit = 1 - 0.8 * greet;
+        cp.crouch = 0.3 * greet;
+        const double flick = s.chapter ? ring(t - 2.0, 2.4, 2.2) : 0;
+        cp.tailWave = 0.18 + 0.9 * flick + 0.45 * greet; cp.tailPhase = t * 2.0 + flick * 4;
+        cp.look = 0.25 * std::max(0.0, std::sin(t * 0.37)) + 1.1 * L.look + 0.6 * greet;
+        drawCat(f, cp, INK);
+}
+
 }
