@@ -545,16 +545,7 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
         for (int i = 0; i < 4; ++i) lattice(f, x0 + ups[i].wx, 640, ups[i].ww, 96, ups[i].ww > 70 ? 3 : 2, 3, INK, 1.3);
     }, {s.cam});
     const double wind = L.wind;
-    for (int i = 0; i < 4; ++i) {
-        // Noren flutter in the breeze.
-        const double nx = x0 + 44 + i * 57;
-        const double flut = std::sin(t * 1.2 + i) * 3 + wind * 10 * (0.6 + 0.4 * std::sin(t * 7 + i * 1.7));
-        f.color(mix(JADE, INK, 0.45));
-        f.moveTo(nx, 800); f.lineTo(nx + 52, 800);
-        f.lineTo(nx + 52 + flut, 836 - wind * 6); f.lineTo(nx + flut, 836 - wind * 6 + std::sin(t * 1.2 + i) * 3);
-        f.closePath();
-        f.fill();
-    }
+    OsakaIzakayaClothV1::draw(L, f, t, x0);
     c.retain(f, "izakaya-counter", [&](Canvas& f) {
         f.line(x0 + 58, 904, x0 + 252, 904, 5, INK);
     }, {s.cam});

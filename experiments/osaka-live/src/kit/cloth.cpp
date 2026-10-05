@@ -41,4 +41,18 @@ void OsakaNorenV1::draw(Ctx& c, const OsakaState& s, const Life& L, Canvas& l, d
     }
 }
 
+void OsakaIzakayaClothV1::draw(const Life& L, Canvas& f, double t, double x0) {
+    const double wind = L.wind;
+    for (int i = 0; i < 4; ++i) {
+        // Noren flutter in the breeze.
+        const double nx = x0 + 44 + i * 57;
+        const double flut = std::sin(t * 1.2 + i) * 3 + wind * 10 * (0.6 + 0.4 * std::sin(t * 7 + i * 1.7));
+        f.color(mix(JADE, INK, 0.45));
+        f.moveTo(nx, 800); f.lineTo(nx + 52, 800);
+        f.lineTo(nx + 52 + flut, 836 - wind * 6); f.lineTo(nx + flut, 836 - wind * 6 + std::sin(t * 1.2 + i) * 3);
+        f.closePath();
+        f.fill();
+    }
+}
+
 }

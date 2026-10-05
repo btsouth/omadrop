@@ -16,4 +16,9 @@ struct OsakaNorenV1 {
     static void draw(Ctx& c, const OsakaState& s, const OsakaLegacyLife& L, Canvas& l, double t, double yx);
 };
 
+struct OsakaIzakayaClothV1 {
+    static constexpr const char* name = "osaka-izakaya-cloth-v1";
+    static void draw(const OsakaLegacyLife& L, Canvas& f, double t, double x0);
+};
+
 }
