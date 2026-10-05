@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.2
 
 - Osaka Jade renders more than twice as fast on integrated graphics without
   changing how it looks. On an Intel UHD 770 at 1080p a frame now takes about
