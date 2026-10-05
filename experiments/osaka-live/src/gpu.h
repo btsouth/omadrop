@@ -14,6 +14,8 @@
 #include <QRect>
 #include <functional>
 #include <map>
+#include <set>
+#include <tuple>
 #include <memory>
 #include <string>
 #include <vector>
@@ -24,6 +26,12 @@ enum class Blend { Over, Add, Replace, Multiply };
 class Program {
 public:
     GLuint id = 0;
+    struct Uniform { std::vector<float> values; int count=1,components=1,integer=0; bool integral=false; };
+    std::string body,name;
+    bool fusible=false;
+    std::set<std::string> scalarUniforms;
+    std::map<std::string,Uniform> uniforms;
+    void remember(const char* name,const float* values,int count,int components);
     GLint loc(const char* name);
     void set(const char* name, float v);
     void set(const char* name, float x, float y);
@@ -117,6 +125,14 @@ private:
     void bindGeometry(const Canvas& canvas);
     void setBlend(Blend blend, float gain);
     void fullscreen();
+    struct PendingEffect { Program* program=nullptr; QRectF clip; std::map<std::string,Program::Uniform> uniforms; } pendingEffect_;
+    struct FusedEffect { Program program; std::set<std::string> shared; };
+    std::map<std::tuple<GLuint,GLuint,int>,FusedEffect> fusedEffects_;
+    void flushEffect();
+    bool canFuse(const Program&) const;
+    void applyUniforms(Program&,const std::map<std::string,Program::Uniform>&,const std::string& prefix={});
+    bool fuseEffect(Program&,Blend,const QRectF&);
+    bool effectFusion_=false;
     int downsample(int src);
     int blurPass(int src, float sigmaPx, bool horizontal);
 

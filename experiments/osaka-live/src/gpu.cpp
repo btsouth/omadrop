@@ -4,6 +4,9 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <regex>
+#include <set>
+#include <cstring>
 
 namespace Journey {
 namespace {
@@ -204,12 +207,17 @@ GLint Program::loc(const char* name) {
     cache_[name] = l;
     return l;
 }
-void Program::set(const char* n, float v) { glUniform1f(loc(n), v); }
-void Program::set(const char* n, float x, float y) { glUniform2f(loc(n), x, y); }
-void Program::set(const char* n, float x, float y, float z) { glUniform3f(loc(n), x, y, z); }
-void Program::set(const char* n, float x, float y, float z, float w) { glUniform4f(loc(n), x, y, z, w); }
-void Program::set(const char* n, int v) { glUniform1i(loc(n), v); }
+void Program::set(const char* n, float v) { remember(n,&v,1,1); glUniform1f(loc(n), v); }
+void Program::set(const char* n, float x, float y) { const float v[]={ x, y }; remember(n,v,1,2); glUniform2f(loc(n), x, y); }
+void Program::set(const char* n, float x, float y, float z) { const float v[]={ x, y, z }; remember(n,v,1,3); glUniform3f(loc(n), x, y, z); }
+void Program::set(const char* n, float x, float y, float z, float w) { const float v[]={ x, y, z, w }; remember(n,v,1,4); glUniform4f(loc(n), x, y, z, w); }
+void Program::set(const char* n, int v) { if(!body.empty()) { Uniform u;u.integral=true;u.integer=v;uniforms[n]=u; } glUniform1i(loc(n), v); }
+void Program::remember(const char* n,const float* v,int count,int components) {
+    if(body.empty()) return;
+    Uniform u;u.values.assign(v,v+count*components);u.count=count;u.components=components;uniforms[n]=std::move(u);
+}
 void Program::setArray(const char* n, const float* v, int count, int components) {
+    remember(n,v,count,components);
     switch (components) {
     case 1: glUniform1fv(loc(n), count, v); break;
     case 2: glUniform2fv(loc(n), count, v); break;
@@ -238,6 +246,10 @@ bool Gpu::init(QString& error) {
     // accumulator at full float precision; resolved filters remain RGBA16F.
     if(std::string(reinterpret_cast<const char*>(glGetString(GL_VENDOR))).find("NVIDIA")!=std::string::npos)
         msaaFormat_=GL_RGBA32F;
+    GLint extensions=0;glGetIntegerv(GL_NUM_EXTENSIONS,&extensions);
+    for(int i=0;i<extensions;++i)
+        if(std::string(reinterpret_cast<const char*>(glGetStringi(GL_EXTENSIONS,i)))=="GL_ARB_shading_language_packing") effectFusion_=true;
+    if(std::getenv("OSAKA_DISABLE_EFFECT_FUSION")) effectFusion_=false;
     memoryProfile_=std::getenv("OSAKA_GPU_MEMORY")!=nullptr;
     canvas_.id = link(canvasVs, canvasFs, "canvas");
     compositeP_.id = link(fullscreenVs, std::string(effectHeader) + compositeFs, "composite");
@@ -288,6 +300,7 @@ void Gpu::trackMemory() {
 }
 
 void Gpu::release() {
+    pendingEffect_={};
     if(memoryProfile_ && peakPoolCount_) {
         std::fprintf(stderr,"GPU storage peak %dx%d: pinned %zu textures %.3f MiB; pool %zu textures %.3f MiB; reduced %zu targets %.3f MiB (%s + D24S8, %dx MSAA; logical storage, excluding driver overhead)\n",
             w_,h_,peakPinnedCount_,peakPinnedBytes_/1048576.0,peakPoolCount_,peakPoolBytes_/1048576.0,
@@ -694,6 +707,7 @@ void Gpu::drawCanvas(const Canvas& c) {
 }
 
 void Gpu::draw(const Canvas& canvas, Blend blend, float gain) {
+    flushEffect();
     GpuProfile::Scope timing(profile,"draw",w_,h_,msaaFormat_==GL_RGBA32F ? "RGBA32F-MSAA" : "RGBA16F-MSAA");
     bindMain();
     setBlend(blend, gain);
@@ -701,6 +715,7 @@ void Gpu::draw(const Canvas& canvas, Blend blend, float gain) {
 }
 
 int Gpu::layer(const Canvas& canvas,float sigmaDesign) {
+    flushEffect();
     int reduction=1,w=w_,h=h_;
     while(sigmaDesign*pixelScale()/reduction>3 && reduction<32) {
         reduction*=2; w=(w+1)/2; h=(h+1)/2;
@@ -836,6 +851,7 @@ int Gpu::blurred(int tex, float sigmaDesign) {
 }
 
 void Gpu::composite(int tex, Blend blend, float gain, float opacity) {
+    flushEffect();
     GpuProfile::Scope timing(profile,"composite",w_,h_,msaaFormat_==GL_RGBA32F ? "RGBA32F-MSAA" : "RGBA16F-MSAA");
     bindMain();
     glUseProgram(compositeP_.id);
@@ -879,10 +895,156 @@ Program& Gpu::effect(const std::string& name, const char* body) {
     if (it != effects_.end()) return it->second;
     Program& p = effects_[name];
     p.id = link(fullscreenVs, std::string(effectHeader) + body, name.c_str());
+    p.body=body;p.name=name;p.fusible=canFuse(p);
+    if(p.fusible) {
+        const std::regex floats(R"(uniform\s+float\s+([^;]+);)");
+        const std::regex scalar(R"(\s*([A-Za-z_]\w*)\s*(?:,|$))");
+        for(std::sregex_iterator i(p.body.begin(),p.body.end(),floats),end;i!=end;++i) {
+            const std::string fields=(*i)[1];
+            for(std::sregex_iterator j(fields.begin(),fields.end(),scalar),e;j!=e;++j)p.scalarUniforms.insert((*j)[1]);
+        }
+    }
     return p;
 }
 
+
+
+bool Gpu::canFuse(const Program& p) const {
+    // Pure fragment outputs only. Texture reads, fragment side effects and
+    // global state need the original immediate pass boundary.
+    if(p.body.empty() || p.body.find("sampler")!=std::string::npos || p.body.find("discard")!=std::string::npos
+       || p.body.find("gl_")!=std::string::npos || p.body.find('#')!=std::string::npos) return false;
+    const auto body=std::regex_replace(p.body,std::regex(R"(/\*[\s\S]*?\*/|//[^\n]*)"),"");
+    const std::regex uniform(R"(\s*uniform\s+\w+\s+[^;]+;\s*)");
+    const std::regex function(R"(\s*(?:void|float|int|vec[234])\s+\w+\s*\([\s\S]*\)\s*)");
+    int depth=0;std::string declaration;
+    for(char c:body) {
+        if(depth==0) {
+            if(c=='{') {if(!std::regex_match(declaration,function))return false;declaration.clear();++depth;}
+            else {declaration+=c;if(c==';') {if(!std::regex_match(declaration,uniform))return false;declaration.clear();}}
+        } else if(c=='{') ++depth;
+        else if(c=='}') --depth;
+    }
+    return depth==0 && declaration.find_first_not_of(" \t\r\n")==std::string::npos;
+}
+
+void Gpu::applyUniforms(Program& p,const std::map<std::string,Program::Uniform>& values,const std::string& prefix) {
+    for(const auto& entry:values) {
+        const auto& u=entry.second;const auto name=prefix+entry.first;
+        if(u.integral) p.set(name.c_str(),u.integer);
+        else p.setArray(name.c_str(),u.values.data(),u.count,u.components);
+    }
+}
+void Gpu::flushEffect() {
+    if(!pendingEffect_.program) return;
+    auto pending=std::move(pendingEffect_);pendingEffect_={};
+    pass(*pending.program,Blend::Replace,[&](Program& p) { applyUniforms(p,pending.uniforms); },-2,pending.clip);
+}
+bool Gpu::fuseEffect(Program& p,Blend blend,const QRectF& clip) {
+    auto& first=*pendingEffect_.program;
+    if((blend!=Blend::Over && blend!=Blend::Add) || clip!=pendingEffect_.clip || p.body.find("sampler")!=std::string::npos) return false;
+    const auto key=std::make_tuple(first.id,p.id,int(blend));
+    if(fusedEffects_.size()>=64 && !fusedEffects_.count(key)) return false;
+    auto result=fusedEffects_.try_emplace(key);
+    auto& cached=result.first->second;
+    if(result.second) {
+        // Share scalar inputs from identical authored prefixes, such as a
+        // common cloud helper. Keep one program per pair; differing inputs
+        // fall back to the original passes rather than compiling variants.
+        size_t length=0;
+        while(length<first.body.size() && length<p.body.size() && first.body[length]==p.body[length])++length;
+        const auto prefix=first.body.substr(0,length);
+        for(const auto& name:first.scalarUniforms)
+            if(p.scalarUniforms.count(name) && std::regex_search(prefix,std::regex("\\b"+name+"\\b"))) cached.shared.insert(name);
+    }
+    const auto& shared=cached.shared;
+    for(const auto& name:shared) {
+        const auto a=pendingEffect_.uniforms.find(name),b=p.uniforms.find(name);
+        if(a==pendingEffect_.uniforms.end() || b==p.uniforms.end()) return false;
+        const auto& x=a->second;const auto& y=b->second;
+        if(x.integral || y.integral || x.count!=1 || y.count!=1 || x.components!=1 || y.components!=1
+           || x.values.size()!=1 || y.values.size()!=1 || std::memcmp(x.values.data(),y.values.data(),sizeof(float))!=0) return false;
+    }
+    auto& fused=cached.program;
+    if(!fused.id) {
+        std::string source=effectHeader;
+        source.insert(source.find("\n")+1,"#extension GL_ARB_shading_language_packing : require\n");
+        auto stage=[&](const Program& effect,const std::string& prefix) {
+            std::string body=effect.body;
+            if(prefix=="b_") {
+                const std::regex declarations(R"(uniform\s+(\w+)\s+([^;]+);)");
+                std::string rewritten;size_t previous=0;
+                for(std::sregex_iterator i(body.begin(),body.end(),declarations),end;i!=end;++i) {
+                    rewritten+=body.substr(previous,i->position()-previous);
+                    std::string names=(*i)[2];size_t from=0;
+                    while(from<names.size()) {
+                        size_t comma=names.find(',',from);if(comma==std::string::npos)comma=names.size();
+                        std::string field=names.substr(from,comma-from);
+                        const auto start=field.find_first_not_of(" \t\n");
+                        const auto stop=field.find_first_of("[ \t\n",start);
+                        const auto name=field.substr(start,stop-start);
+                        if(!shared.count(name)) rewritten+="uniform "+(*i)[1].str()+" "+field+";\n";
+                        from=comma+1;
+                    }
+                    previous=i->position()+i->length();
+                }
+                body=rewritten+body.substr(previous);
+            }
+            std::set<std::string> names={"main","o"};
+            const std::regex uniform(R"(uniform\s+\w+\s+([^;]+);)");
+            for(std::sregex_iterator i(effect.body.begin(),effect.body.end(),uniform),end;i!=end;++i) {
+                std::string declaration=(*i)[1];
+                const std::regex name(R"(([A-Za-z_]\w*)\s*(?:\[[^\]]*\])?\s*(?:,|$))");
+                for(std::sregex_iterator j(declaration.begin(),declaration.end(),name),e;j!=e;++j) names.insert((*j)[1]);
+            }
+            const std::regex function(R"((?:void|float|int|vec[234])\s+([A-Za-z_]\w*)\s*\()");
+            for(std::sregex_iterator i(effect.body.begin(),effect.body.end(),function),end;i!=end;++i) names.insert((*i)[1]);
+            source+="vec4 "+prefix+"o;\n";
+            if(prefix=="b_") for(const auto& name:shared) names.insert(name);
+            for(const auto& name:names) source+="#define "+name+" "+(prefix=="b_" && shared.count(name) ? "a_" : prefix)+name+"\n";
+            source+=body+"\n";
+            for(const auto& name:names)source+="#undef "+name+"\n";
+        };
+        stage(first,"a_");stage(p,"b_");
+        // Match the stored first pass, including its half-float rounding.
+        source+="vec4 halfRound(vec4 v) { return vec4(unpackHalf2x16(packHalf2x16(v.xy)),unpackHalf2x16(packHalf2x16(v.zw))); }\n";
+        source+="void main() { a_main(); b_main(); vec4 dst=";
+        source+=msaaFormat_==GL_RGBA16F ? "halfRound(a_o);" : "a_o;";
+        source+=blend==Blend::Over ? "o=b_o+dst*(1.0-b_o.a);}" : "o=vec4(dst.rgb+b_o.rgb,dst.a);}";
+        fused.id=link(fullscreenVs,source,"consecutive effects");
+    }
+    GpuProfile::Scope timing(profile,"fused:"+first.name+"+"+p.name,w_,h_,msaaFormat_==GL_RGBA32F ? "RGBA32F-MSAA" : "RGBA16F-MSAA");
+    bindMain();glUseProgram(fused.id);fused.set("u_size",float(w_),float(h_));fused.set("u_scale",float(pixelScale()));
+    applyUniforms(fused,pendingEffect_.uniforms,"a_");applyUniforms(fused,p.uniforms,"b_");
+    setBlend(Blend::Replace,1);
+    if(!clip.isEmpty()) {
+        const int x0=std::clamp(int(std::floor(clip.left()*w_/1920.0))-1,0,w_);
+        const int x1=std::clamp(int(std::ceil(clip.right()*w_/1920.0))+1,0,w_);
+        const int y0=std::clamp(int(std::floor((1080-clip.bottom())*h_/1080.0))-1,0,h_);
+        const int y1=std::clamp(int(std::ceil((1080-clip.top())*h_/1080.0))+1,0,h_);
+        scissor(QRect(x0,y0,x1-x0,y1-y0));
+    }
+    fullscreen();glDisable(GL_SCISSOR_TEST);pendingEffect_={};return true;
+}
+
 void Gpu::pass(Program& p, Blend blend, const std::function<void(Program&)>& setup, int target, const QRectF& clip) {
+    bool configured=false;
+    std::map<std::string,Program::Uniform> configuredUniforms;
+    if(pendingEffect_.program) {
+        if(target==-1 && (blend==Blend::Over || blend==Blend::Add) && clip==pendingEffect_.clip && p.fusible) {
+            glUseProgram(p.id);p.set("u_size",float(w_),float(h_));p.set("u_scale",float(pixelScale()));
+            if(setup)setup(p);
+            configured=true;configuredUniforms=p.uniforms;
+            if(pendingEffect_.program && fuseEffect(p,blend,clip))return;
+        }
+        flushEffect();
+    }
+    if(effectFusion_ && target==-1 && blend==Blend::Replace && p.fusible) {
+        glUseProgram(p.id);p.set("u_size",float(w_),float(h_));p.set("u_scale",float(pixelScale()));
+        if(setup)setup(p);
+        pendingEffect_={&p,clip,p.uniforms};return;
+    }
+
     int w = w_, h = h_;
     if (target >= 0) {
         bindFramebuffer(GL_FRAMEBUFFER, pool_[target].fbo);
@@ -896,7 +1058,8 @@ void Gpu::pass(Program& p, Blend blend, const std::function<void(Program&)>& set
     p.set("u_size", float(w), float(h));
     p.set("u_scale", float(pixelScale()));
     if(target>=0) pool_[target].dirty=pool_[target].bounds=QRect(0,0,w,h);
-    if (setup) setup(p);
+    if(configured) applyUniforms(p,configuredUniforms);
+    else if(setup) setup(p);
     setBlend(blend, 1);
     if(!clip.isEmpty()) {
         const int x0=std::clamp(int(std::floor(clip.left()*w/1920.0))-1,0,w);
@@ -910,6 +1073,7 @@ void Gpu::pass(Program& p, Blend blend, const std::function<void(Program&)>& set
 }
 
 void Gpu::beginOffscreen(bool transparent) {
+    flushEffect();
     current_ = &alt_;
     bindMain();
     glClearColor(0, 0, 0, transparent ? 0.f : 1.f);
@@ -924,6 +1088,7 @@ int Gpu::endOffscreen() {
 }
 
 int Gpu::snapshot() {
+    flushEffect();
     GpuProfile::Scope timing(profile,"snapshot-resolve",w_,h_,"RGBA16F");
     const int t = acquire(w_, h_);
     bindFramebuffer(GL_READ_FRAMEBUFFER, current_->fbo);
