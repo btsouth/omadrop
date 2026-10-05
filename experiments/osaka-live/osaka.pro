@@ -13,3 +13,6 @@ QMAKE_LFLAGS_RELEASE += -flto=8
 
 SOURCES += src/kit/primitives.cpp
 HEADERS += src/kit/primitives.h
+
+SOURCES += src/kit/disc.cpp
+HEADERS += src/kit/disc.h

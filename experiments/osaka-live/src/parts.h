@@ -3,19 +3,11 @@
 // Persistent elements shared by every world: the bass disc, the mountain,
 // soft haze bands, and the Osaka stage pieces the crossing carries away.
 #include "world.h"
+#include "kit/disc.h"
 #include <functional>
 #include <vector>
 
 namespace Journey {
-struct DiscLook {
-    V2 pos;
-    double r = 108;
-    Col col, col2, halo, ring;
-    double veil = 1, tex = 1, energy = 0.5;
-    double haloA = 70, haloB = 40, haloC = 0.30, haloD = 0.2, haloFar = 0.13;
-    double restRings = 1.0;
-};
-void drawDisc(Ctx& c, const DiscLook& d, double camForClouds);
 
 struct MountainLook {
     double px, peak, base, width;
