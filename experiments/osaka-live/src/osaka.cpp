@@ -256,36 +256,7 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
     c.retain(f, "izakaya-counter", [&](Canvas& f) {
         f.line(x0 + 58, 904, x0 + 252, 904, 5, INK);
     }, {s.cam});
-    // Patrons: lean, gesture and drink, each on their own clock.
-    for (int i = 0; i < 3; ++i) {
-        const double px = x0 + (i == 0 ? 98 : i == 1 ? 152 : 214);
-        const double face = i == 1 ? -1 : 1;
-        const double ph = t * (0.7 + 0.13 * i) + i * 2.1;
-        // A shared toast starts on the first strong onset in this phrase.
-        const double toastAt=c.schedule->moments[int(Moment::Toast)].start;
-        const double toastAge=c.schedule->action(Moment::Toast,t,0);
-        const double order=c.schedule->parameter(Moment::Toast,1,0,2,0);
-        const double delay=std::fmod(i+std::floor(order),3.0)*0.08;
-        const double toast=c.schedule->moments[int(Moment::Toast)].cycle<=1
-            ? window(t,toastAt+i*0.08,0.24,toastAt+0.7,0.35)
-            : window(toastAge,delay,0.24,0.7,0.35);
-        const double drink = std::max(toast, std::pow(std::max(0.0, std::sin(ph)), 6) * (1 - L.hush));
-        const double laugh = std::max(0.0, std::sin(t * 0.43 + i * 1.9)) * 0.08;
-        RigIn r;
-        r.h = 104; r.facing = face;
-        r.hair = i == 1 ? Hair::Ponytail : Hair::Short;
-        r.garment = i == 2 ? Garment::Happi : Garment::Jacket;
-        r.flutter = 0.25 * std::sin(t * 2 + i) + L.wind * 0.5;
-        r.sleeve = i == 1; r.obi = i == 1;
-        r.hip = {px, 902 - 6};
-        r.lean = 0.05 + laugh + 0.05 * std::sin(ph * 0.5) + 0.10 * window(t, toastAt + 1, 0.3, toastAt + 1.6, 0.5);
-        r.footF = {px + face * 22, 902 + 22}; r.footB = {px + face * 16, 902 + 24};
-        r.handF = {px + face * (18 + 6 * drink), 902 - 30 - 28 * drink};
-        r.handB = {px + face * 14, 902 - 22};
-        r.headTilt = 0.12 * drink + L.look * 0.5;
-        drawBody(f, solve(r), INK);
-        if (drink > 0.02) f.fillRect(px + face * (20 + 6 * drink) - 3, 902 - 40 - 28 * drink, 6, 9, INK);
-    }
+    OsakaPatronsV1::draw(c, L, f, t, x0);
     // Laundry on the valley side of H2: lifts and snaps in the gust.
     const double bx = 1262 + ox;
     c.retain(f, "laundry-line", [&](Canvas& f) {

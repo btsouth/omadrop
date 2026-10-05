@@ -10,4 +10,8 @@ struct OsakaTeaV1 {
     static constexpr const char* name = "osaka-tea-v1";
     static void draw(Ctx& c, const OsakaEventState& L, Canvas& sh, double ox);
 };
+struct OsakaPatronsV1 {
+    static constexpr const char* name = "osaka-patrons-v1";
+    static void draw(Ctx& c, const OsakaEventState& L, Canvas& f, double t, double x0);
+};
 }

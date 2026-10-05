@@ -89,4 +89,36 @@ void OsakaTeaV1::draw(Ctx& c, const OsakaEventState& L, Canvas& sh, double ox) {
         const double door = 20 * ActionWindow{19.1, 0.5, 21.0, 0.8}.at(t);
         sh.fillRect(260 + ox - door, 312, 3, 196, SHADOW, 0.55);
 }
+void OsakaPatronsV1::draw(Ctx& c, const OsakaEventState& L, Canvas& f, double t, double x0) {
+    // Patrons: lean, gesture and drink, each on their own clock.
+    for (int i = 0; i < 3; ++i) {
+        const double px = x0 + (i == 0 ? 98 : i == 1 ? 152 : 214);
+        const double face = i == 1 ? -1 : 1;
+        const double ph = t * (0.7 + 0.13 * i) + i * 2.1;
+        // A shared toast starts on the first strong onset in this phrase.
+        const double toastAt=c.schedule->moments[int(Moment::Toast)].start;
+        const double toastAge=c.schedule->action(Moment::Toast,t,0);
+        const double order=c.schedule->parameter(Moment::Toast,1,0,2,0);
+        const double delay=std::fmod(i+std::floor(order),3.0)*0.08;
+        const double toast=c.schedule->moments[int(Moment::Toast)].cycle<=1
+            ? window(t,toastAt+i*0.08,0.24,toastAt+0.7,0.35)
+            : window(toastAge,delay,0.24,0.7,0.35);
+        const double drink = std::max(toast, std::pow(std::max(0.0, std::sin(ph)), 6) * (1 - L.hush));
+        const double laugh = std::max(0.0, std::sin(t * 0.43 + i * 1.9)) * 0.08;
+        RigIn r;
+        r.h = 104; r.facing = face;
+        r.hair = i == 1 ? Hair::Ponytail : Hair::Short;
+        r.garment = i == 2 ? Garment::Happi : Garment::Jacket;
+        r.flutter = 0.25 * std::sin(t * 2 + i) + L.wind * 0.5;
+        r.sleeve = i == 1; r.obi = i == 1;
+        r.hip = {px, 902 - 6};
+        r.lean = 0.05 + laugh + 0.05 * std::sin(ph * 0.5) + 0.10 * window(t, toastAt + 1, 0.3, toastAt + 1.6, 0.5);
+        r.footF = {px + face * 22, 902 + 22}; r.footB = {px + face * 16, 902 + 24};
+        r.handF = {px + face * (18 + 6 * drink), 902 - 30 - 28 * drink};
+        r.handB = {px + face * 14, 902 - 22};
+        r.headTilt = 0.12 * drink + L.look * 0.5;
+        OsakaFigureV1::draw(f, r, INK);
+        if (drink > 0.02) f.fillRect(px + face * (20 + 6 * drink) - 3, 902 - 40 - 28 * drink, 6, 9, INK);
+    }
+}
 }
