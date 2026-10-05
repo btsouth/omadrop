@@ -876,22 +876,7 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
         }
         OsakaCoupleLanternV1::draw(L, p, l, t, bx);
     }
-    // Cat hops onto the railing at 13 s, walks, pauses, sits; startles at the surge.
-    {
-        const double railY = 863;
-        double cx, dist = 0, sit = 0, look = 0, crouch = 0, y = railY;
-        dist=150; cx=600+dist; sit=1;
-        look=c.gesture(15.3,0.3,16.0,0.3)*0.6;
-        {
-            const double startle = L.look;
-            CatPose cp;
-            cp.pos = {cx + ox, y};
-            cp.s = 21; cp.facing = 1; cp.distance = dist; cp.sit = sit * (1 - startle * 0.8);
-            cp.look = look + startle * 1.2 + 0.6 * c.gesture(13.5, 0.3, 14.5, 0.35); cp.crouch = crouch + startle * 0.5;
-            cp.tailBase = 0.3 * startle; cp.tailWave = 0.25 + 0.1 * std::sin(t * 0.7); cp.tailPhase = t * 3.1;
-            drawCat(p, cp, INK);
-        }
-    }
+    OsakaRailCatV1::draw(c, L, p, t, ox);
     // Child runs from the izakaya toward the flock, brakes and points.
     if (L.surge.t >= 0 && t > L.surge.t + 0.18) {
         const double start = L.surge.t + 0.18, h = 80;
