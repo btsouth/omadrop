@@ -11,4 +11,9 @@ struct OsakaSkyLanternsV1 {
 
 inline void skyLanterns(Ctx& c, const OsakaState& s, const OsakaLegacyLife& L) { OsakaSkyLanternsV1::draw(c, s, L); }
 
+struct OsakaCoupleLanternV1 {
+    static constexpr const char* name = "osaka-couple-lantern-v1";
+    static void draw(const OsakaLegacyLife& L, Canvas& p, Canvas& l, double t, double bx);
+};
+
 }

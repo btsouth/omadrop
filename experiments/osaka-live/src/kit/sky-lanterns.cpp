@@ -1,3 +1,4 @@
+#include "lanterns.h"
 #include "sky-lanterns.h"
 #include "palette.h"
 #include "primitives.h"
@@ -35,6 +36,21 @@ void OsakaSkyLanternsV1::draw(Ctx& c, const OsakaState& s, const Life& L) {
     }
     c.gpu.over(l, 1.3f, 0, float(fade));
     c.gpu.add(l, float(0.5 * fade), 10);
+}
+
+void OsakaCoupleLanternV1::draw(const Life& L, Canvas& p, Canvas& l, double t, double bx) {
+        // Their sky lantern: lit in their hands, released, rising past the moon.
+        if (L.surge.t >= 0 && t > L.surge.t + 1.2) {
+            const double rel = L.surge.t + 2.5;
+            const double age = std::max(0.0, t - rel);
+            const V2 base(bx - 24, 828);
+            const V2 pos = base + V2(5 * age + 10 * std::sin(age * 0.8), -(24 * age + 3 * age * age) * sstep(0, 0.6, age));
+            const double glow = sstep(L.surge.t + 1.2, L.surge.t + 2.2, t) * (1 - sstep(9.5,11.5,t-L.surge.t));
+            const double flick = 0.88 + 0.12 * std::sin(t * 8);
+            paperLantern(l, pos, 9, 12, 0.05 * std::sin(t * 2), WARM_T, flick);
+            l.glow(pos.x, pos.y, 70, WARM_T, 0.6 * glow * flick);
+            p.line(pos.x - 9, pos.y + 11, pos.x + 9, pos.y + 11, 1.4, INK, std::min(1.0, glow + 0.2));
+        }
 }
 
 }
