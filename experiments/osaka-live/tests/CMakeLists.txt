@@ -15,3 +15,6 @@ add_executable(osaka-gpu-tests gpu_tests.cpp ../src/gpu.cpp ../src/canvas.cpp ..
 target_include_directories(osaka-gpu-tests PRIVATE ../src)
 target_link_libraries(osaka-gpu-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
 add_test(NAME consecutive-effect-fidelity COMMAND osaka-gpu-tests)
+add_executable(osaka-resolution-tests resolution_tests.cpp)
+target_include_directories(osaka-resolution-tests PRIVATE ../src)
+add_test(NAME native-first-adaptive-policy COMMAND osaka-resolution-tests)

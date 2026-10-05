@@ -66,7 +66,14 @@ int main(int argc,char** argv) {
         || QString::fromLocal8Bit(argv[i])=="--probe" || QString::fromLocal8Bit(argv[i])=="--bench"
         || QString::fromLocal8Bit(argv[i])=="--verify-render"
         || QString::fromLocal8Bit(argv[i])=="--fidelity") headless=true;
-    QSurfaceFormat format; format.setVersion(3,3); format.setProfile(QSurfaceFormat::CoreProfile);
+    const QString fpsOption=qEnvironmentVariable("OMADROP_OSAKA_FPS","auto");
+    int fixedFps=0;
+    if(fpsOption!="auto") {
+        bool valid=false;fixedFps=fpsOption.toInt(&valid);
+        if(!valid || (fixedFps!=30 && fixedFps!=60)) { QTextStream(stderr)<<"OMADROP_OSAKA_FPS must be auto, 30 or 60\n"; return 2; }
+    }
+    OsakaItem::fixedFps=fixedFps;
+    QSurfaceFormat format; format.setSwapInterval(fixedFps==30 ? 2 : 1); format.setVersion(3,3); format.setProfile(QSurfaceFormat::CoreProfile);
     format.setRenderableType(QSurfaceFormat::OpenGL); // Wayland EGL on NVIDIA defaults to OpenGL ES
     QSurfaceFormat::setDefaultFormat(format);
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
@@ -107,6 +114,7 @@ int main(int argc,char** argv) {
         if(!ok || !std::isfinite(fixedScale) || fixedScale<0.5 || fixedScale>1) return 2;
     }
     OsakaItem::fixedScale=fixedScale;
+    OsakaItem::statsPath=parser.value("stats");
     int seed=1;
     if(parser.isSet("seed")) {
         seed=parser.value("seed").toInt(&ok); if(!ok || seed<0) return 2;
@@ -215,6 +223,7 @@ int main(int argc,char** argv) {
     }
     Journey::HeadlessContext context;
     Journey::World world(1);
+    if(fixedFps>0) world.setFps(fixedFps);
     if(fixedScale>0) world.setScale(fixedScale);
     if(parser.isSet("verify-render")) {
         world.setScale(1);

@@ -8,5 +8,7 @@ public:
     explicit OsakaItem(QQuickItem* parent=nullptr):QQuickFramebufferObject(parent) { setMirrorVertically(true); }
     static Journey::LiveSession* session;
     static double fixedScale;
+    static int fixedFps;
+    static QString statsPath;
     Renderer* createRenderer() const override;
 };

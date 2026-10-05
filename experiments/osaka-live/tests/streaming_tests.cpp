@@ -113,7 +113,8 @@ int main() {
     Resolution resolution;
     for(int i=0;i<120;++i) resolution.sample(7,1.0/60);
     require(resolution.scale()==1,"fast GPU lost full resolution");
-    for(int i=0;i<360;++i) resolution.sample(70*resolution.scale()*resolution.scale(),1.0/60);
+    // Native 30 fps is tried first, followed by two sustained scale steps.
+    for(int i=0;i<1200;++i) resolution.sample(70*resolution.scale()*resolution.scale(),1.0/60);
     require(resolution.scale()==0.5,"slow GPU did not scale down");
     for(int i=0;i<3600;++i) resolution.sample(18,1.0/60);
     require(resolution.scale()==0.5,"reduced resolution oscillated");

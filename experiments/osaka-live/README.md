@@ -49,3 +49,18 @@ reduced MSAA target storage high-water marks when the renderer closes. Values
 use the allocated formats and sample count, excluding driver overhead and the
 fixed main/layer/offscreen/output targets. Normal runs do not collect these
 statistics.
+
+Auto quality keeps native resolution first: native 60 fps, then native 30 fps,
+then 0.75 and 0.5 scale only after sustained overload. The 60 fps tier has a
+14 ms budget; the 30 fps tier tolerates 32-35 ms samples with a 36 ms overload
+boundary. Scale promotion requires an estimated 29 ms at the larger scale;
+returning to native 60 fps requires 9 ms, both sustained for 15 seconds.
+This hysteresis favors native pixels but does not guarantee every 33.3 ms
+presentation deadline when render cost is above that deadline.
+
+`OMADROP_OSAKA_SCALE` remains a fixed scale override. Independently set
+`OMADROP_OSAKA_FPS=30` or `60` to fix the presentation target for testing;
+unset it (or use `auto`) for adaptive pacing. The 30 fps override requests
+swap interval 2, with presentation-tick pacing if the platform ignores it.
+Scene and audio clocks continue to use real time. GUI `--stats path.csv`
+records frame swaps, fresh content, target fps, scale and scene/wall clocks.

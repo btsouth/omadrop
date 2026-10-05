@@ -93,6 +93,8 @@ public:
     bool init(QString& error);
     void setScale(double fixed) { resolution_.fixed(fixed); }
     double scale() const { return renderedScale_; }
+    void setFps(int fps) { resolution_.fixedFps(fps); }
+    int fps() const { return resolution_.fps(); }
     double gpuMilliseconds() const { return gpuMs_; }
     void render(int width,int height,double time,const Audio&,const Score&,const Schedule&);
     Gpu& gpu() { return gpu_; }
