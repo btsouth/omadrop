@@ -39,4 +39,54 @@ void OsakaWomanFanV1::draw(Ctx& c, const OsakaState& s, const OsakaEventState& L
         f.restore();
     }
 }
+void OsakaTeaV1::draw(Ctx& c, const OsakaEventState& L, Canvas& sh, double ox) {
+        const double t=c.schedule->action(Moment::Tea,c.t,9.5);
+        // Tea-pourer: walks in, lifts the kettle, pours, sets it down, sips.
+        const double enter = 1;
+        const double next = 0;
+        const double hx = lerp(40, 158, enter) + next + ox;
+        const double walking=0;
+        Gait g; g.stride = 160; g.lift = 14; g.bob = 5;
+        const Steps st = gaitAt(40 + ox, 118 * enter + next, 640, 1, g, walking);
+        const double bob = st.hipBob;
+        const double lift = sstep(9.5, 10.2, t) * (1 - sstep(12.6, 13.3, t));
+        const double tilt = ActionWindow{10.4, 0.5, 12.4, 0.4}.at(t);
+        const double sip = ActionWindow{14.6, 0.6, 16.2, 0.6}.at(t);
+        RigIn r;
+        r.h = 300; r.facing = 1; r.obi = true; r.flutter = 0.16 * std::sin(c.t * 1.8) + 0.4 * walking; r.robe = true; r.bun = true; r.sleeve = true;
+        r.lean = 0.10 + 0.04 * tilt + 0.05 * ActionWindow{16.6, 0.25, 17.1, 0.2}.at(t) - 0.05 * L.look;
+        r.hip = {hx, 640 - hipHeight(300) + bob};
+        r.footF = st.footF; r.footB = st.footB;
+        const V2 low(hx + 40, 470), kettleUp(hx + 88, 446 - 10 * tilt);
+        r.handF = lerp(low, kettleUp, lift);
+        r.handF = lerp(r.handF, V2(hx + 30, 400), sip);
+        r.handB = lerp(V2(hx + 20, 480), V2(hx + 60, 470), lift);
+        const double slide = ActionWindow{19.0, 0.4, 19.8, 0.35}.at(t);
+        r.handF = lerp(r.handF, V2(hx + 42 - 25 * sstep(19.4, 20.0, t), 435), slide);
+        r.handF = lerp(r.handF, V2(hx + 18, 474), L.look);
+        r.headTilt = -0.2 * tilt + 0.15 * sip + 0.5 * L.look;
+        OsakaFigureV1::draw(sh, r, SHADOW);
+        if (t < 13.4 && sip < 0.5) {
+            const V2 k = r.handF + V2(6, 0);
+            const double ang = 0.65 * tilt;
+            sh.save();
+            sh.translate(k.x, k.y);
+            sh.rotate(ang);
+            sh.color(SHADOW); sh.ellipse(0, 0, 20, 15); sh.fill();
+            sh.line(16, -4, 34, 8, 5, SHADOW);
+            sh.color(SHADOW); sh.arc(0, -12, 13, 3.4, 6.0); sh.stroke(3);
+            sh.restore();
+            if (tilt > 0.6) {
+                const V2 spout = k + V2(std::cos(ang) * 34 - std::sin(ang) * 8, std::sin(ang) * 34 + std::cos(ang) * 8);
+                sh.line(spout.x, spout.y, spout.x + 4, 498, 2.2 * (tilt - 0.6) / 0.4, SHADOW);
+            }
+        } else if (t > 14.3 && t < 17.2) {
+            sh.fillRect(r.handF.x - 6, r.handF.y - 10, 12, 12, SHADOW);
+        }
+        if (t > 17.2) sh.fillRect(200 + ox, 487, 12, 12, SHADOW);
+        // The tea is left on a low shelf; the paper door slides a little.
+        sh.fillRect(187 + ox, 501, 64, 5, SHADOW);
+        const double door = 20 * ActionWindow{19.1, 0.5, 21.0, 0.8}.at(t);
+        sh.fillRect(260 + ox - door, 312, 3, 196, SHADOW, 0.55);
+}
 }
