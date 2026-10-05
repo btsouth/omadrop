@@ -5,6 +5,7 @@
 #include "osaka_shaders.h"
 #include "parts.h"
 #include "rig.h"
+#include "kit/neon.h"
 #include "kit/rooms.h"
 #include "kit/pane.h"
 #include "kit/town.h"
@@ -492,7 +493,6 @@ void rightHouses(Ctx& c, const OsakaState& s, const Life& L) {
     Kit::OsakaRightRoom2V1::draw(c, s, L, w, x0);
     x0 = 1512 + ox;
     Kit::OsakaRightHouse3V1::draw(c, s, cv, x0, wall, rf, rf2);
-    using U = Kit::UpperPane;
     const auto& ups = Kit::upperPanes;
     double shamisenPane = 0;
     Kit::OsakaRightRoom3V1::draw(c, s, L, w, t, x0, ups, shamisenPane);
@@ -608,25 +608,15 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
         f.fill();
     }
     Canvas& n = c.canvas();
-    // Neon 居酒屋 on a dark board, with an occasional stutter; it kicks with the bass.
-    const double stutter = (hash1(std::floor(t * 6)) < 0.04) ? 0.35 : 1.0;
-    c.retain(f, "neon-board", [&](Canvas& f) {
-        f.fillRect(x0 + 289, 792, 40, 126, Col(0.016f, 0.035f, 0.03f));
-    }, {s.cam});
-    const Col tube = mix(MAG, Col(1.0f, 0.92f, 0.97f), 0.35);
-    c.retain(n, "neon-tubes", [&](Canvas& n) {
-        n.color(MAG, 0.9); n.rect(x0 + 291, 794, 36, 122); n.stroke(1.6);
-        for (int j = 0; j < 3; ++j) drawSignGlyph(n, j, x0 + 294, 826 + j * 36, 30, tube, 1.0);
-    }, {s.cam});
-    n.glow(x0 + 309, 856, 120, MAG, 0.30 + 0.25 * c.kick(5));
+    double stutter;
+    Kit::OsakaNeonV1::draw(c, s, f, n, t, x0, stutter);
     for (int i = 0; i < 7; ++i) {
         const double bulb = 0.65 + 0.55 * c.lift(3 + i % 3) * (0.6 + 0.4 * hash2(i, 3));
         n.glow(x0 - 26 + i * 44, 798 + std::sin(t * 1.3 + i) * 1.5 + wind * 2 * std::sin(t * 5 + i), 9, i % 2 ? RED : WARM_T, std::min(1.0, bulb));
     }
     c.gpu.over(f);
-    const double neon = (0.85 + 0.15 * std::sin(t * 5) + 0.5 * c.kick(5)) * stutter;
-    c.gpu.over(n, float(1.3 * neon));
-    c.gpu.add(n, float(0.35 * neon), 8);
+    const double neon = Kit::OsakaNeonV1::level(c, t, stutter);
+    Kit::OsakaNeonV1::submit(c, n, neon);
 }
 
 void streetSurface(Ctx& c, const OsakaState& s) {

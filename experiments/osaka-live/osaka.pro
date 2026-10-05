@@ -3,7 +3,7 @@ CONFIG += c++17 link_pkgconfig
 PKGCONFIG += fftw3f
 TARGET = omadrop-osaka
 SOURCES += src/main.cpp src/preview.cpp src/session.cpp src/audio.cpp src/score.cpp src/schedule.cpp \
-    src/world.cpp src/canvas.cpp src/gpu.cpp src/rig.cpp src/osaka.cpp src/signs.cpp src/headless.cpp \
+    src/world.cpp src/canvas.cpp src/gpu.cpp src/rig.cpp src/osaka.cpp src/kit/sign-outlines.cpp src/headless.cpp \
     ../projectm-ascii/pipewire_capture.cpp
 HEADERS += src/preview.h
 LIBS += -lEGL -lOpenGL -lpthread
@@ -37,3 +37,9 @@ HEADERS += src/kit/pane.h
 
 SOURCES += src/kit/rooms.cpp
 HEADERS += src/kit/rooms.h
+
+SOURCES += src/kit/neon.cpp
+HEADERS += src/kit/neon.h
+
+HEADERS += src/kit/palette.h src/kit/disc_shaders.h src/kit/haze_shaders.h \
+    src/kit/sky_shaders.h src/kit/layout.h src/kit/osaka-legacy.h
