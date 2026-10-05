@@ -214,6 +214,7 @@ void Program::setArray(const char* n, const float* v, int count, int components)
 
 Gpu::Gpu() = default;
 Gpu::~Gpu() {
+    profile.close();
     release();
     clearGeometryCache();
     if (vbo_) glDeleteBuffers(1, &vbo_);
@@ -225,6 +226,7 @@ Gpu::~Gpu() {
 
 bool Gpu::init(QString& error) {
     if (!glGetString(GL_VERSION)) { error = QStringLiteral("No current OpenGL context."); return false; }
+    profile.init();
     canvas_.id = link(canvasVs, canvasFs, "canvas");
     compositeP_.id = link(fullscreenVs, std::string(effectHeader) + compositeFs, "composite");
     blurP_.id = link(fullscreenVs, std::string(effectHeader) + blurFs, "blur");
@@ -285,7 +287,7 @@ void Gpu::allocate() {
         glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples_, format, w_, h_);
         glBindRenderbuffer(GL_RENDERBUFFER, t.depth);
         glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples_, GL_DEPTH24_STENCIL8, w_, h_);
-        glBindFramebuffer(GL_FRAMEBUFFER, t.fbo);
+        bindFramebuffer(GL_FRAMEBUFFER, t.fbo);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, t.color);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, t.depth);
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -303,7 +305,7 @@ void Gpu::allocate() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glGenFramebuffers(1, &outFbo_);
-    glBindFramebuffer(GL_FRAMEBUFFER, outFbo_);
+    bindFramebuffer(GL_FRAMEBUFFER, outFbo_);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, outTex_, 0);
     allocatedOutputW_=outputW_ ? outputW_ : w_;
     allocatedOutputH_=outputH_ ? outputH_ : h_;
@@ -312,7 +314,7 @@ void Gpu::allocate() {
         glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,allocatedOutputW_,allocatedOutputH_,0,GL_RGBA,GL_UNSIGNED_BYTE,nullptr);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-        glGenFramebuffers(1,&scaledFbo_); glBindFramebuffer(GL_FRAMEBUFFER,scaledFbo_);
+        glGenFramebuffers(1,&scaledFbo_); bindFramebuffer(GL_FRAMEBUFFER,scaledFbo_);
         glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,scaledTex_,0);
     }
 }
@@ -331,7 +333,7 @@ int Gpu::acquire(int w, int h) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glGenFramebuffers(1, &t.fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, t.fbo);
+    bindFramebuffer(GL_FRAMEBUFFER, t.fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t.tex, 0);
     pool_.push_back(t);
     return int(pool_.size()) - 1;
@@ -358,8 +360,13 @@ void Gpu::begin(int width, int height) {
     glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
+void Gpu::bindFramebuffer(GLenum target, GLuint fbo) {
+    profile.framebuffer(target, fbo);
+    glBindFramebuffer(target, fbo);
+}
+
 void Gpu::bindMain() {
-    glBindFramebuffer(GL_FRAMEBUFFER, current_->fbo);
+    bindFramebuffer(GL_FRAMEBUFFER, current_->fbo);
     glViewport(0, 0, w_, h_);
 }
 
@@ -592,26 +599,31 @@ void Gpu::drawCanvas(const Canvas& c) {
 }
 
 void Gpu::draw(const Canvas& canvas, Blend blend, float gain) {
+    GpuProfile::Scope timing(profile,"draw",w_,h_,"RGBA16F-MSAA");
     bindMain();
     setBlend(blend, gain);
     drawCanvas(canvas);
 }
 
 int Gpu::layer(const Canvas& canvas) {
-    glBindFramebuffer(GL_FRAMEBUFFER, layer_.fbo);
+    const int raster=profile.start("layer-raster",w_,h_,"RGBA16F-MSAA");
+    bindFramebuffer(GL_FRAMEBUFFER, layer_.fbo);
     glViewport(0, 0, w_, h_);
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     setBlend(Blend::Over, 1);
     drawCanvas(canvas);
+    profile.stop(raster);
+    GpuProfile::Scope timing(profile,"layer-resolve",w_,h_,"RGBA16F");
     const int t = acquire(w_, h_);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, layer_.fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pool_[t].fbo);
+    bindFramebuffer(GL_READ_FRAMEBUFFER, layer_.fbo);
+    bindFramebuffer(GL_DRAW_FRAMEBUFFER, pool_[t].fbo);
     glBlitFramebuffer(0, 0, w_, h_, 0, 0, w_, h_, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     return t;
 }
 
 void Gpu::fullscreen() {
+    profile.fullscreen();
     glBindVertexArray(quadVao_);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glBindVertexArray(0);
@@ -619,8 +631,9 @@ void Gpu::fullscreen() {
 
 int Gpu::downsample(int src) {
     const int w = std::max(1, (pool_[src].w + 1) / 2), h = std::max(1, (pool_[src].h + 1) / 2);
+    GpuProfile::Scope timing(profile,"downsample",w,h,"RGBA16F");
     const int dst = acquire(w, h);
-    glBindFramebuffer(GL_FRAMEBUFFER, pool_[dst].fbo);
+    bindFramebuffer(GL_FRAMEBUFFER, pool_[dst].fbo);
     glViewport(0, 0, w, h);
     glDisable(GL_BLEND);
     glUseProgram(downP_.id);
@@ -633,8 +646,9 @@ int Gpu::downsample(int src) {
 
 int Gpu::blurPass(int src, float sigma, bool horizontal) {
     const int w = pool_[src].w, h = pool_[src].h;
+    GpuProfile::Scope timing(profile,horizontal?"blur-H":"blur-V",w,h,"RGBA16F",sigma,1+2*std::min(int(std::ceil(sigma*3)),24));
     const int dst = acquire(w, h);
-    glBindFramebuffer(GL_FRAMEBUFFER, pool_[dst].fbo);
+    bindFramebuffer(GL_FRAMEBUFFER, pool_[dst].fbo);
     glViewport(0, 0, w, h);
     glDisable(GL_BLEND);
     glUseProgram(blurP_.id);
@@ -666,6 +680,7 @@ int Gpu::blurred(int tex, float sigmaDesign) {
 }
 
 void Gpu::composite(int tex, Blend blend, float gain, float opacity) {
+    GpuProfile::Scope timing(profile,"composite",w_,h_,"RGBA16F-MSAA");
     bindMain();
     glUseProgram(compositeP_.id);
     glActiveTexture(GL_TEXTURE0);
@@ -707,10 +722,13 @@ Program& Gpu::effect(const std::string& name, const char* body) {
 void Gpu::pass(Program& p, Blend blend, const std::function<void(Program&)>& setup, int target, const QRectF& clip) {
     int w = w_, h = h_;
     if (target >= 0) {
-        glBindFramebuffer(GL_FRAMEBUFFER, pool_[target].fbo);
+        bindFramebuffer(GL_FRAMEBUFFER, pool_[target].fbo);
         w = pool_[target].w; h = pool_[target].h;
         glViewport(0, 0, w, h);
     } else bindMain();
+    std::string name="effect";
+    if(profile.enabled()) for(const auto& entry:effects_) if(entry.second.id==p.id) { name=entry.first;break; }
+    GpuProfile::Scope timing(profile,name,w,h,target>=0?"RGBA16F":"RGBA16F-MSAA");
     glUseProgram(p.id);
     p.set("u_size", float(w), float(h));
     p.set("u_scale", float(pixelScale()));
@@ -742,9 +760,10 @@ int Gpu::endOffscreen() {
 }
 
 int Gpu::snapshot() {
+    GpuProfile::Scope timing(profile,"snapshot-resolve",w_,h_,"RGBA16F");
     const int t = acquire(w_, h_);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, current_->fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pool_[t].fbo);
+    bindFramebuffer(GL_READ_FRAMEBUFFER, current_->fbo);
+    bindFramebuffer(GL_DRAW_FRAMEBUFFER, pool_[t].fbo);
     glBlitFramebuffer(0, 0, w_, h_, 0, 0, w_, h_, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     return t;
 }
@@ -756,11 +775,13 @@ void Gpu::bindTexture(int unit, int tex, Program& p, const char* name) {
 }
 
 void Gpu::finish(const FinishParams& f, const Canvas* overlay) {
+    GpuProfile::Group group(profile,"finish");
     const int img = snapshot();
     int b0 = -1, b1 = -1, b2 = -1;
     if (f.bloom > 0) {
+        const int extract=profile.start("bright-extract",w_,h_,"RGBA16F");
         const int bright = acquire(w_, h_);
-        glBindFramebuffer(GL_FRAMEBUFFER, pool_[bright].fbo);
+        bindFramebuffer(GL_FRAMEBUFFER, pool_[bright].fbo);
         glViewport(0, 0, w_, h_);
         glDisable(GL_BLEND);
         glUseProgram(brightP_.id);
@@ -769,11 +790,13 @@ void Gpu::finish(const FinishParams& f, const Canvas* overlay) {
         brightP_.set("u_tex", 0);
         brightP_.set("u_threshold", f.threshold);
         fullscreen();
+        profile.stop(extract);
         b0 = blurred(bright, 5);
         b1 = blurred(bright, 22);
         b2 = blurred(bright, 70);
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, outFbo_);
+    GpuProfile::Scope grade(profile,"grade-overlay",w_,h_,"RGBA8");
+    bindFramebuffer(GL_FRAMEBUFFER, outFbo_);
     glViewport(0, 0, w_, h_);
     glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -801,8 +824,8 @@ void Gpu::finish(const FinishParams& f, const Canvas* overlay) {
         drawCanvas(*overlay);
     }
     if(scaledFbo_) {
-        glBindFramebuffer(GL_READ_FRAMEBUFFER,outFbo_);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER,scaledFbo_);
+        bindFramebuffer(GL_READ_FRAMEBUFFER,outFbo_);
+        bindFramebuffer(GL_DRAW_FRAMEBUFFER,scaledFbo_);
         glBlitFramebuffer(0,0,w_,h_,0,0,allocatedOutputW_,allocatedOutputH_,GL_COLOR_BUFFER_BIT,GL_LINEAR);
     }
 
@@ -811,15 +834,15 @@ void Gpu::finish(const FinishParams& f, const Canvas* overlay) {
 
 
 void Gpu::present(GLuint framebuffer) {
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, finishedFbo());
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
+    bindFramebuffer(GL_READ_FRAMEBUFFER, finishedFbo());
+    bindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
     glBlitFramebuffer(0, 0, allocatedOutputW_, allocatedOutputH_, 0, 0, allocatedOutputW_, allocatedOutputH_, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    bindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 }
 
 void Gpu::readRgb(std::vector<unsigned char>& rgb) {
     std::vector<unsigned char> rgba(std::size_t(allocatedOutputW_) * allocatedOutputH_ * 4);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, finishedFbo());
+    bindFramebuffer(GL_READ_FRAMEBUFFER, finishedFbo());
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glReadPixels(0, 0, allocatedOutputW_, allocatedOutputH_, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
     rgb.resize(std::size_t(allocatedOutputW_) * allocatedOutputH_ * 3);

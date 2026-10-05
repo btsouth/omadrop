@@ -7,6 +7,7 @@
 // finish() applies bloom, vignette, the soft knee and grain into an 8-bit
 // multisampled output where the title is drawn last.
 #include "canvas.h"
+#include "gpu_profile.h"
 #include "glcore.h"
 #include <QString>
 #include <QRectF>
@@ -46,6 +47,7 @@ public:
     struct GeometryStats {
         std::uint64_t uploads = 0, staticUploads = 0, vertexBytes = 0, paintBytes = 0;
     };
+    GpuProfile profile;
     Gpu();
     ~Gpu();
     void clearGeometryCache();
@@ -91,6 +93,7 @@ private:
     struct Target { GLuint fbo = 0, color = 0, depth = 0; };
     struct Tex { GLuint tex = 0, fbo = 0; int w = 0, h = 0; bool used = false; };
 
+    void bindFramebuffer(GLenum target, GLuint fbo);
     void allocate();
     void release();
     int acquire(int w, int h);
