@@ -3,6 +3,7 @@
 #include <QTextStream>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 
 namespace Journey {
 namespace {
@@ -232,6 +233,7 @@ Gpu::~Gpu() {
 bool Gpu::init(QString& error) {
     if (!glGetString(GL_VERSION)) { error = QStringLiteral("No current OpenGL context."); return false; }
     profile.init();
+    memoryProfile_=std::getenv("OSAKA_GPU_MEMORY")!=nullptr;
     canvas_.id = link(canvasVs, canvasFs, "canvas");
     compositeP_.id = link(fullscreenVs, std::string(effectHeader) + compositeFs, "composite");
     blurP_.id = link(fullscreenVs, std::string(effectHeader) + blurFs, "blur");
@@ -262,7 +264,32 @@ bool Gpu::init(QString& error) {
     return true;
 }
 
+void Gpu::trackMemory() {
+    if(!memoryProfile_) return;
+    std::uint64_t pinned=0, pool=0, reduced=0;
+    std::size_t count=0;
+    for(const auto& t:pool_) {
+        const auto bytes=std::uint64_t(t.w)*t.h*8; // RGBA16F
+        pool+=bytes;
+        if(t.pinned) { pinned+=bytes; ++count; }
+    }
+    for(const auto& entry:reducedLayers_)
+        reduced+=std::uint64_t(entry.first.first)*entry.first.second*samples_*12; // colour + D24S8
+    if(pinned>peakPinnedBytes_) { peakPinnedBytes_=pinned; peakPinnedCount_=count; }
+    peakPoolBytes_=std::max(peakPoolBytes_,pool);
+    peakPoolCount_=std::max(peakPoolCount_,pool_.size());
+    peakReducedBytes_=std::max(peakReducedBytes_,reduced);
+    peakReducedCount_=std::max(peakReducedCount_,reducedLayers_.size());
+}
+
 void Gpu::release() {
+    if(memoryProfile_ && peakPoolCount_) {
+        std::fprintf(stderr,"GPU storage peak %dx%d: pinned %zu textures %.3f MiB; pool %zu textures %.3f MiB; reduced %zu targets %.3f MiB (RGBA16F + D24S8, %dx MSAA; logical storage, excluding driver overhead)\n",
+            w_,h_,peakPinnedCount_,peakPinnedBytes_/1048576.0,peakPoolCount_,peakPoolBytes_/1048576.0,
+            peakReducedCount_,peakReducedBytes_/1048576.0,samples_);
+    }
+    peakPinnedBytes_=peakPoolBytes_=peakReducedBytes_=0;
+    peakPinnedCount_=peakPoolCount_=peakReducedCount_=0;
     clearRasterCache();
     current_ = &main_;
     for (Target* t : {&main_, &layer_, &out_, &alt_}) {
@@ -974,7 +1001,7 @@ void Gpu::finish(const FinishParams& f, const Canvas* overlay) {
         bindFramebuffer(GL_DRAW_FRAMEBUFFER,scaledFbo_);
         glBlitFramebuffer(0,0,w_,h_,0,0,allocatedOutputW_,allocatedOutputH_,GL_COLOR_BUFFER_BIT,GL_LINEAR);
     }
-
+    trackMemory();
 }
 
 

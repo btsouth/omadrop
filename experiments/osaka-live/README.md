@@ -43,3 +43,9 @@ automatically; `OMADROP_OSAKA_SCALE` (0.5 to 1) fixes it.
 The CMake tests in `tests/` cover streaming analysis, chunk boundaries,
 quiet playback, silence, eight simulated hours of bounded state, firework
 cooldowns and the canvas geometry.
+
+Set `OSAKA_GPU_MEMORY=1` to report the pinned texture, total texture pool and
+reduced MSAA target storage high-water marks when the renderer closes. Values
+use the allocated formats and sample count, excluding driver overhead and the
+fixed main/layer/offscreen/output targets. Normal runs do not collect these
+statistics.

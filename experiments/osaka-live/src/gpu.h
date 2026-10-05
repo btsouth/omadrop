@@ -98,6 +98,10 @@ private:
     void bindFramebuffer(GLenum target, GLuint fbo);
     void allocate();
     void release();
+    void trackMemory();
+    bool memoryProfile_=false;
+    std::uint64_t peakPinnedBytes_=0, peakPoolBytes_=0, peakReducedBytes_=0;
+    std::size_t peakPinnedCount_=0, peakPoolCount_=0, peakReducedCount_=0;
     int acquire(int w, int h);
     using RasterKey=std::vector<std::pair<std::uint64_t,std::uint64_t>>;
     struct RasterEntry { int texture; std::uint64_t frame; };
