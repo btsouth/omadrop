@@ -233,6 +233,11 @@ Gpu::~Gpu() {
 bool Gpu::init(QString& error) {
     if (!glGetString(GL_VERSION)) { error = QStringLiteral("No current OpenGL context."); return false; }
     profile.init();
+    // NVIDIA's half-float MSAA blend/resolve path exposes history-dependent
+    // one-bit differences after bounded filtering (c771ba7). Keep the MSAA
+    // accumulator at full float precision; resolved filters remain RGBA16F.
+    if(std::string(reinterpret_cast<const char*>(glGetString(GL_VENDOR))).find("NVIDIA")!=std::string::npos)
+        msaaFormat_=GL_RGBA32F;
     memoryProfile_=std::getenv("OSAKA_GPU_MEMORY")!=nullptr;
     canvas_.id = link(canvasVs, canvasFs, "canvas");
     compositeP_.id = link(fullscreenVs, std::string(effectHeader) + compositeFs, "composite");
@@ -274,7 +279,7 @@ void Gpu::trackMemory() {
         if(t.pinned) { pinned+=bytes; ++count; }
     }
     for(const auto& entry:reducedLayers_)
-        reduced+=std::uint64_t(entry.first.first)*entry.first.second*samples_*12; // colour + D24S8
+        reduced+=std::uint64_t(entry.first.first)*entry.first.second*samples_*((msaaFormat_==GL_RGBA32F ? 16 : 8)+4); // colour + D24S8
     if(pinned>peakPinnedBytes_) { peakPinnedBytes_=pinned; peakPinnedCount_=count; }
     peakPoolBytes_=std::max(peakPoolBytes_,pool);
     peakPoolCount_=std::max(peakPoolCount_,pool_.size());
@@ -284,9 +289,9 @@ void Gpu::trackMemory() {
 
 void Gpu::release() {
     if(memoryProfile_ && peakPoolCount_) {
-        std::fprintf(stderr,"GPU storage peak %dx%d: pinned %zu textures %.3f MiB; pool %zu textures %.3f MiB; reduced %zu targets %.3f MiB (RGBA16F + D24S8, %dx MSAA; logical storage, excluding driver overhead)\n",
+        std::fprintf(stderr,"GPU storage peak %dx%d: pinned %zu textures %.3f MiB; pool %zu textures %.3f MiB; reduced %zu targets %.3f MiB (%s + D24S8, %dx MSAA; logical storage, excluding driver overhead)\n",
             w_,h_,peakPinnedCount_,peakPinnedBytes_/1048576.0,peakPoolCount_,peakPoolBytes_/1048576.0,
-            peakReducedCount_,peakReducedBytes_/1048576.0,samples_);
+            peakReducedCount_,peakReducedBytes_/1048576.0,msaaFormat_==GL_RGBA32F ? "RGBA32F" : "RGBA16F",samples_);
     }
     peakPinnedBytes_=peakPoolBytes_=peakReducedBytes_=0;
     peakPinnedCount_=peakPoolCount_=peakReducedCount_=0;
@@ -334,9 +339,9 @@ void Gpu::allocate() {
             std::abort();
         }
     };
-    make(main_, GL_RGBA16F);
-    make(layer_, GL_RGBA16F);
-    make(alt_, GL_RGBA16F);
+    make(main_, msaaFormat_);
+    make(layer_, msaaFormat_);
+    make(alt_, msaaFormat_);
 
     glGenTextures(1, &outTex_);
     glBindTexture(GL_TEXTURE_2D, outTex_);
@@ -689,7 +694,7 @@ void Gpu::drawCanvas(const Canvas& c) {
 }
 
 void Gpu::draw(const Canvas& canvas, Blend blend, float gain) {
-    GpuProfile::Scope timing(profile,"draw",w_,h_,"RGBA16F-MSAA");
+    GpuProfile::Scope timing(profile,"draw",w_,h_,msaaFormat_==GL_RGBA32F ? "RGBA32F-MSAA" : "RGBA16F-MSAA");
     bindMain();
     setBlend(blend, gain);
     drawCanvas(canvas);
@@ -707,7 +712,7 @@ int Gpu::layer(const Canvas& canvas,float sigmaDesign) {
             glGenFramebuffers(1,&target->fbo);
             glGenRenderbuffers(1,&target->color); glGenRenderbuffers(1,&target->depth);
             glBindRenderbuffer(GL_RENDERBUFFER,target->color);
-            glRenderbufferStorageMultisample(GL_RENDERBUFFER,samples_,GL_RGBA16F,w,h);
+            glRenderbufferStorageMultisample(GL_RENDERBUFFER,samples_,msaaFormat_,w,h);
             glBindRenderbuffer(GL_RENDERBUFFER,target->depth);
             glRenderbufferStorageMultisample(GL_RENDERBUFFER,samples_,GL_DEPTH24_STENCIL8,w,h);
             bindFramebuffer(GL_FRAMEBUFFER,target->fbo);
@@ -726,7 +731,7 @@ int Gpu::layer(const Canvas& canvas,float sigmaDesign) {
             return found->second.texture;
         }
     }
-    const int raster=profile.start("layer-raster",w,h,"RGBA16F-MSAA");
+    const int raster=profile.start("layer-raster",w,h,msaaFormat_==GL_RGBA32F ? "RGBA32F-MSAA" : "RGBA16F-MSAA");
     bindFramebuffer(GL_FRAMEBUFFER, target->fbo);
     glViewport(0, 0, w, h);
     const auto extent=canvas.bounds();
@@ -831,7 +836,7 @@ int Gpu::blurred(int tex, float sigmaDesign) {
 }
 
 void Gpu::composite(int tex, Blend blend, float gain, float opacity) {
-    GpuProfile::Scope timing(profile,"composite",w_,h_,"RGBA16F-MSAA");
+    GpuProfile::Scope timing(profile,"composite",w_,h_,msaaFormat_==GL_RGBA32F ? "RGBA32F-MSAA" : "RGBA16F-MSAA");
     bindMain();
     glUseProgram(compositeP_.id);
     glActiveTexture(GL_TEXTURE0);
@@ -886,7 +891,7 @@ void Gpu::pass(Program& p, Blend blend, const std::function<void(Program&)>& set
     } else bindMain();
     std::string name="effect";
     if(profile.enabled()) for(const auto& entry:effects_) if(entry.second.id==p.id) { name=entry.first;break; }
-    GpuProfile::Scope timing(profile,name,w,h,target>=0?"RGBA16F":"RGBA16F-MSAA");
+    GpuProfile::Scope timing(profile,name,w,h,target>=0?"RGBA16F":msaaFormat_==GL_RGBA32F ? "RGBA32F-MSAA" : "RGBA16F-MSAA");
     glUseProgram(p.id);
     p.set("u_size", float(w), float(h));
     p.set("u_scale", float(pixelScale()));
