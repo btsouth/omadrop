@@ -497,18 +497,7 @@ void rightHouses(Ctx& c, const OsakaState& s, const Life& L) {
     const Col wall(0.014f, 0.046f, 0.037f), rf(0.018f, 0.070f, 0.054f), rf2(0.050f, 0.215f, 0.160f);
     double x0 = 1262 + ox;
     Kit::OsakaRightHouse2V1::draw(c, s, cv, x0, wall, rf, rf2);
-    const double h2on[3] = {9.2, 12.0, 5.8};
-    const double h2win[3][4] = {{22, 724, 62, 50}, {104, 724, 62, 50}, {24, 826, 96, 74}};
-    for (int i = 0; i < 3; ++i) {
-        const auto& q = h2win[i];
-        const double lv = s.chapter ? paneLevel(c, L, h2on[i] + c.jit(300 + i) * 0.6, (i + 2) % 6, {x0 + q[0], q[1]}) : 1.0;
-        if (lv > 0.01) {
-            warmPane(w, x0 + q[0], q[1], q[2], q[3], lv);
-            c.retain(w, "right-house-lattice-" + std::to_string(i), [&](Canvas& w) {
-                lattice(w, x0 + q[0], q[1], q[2], q[3], 3, 2, INK, 1.2);
-            }, {s.cam});
-        } else darkPane(w, x0 + q[0], q[1], q[2], q[3]);
-    }
+    Kit::OsakaRightRoom2V1::draw(c, s, L, w, x0);
     x0 = 1512 + ox;
     Kit::OsakaRightHouse3V1::draw(c, s, cv, x0, wall, rf, rf2);
     struct U { double wx, ww; bool cyan; double on; int band; };
