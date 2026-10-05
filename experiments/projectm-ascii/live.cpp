@@ -282,7 +282,18 @@ int main(int argc, char** argv) {
         }
     }
     const int windowPosition = SDL_WINDOWPOS_CENTERED_DISPLAY(displayIndex);
-    SDL_Window* window = SDL_CreateWindow("Omadrop",
+    // Hyprland maps every new window on the focused monitor and ignores the
+    // SDL output. A paired window starts with a per-output title that the
+    // launcher's window rule matches, and keeps it until the window is mapped.
+    std::string windowTitle = "Omadrop";
+    if (const char* output = std::getenv("OMADROP_DISPLAY_NAME");
+        output && *output && std::getenv("OMADROP_PAIR_ROLE")) {
+        windowTitle += " ";
+        windowTitle += output;
+    }
+    bool holdPlacementTitle = windowTitle != "Omadrop";
+    std::uint64_t placementShownAt = 0;
+    SDL_Window* window = SDL_CreateWindow(windowTitle.c_str(),
         windowPosition, windowPosition, width, height,
         windowFlags);
     if (!window) {
@@ -796,6 +807,7 @@ int main(int argc, char** argv) {
             if (!std::getenv("OMADROP_TEST_HIDDEN")) SDL_ShowWindow(window);
             SDL_PumpEvents();
             windowConfigured = true;
+            placementShownAt = SDL_GetTicks64();
         }
         if (now >= nextRatePollAt) {
             nextRatePollAt = now + 250;
@@ -2091,7 +2103,7 @@ int main(int argc, char** argv) {
                 }
             }
         }
-        if (!nativeEnabled && titlePresetIndex != presetIndex) {
+        if (!nativeEnabled && !holdPlacementTitle && titlePresetIndex != presetIndex) {
             const std::string title = "Omadrop \xE2\x80\x94 " + sceneLabel(presets[presetIndex]);
             SDL_SetWindowTitle(window, title.c_str());
             titlePresetIndex = presetIndex;
@@ -2150,6 +2162,12 @@ int main(int argc, char** argv) {
             continue;
         }
         SDL_GL_SwapWindow(window);
+        // Xwayland reports the title to Hyprland asynchronously after the map,
+        // so keep the placement title briefly before scene titles may follow.
+        if (holdPlacementTitle && placementShownAt && now >= placementShownAt + 1500) {
+            holdPlacementTitle = false;
+            SDL_SetWindowTitle(window, "Omadrop");
+        }
         if (!firstFramePresented) {
             firstFramePresented = true;
             logTiming("first frame presented");
@@ -2165,6 +2183,7 @@ int main(int argc, char** argv) {
                       << (coverPresentation.hasArtwork() ? "cover" : "scene")
                       << " at " << now << " ms\n";
             if (!collectionMode && !std::getenv("OMADROP_TEST_HIDDEN")) SDL_ShowWindow(window);
+            if (!collectionMode) placementShownAt = SDL_GetTicks64();
             logTiming("window shown");
             if (collectionMode && !reviewDwell) {
                 const auto presentedAt = SDL_GetTicks64();
