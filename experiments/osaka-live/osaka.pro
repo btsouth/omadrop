@@ -70,3 +70,6 @@ HEADERS += src/kit/downhill.h
 
 SOURCES += src/kit/grass.cpp
 HEADERS += src/kit/grass.h
+
+SOURCES += src/kit/wisteria.cpp
+HEADERS += src/kit/wisteria.h
