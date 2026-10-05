@@ -5,6 +5,7 @@
 #include "osaka_shaders.h"
 #include "parts.h"
 #include "rig.h"
+#include "kit/pane.h"
 #include "kit/town.h"
 #include "kit/layout.h"
 #include "kit/ridges.h"
@@ -30,26 +31,9 @@ const V2 FIREWORK(842, 418);
 // ---------- timeline ----------
 // One firework shell. The main pair blooms on the surge; the finale shells
 // burst on the bass hits that follow it, so the sky answers the drop.
-struct Shell {
-    double burst;   // bloom time
-    V2 at;          // bloom centre (mock coordinates, before parallax)
-    double size;    // final radius scale
-    int kind;       // 0 chrysanthemum, 1 peony, 2 ring, 3 golden willow
-    Col a, b;       // star colour, then the colour it cools to
-    double strength;
-    double tilt;    // ring tilt / rotation seed
-};
+using Kit::Shell;
 
-struct Life {
-    double t = 0;
-    double wind = 0;      // gust strength
-    Surge surge;          // flock burst / rocket launch
-    double bloom = -1;    // firework bloom time
-    double look = 0;      // figures look up
-    double hush = 0;      // the measured breakdown before the rocket
-    double scale = 1;     // fallback surge is smaller
-    std::vector<Shell> shells;
-};
+using Life = Kit::OsakaLegacyLife;
 
 double flickerOn(double dt) {
     if (dt < 0) return 0;
@@ -109,19 +93,6 @@ double onsetFlash(const Ctx& c, double decay, double maxAge = 0.6) {
 
 // Panes switch on at authored times, then breathe with their band and answer
 // the firework with a flash that travels outward from it.
-double paneLevel(const Ctx& c, const Life& L, double onTime, int band, V2 centre) {
-    const double on = onTime <= -50 ? 1.0 : c.schedule->pane(c.t, onTime);
-    if (on <= 0) return 0;
-    // Absolute level keeps the room warm; the relative lift makes each pane
-    // visibly answer its own frequency role in dense mixes.
-    // A shared bass kick lets the whole town blink together on the beat.
-    double level = on * (0.74 - 0.20 * L.hush + 0.30 * c.band(band) + 0.62 * c.lift(band) + 0.22 * c.kick(6));
-    for (const Shell& sh : L.shells) {
-        const double arrive = sh.burst + (centre - sh.at).len() / 1500.0;
-        if (c.t > arrive) level += 1.1 * sh.size * sh.strength * std::exp(-(c.t - arrive) * 3.2) * on;
-    }
-    return level;
-}
 
 
 

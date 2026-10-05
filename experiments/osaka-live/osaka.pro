@@ -31,3 +31,6 @@ HEADERS += src/kit/ridges.h
 
 SOURCES += src/kit/town.cpp
 HEADERS += src/kit/town.h
+
+SOURCES += src/kit/pane.cpp
+HEADERS += src/kit/pane.h
