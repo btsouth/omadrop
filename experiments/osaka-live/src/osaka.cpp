@@ -315,23 +315,6 @@ void streetSurface(Ctx& c, const OsakaState& s) {
 // ---------- people of the street ----------
 // Walk schedules: distance travelled as a function of time, with eased
 // starts and stops so feet plant and bodies settle.
-double easedDistance(double t, double t0, double t1, double d0, double d1) {
-    if (t <= t0) return d0;
-    if (t >= t1) return d1;
-    const double u = (t - t0) / (t1 - t0);
-    // Accelerate over the first 12%, cruise, decelerate over the last 15%.
-    const double a = 0.12, b = 0.15;
-    const double v = 1.0 / (1 - a / 2 - b / 2);
-    double s;
-    if (u < a) s = v * u * u / (2 * a);
-    else if (u < 1 - b) s = v * (a / 2 + (u - a));
-    else { const double r = 1 - u; s = 1 - v * r * r / (2 * b); }
-    return lerp(d0, d1, s);
-}
-double speedOf(double t, double t0, double t1, double d0, double d1) {
-    return (easedDistance(t + 0.02, t0, t1, d0, d1) - easedDistance(t - 0.02, t0, t1, d0, d1)) / 0.04;
-}
-
 struct Walker { double x; double dist; double motion; };
 
 // Lantern-bearer remains in the street. No boat departure in live Osaka.
@@ -452,70 +435,9 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
     OsakaNorenV1::draw(c, s, L, l, t, yx);
     OsakaCartLanternV1::draw(c, s, p, l, t, yx, wind);
     OsakaCustomerV1::draw(c, s, L, p, t, yx);
-    // Couple stroll to the railing; one points at the moon, the other leans in.
-    {
-        const double bx = 1180 + ox;
-        for (int k = 0; k < 2; ++k) {
-            const double h = k == 0 ? 126 : 116;
-            const double endX = k == 0 ? bx : bx - 48;
-            const double startX = endX - 540;
-            const double d = 540;
-            const double mv = 0;
-            Gait g; g.stride = 0.7 * h; g.lift = 0.06 * h; g.bob = 0.016 * h;
-            const Steps st = gaitAt(startX, d, 936 - 0.04 * h, 1, g, mv);
-            RigIn r;
-            r.h = h; r.facing = 1; r.hair = k == 0 ? Hair::Short : Hair::Default; r.garment = k == 0 ? Garment::Jacket : Garment::Default; r.obi = k == 1; r.flutter = L.wind * std::sin(t * 2.4 + k) + 0.2 * mv;
-            r.hip = {startX + d, 936 - hipHeight(h) + st.hipBob};
-            r.footF = st.footF; r.footB = st.footB;
-            const double arm = std::sin(Tau * st.phase) * mv;
-            const double hold = (L.surge.t >= 0) ? window(t, L.surge.t + 1.2, 0.5, L.surge.t + 2.4, 0.25) : 0;
-            const V2 lanternAt(bx - 24, 828);
-            if (k == 0) {
-                const double point = s.chapter ? c.gesture(12.4, 0.5, 15.6, 0.7) : 0;
-                const double antic = 0;
-                r.lean = 0.10 * (1 - point) + 0.02 * point + 0.05 * mv - 0.03 * antic;
-                r.handF = lerp(r.hip + V2(0.05 * h + 0.07 * h * arm, 0.08 * h), r.hip + V2(0.24 * h, -0.52 * h), backOut(point, 1.2));
-                // Points the firework out to her (it is up and to the left),
-                // other hand on her shoulder.
-                const double cheer = L.look;
-                r.handF = lerp(r.handF, r.hip + V2(-0.12 * h, -0.54 * h), cheer);
-                r.handB = lerp(r.hip + V2(-0.05 * h - 0.07 * h * arm, 0.08 * h), r.hip + V2(-0.16 * h, -0.30 * h), cheer);
-                r.headTilt = 0.35 * point + 0.75 * L.look - 0.2 * c.gesture(17.3, 0.3, 17.7, 0.4);
-                r.handF = lerp(r.handF, lanternAt + V2(10, 12), hold);
-                r.handB = lerp(r.handB, lanternAt + V2(4, 14), hold);
-            } else {
-                const double lean = s.chapter ? c.gesture(14.4, 0.8, 19.5, 1.0) : 0;
-                r.robe = true; r.bun = true; r.sleeve = true;
-                r.lean = 0.12 + 0.12 * lean;
-                r.handF = lerp(r.hip + V2(0.18 * h, -0.08 * h + 0.03 * h * arm), r.hip + V2(0.14 * h, -0.36 * h), L.look);
-                r.handB = lerp(r.hip + V2(0.1 * h, -0.05 * h), r.hip + V2(0.10 * h, -0.33 * h), L.look);
-                r.headTilt = 0.15 * lean + 0.7 * L.look + 0.1 - 0.22 * c.gesture(17.8, 0.25, 18.15, 0.4);
-                r.handF = lerp(r.handF, lanternAt + V2(-8, 14), hold);
-            }
-            streetFigure(p, r, k == 0 ? WARM_T : RED);
-        }
-        OsakaCoupleLanternV1::draw(L, p, l, t, bx);
-    }
+    OsakaCoupleV1::draw(c, s, L, p, l, t, ox);
     OsakaRailCatV1::draw(c, L, p, t, ox);
-    // Child runs from the izakaya toward the flock, brakes and points.
-    if (L.surge.t >= 0 && t > L.surge.t + 0.18) {
-        const double start = L.surge.t + 0.18, h = 80;
-        const double out=easedDistance(t,start,start+1.9,0,104);
-        const double back=easedDistance(t,start+5.5,start+7.6,0,104);
-        const double d=out-back;
-        const double mv=clamp01((speedOf(t,start,start+1.9,0,104)+speedOf(t,start+5.5,start+7.6,0,104))/40);
-        Gait g; g.stride = 48; g.lift = 9; g.bob = 3;
-        const Steps st = gaitAt(1440+ox-(back>0?104:0),back>0?back:out,932,back>0?1:-1,g,mv);
-        RigIn r; r.h = h; r.facing = back>0?1:-1; r.hair = Hair::Short; r.garment = Garment::Happi;
-        r.hip = {1440 + ox - d, 936 - hipHeight(h) + st.hipBob};
-        r.footF = st.footF; r.footB = st.footB;
-        r.lean = 0.10 + 0.14 * mv; r.headTilt = 0.65 + 0.06 * std::sin(t * 3);
-        const double point=window(t,start+1.65,0.5,start+5.5,0.8);
-        r.handF = r.hip + V2(-14 - 6 * std::sin(Tau * st.phase) * mv, -8 - 36 * point);
-        r.handB = r.hip + V2(6 + 9 * std::sin(Tau * st.phase) * mv, 4);
-        r.flutter = 0.4 * mv + L.wind * std::sin(t * 4);
-        if(t<start+7.8) streetFigure(p,r,RED);
-    }
+    OsakaChildV1::draw(c, L, p, t, ox);
     c.gpu.over(p);
     c.gpu.over(l, 1.6f);
     c.gpu.add(l, 0.5f, 24);

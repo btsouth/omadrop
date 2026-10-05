@@ -22,4 +22,12 @@ struct OsakaCustomerV1 {
     static constexpr const char* name = "osaka-customer-v1";
     static void draw(Ctx& c, const OsakaState& s, const OsakaEventState& L, Canvas& p, double t, double yx);
 };
+struct OsakaCoupleV1 {
+    static constexpr const char* name = "osaka-couple-v1";
+    static void draw(Ctx& c, const OsakaState& s, const OsakaEventState& L, Canvas& p, Canvas& l, double t, double ox);
+};
+struct OsakaChildV1 {
+    static constexpr const char* name = "osaka-child-v1";
+    static void draw(Ctx& c, const OsakaEventState& L, Canvas& p, double t, double ox);
+};
 }
