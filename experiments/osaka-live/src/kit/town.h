@@ -36,4 +36,8 @@ struct OsakaNearMaskV1 {
     static constexpr const char* name = "osaka-near-house-mask-v1";
     static void draw(Ctx& c, const OsakaState& s, Canvas& mask, double ox, const NearPane (&U)[4]);
 };
+struct OsakaShamisenMaskV1 {
+    static constexpr const char* name = "osaka-shamisen-mask-v1";
+    static void draw(Ctx& c, const OsakaState& s, Canvas& mask, double x0);
+};
 }

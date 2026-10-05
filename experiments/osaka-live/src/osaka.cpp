@@ -586,9 +586,7 @@ void rightHouses(Ctx& c, const OsakaState& s, const Life& L) {
         sh.line(fx + 24, baseY - 70, fx - 86, baseY - 124, 4.5, SHADOW);
         sh.fillRect(fx + 8, baseY - 88, 34, 30, SHADOW);
         Canvas& mask = c.canvas();
-    c.retain(mask, "shamisen-mask", [&](Canvas& mask) {
-            mask.fillRect(x0 + 30, 640, 96, 96, Col(1, 1, 1));
-    }, {s.cam});
+    Kit::OsakaShamisenMaskV1::draw(c, s, mask, x0);
         const int lt = c.gpu.layer(sh);
         const int bl = c.gpu.blurred(lt, 2.0);
         const int mk = c.gpu.layer(mask);

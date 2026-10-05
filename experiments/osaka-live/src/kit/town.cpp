@@ -86,4 +86,9 @@ void OsakaNearMaskV1::draw(Ctx& c, const OsakaState& s, Canvas& mask, double ox,
             for (const NearPane& q : U) mask.fillRect(q.x + ox, q.y, q.w, q.h, Col(1, 1, 1));
     }, {s.cam});
 }
+void OsakaShamisenMaskV1::draw(Ctx& c, const OsakaState& s, Canvas& mask, double x0) {
+    c.retain(mask, "shamisen-mask", [&](Canvas& mask) {
+            mask.fillRect(x0 + 30, 640, 96, 96, Col(1, 1, 1));
+    }, {s.cam});
+}
 }
