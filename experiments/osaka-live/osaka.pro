@@ -10,3 +10,6 @@ LIBS += -lEGL -lOpenGL -lpthread
 RESOURCES += src/resources.qrc
 QMAKE_CXXFLAGS_RELEASE += -O3 -flto=8 -fno-math-errno
 QMAKE_LFLAGS_RELEASE += -flto=8
+
+SOURCES += src/kit/primitives.cpp
+HEADERS += src/kit/primitives.h
