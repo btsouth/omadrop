@@ -19,4 +19,8 @@ struct OsakaDeckV1 {
     static constexpr const char* name = "osaka-near-house-deck-v1";
     static void draw(Ctx& c, const OsakaState& s, Canvas& f, double ox, Col roomCol, Col wall);
 };
+struct OsakaStreetV1 {
+    static constexpr const char* name = "osaka-street-surface-v1";
+    static void draw(Ctx& c, const OsakaState& s, Canvas& cv, double qx);
+};
 }

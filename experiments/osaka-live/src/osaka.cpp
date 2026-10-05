@@ -694,12 +694,7 @@ void streetSurface(Ctx& c, const OsakaState& s) {
     const double ox = -s.cam * 0.85;
     Canvas& cv = c.canvas();
     const double qx = QUAY - s.cam * 0.85;
-    c.retain(cv, "street-surface", [&](Canvas& cv) {
-        cv.linear(0, 934, 0, 1080, {{0, Col(0.040f, 0.150f, 0.112f), 1}, {0.18f, Col(0.020f, 0.075f, 0.058f), 1}, {1, Col(0.008f, 0.024f, 0.020f), 1}});
-        cv.rect(-10, 934, std::min(1930.0, qx) + 10, 146);
-        cv.fill();
-        cv.line(0, 934.5, std::min(1920.0, qx), 934.5, 1.2, MINT, 0.30);
-    }, {s.cam});
+    Kit::OsakaStreetV1::draw(c, s, cv, qx);
     if (qx < 1930 && s.harbour > 0.01) {
         // Harbour water beyond the quay.
         if (s.harbourFeather > 0) {

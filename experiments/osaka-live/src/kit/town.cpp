@@ -44,4 +44,12 @@ void OsakaDeckV1::draw(Ctx& c, const OsakaState& s, Canvas& f, double ox, Col ro
         f.line(-80 + ox, 968, 640 + ox, 968, 1.2, RIM, 0.3);
     }, {s.cam});
 }
+void OsakaStreetV1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double qx) {
+    c.retain(cv, "street-surface", [&](Canvas& cv) {
+        cv.linear(0, 934, 0, 1080, {{0, Col(0.040f, 0.150f, 0.112f), 1}, {0.18f, Col(0.020f, 0.075f, 0.058f), 1}, {1, Col(0.008f, 0.024f, 0.020f), 1}});
+        cv.rect(-10, 934, std::min(1930.0, qx) + 10, 146);
+        cv.fill();
+        cv.line(0, 934.5, std::min(1920.0, qx), 934.5, 1.2, MINT, 0.30);
+    }, {s.cam});
+}
 }
