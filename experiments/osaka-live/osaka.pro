@@ -64,3 +64,6 @@ HEADERS += src/kit/chime.h
 
 SOURCES += src/kit/city.cpp
 HEADERS += src/kit/city.h
+
+SOURCES += src/kit/downhill.cpp
+HEADERS += src/kit/downhill.h
