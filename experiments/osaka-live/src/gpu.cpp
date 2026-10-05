@@ -274,7 +274,12 @@ void Gpu::release() {
     scaledFbo_=scaledTex_=0;
     for (Tex& t : pool_) { glDeleteFramebuffers(1, &t.fbo); glDeleteTextures(1, &t.tex); }
     pool_.clear();
-    layerDirty_={};
+    for(auto& entry:reducedLayers_) {
+        auto& t=entry.second;
+        glDeleteFramebuffers(1,&t.fbo); glDeleteRenderbuffers(1,&t.color); glDeleteRenderbuffers(1,&t.depth);
+    }
+    reducedLayers_.clear();
+
 }
 
 void Gpu::allocate() {
@@ -323,7 +328,7 @@ void Gpu::allocate() {
 
 int Gpu::acquire(int w, int h) {
     for (std::size_t i = 0; i < pool_.size(); ++i) {
-        if (!pool_[i].used && !pool_[i].pinned && pool_[i].w == w && pool_[i].h == h) { pool_[i].used = true; pool_[i].bounds=QRect(0,0,w,h); return int(i); }
+        if (!pool_[i].used && !pool_[i].pinned && pool_[i].w == w && pool_[i].h == h) { pool_[i].used = true; pool_[i].reduction=1; pool_[i].bounds=QRect(0,0,w,h); return int(i); }
     }
     Tex t;
     t.w = w; t.h = h; t.used = true; t.bounds=QRect(0,0,w,h); t.dirty=t.bounds;
@@ -658,9 +663,30 @@ void Gpu::draw(const Canvas& canvas, Blend blend, float gain) {
     drawCanvas(canvas);
 }
 
-int Gpu::layer(const Canvas& canvas) {
+int Gpu::layer(const Canvas& canvas,float sigmaDesign) {
+    int reduction=1,w=w_,h=h_;
+    while(sigmaDesign*pixelScale()/reduction>3 && reduction<32) {
+        reduction*=2; w=(w+1)/2; h=(h+1)/2;
+    }
+    Target* target=&layer_;
+    if(reduction>1) {
+        target=&reducedLayers_[{w,h}];
+        if(!target->fbo) {
+            glGenFramebuffers(1,&target->fbo);
+            glGenRenderbuffers(1,&target->color); glGenRenderbuffers(1,&target->depth);
+            glBindRenderbuffer(GL_RENDERBUFFER,target->color);
+            glRenderbufferStorageMultisample(GL_RENDERBUFFER,samples_,GL_RGBA16F,w,h);
+            glBindRenderbuffer(GL_RENDERBUFFER,target->depth);
+            glRenderbufferStorageMultisample(GL_RENDERBUFFER,samples_,GL_DEPTH24_STENCIL8,w,h);
+            bindFramebuffer(GL_FRAMEBUFFER,target->fbo);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_RENDERBUFFER,target->color);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_DEPTH_STENCIL_ATTACHMENT,GL_RENDERBUFFER,target->depth);
+            if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE) std::abort();
+        }
+    }
     RasterKey key;
     const bool retained=rasterKey(canvas,key);
+    if(retained) key.emplace_back(0,reduction);
     if(retained) {
         const auto found=rasters_.find(key);
         if(found!=rasters_.end()) {
@@ -668,32 +694,33 @@ int Gpu::layer(const Canvas& canvas) {
             return found->second.texture;
         }
     }
-    const int raster=profile.start("layer-raster",w_,h_,"RGBA16F-MSAA");
-    bindFramebuffer(GL_FRAMEBUFFER, layer_.fbo);
-    glViewport(0, 0, w_, h_);
+    const int raster=profile.start("layer-raster",w,h,"RGBA16F-MSAA");
+    bindFramebuffer(GL_FRAMEBUFFER, target->fbo);
+    glViewport(0, 0, w, h);
     const auto extent=canvas.bounds();
     const QRectF box=std::isfinite(extent[0]) ? QRectF(extent[0],extent[1],extent[2]-extent[0],extent[3]-extent[1]) : QRectF();
-    const int x0=std::clamp(int(std::floor(box.left()*w_/1920.0))-2,0,w_);
-    const int x1=std::clamp(int(std::ceil(box.right()*w_/1920.0))+2,0,w_);
-    const int y0=std::clamp(int(std::floor((1080-box.bottom())*h_/1080.0))-2,0,h_);
-    const int y1=std::clamp(int(std::ceil((1080-box.top())*h_/1080.0))+2,0,h_);
+    const int x0=std::clamp(int(std::floor(box.left()*w/1920.0))-2,0,w);
+    const int x1=std::clamp(int(std::ceil(box.right()*w/1920.0))+2,0,w);
+    const int y0=std::clamp(int(std::floor((1080-box.bottom())*h/1080.0))-2,0,h);
+    const int y1=std::clamp(int(std::ceil((1080-box.top())*h/1080.0))+2,0,h);
     const QRect bounds(x0,y0,x1-x0,y1-y0);
-    scissor(layerDirty_.united(bounds));
+    scissor(target->dirty.united(bounds));
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    layerDirty_=bounds;
+    target->dirty=bounds;
     scissor(bounds);
     setBlend(Blend::Over, 1);
     drawCanvas(canvas);
     profile.stop(raster);
-    GpuProfile::Scope timing(profile,"layer-resolve",w_,h_,"RGBA16F");
-    const int t = acquire(w_, h_);
+    GpuProfile::Scope timing(profile,"layer-resolve",w,h,"RGBA16F");
+    const int t = acquire(w, h);
     prepareBounded(t,bounds);
-    bindFramebuffer(GL_READ_FRAMEBUFFER, layer_.fbo);
+    bindFramebuffer(GL_READ_FRAMEBUFFER, target->fbo);
     bindFramebuffer(GL_DRAW_FRAMEBUFFER, pool_[t].fbo);
-    glBlitFramebuffer(0, 0, w_, h_, 0, 0, w_, h_, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     glDisable(GL_SCISSOR_TEST);
     if(retained) { pool_[t].pinned=true; rasters_[key]={t,rasterFrame_}; }
+    pool_[t].reduction=reduction;
     return t;
 }
 
@@ -756,7 +783,7 @@ int Gpu::blurred(int tex, float sigmaDesign) {
         if(found!=filters_.end()) return found->second;
     }
     int cur = tex;
-    float f = 1;
+    float f = float(pool_[tex].reduction);
     while (s / f > 3.f && f < 32.f) {
         const int next = downsample(cur);
         if (cur != tex) pool_[cur].used = false;
@@ -794,7 +821,7 @@ void Gpu::composite(int tex, Blend blend, float gain, float opacity) {
 void Gpu::over(const Canvas& canvas, float gain, float blur, float opacity) {
     if (canvas.empty() || opacity <= 0.001f) return;
     if (blur <= 0 && opacity >= 0.999f) { draw(canvas, Blend::Over, gain); return; }
-    int t = layer(canvas);
+    int t = layer(canvas,blur);
     const int b = blurred(t, blur);
     composite(b, Blend::Over, gain, opacity);
     pool_[t].used = false;
@@ -803,7 +830,7 @@ void Gpu::over(const Canvas& canvas, float gain, float blur, float opacity) {
 
 void Gpu::add(const Canvas& canvas, float gain, float blur) {
     if (canvas.empty() || gain <= 0) return;
-    int t = layer(canvas);
+    int t = layer(canvas,blur);
     const int b = blurred(t, blur);
     composite(b, Blend::Add, gain, 1);
     pool_[t].used = false;
@@ -831,7 +858,7 @@ void Gpu::pass(Program& p, Blend blend, const std::function<void(Program&)>& set
     glUseProgram(p.id);
     p.set("u_size", float(w), float(h));
     p.set("u_scale", float(pixelScale()));
-    if(target>=0) pool_[target].dirty=pool_[target].bounds;
+    if(target>=0) pool_[target].dirty=pool_[target].bounds=QRect(0,0,w,h);
     if (setup) setup(p);
     setBlend(blend, 1);
     if(!clip.isEmpty()) {

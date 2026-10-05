@@ -66,7 +66,8 @@ public:
     // Offscreen: render, optionally blur, then composite.
     void over(const Canvas& canvas, float gain = 1.f, float blur = 0.f, float opacity = 1.f);
     void add(const Canvas& canvas, float gain = 1.f, float blur = 0.f);
-    int layer(const Canvas& canvas);
+    // A planned wide blur can render at its already reduced target size.
+    int layer(const Canvas& canvas, float sigmaDesign=0);
     int blurred(int tex, float sigmaDesign);
     void composite(int tex, Blend blend, float gain = 1.f, float opacity = 1.f);
 
@@ -91,8 +92,8 @@ public:
     void readRgb(std::vector<unsigned char>& rgb);
 
 private:
-    struct Target { GLuint fbo = 0, color = 0, depth = 0; };
-    struct Tex { GLuint tex = 0, fbo = 0; int w = 0, h = 0; bool used = false, pinned = false; QRect bounds, dirty; };
+    struct Target { GLuint fbo = 0, color = 0, depth = 0; QRect dirty; };
+    struct Tex { GLuint tex = 0, fbo = 0; int w = 0, h = 0; int reduction=1; bool used = false, pinned = false; QRect bounds, dirty; };
 
     void bindFramebuffer(GLenum target, GLuint fbo);
     void allocate();
@@ -108,7 +109,6 @@ private:
     void bindMain();
     void scissor(const QRect& bounds);
     void prepareBounded(int texture, const QRect& bounds);
-    QRect layerDirty_;
     void drawCanvas(const Canvas& canvas);
     void bindGeometry(const Canvas& canvas);
     void setBlend(Blend blend, float gain);
@@ -126,6 +126,7 @@ private:
     bool cacheGeometry_ = true;
     int w_ = 0, h_ = 0, samples_ = 4;
     Target main_, layer_, out_, alt_;
+    std::map<std::pair<int,int>,Target> reducedLayers_;
     Target* current_ = &main_;
     GLuint outTex_ = 0, outFbo_ = 0;
     GLuint scaledTex_=0,scaledFbo_=0;
