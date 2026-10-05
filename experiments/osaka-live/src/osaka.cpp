@@ -523,10 +523,7 @@ void rightHouses(Ctx& c, const OsakaState& s, const Life& L) {
     Canvas& w = c.canvas();
     const Col wall(0.014f, 0.046f, 0.037f), rf(0.018f, 0.070f, 0.054f), rf2(0.050f, 0.215f, 0.160f);
     double x0 = 1262 + ox;
-    c.retain(cv, "right-house-2", [&](Canvas& cv) {
-        cv.fillRect(x0, 690, 252, 250, mix(wall, Col(0.03f, 0.13f, 0.10f), 0.5));
-        roof(cv, x0, x0 + 250, 690, 628, 22, mix(rf, Col(0.03f, 0.14f, 0.105f), 0.5), mix(rf2, Col(0.10f, 0.38f, 0.28f), 0.4), RIM, 7);
-    }, {s.cam});
+    Kit::OsakaRightHouse2V1::draw(c, s, cv, x0, wall, rf, rf2);
     const double h2on[3] = {9.2, 12.0, 5.8};
     const double h2win[3][4] = {{22, 724, 62, 50}, {104, 724, 62, 50}, {24, 826, 96, 74}};
     for (int i = 0; i < 3; ++i) {

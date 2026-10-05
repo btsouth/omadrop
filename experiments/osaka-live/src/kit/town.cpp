@@ -16,4 +16,10 @@ void OsakaNearHouseV1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double x0, 
         cv.line(x1, 276, x1, 578, 1.4, RIM, 0.28);
     }, {s.cam});
 }
+void OsakaRightHouse2V1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double x0, Col wall, Col rf, Col rf2) {
+    c.retain(cv, "right-house-2", [&](Canvas& cv) {
+        cv.fillRect(x0, 690, 252, 250, mix(wall, Col(0.03f, 0.13f, 0.10f), 0.5));
+        roof(cv, x0, x0 + 250, 690, 628, 22, mix(rf, Col(0.03f, 0.14f, 0.105f), 0.5), mix(rf2, Col(0.10f, 0.38f, 0.28f), 0.4), RIM, 7);
+    }, {s.cam});
+}
 }
