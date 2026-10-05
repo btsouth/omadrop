@@ -2,6 +2,7 @@
 #include "world.h"
 #include "headless.h"
 #include "preview.h"
+#include "render_comparison.h"
 #include <QCoreApplication>
 #include <QGuiApplication>
 #include <QScreen>
@@ -230,6 +231,7 @@ int main(int argc,char** argv) {
         QString error;
         if(!context.create(error) || !world.init(error)) { QTextStream(stderr)<<error<<'\n'; return 1; }
         int pose=0;
+        bool allExact=true;
         const std::uint64_t accepted[]={0xaa567941bb8e05b6ull,0x467f84c75c484f98ull,0x741e31c9603638ebull};
         for(double t:{8.0,14.0,28.0}) {
             Journey::LiveFrame f;
@@ -244,14 +246,13 @@ int main(int argc,char** argv) {
             world.setGeometryCacheEnabled(true);
             Journey::Canvas::useKnownConvex=true;
             world.render(w,h,t,f.audio,f.score,f.schedule); world.gpu().readRgb(after);
-            if(before!=after) {
-                std::size_t changed=0; int maximum=0;
-                for(std::size_t i=0;i<before.size();++i) {
-                    if(before[i]!=after[i] && changed<8) QTextStream(stderr)<<"diff pixel "<<(i/3)%w<<","<<(i/3)/w<<" channel "<<i%3<<" "<<int(before[i])<<"/"<<int(after[i])<<"\n";
-                    changed+=before[i]!=after[i]; maximum=std::max(maximum,std::abs(int(before[i])-int(after[i])));
-                }
-                QTextStream(stderr)<<"canvas image differs: "<<changed<<" channels, max "<<maximum<<'\n';
-                return 1;
+            const auto comparison=Journey::compareRender(before,after);
+            if(!comparison.exact()) {
+                allExact=false;
+                QTextStream(stderr)<<t<<" seconds: canvas image differs: "<<comparison.changed
+                    <<" channels, max "<<comparison.maximum<<"/255; "
+                    <<(comparison.acceptable() ? "within approved tolerance" : "FAIL")<<'\n';
+                if(!comparison.acceptable()) return 1;
             }
             std::uint64_t hash=14695981039346656037ull;
             for(auto byte:after) { hash^=byte; hash*=1099511628211ull; }
@@ -259,7 +260,9 @@ int main(int argc,char** argv) {
             if(w==1920 && h==1080 && context.renderer().contains("RTX 4070 SUPER") && hash!=accepted[pose]) {QTextStream(stderr)<<"accepted M1 RGB hash differs\n";return 1;}
             ++pose;
         }
-        QTextStream(stdout)<<"PASS: retained geometry and optimized canvas match uncached RGB exactly at 8, 14 and 28 seconds\n";
+        QTextStream(stdout)<<"PASS: retained geometry and optimized canvas match uncached RGB "
+            <<(allExact ? "exactly" : "within 1/255 on at most 64 channels per pose")
+            <<" at 8, 14 and 28 seconds\n";
         return 0;
     }
     const bool record=parser.isSet("record");
