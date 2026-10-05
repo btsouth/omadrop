@@ -13,4 +13,8 @@ struct OsakaRightRoom2V1 {
     static constexpr const char* name = "osaka-right-room-2-v1";
     static void draw(Ctx& c, const OsakaState& s, const OsakaLegacyLife& L, Canvas& w, double x0);
 };
+struct OsakaRightRoom3V1 {
+    static constexpr const char* name = "osaka-right-room-3-v1";
+    static void draw(Ctx& c, const OsakaState& s, const OsakaLegacyLife& L, Canvas& w, double t, double x0, const UpperPane (&ups)[4], double& shamisenPane);
+};
 }

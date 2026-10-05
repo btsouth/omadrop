@@ -500,22 +500,10 @@ void rightHouses(Ctx& c, const OsakaState& s, const Life& L) {
     Kit::OsakaRightRoom2V1::draw(c, s, L, w, x0);
     x0 = 1512 + ox;
     Kit::OsakaRightHouse3V1::draw(c, s, cv, x0, wall, rf, rf2);
-    struct U { double wx, ww; bool cyan; double on; int band; };
-    const U ups[4] = {{30, 96, false, 16.4, 3}, {134, 96, false, 7.5, 1}, {262, 60, true, 4.8, 5}, {330, 110, false, 10.2, 0}};
+    using U = Kit::UpperPane;
+    const auto& ups = Kit::upperPanes;
     double shamisenPane = 0;
-    for (int i = 0; i < 4; ++i) {
-        const U& u = ups[i];
-        double lv = s.chapter ? paneLevel(c, L, u.on, u.band, {x0 + u.wx, 690}) : 1.0;
-        if (u.cyan) lv *= 0.6 + 0.3 * std::sin(t * 9) * std::sin(t * 2.3 + 1);
-        if (i == 0) shamisenPane = lv;
-        if (lv > 0.01) warmPane(w, x0 + u.wx, 640, u.ww, 96, lv, u.cyan ? &BCYAN : nullptr);
-        else darkPane(w, x0 + u.wx, 640, u.ww, 96);
-    }
-    // Ground floor: open front, patrons inside.
-    const double lamp = 0.95 + 0.06 * std::sin(t * 1.7) + 0.1 * c.band(2);
-    w.linear(0, 800, 0, 936, {{0, WARM_T * float(lamp), 0.95f}, {1, mix(WARM_T, RED, 0.2) * float(lamp), 0.9f}});
-    w.rect(x0 + 40, 800, 230, 136);
-    w.fill();
+    Kit::OsakaRightRoom3V1::draw(c, s, L, w, t, x0, ups, shamisenPane);
     c.gpu.over(cv);
     c.gpu.over(w, 1.22f);
     // Shamisen player behind the paper from 17 s, strumming on mid-band peaks.

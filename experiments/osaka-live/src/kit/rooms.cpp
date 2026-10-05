@@ -36,4 +36,20 @@ void OsakaRightRoom2V1::draw(Ctx& c, const OsakaState& s, const OsakaLegacyLife&
     }
 
 }
+void OsakaRightRoom3V1::draw(Ctx& c, const OsakaState& s, const OsakaLegacyLife& L, Canvas& w, double t, double x0, const UpperPane (&ups)[4], double& shamisenPane) {
+    for (int i = 0; i < 4; ++i) {
+        const UpperPane& u = ups[i];
+        double lv = s.chapter ? paneLevel(c, L, u.on, u.band, {x0 + u.wx, 690}) : 1.0;
+        if (u.cyan) lv *= 0.6 + 0.3 * std::sin(t * 9) * std::sin(t * 2.3 + 1);
+        if (i == 0) shamisenPane = lv;
+        if (lv > 0.01) warmPane(w, x0 + u.wx, 640, u.ww, 96, lv, u.cyan ? &BCYAN : nullptr);
+        else darkPane(w, x0 + u.wx, 640, u.ww, 96);
+    }
+    // Ground floor: open front, patrons inside.
+    const double lamp = 0.95 + 0.06 * std::sin(t * 1.7) + 0.1 * c.band(2);
+    w.linear(0, 800, 0, 936, {{0, WARM_T * float(lamp), 0.95f}, {1, mix(WARM_T, RED, 0.2) * float(lamp), 0.9f}});
+    w.rect(x0 + 40, 800, 230, 136);
+    w.fill();
+
+}
 }
