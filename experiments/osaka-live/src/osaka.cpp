@@ -6,6 +6,7 @@
 #include "parts.h"
 #include "rig.h"
 #include "kit/neon.h"
+#include "kit/light-wave.h"
 #include "kit/events.h"
 #include "kit/flock.h"
 #include "kit/pulses.h"

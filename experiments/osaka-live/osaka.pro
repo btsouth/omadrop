@@ -91,3 +91,6 @@ HEADERS += src/kit/flock.h
 
 SOURCES += src/kit/events.cpp
 HEADERS += src/kit/events.h
+
+SOURCES += src/kit/light-wave.cpp
+HEADERS += src/kit/light-wave.h

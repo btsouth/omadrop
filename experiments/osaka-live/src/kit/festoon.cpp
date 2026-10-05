@@ -1,3 +1,4 @@
+#include "light-wave.h"
 #include "network.h"
 #include "lanterns.h"
 #include "festoon.h"
@@ -57,10 +58,7 @@ void OsakaFestoonV1::draw(Ctx& c, const OsakaState& s, const Life& L, V2 b) {
             const double d = std::abs(i - b.lantern);
             if (d < 1.5) lv += (d < 0.5 ? 1.7 : 0.35) * (0.5 + 0.5 * b.strength) * std::exp(-(t - b.t) * 4.0);
         }
-        for (const Shell& sh : L.shells) {
-            const double arrive = sh.burst + (at - sh.at).len() / 1500.0;
-            if (t > arrive) lv += 0.8 * sh.size * std::exp(-(t - arrive) * 2.6);
-        }
+        OsakaFestoonLightWaveV1::apply(L, t, at, lv);
         lv *= on;
         if (lv < 0.02) { paperLantern(l, at, 8, 10.5, sw * 0.6, Col(0.18f, 0.06f, 0.05f), 0.4); continue; }
         const Col paper = i % 3 == 1 ? Col(0.98f, 0.82f, 0.52f) : Col(0.96f, 0.30f, 0.20f);

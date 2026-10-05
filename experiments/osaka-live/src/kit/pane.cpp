@@ -1,3 +1,4 @@
+#include "light-wave.h"
 #include "pane.h"
 
 namespace Journey::Kit {
@@ -8,10 +9,7 @@ double OsakaPaneV1::level(const Ctx& c, const OsakaLegacyLife& L, double onTime,
     // visibly answer its own frequency role in dense mixes.
     // A shared bass kick lets the whole town blink together on the beat.
     double level = on * (0.74 - 0.20 * L.hush + 0.30 * c.band(band) + 0.62 * c.lift(band) + 0.22 * c.kick(6));
-    for (const Shell& sh : L.shells) {
-        const double arrive = sh.burst + (centre - sh.at).len() / 1500.0;
-        if (c.t > arrive) level += 1.1 * sh.size * sh.strength * std::exp(-(c.t - arrive) * 3.2) * on;
-    }
+    OsakaLightWaveV1::pane(c, L, on, centre, level);
     return level;
 }
 }
