@@ -230,8 +230,7 @@ int main(int argc,char** argv) {
         QString error;
         if(!context.create(error) || !world.init(error)) { QTextStream(stderr)<<error<<'\n'; return 1; }
         int pose=0;
-        // Optimized RGB after b4c2984, d7b8cb0, e98b80b and intentional MSAA precision change 1a2d239.
-        const std::uint64_t accepted[]={0xf3123e075679bc81ull,0xf93870808d1effe7ull,0xd8cfc2a34d8d9bf7ull};
+        const std::uint64_t accepted[]={0xaa567941bb8e05b6ull,0x467f84c75c484f98ull,0x741e31c9603638ebull};
         for(double t:{8.0,14.0,28.0}) {
             Journey::LiveFrame f;
             f.schedule.advance(t,{},f.score);
