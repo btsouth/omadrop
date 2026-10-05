@@ -383,4 +383,50 @@ void OsakaCyclistV1::draw(Ctx& c, const OsakaEventState& L, Canvas& p, Canvas& l
         l.glowEllipse(hxp - 250, 1052 + sweep * 0.5, 120, 14, WARM_B, 0.3);
     }
 }
+void OsakaShamisenV1::draw(Ctx& c, const OsakaState& s, const OsakaEventState& L, double t, double x0, double shamisenPane) {
+    // Shamisen player behind the paper from 17 s, strumming on mid-band peaks.
+    if (shamisenPane > 0.05 && t > 16.6) {
+        Canvas& sh = c.canvas();
+        const double appear = sstep(16.8, 17.7, t);
+        const double fx = x0 + 112, baseY = 792 + (1 - easeOut(appear)) * 60;
+        double strum = 0;
+        if (c.score) {
+            const Event* e = Score::last(c.score->midPeaks, t);
+            double et = e ? e->t : -10;
+            // Fallback rhythm keeps her playing in silence or sparse passages.
+            const double grid = 17.9 + std::floor((t - 17.9) / 0.62) * 0.62;
+            if (t - et > 0.9 && t > 17.9) et = grid;
+            const double age = t - et;
+            if (age >= 0 && age < 0.45 && et > 17.6) strum = age < 0.07 ? age / 0.07 : 1 - easeOut((age - 0.07) / 0.38);
+        } else if (t > 17.9) {
+            const double age = std::fmod(t - 17.9, 0.62);
+            strum = age < 0.07 ? age / 0.07 : 1 - easeOut((age - 0.07) / 0.38);
+        }
+        RigIn r;
+        r.h = 160; r.facing = -1; r.obi = true; r.flutter = L.wind * std::sin(t * 2.1); r.robe = true; r.bun = true; r.lean = 0.08 + 0.03 * std::sin(t * 2.1);
+        r.hip = {fx, baseY - hipHeight(160) + 18};
+        r.footF = {fx - 30, baseY}; r.footB = {fx - 20, baseY};
+        r.handF = {fx - 60, baseY - 120 + 4 * std::sin(t * 1.3)};
+        r.handB = {fx + 18 - 10 * strum, baseY - 92 + 16 * strum};
+        r.headTilt = -0.15 + 0.08 * std::sin(t * 2.2) - L.look * 0.0;
+        OsakaFigureV1::draw(sh, r, SHADOW);
+        sh.line(fx + 24, baseY - 70, fx - 86, baseY - 124, 4.5, SHADOW);
+        sh.fillRect(fx + 8, baseY - 88, 34, 30, SHADOW);
+        Canvas& mask = c.canvas();
+    Kit::OsakaShamisenMaskV1::draw(c, s, mask, x0);
+        const int lt = c.gpu.layer(sh);
+        const int bl = c.gpu.blurred(lt, 2.0);
+        const int mk = c.gpu.layer(mask);
+        Program& m = c.gpu.effect("masked", R"(
+uniform sampler2D u_tex, u_mask;
+uniform float u_opacity;
+void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
+)");
+        c.gpu.pass(m, Blend::Over, [&](Program& q) {
+            c.gpu.bindTexture(0, bl, q, "u_tex");
+            c.gpu.bindTexture(1, mk, q, "u_mask");
+            q.set("u_opacity", float(0.85 * appear * std::min(1.0, shamisenPane)));
+        });
+    }
+}
 }
