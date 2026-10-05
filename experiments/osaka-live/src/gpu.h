@@ -92,12 +92,19 @@ public:
 
 private:
     struct Target { GLuint fbo = 0, color = 0, depth = 0; };
-    struct Tex { GLuint tex = 0, fbo = 0; int w = 0, h = 0; bool used = false; QRect bounds, dirty; };
+    struct Tex { GLuint tex = 0, fbo = 0; int w = 0, h = 0; bool used = false, pinned = false; QRect bounds, dirty; };
 
     void bindFramebuffer(GLenum target, GLuint fbo);
     void allocate();
     void release();
     int acquire(int w, int h);
+    using RasterKey=std::vector<std::pair<std::uint64_t,std::uint64_t>>;
+    struct RasterEntry { int texture; std::uint64_t frame; };
+    std::map<RasterKey,RasterEntry> rasters_;
+    std::map<std::pair<int,float>,int> filters_;
+    std::uint64_t rasterFrame_=0;
+    bool rasterKey(const Canvas& canvas,RasterKey& key) const;
+    void clearRasterCache();
     void bindMain();
     void scissor(const QRect& bounds);
     void prepareBounded(int texture, const QRect& bounds);

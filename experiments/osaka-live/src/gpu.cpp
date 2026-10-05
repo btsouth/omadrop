@@ -258,6 +258,7 @@ bool Gpu::init(QString& error) {
 }
 
 void Gpu::release() {
+    clearRasterCache();
     current_ = &main_;
     for (Target* t : {&main_, &layer_, &out_, &alt_}) {
         if (t->fbo) glDeleteFramebuffers(1, &t->fbo);
@@ -322,7 +323,7 @@ void Gpu::allocate() {
 
 int Gpu::acquire(int w, int h) {
     for (std::size_t i = 0; i < pool_.size(); ++i) {
-        if (!pool_[i].used && pool_[i].w == w && pool_[i].h == h) { pool_[i].used = true; pool_[i].bounds=QRect(0,0,w,h); return int(i); }
+        if (!pool_[i].used && !pool_[i].pinned && pool_[i].w == w && pool_[i].h == h) { pool_[i].used = true; pool_[i].bounds=QRect(0,0,w,h); return int(i); }
     }
     Tex t;
     t.w = w; t.h = h; t.used = true; t.bounds=QRect(0,0,w,h); t.dirty=t.bounds;
@@ -350,7 +351,19 @@ void Gpu::begin(int width, int height) {
         w_ = width; h_ = height;
         allocate();
     }
-    for (Tex& t : pool_) t.used = false;
+    ++rasterFrame_;
+    // Entries not drawn for two frames are no longer retained by this renderer.
+    for(auto it=rasters_.begin();it!=rasters_.end();) {
+        if(it->second.frame+2>=rasterFrame_) { ++it; continue; }
+        const int texture=it->second.texture;
+        pool_[texture].pinned=false;
+        for(auto f=filters_.begin();f!=filters_.end();) {
+            if(f->first.first==texture) { pool_[f->second].pinned=false; f=filters_.erase(f); }
+            else ++f;
+        }
+        it=rasters_.erase(it);
+    }
+    for (Tex& t : pool_) t.used = t.pinned;
     current_ = &main_;
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
@@ -410,7 +423,27 @@ void Gpu::setBlend(Blend blend, float gain) {
     }
 }
 
+void Gpu::clearRasterCache() {
+    for(const auto& entry:rasters_) pool_[entry.second.texture].pinned=false;
+    for(const auto& entry:filters_) pool_[entry.second].pinned=false;
+    rasters_.clear(); filters_.clear();
+}
+
+bool Gpu::rasterKey(const Canvas& canvas,RasterKey& key) const {
+    if(!cacheGeometry_) return false;
+    // Cache only an entire isolated layer. Collapsing translucent draws inside
+    // the main target would change per-sample blending and half-float rounding.
+    if(canvas.frozen()) key.emplace_back(canvas.identity(),canvas.revision());
+    for(const auto& cmd:canvas.commands()) {
+        if(cmd.kind==Canvas::CmdKind::Cached) {
+            if(!rasterKey(canvas.retained(cmd.first),key)) return false;
+        } else if(!canvas.frozen()) return false;
+    }
+    return !key.empty();
+}
+
 void Gpu::clearGeometryCache() {
+    clearRasterCache();
     for (auto& entry : geometry_) {
         auto& g = entry.second;
         glDeleteBuffers(1, &g.vbo);
@@ -626,6 +659,15 @@ void Gpu::draw(const Canvas& canvas, Blend blend, float gain) {
 }
 
 int Gpu::layer(const Canvas& canvas) {
+    RasterKey key;
+    const bool retained=rasterKey(canvas,key);
+    if(retained) {
+        const auto found=rasters_.find(key);
+        if(found!=rasters_.end()) {
+            found->second.frame=rasterFrame_;
+            return found->second.texture;
+        }
+    }
     const int raster=profile.start("layer-raster",w_,h_,"RGBA16F-MSAA");
     bindFramebuffer(GL_FRAMEBUFFER, layer_.fbo);
     glViewport(0, 0, w_, h_);
@@ -651,6 +693,7 @@ int Gpu::layer(const Canvas& canvas) {
     bindFramebuffer(GL_DRAW_FRAMEBUFFER, pool_[t].fbo);
     glBlitFramebuffer(0, 0, w_, h_, 0, 0, w_, h_, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     glDisable(GL_SCISSOR_TEST);
+    if(retained) { pool_[t].pinned=true; rasters_[key]={t,rasterFrame_}; }
     return t;
 }
 
@@ -707,6 +750,11 @@ int Gpu::blurPass(int src, float sigma, bool horizontal) {
 int Gpu::blurred(int tex, float sigmaDesign) {
     const float s = float(sigmaDesign * pixelScale());
     if (s < 0.3f) return tex;
+    const bool retained=pool_[tex].pinned;
+    if(retained) {
+        const auto found=filters_.find({tex,sigmaDesign});
+        if(found!=filters_.end()) return found->second;
+    }
     int cur = tex;
     float f = 1;
     while (s / f > 3.f && f < 32.f) {
@@ -719,6 +767,7 @@ int Gpu::blurred(int tex, float sigmaDesign) {
     if (cur != tex) pool_[cur].used = false;
     const int b = blurPass(a, s / f, false);
     pool_[a].used = false;
+    if(retained) { pool_[b].pinned=true; filters_[{tex,sigmaDesign}]=b; }
     return b;
 }
 
