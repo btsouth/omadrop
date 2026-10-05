@@ -76,3 +76,6 @@ HEADERS += src/kit/wisteria.h
 
 SOURCES += src/kit/network.cpp
 HEADERS += src/kit/network.h
+
+SOURCES += src/kit/poles.cpp
+HEADERS += src/kit/poles.h
