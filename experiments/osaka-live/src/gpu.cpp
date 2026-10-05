@@ -925,9 +925,21 @@ void Gpu::finish(const FinishParams& f, const Canvas* overlay) {
         fullscreen();
         pool_[bright].dirty=pool_[bright].bounds;
         profile.stop(extract);
-        b0 = blurred(bright, 5);
-        b1 = blurred(bright, 22);
-        b2 = blurred(bright, 70);
+        // Each bloom radius used to rebuild the same downsample prefix.
+        // Share that exact pyramid, then run the unchanged separable kernels.
+        int cur=bright, reduction=1;
+        int* results[]={&b0,&b1,&b2};
+        const float sigmas[]={5,22,70};
+        for(int i=0;i<3;++i) {
+            while(sigmas[i]*pixelScale()/reduction>3 && reduction<32) {
+                const int next=downsample(cur);
+                if(cur!=bright) pool_[cur].used=false;
+                cur=next; reduction*=2;
+                pool_[cur].reduction=reduction;
+            }
+            *results[i]=blurred(cur,sigmas[i]);
+        }
+        if(cur!=bright) pool_[cur].used=false;
     }
     GpuProfile::Scope grade(profile,"grade-overlay",w_,h_,"RGBA8");
     bindFramebuffer(GL_FRAMEBUFFER, outFbo_);
