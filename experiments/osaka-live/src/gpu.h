@@ -145,7 +145,6 @@ private:
     std::uint64_t dynamicVertexId_=0,dynamicVertexRevision_=0,dynamicPaintId_=0,dynamicPaintRevision_=0;
     bool cacheGeometry_ = true;
     int w_ = 0, h_ = 0, samples_ = 4;
-    GLenum msaaFormat_=GL_RGBA16F;
     Target main_, layer_, out_, alt_;
     std::map<std::pair<int,int>,Target> reducedLayers_;
     Target* current_ = &main_;
