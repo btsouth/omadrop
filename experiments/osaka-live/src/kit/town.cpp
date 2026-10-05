@@ -52,4 +52,20 @@ void OsakaStreetV1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double qx) {
         cv.line(0, 934.5, std::min(1920.0, qx), 934.5, 1.2, MINT, 0.30);
     }, {s.cam});
 }
+void OsakaRailingV1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double qx, double ox) {
+    c.retain(cv, "street-railing", [&](Canvas& cv) {
+        if (qx < 2120) {
+            for (int k = 0; k < 5; ++k) {
+                cv.fillRect(qx + k * 34, 934 + (k + 1) * 26, 36, 300, Col(0.016f + 0.004f * k, 0.060f + 0.012f * k, 0.047f + 0.009f * k));
+                cv.line(qx + k * 34, 934.5 + (k + 1) * 26, qx + k * 34 + 36, 934.5 + (k + 1) * 26, 1.2, MINT, 0.25);
+            }
+            for (int k = 0; k < 3; ++k) cv.line(qx - 30 - k * 120, 936, qx - 30 - k * 120, 900, 9, INK);
+        }
+        const double x0 = 575 + ox, x1 = 1262 + ox;
+        for (double xx = x0; xx <= x1 + 1; xx += 62) cv.line(xx, 936, xx, 864, 5, INK);
+        cv.line(x0, 866, x1, 866, 5, INK);
+        cv.line(x0, 896, x1, 896, 3, INK);
+        cv.line(x0, 863, x1, 863, 1.0, MINT, 0.5);
+    }, {s.cam});
+}
 }
