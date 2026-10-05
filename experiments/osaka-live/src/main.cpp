@@ -10,6 +10,8 @@
 #include <QCommandLineParser>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QDir>
+#include <QImage>
 #include <QProcess>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
@@ -62,7 +64,8 @@ int main(int argc,char** argv) {
     bool headless=false;
     for(int i=1;i<argc;++i) if(QString::fromLocal8Bit(argv[i])=="--record"
         || QString::fromLocal8Bit(argv[i])=="--probe" || QString::fromLocal8Bit(argv[i])=="--bench"
-        || QString::fromLocal8Bit(argv[i])=="--verify-render") headless=true;
+        || QString::fromLocal8Bit(argv[i])=="--verify-render"
+        || QString::fromLocal8Bit(argv[i])=="--fidelity") headless=true;
     QSurfaceFormat format; format.setVersion(3,3); format.setProfile(QSurfaceFormat::CoreProfile);
     format.setRenderableType(QSurfaceFormat::OpenGL); // Wayland EGL on NVIDIA defaults to OpenGL ES
     QSurfaceFormat::setDefaultFormat(format);
@@ -79,6 +82,8 @@ int main(int argc,char** argv) {
         {"bench","Measure rendering without encoding or framebuffer readback."},
         {"uncapped","Run a bounded throughput benchmark without frame pacing."},
         {"verify-render","Compare optimized drawing with accepted canvas output."},
+        {"fidelity","Deterministic offline frame capture (developer tool).","directory"},
+        {"fixture","Stereo float32 44100 Hz fixture for fidelity capture.","path"},
         {"seconds","Bounded recording/probe length; preview loops when omitted.","number","60"},
         {"fps","Recording frames per second.","number","30"},
         {"width","Frame width.","number","1920"},{"height","Frame height.","number","1080"},
@@ -107,6 +112,65 @@ int main(int argc,char** argv) {
         seed=parser.value("seed").toInt(&ok); if(!ok || seed<0) return 2;
     } else if(!headless) seed=int(std::random_device{}() & 0x7fffffff);
     QTextStream(stderr)<<"Schedule seed: "<<seed<<'\n';
+    if(parser.isSet("fidelity")) {
+        Journey::HeadlessContext context;
+        Journey::World world(1); world.setScale(1);
+        QString error;
+        if(!context.create(error) || !world.init(error)) { QTextStream(stderr)<<error<<'\n'; return 1; }
+        QTextStream(stdout)<<"GPU: "<<context.renderer()<<'\n';
+        const QString directory=parser.value("fidelity");
+        if(!QDir().mkpath(directory)) return 1;
+        QFile fixture(parser.value("fixture"));
+        if(!fixture.open(QIODevice::ReadOnly) || fixture.size()==0 || fixture.size()%5880) return 2;
+        QFile manifest(directory+"/frames.csv");
+        if(!manifest.open(QIODevice::WriteOnly|QIODevice::Truncate)) return 1;
+        QTextStream csv(&manifest); csv<<"frame,seconds,brightness,change,firework_at,full_show\n";
+        std::vector<unsigned char> rgb,previous;
+        auto save=[&](const QString& name) {
+            return QImage(rgb.data(),w,h,w*3,QImage::Format_RGB888).save(directory+"/"+name+".png");
+        };
+        for(double t:{8.0,14.0,28.0}) {
+            Journey::LiveFrame f;
+            f.schedule.advance(t,{},f.score); f.schedule.fireworks=t-1.4;
+            f.schedule.fireworkStrength=0.8; f.schedule.finale={{t-0.4,0.8,1}};
+            world.render(w,h,t,f.audio,f.score,f.schedule); world.gpu().readRgb(rgb);
+            if(!save("verify-"+QString::number(int(t)))) return 1;
+            std::uint64_t hash=14695981039346656037ull;
+            for(auto b:rgb) { hash^=b; hash*=1099511628211ull; }
+            QTextStream(stdout)<<t<<" RGB hash "<<QString::number(hash,16)<<'\n';
+        }
+        // Consume exactly the production 735-frame hops, with a deterministic
+        // clock. Never start capture, rewrite live time, or change the analyzer.
+        Journey::StreamingAudio analyzer;
+        Journey::LiveFrame f; f.schedule=Journey::Schedule(seed);
+        std::array<float,1470> hop{};
+        const int hops=int(std::min<qint64>(fixture.size()/5880,36000));
+        for(int i=0;i<hops;++i) {
+            if(fixture.read(reinterpret_cast<char*>(hop.data()),5880)!=5880) return 1;
+            const double t=(i+1)/60.0;
+            analyzer.push(hop.data(),735,[&](const Journey::Audio& a,double dt) {
+                f.audio=a; f.score.advance(a,t,dt); f.schedule.advance(t,a,f.score);
+            });
+            if((i+1)%12) continue; // Fixed 5 Hz comparison cadence, including t=8/14/28.
+            world.render(w,h,t,f.audio,f.score,f.schedule); world.gpu().readRgb(rgb);
+            double brightness=0,change=0;
+            for(std::size_t k=0;k<rgb.size();k+=3) {
+                const double v=(0.2126*rgb[k]+0.7152*rgb[k+1]+0.0722*rgb[k+2])/255;
+                brightness+=v;
+                if(!previous.empty()) {
+                    const double old=(0.2126*previous[k]+0.7152*previous[k+1]+0.0722*previous[k+2])/255;
+                    change+=std::abs(v-old);
+                }
+            }
+            csv<<(i+1)/12<<','<<t<<','<<brightness/(w*h)<<','<<change/(w*h)<<','<<f.schedule.fireworks<<','<<int(f.schedule.fullFireworkShow)<<'\n';
+            if((i+1)%120==0 || i+1==1320 || i+1==1560 || i+1==2520 || i+1==3240) {
+                if(!save("fixture-"+QString::number(i+1))) return 1;
+            }
+            previous=rgb;
+        }
+        QTextStream(stdout)<<"Captured "<<hops/12<<" deterministic fixture frames; 5 Hz brightness-change series\n";
+        return 0;
+    }
     Journey::LiveSession session(seed);
     if(!headless) {
         OsakaItem::session=&session;
