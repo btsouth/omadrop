@@ -85,3 +85,6 @@ HEADERS += src/kit/strands.h
 
 SOURCES += src/kit/pulses.cpp
 HEADERS += src/kit/pulses.h
+
+SOURCES += src/kit/flock.cpp
+HEADERS += src/kit/flock.h
