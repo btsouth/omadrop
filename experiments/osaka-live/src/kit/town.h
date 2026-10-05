@@ -27,4 +27,8 @@ struct OsakaRailingV1 {
     static constexpr const char* name = "osaka-street-railing-v1";
     static void draw(Ctx& c, const OsakaState& s, Canvas& cv, double qx, double ox);
 };
+struct OsakaCartFrameV1 {
+    static constexpr const char* name = "osaka-yatai-frame-v1";
+    static void draw(Ctx& c, const OsakaState& s, Canvas& p, double yx);
+};
 }

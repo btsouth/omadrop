@@ -68,4 +68,17 @@ void OsakaRailingV1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double qx, do
         cv.line(x0, 863, x1, 863, 1.0, MINT, 0.5);
     }, {s.cam});
 }
+void OsakaCartFrameV1::draw(Ctx& c, const OsakaState& s, Canvas& p, double yx) {
+    c.retain(p, "yatai-frame", [&](Canvas& p) {
+        p.fillRect(yx, 858, 178, 62, INK);
+        for (double wx : {yx + 34, yx + 146}) p.disc(wx, 918, 19, INK);
+        for (double px : {yx + 6, yx + 172}) p.line(px, 860, px, 742, 5, INK);
+        p.color(INK);
+        p.moveTo(yx - 22, 748); p.curveTo(yx + 40, 716, yx + 138, 716, yx + 200, 748); p.lineTo(yx + 200, 757); p.lineTo(yx - 22, 757); p.closePath();
+        p.fill();
+        p.color(MINT, 0.45);
+        p.moveTo(yx - 22, 748); p.curveTo(yx + 40, 716, yx + 138, 716, yx + 200, 748);
+        p.stroke(1.2);
+    }, {s.cam});
+}
 }
