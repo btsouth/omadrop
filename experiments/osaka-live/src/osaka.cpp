@@ -6,6 +6,7 @@
 #include "parts.h"
 #include "rig.h"
 #include "kit/town.h"
+#include "kit/layout.h"
 #include "kit/ridges.h"
 #include "kit/sky.h"
 #include "kit/haze.h"
@@ -1588,9 +1589,8 @@ void nearHouse(Ctx& c, const OsakaState& s, const Life& L) {
     const double x0 = -80 + ox, x1 = 540 + ox;
     Kit::OsakaNearHouseV1::draw(c, s, cv, x0, x1, wall, rf, rf2);
     // Upstairs panes, laid out like a tiling window manager: master + stack.
-    struct P { double x, y, w, h; int cols, rows; double on; int band; };
-    const P U[4] = {{96, 312, 178, 196, 3, 4, 6.4, 1}, {284, 312, 104, 93, 2, 2, 9.6, 4},
-                    {284, 415, 104, 93, 2, 2, -100, 2}, {398, 312, 96, 196, 2, 4, 3.9, 3}};
+    using P = Kit::NearPane;
+    const auto& U = Kit::nearPanes;
     double lv[4];
     for (int i = 0; i < 4; ++i) {
         lv[i] = s.chapter ? paneLevel(c, L, U[i].on, U[i].band, {U[i].x + ox, U[i].y}) : 1.0;
@@ -1672,9 +1672,7 @@ void nearHouse(Ctx& c, const OsakaState& s, const Life& L) {
     }
     if (any) {
         Canvas& mask = c.canvas();
-    c.retain(mask, "near-house-mask", [&](Canvas& mask) {
-            for (const P& q : U) mask.fillRect(q.x + ox, q.y, q.w, q.h, Col(1, 1, 1));
-    }, {s.cam});
+    Kit::OsakaNearMaskV1::draw(c, s, mask, ox, U);
         const int lt = c.gpu.layer(sh);
         const int bl = c.gpu.blurred(lt, 3.2f);
         const int mk = c.gpu.layer(mask);

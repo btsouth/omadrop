@@ -1,6 +1,7 @@
 #pragma once
 #include "../world.h"
 #include "primitives.h"
+#include "layout.h"
 
 namespace Journey::Kit {
 struct OsakaNearHouseV1 {
@@ -30,5 +31,9 @@ struct OsakaRailingV1 {
 struct OsakaCartFrameV1 {
     static constexpr const char* name = "osaka-yatai-frame-v1";
     static void draw(Ctx& c, const OsakaState& s, Canvas& p, double yx);
+};
+struct OsakaNearMaskV1 {
+    static constexpr const char* name = "osaka-near-house-mask-v1";
+    static void draw(Ctx& c, const OsakaState& s, Canvas& mask, double ox, const NearPane (&U)[4]);
 };
 }

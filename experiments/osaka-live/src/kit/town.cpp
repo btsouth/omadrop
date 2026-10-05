@@ -81,4 +81,9 @@ void OsakaCartFrameV1::draw(Ctx& c, const OsakaState& s, Canvas& p, double yx) {
         p.stroke(1.2);
     }, {s.cam});
 }
+void OsakaNearMaskV1::draw(Ctx& c, const OsakaState& s, Canvas& mask, double ox, const NearPane (&U)[4]) {
+    c.retain(mask, "near-house-mask", [&](Canvas& mask) {
+            for (const NearPane& q : U) mask.fillRect(q.x + ox, q.y, q.w, q.h, Col(1, 1, 1));
+    }, {s.cam});
+}
 }
