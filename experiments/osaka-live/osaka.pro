@@ -34,3 +34,6 @@ HEADERS += src/kit/town.h
 
 SOURCES += src/kit/pane.cpp
 HEADERS += src/kit/pane.h
+
+SOURCES += src/kit/rooms.cpp
+HEADERS += src/kit/rooms.h
