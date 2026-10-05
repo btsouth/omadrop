@@ -6,6 +6,12 @@
 #include "onset.h"
 #include <cmath>
 namespace Journey::Kit {
+struct Walker { double x; double dist; double motion; };
+
+// Lantern-bearer remains in the street. No boat departure in live Osaka.
+Walker bearerAt(double) { return {800,330,0}; }
+
+
 double easedDistance(double t, double t0, double t1, double d0, double d1) {
     if (t <= t0) return d0;
     if (t >= t1) return d1;
@@ -290,6 +296,91 @@ void OsakaChildV1::draw(Ctx& c, const OsakaEventState& L, Canvas& p, double t, d
         r.handB = r.hip + V2(6 + 9 * std::sin(Tau * st.phase) * mv, 4);
         r.flutter = 0.4 * mv + L.wind * std::sin(t * 4);
         if(t<start+7.8) OsakaFigureV1::street(p,r,RED);
+    }
+}
+void OsakaBearerV1::draw(Ctx& c, const OsakaEventState& L, Canvas& p, Canvas& l, double t, double ox) {
+    // Lantern-bearer, with a straw hat so they read in every world.
+    const Walker w = bearerAt(t);
+    if (w.x + ox > -150 && w.x + ox < 2100) {
+        // Walk in the foreground lane, then merge back toward the quay.
+        const double h = 146, gy = 1008;
+        Gait g;
+        g.stride = 0.72 * h; g.lift = 0.07 * h; g.bob = 0.018 * h;
+        const Steps st = gaitAt(470 + ox, w.dist, gy - 0.04 * h, 1, g, w.motion);
+        RigIn r;
+        r.h = h; r.facing = 1; r.hat = true; r.garment = Garment::Jacket; r.flutter = L.wind * std::sin(t * 2.6) + 0.3 * std::sin(Tau * st.phase) * w.motion;
+        r.hip = {w.x + ox, gy - hipHeight(h) + st.hipBob - 0.012 * h * w.motion};
+        r.lean = 0.06 * w.motion + 0.02;
+        r.footF = st.footF; r.footB = st.footB;
+        const double arm = std::sin(Tau * st.phase) * w.motion;
+        r.handF = r.hip + V2(0.24 * h, -0.17 * h + 0.01 * h * arm);
+        r.handB = r.hip + V2(-0.07 * h - 0.09 * h * arm, 0.06 * h);
+        // Watches the birds land, nods to the cook, watches the cyclist pass,
+        // holds his hat in the gust, looks up at the firework.
+        const double birds = ActionWindow{9.5, 0.6, 11.9, 0.5}.gesture(c);
+        const double nod=0.22*(ActionWindow{16.1, 0.18, 16.46, 0.18}.gesture(c)+ActionWindow{16.7, 0.18, 17.06, 0.18}.gesture(c));
+        const double watch = ActionWindow{17.4, 0.4, 18.7, 0.4}.gesture(c);
+        const double hold = ActionWindow{20.2, 0.35, 22.7, 0.5}.gesture(c);
+        r.headTilt = 0.42 * birds - nod + 0.6 * L.look - 0.06 * watch;
+        r.headTurn = watch * 0.8;
+        r.hatLift = 0.25 * ActionWindow{20.0, 0.3, 20.6, 0.4}.gesture(c) + 0.06 * hold * std::sin(t * 9);
+        r.handB = lerp(r.handB, r.hip + V2(0.06 * h, -0.52 * h), hold);
+        const double reply = ActionWindow{10.1, 0.28, 10.65, 0.4}.gesture(c);
+        r.handB = lerp(r.handB, r.hip + V2(-0.14 * h, -0.40 * h + 4 * std::sin(t * 9)), reply);
+        r.headTurn = std::max(r.headTurn, reply * 0.6);
+        OsakaFigureV1::street(p, r, WARM_T);
+        const double swing = 0.10 * std::sin(Tau * st.phase * 2 - 0.8) * w.motion + 0.18 * L.wind * std::sin(t * 3) + 0.05 * std::sin(t * 1.3);
+        const double bright = 1.0 + 0.45 * onsetFlash(c, 9) - 0.15 * (hash1(std::floor(t * 14)) < 0.06);
+        lantern(p, l, r.handF, swing, 1.0, bright);
+        const V2 lp = r.handF + V2(14 + std::sin(swing) * 26, -6 + std::cos(swing) * 26);
+        l.save();
+        l.translate(lp.x, gy + 10);
+        l.scale(1, 0.16);
+        l.glow(0, 0, 110, Col(1.0f, 0.62f, 0.30f), 0.20 * bright);
+        l.restore();
+    }
+}
+double OsakaBearerV1::x(double t) { return bearerAt(t).x; }
+void OsakaCyclistV1::draw(Ctx& c, const OsakaEventState& L, Canvas& p, Canvas& l, double t, double ox) {
+    // Cyclist, right to left, headlamp sweeping the wet street.
+    const double ct=c.schedule->action(Moment::Cyclist,t,15.0);
+    const double cs = 15.0, ce = 21.4;
+    if (ct > cs && ct < ce) {
+        const double dist = (ct - cs) * 370;
+        const double cx = 2060 - dist + ox, cy = 1012, r = 32;
+        const double wheel = dist / r, crank = dist / (r * 2.2);
+        for (int wdx = -1; wdx <= 1; wdx += 2) {
+            const double wx = cx + wdx * 44, wy = cy - r;
+            p.color(INK); p.ellipse(wx, wy, r, r); p.stroke(4.0);
+            p.color(RIM, 0.45); p.arc(wx, wy - 1.2, r, 3.6, 5.6); p.stroke(1.0);
+            for (int k = 0; k < 4; ++k) {
+                const double a = -wheel + k * Pi / 4;
+                p.line(wx - std::cos(a) * r, wy - std::sin(a) * r, wx + std::cos(a) * r, wy + std::sin(a) * r, 0.8, INK, 0.8);
+            }
+            p.disc(wx, wy, 3, INK);
+        }
+        const V2 bb(cx + 6, cy - r - 4), seat(cx + 14, cy - r - 52), bar(cx - 30, cy - r - 64);
+        p.poly({{cx + 44, cy - r}, bb, {cx - 22, cy - r - 46}, {cx - 44, cy - r}}, 3.4, INK);
+        p.poly({bb, {seat.x, seat.y + 4}}, 3.4, INK);
+        p.poly({{cx - 22, cy - r - 46}, bar, {cx - 44, cy - r - 62}}, 3.4, INK);
+        p.line(seat.x - 6, seat.y, seat.x + 8, seat.y, 4, INK);
+        const V2 pedA = bb + V2(std::cos(crank), std::sin(crank)) * 15, pedB = bb - V2(std::cos(crank), std::sin(crank)) * 15;
+        p.line(pedA.x, pedA.y, pedB.x, pedB.y, 3, INK);
+        RigIn rr;
+        rr.h = 150; rr.facing = -1; rr.hair = Hair::Ponytail; rr.garment = Garment::Jacket; rr.flutter = 0.65 * std::sin(t * 5); rr.lean = 0.42;
+        rr.hip = seat + V2(2, -6);
+        rr.footF = pedA + V2(0, -4); rr.footB = pedB + V2(0, -4);
+        rr.handF = bar + V2(-4, -2); rr.handB = bar + V2(2, 0);
+        rr.headTilt = 0.1 + L.look * 0.4;
+        OsakaFigureV1::draw(p, rr, INK);
+        const double hxp = cx - 52, hyp = cy - r - 54;
+        const double sweep = std::sin(t * 2.2) * 6;
+        l.linear(hxp, hyp, hxp - 330, hyp + 60, {{0, WARM_B, 0.42f}, {1, WARM_B, 0}});
+        l.moveTo(hxp, hyp); l.lineTo(hxp - 340, hyp + 24 + sweep); l.lineTo(hxp - 320, hyp + 98 + sweep); l.closePath();
+        l.fill();
+        l.glow(hxp, hyp, 20, WARM_B, 1.0);
+        // Bright pool where the beam meets the wet street.
+        l.glowEllipse(hxp - 250, 1052 + sweep * 0.5, 120, 14, WARM_B, 0.3);
     }
 }
 }

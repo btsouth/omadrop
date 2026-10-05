@@ -30,4 +30,13 @@ struct OsakaChildV1 {
     static constexpr const char* name = "osaka-child-v1";
     static void draw(Ctx& c, const OsakaEventState& L, Canvas& p, double t, double ox);
 };
+struct OsakaBearerV1 {
+    static constexpr const char* name = "osaka-bearer-v1";
+    static void draw(Ctx& c, const OsakaEventState& L, Canvas& p, Canvas& l, double t, double ox);
+    static double x(double t);
+};
+struct OsakaCyclistV1 {
+    static constexpr const char* name = "osaka-cyclist-v1";
+    static void draw(Ctx& c, const OsakaEventState& L, Canvas& p, Canvas& l, double t, double ox);
+};
 }
