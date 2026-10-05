@@ -6,6 +6,7 @@
 #include "parts.h"
 #include "rig.h"
 #include "kit/neon.h"
+#include "kit/grass.h"
 #include "kit/downhill.h"
 #include "kit/city.h"
 #include "kit/chime.h"
@@ -1338,18 +1339,10 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
         OsakaChimeV1::draw(c, L, f, t, ox);
     }
     Rng rng(66);
-    for (int i = 0; i < 70; ++i) {
-        const double bx = 480 + rng.uni() * 190 + ox, by = 968;
-        const double sway = (std::sin(t * 1.4 + i * 0.3) * 2 + L.wind * 9) * (0.6 + 0.4 * rng.uni());
-        f.color(INK);
-        f.moveTo(bx, by + 6);
-        f.curveTo(bx + rng.normal() * 8, by - 14, bx + rng.normal() * 16 + sway * 0.5, by - 30, bx + rng.normal() * 24 + sway, by - 20 - rng.uni() * 30);
-        f.stroke(2.4);
-    }
+    OsakaGrassV1::draw(L, f, rng, t, ox);
     c.gpu.over(f);
     Canvas& az = c.canvas();
-    for (int i = 0; i < 54; ++i)
-        az.glow(484 + rng.uni() * 180 + ox, 936 + rng.uni() * 30, 2.6 + rng.uni() * 3.2, MAG, 0.9);
+    OsakaGrassFlowersV1::draw(az, rng, ox);
     c.gpu.over(az, 1.3f);
 }
 

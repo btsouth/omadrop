@@ -67,3 +67,6 @@ HEADERS += src/kit/city.h
 
 SOURCES += src/kit/downhill.cpp
 HEADERS += src/kit/downhill.h
+
+SOURCES += src/kit/grass.cpp
+HEADERS += src/kit/grass.h
