@@ -97,3 +97,6 @@ HEADERS += src/kit/light-wave.h
 
 SOURCES += src/kit/firework.cpp
 HEADERS += src/kit/firework.h
+
+SOURCES += src/kit/actors.cpp
+HEADERS += src/kit/actors.h src/kit/figure.h
