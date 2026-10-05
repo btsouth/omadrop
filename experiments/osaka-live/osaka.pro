@@ -22,3 +22,6 @@ HEADERS += src/kit/mountain.h
 
 SOURCES += src/kit/haze.cpp
 HEADERS += src/kit/haze.h
+
+SOURCES += src/kit/sky.cpp
+HEADERS += src/kit/sky.h

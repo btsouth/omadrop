@@ -5,6 +5,7 @@
 #include "osaka_shaders.h"
 #include "parts.h"
 #include "rig.h"
+#include "kit/sky.h"
 #include "kit/haze.h"
 #include "kit/mountain.h"
 #include "kit/disc.h"
@@ -135,16 +136,6 @@ double paneLevel(const Ctx& c, const Life& L, double onTime, int band, V2 centre
 
 
 // ---------- backdrop ----------
-void sky(Ctx& c, const OsakaState& s, const Life& L) {
-    GpuProfile::Group profileGroup(c.gpu.profile,"sky");
-    std::string body = std::string(Shaders::cloud) + Shaders::osakaSky;
-    Program& p = c.gpu.effect("osakaSky", body.c_str());
-    const double energy = 0.45 + 0.35 * c.a.bass + 0.25 * c.a.surge;
-    c.gpu.pass(p, Blend::Replace, [&](Program& q) {
-        q.set("u_cam", float(s.cam)); q.set("u_t", float(c.t + 10)); q.set("u_energy", float(energy));
-    }, -1, c.staticGeometry && s.land==1 ? QRectF(0,0,1920,640) : QRectF());
-    (void)L;
-}
 
 }  // namespace
 
@@ -1993,7 +1984,7 @@ void shootingStar(Ctx& c, const OsakaState& s) {
 void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain, const BackdropHooks* hooks) {
     GpuProfile::Group profileGroup(c.gpu.profile,"drawOsakaBackdrop");
     const Life L = lifeAt(c);
-    sky(c, s, L);
+    Kit::OsakaSkyV1::draw(c, s);
     if (hooks && hooks->afterSky) hooks->afterSky();
     if (s.chapter) shootingStar(c, s);
     if (hooks && hooks->disc) hooks->disc();
