@@ -28,3 +28,6 @@ HEADERS += src/kit/sky.h
 
 SOURCES += src/kit/ridges.cpp
 HEADERS += src/kit/ridges.h
+
+SOURCES += src/kit/town.cpp
+HEADERS += src/kit/town.h
