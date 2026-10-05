@@ -48,4 +48,12 @@ void OsakaRailCatV1::draw(Ctx& c, const Life& L, Canvas& p, double t, double ox)
     }
 }
 
+void OsakaSillCatV1::draw(const Life& L, Canvas& sh, double t, double ox) {
+        // A cat on the sill: sits, tail sways, ears turn.
+        CatPose cp;
+        cp.pos = {446 + ox, 508}; cp.s = 40; cp.facing = -1; cp.sit = 1;
+        cp.tailWave = 0.35; cp.tailPhase = t * 2.2; cp.look = 0.3 * std::sin(t * 0.5) + L.look;
+        drawCat(sh, cp, SHADOW);
+}
+
 }

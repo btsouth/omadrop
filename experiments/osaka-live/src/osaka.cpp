@@ -1383,11 +1383,7 @@ void nearHouse(Ctx& c, const OsakaState& s, const Life& L) {
         any = true;
     }
     if (lv[3] > 0.05) {
-        // A cat on the sill: sits, tail sways, ears turn.
-        CatPose cp;
-        cp.pos = {446 + ox, 508}; cp.s = 40; cp.facing = -1; cp.sit = 1;
-        cp.tailWave = 0.35; cp.tailPhase = t * 2.2; cp.look = 0.3 * std::sin(t * 0.5) + L.look;
-        drawCat(sh, cp, SHADOW);
+        OsakaSillCatV1::draw(L, sh, t, ox);
         any = true;
     }
     if (any) {
