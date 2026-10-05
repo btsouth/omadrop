@@ -1729,16 +1729,7 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
     f.color(Col(1.0f, 0.96f, 0.80f) * float(room));
     f.ellipse(270 + ox, 716, 26, 24);
     f.fill();
-    c.retain(f, "near-house-deck", [&](Canvas& f) {
-        f.fillRect(214 + ox, 890, 118, 9, roomCol, 0.9);
-        for (double lx : {224.0, 322.0}) f.fillRect(lx + ox, 899, 7, 34, roomCol, 0.9);
-        f.fillRect(214 + ox, 934, 256, 34, roomCol, 0.55);
-        lattice(f, 70 + ox, 640, 134, 328, 3, 6, INK, 1.6);
-        lattice(f, 346 + ox, 640, 124, 328, 3, 6, INK, 1.6);
-        f.fillRect(-80 + ox, 968, 720, 14, INK);
-        f.fillRect(-80 + ox, 982, 640, 98, wall);
-        f.line(-80 + ox, 968, 640 + ox, 968, 1.2, RIM, 0.3);
-    }, {s.cam});
+    Kit::OsakaDeckV1::draw(c, s, f, ox, roomCol, wall);
     // Woman on the deck edge: opens her fan at 2 s and fans slowly.
     {
         const double h = 290, x = 260 + ox, y = 968;

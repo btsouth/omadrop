@@ -15,4 +15,8 @@ struct OsakaRightHouse3V1 {
     static constexpr const char* name = "osaka-right-house-3-v1";
     static void draw(Ctx& c, const OsakaState& s, Canvas& cv, double x0, Col wall, Col rf, Col rf2);
 };
+struct OsakaDeckV1 {
+    static constexpr const char* name = "osaka-near-house-deck-v1";
+    static void draw(Ctx& c, const OsakaState& s, Canvas& f, double ox, Col roomCol, Col wall);
+};
 }
