@@ -49,3 +49,6 @@ HEADERS += src/kit/lanterns.h
 
 SOURCES += src/kit/cloth.cpp
 HEADERS += src/kit/cloth.h
+
+SOURCES += src/kit/festoon.cpp
+HEADERS += src/kit/festoon.h
