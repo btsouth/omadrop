@@ -52,4 +52,24 @@ void OsakaRightRoom3V1::draw(Ctx& c, const OsakaState& s, const OsakaLegacyLife&
     w.fill();
 
 }
+void OsakaCartRoomV1::draw(Canvas& b, double yx, double yo) {
+    if (yo > 0) {
+        b.linear(0, 757, 0, 860, {{0, WARM_T, float(0.95 * yo)}, {1, mix(WARM_T, RED, 0.25), float(0.85 * yo)}});
+        b.rect(yx + 9, 757, 160, 101);
+        b.fill();
+    }
+
+}
+double flickerOn(double dt) {
+    if (dt < 0) return 0;
+    if (dt < 0.05) return 0.55;
+    if (dt < 0.11) return 0.08;
+    if (dt < 0.17) return 0.8;
+    if (dt < 0.22) return 0.35;
+    return 0.75 + 0.25 * sstep(0.22, 0.6, dt);
+}
+
+double OsakaCartRoomV1::level(const OsakaState& s, double t) {
+    return s.chapter ? std::min(1.0, flickerOn(t - 5.0)) : 1.0;
+}
 }

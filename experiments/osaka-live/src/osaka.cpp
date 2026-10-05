@@ -36,14 +36,6 @@ using Kit::Shell;
 
 using Life = Kit::OsakaLegacyLife;
 
-double flickerOn(double dt) {
-    if (dt < 0) return 0;
-    if (dt < 0.05) return 0.55;
-    if (dt < 0.11) return 0.08;
-    if (dt < 0.17) return 0.8;
-    if (dt < 0.22) return 0.35;
-    return 0.75 + 0.25 * sstep(0.22, 0.6, dt);
-}
 
 std::vector<Shell> shellPlan(const Ctx& c, const Life& L) {
     std::vector<Shell> out;
@@ -823,13 +815,9 @@ void streetFront(Ctx& c, const OsakaState& s, const Life& L) {
 void yatai(Ctx& c, const OsakaState& s, const Life& L) {
     GpuProfile::Group profileGroup(c.gpu.profile,"yatai");
     const double t = c.t, ox = -s.cam * 0.85, yx = 770 + ox;
-    const double yo = s.chapter ? std::min(1.0, flickerOn(t - 5.0)) : 1.0;
+    const double yo = Kit::OsakaCartRoomV1::level(s, t);
     Canvas& b = c.canvas();
-    if (yo > 0) {
-        b.linear(0, 757, 0, 860, {{0, WARM_T, float(0.95 * yo)}, {1, mix(WARM_T, RED, 0.25), float(0.85 * yo)}});
-        b.rect(yx + 9, 757, 160, 101);
-        b.fill();
-    }
+    Kit::OsakaCartRoomV1::draw(b, yx, yo);
     c.gpu.over(b, 1.25f);
     Canvas& p = c.canvas();
     Canvas& l = c.canvas();
