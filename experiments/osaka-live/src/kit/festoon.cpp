@@ -1,3 +1,4 @@
+#include "network.h"
 #include "lanterns.h"
 #include "festoon.h"
 #include "palette.h"
@@ -12,10 +13,6 @@
 namespace Journey::Kit {
 using Life = OsakaLegacyLife;
 void OsakaFestoonV1::draw(Ctx& c, const OsakaState& s, const Life& L, V2 b) {
-    struct WireSpan { V2 p0, p1; double sag; };
-    auto wireAt = [](const WireSpan& s, double u) {
-        return V2(s.p0.x + (s.p1.x - s.p0.x) * u, s.p0.y + (s.p1.y - s.p0.y) * u + s.sag * 4 * u * (1 - u));
-    };
     GpuProfile::Group profileGroup(c.gpu.profile,"festoon");
     const double t = c.t;
     const V2 a(628 - s.cam * 1.05, 594);

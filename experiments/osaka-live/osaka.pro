@@ -73,3 +73,6 @@ HEADERS += src/kit/grass.h
 
 SOURCES += src/kit/wisteria.cpp
 HEADERS += src/kit/wisteria.h
+
+SOURCES += src/kit/network.cpp
+HEADERS += src/kit/network.h
