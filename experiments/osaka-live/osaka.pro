@@ -43,3 +43,6 @@ HEADERS += src/kit/neon.h
 
 HEADERS += src/kit/palette.h src/kit/disc_shaders.h src/kit/haze_shaders.h \
     src/kit/sky_shaders.h src/kit/layout.h src/kit/osaka-legacy.h
+
+SOURCES += src/kit/lanterns.cpp
+HEADERS += src/kit/lanterns.h

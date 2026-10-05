@@ -6,6 +6,8 @@
 #include "parts.h"
 #include "rig.h"
 #include "kit/neon.h"
+#include "kit/onset.h"
+#include "kit/lanterns.h"
 #include "kit/rooms.h"
 #include "kit/pane.h"
 #include "kit/town.h"
@@ -78,12 +80,7 @@ Life lifeAt(const Ctx& c) {
     return L;
 }
 
-double onsetFlash(const Ctx& c, double decay, double maxAge = 0.6) {
-    if (!c.score) return 0;
-    const Event* e = Score::last(c.score->onsets,c.t);
-    if (!e || c.t - e->t > maxAge) return 0;
-    return e->strength * std::exp(-(c.t - e->t) * decay);
-}
+
 
 // Panes switch on at authored times, then breathe with their band and answer
 // the firework with a flash that travels outward from it.
@@ -671,32 +668,9 @@ struct Walker { double x; double dist; double motion; };
 Walker bearerAt(double) { return {800,330,0}; }
 
 // A paper chochin on a short pole: ribbed, capped, lit warm from within.
-void paperLantern(Canvas& light, V2 at, double rx, double ry, double tilt, Col paper, double bright) {
-    light.save();
-    light.translate(at.x, at.y);
-    light.rotate(tilt);
-    const float k = float(0.55 + 0.45 * bright);
-    light.radial(-rx * 0.2, -ry * 0.15, std::max(rx, ry) * 1.15,
-                 {{0, mix(paper, Col(1, 0.95f, 0.8f), 0.55) * k, 1}, {0.6f, paper * k, 1}, {1, mix(paper, INK, 0.45) * k, 1}});
-    light.ellipse(0, 0, rx, ry);
-    light.fill();
-    for (int j = -2; j <= 2; ++j) {
-        const double y = j * ry * 0.33, half = rx * std::sqrt(std::max(0.0, 1 - (y * y) / (ry * ry))) * 0.96;
-        light.line(-half, y, half, y, std::max(0.5, ry * 0.07), mix(paper, INK, 0.7), 0.55);
-    }
-    light.fillRect(-rx * 0.62, -ry - ry * 0.16, rx * 1.24, ry * 0.22, INK);
-    light.fillRect(-rx * 0.62, ry - ry * 0.06, rx * 1.24, ry * 0.22, INK);
-    light.restore();
-}
 
-void lantern(Canvas& body, Canvas& light, V2 hand, double swing, double size, double bright) {
-    const V2 top = hand + V2(14 * size, -6 * size);
-    const V2 hang = top + V2(std::sin(swing) * 26 * size, std::cos(swing) * 26 * size);
-    body.line(hand.x, hand.y, top.x, top.y, 2.6 * size, INK);
-    body.line(top.x, top.y, hang.x, hang.y - 12 * size, 1.4 * size, INK);
-    light.glow(hang.x, hang.y, 54 * size, Col(1.0f, 0.60f, 0.28f), 0.34 * bright);
-    paperLantern(light, hang, 9 * size, 12 * size, swing * 0.6, Col(0.98f, 0.62f, 0.30f), 0.7 + 0.3 * bright);
-}
+
+
 
 // A little reflected lantern light on the street-facing cloth. Keep the
 // silhouette, but let a coat front / obi separate at small viewing sizes.
