@@ -273,6 +273,7 @@ void Gpu::release() {
     scaledFbo_=scaledTex_=0;
     for (Tex& t : pool_) { glDeleteFramebuffers(1, &t.fbo); glDeleteTextures(1, &t.tex); }
     pool_.clear();
+    layerDirty_={};
 }
 
 void Gpu::allocate() {
@@ -321,10 +322,10 @@ void Gpu::allocate() {
 
 int Gpu::acquire(int w, int h) {
     for (std::size_t i = 0; i < pool_.size(); ++i) {
-        if (!pool_[i].used && pool_[i].w == w && pool_[i].h == h) { pool_[i].used = true; return int(i); }
+        if (!pool_[i].used && pool_[i].w == w && pool_[i].h == h) { pool_[i].used = true; pool_[i].bounds=QRect(0,0,w,h); return int(i); }
     }
     Tex t;
-    t.w = w; t.h = h; t.used = true;
+    t.w = w; t.h = h; t.used = true; t.bounds=QRect(0,0,w,h); t.dirty=t.bounds;
     glGenTextures(1, &t.tex);
     glBindTexture(GL_TEXTURE_2D, t.tex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
@@ -335,6 +336,10 @@ int Gpu::acquire(int w, int h) {
     glGenFramebuffers(1, &t.fbo);
     bindFramebuffer(GL_FRAMEBUFFER, t.fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t.tex, 0);
+    // Bounded passes sample transparent pixels outside their content. Define
+    // the entire new allocation once; subsequent reuse only clears old content.
+    glDisable(GL_SCISSOR_TEST);
+    glClearColor(0,0,0,0); glClear(GL_COLOR_BUFFER_BIT);
     pool_.push_back(t);
     return int(pool_.size()) - 1;
 }
@@ -363,6 +368,21 @@ void Gpu::begin(int width, int height) {
 void Gpu::bindFramebuffer(GLenum target, GLuint fbo) {
     profile.framebuffer(target, fbo);
     glBindFramebuffer(target, fbo);
+}
+
+void Gpu::scissor(const QRect& bounds) {
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(bounds.x(),bounds.y(),bounds.width(),bounds.height());
+}
+
+void Gpu::prepareBounded(int texture,const QRect& bounds) {
+    auto& t=pool_[texture];
+    bindFramebuffer(GL_FRAMEBUFFER,t.fbo);
+    // Old support can belong to a completely different canvas or blur chain.
+    scissor(t.dirty);
+    glClearColor(0,0,0,0); glClear(GL_COLOR_BUFFER_BIT);
+    t.bounds=bounds; t.dirty=bounds;
+    scissor(bounds);
 }
 
 void Gpu::bindMain() {
@@ -609,16 +629,28 @@ int Gpu::layer(const Canvas& canvas) {
     const int raster=profile.start("layer-raster",w_,h_,"RGBA16F-MSAA");
     bindFramebuffer(GL_FRAMEBUFFER, layer_.fbo);
     glViewport(0, 0, w_, h_);
+    const auto extent=canvas.bounds();
+    const QRectF box=std::isfinite(extent[0]) ? QRectF(extent[0],extent[1],extent[2]-extent[0],extent[3]-extent[1]) : QRectF();
+    const int x0=std::clamp(int(std::floor(box.left()*w_/1920.0))-2,0,w_);
+    const int x1=std::clamp(int(std::ceil(box.right()*w_/1920.0))+2,0,w_);
+    const int y0=std::clamp(int(std::floor((1080-box.bottom())*h_/1080.0))-2,0,h_);
+    const int y1=std::clamp(int(std::ceil((1080-box.top())*h_/1080.0))+2,0,h_);
+    const QRect bounds(x0,y0,x1-x0,y1-y0);
+    scissor(layerDirty_.united(bounds));
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    layerDirty_=bounds;
+    scissor(bounds);
     setBlend(Blend::Over, 1);
     drawCanvas(canvas);
     profile.stop(raster);
     GpuProfile::Scope timing(profile,"layer-resolve",w_,h_,"RGBA16F");
     const int t = acquire(w_, h_);
+    prepareBounded(t,bounds);
     bindFramebuffer(GL_READ_FRAMEBUFFER, layer_.fbo);
     bindFramebuffer(GL_DRAW_FRAMEBUFFER, pool_[t].fbo);
     glBlitFramebuffer(0, 0, w_, h_, 0, 0, w_, h_, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glDisable(GL_SCISSOR_TEST);
     return t;
 }
 
@@ -634,6 +666,12 @@ int Gpu::downsample(int src) {
     GpuProfile::Scope timing(profile,"downsample",w,h,"RGBA16F");
     const int dst = acquire(w, h);
     bindFramebuffer(GL_FRAMEBUFFER, pool_[dst].fbo);
+    const QRect source=pool_[src].bounds;
+    const int x0=std::max(0,int(std::floor(double(source.left())*w/pool_[src].w))-2);
+    const int y0=std::max(0,int(std::floor(double(source.top())*h/pool_[src].h))-2);
+    const int x1=std::min(w,int(std::ceil(double(source.x()+source.width())*w/pool_[src].w))+2);
+    const int y1=std::min(h,int(std::ceil(double(source.y()+source.height())*h/pool_[src].h))+2);
+    prepareBounded(dst,QRect(x0,y0,x1-x0,y1-y0));
     glViewport(0, 0, w, h);
     glDisable(GL_BLEND);
     glUseProgram(downP_.id);
@@ -641,6 +679,7 @@ int Gpu::downsample(int src) {
     glBindTexture(GL_TEXTURE_2D, pool_[src].tex);
     downP_.set("u_tex", 0);
     fullscreen();
+    glDisable(GL_SCISSOR_TEST);
     return dst;
 }
 
@@ -649,6 +688,9 @@ int Gpu::blurPass(int src, float sigma, bool horizontal) {
     GpuProfile::Scope timing(profile,horizontal?"blur-H":"blur-V",w,h,"RGBA16F",sigma,1+2*std::min(int(std::ceil(sigma*3)),24));
     const int dst = acquire(w, h);
     bindFramebuffer(GL_FRAMEBUFFER, pool_[dst].fbo);
+    const int pad=std::min(int(std::ceil(sigma*3)),24)+2;
+    const QRect support=pool_[src].bounds.adjusted(horizontal?-pad:0,horizontal?0:-pad,horizontal?pad:0,horizontal?0:pad).intersected(QRect(0,0,w,h));
+    prepareBounded(dst,support);
     glViewport(0, 0, w, h);
     glDisable(GL_BLEND);
     glUseProgram(blurP_.id);
@@ -658,6 +700,7 @@ int Gpu::blurPass(int src, float sigma, bool horizontal) {
     blurP_.set("u_sigma", sigma);
     blurP_.set("u_dir", horizontal ? 1.f / w : 0.f, horizontal ? 0.f : 1.f / h);
     fullscreen();
+    glDisable(GL_SCISSOR_TEST);
     return dst;
 }
 
@@ -689,7 +732,14 @@ void Gpu::composite(int tex, Blend blend, float gain, float opacity) {
     compositeP_.set("u_gain", gain);
     compositeP_.set("u_opacity", opacity);
     setBlend(blend, 1);
+    const auto& t=pool_[tex];
+    const int x0=std::max(0,int(std::floor(double(t.bounds.x())*w_/t.w))-2);
+    const int y0=std::max(0,int(std::floor(double(t.bounds.y())*h_/t.h))-2);
+    const int x1=std::min(w_,int(std::ceil(double(t.bounds.x()+t.bounds.width())*w_/t.w))+2);
+    const int y1=std::min(h_,int(std::ceil(double(t.bounds.y()+t.bounds.height())*h_/t.h))+2);
+    scissor(QRect(x0,y0,x1-x0,y1-y0));
     fullscreen();
+    glDisable(GL_SCISSOR_TEST);
 }
 
 void Gpu::over(const Canvas& canvas, float gain, float blur, float opacity) {
@@ -732,6 +782,7 @@ void Gpu::pass(Program& p, Blend blend, const std::function<void(Program&)>& set
     glUseProgram(p.id);
     p.set("u_size", float(w), float(h));
     p.set("u_scale", float(pixelScale()));
+    if(target>=0) pool_[target].dirty=pool_[target].bounds;
     if (setup) setup(p);
     setBlend(blend, 1);
     if(!clip.isEmpty()) {
@@ -765,6 +816,7 @@ int Gpu::snapshot() {
     bindFramebuffer(GL_READ_FRAMEBUFFER, current_->fbo);
     bindFramebuffer(GL_DRAW_FRAMEBUFFER, pool_[t].fbo);
     glBlitFramebuffer(0, 0, w_, h_, 0, 0, w_, h_, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    pool_[t].dirty=pool_[t].bounds;
     return t;
 }
 
@@ -790,6 +842,7 @@ void Gpu::finish(const FinishParams& f, const Canvas* overlay) {
         brightP_.set("u_tex", 0);
         brightP_.set("u_threshold", f.threshold);
         fullscreen();
+        pool_[bright].dirty=pool_[bright].bounds;
         profile.stop(extract);
         b0 = blurred(bright, 5);
         b1 = blurred(bright, 22);

@@ -11,6 +11,7 @@
 #include "glcore.h"
 #include <QString>
 #include <QRectF>
+#include <QRect>
 #include <functional>
 #include <map>
 #include <memory>
@@ -91,13 +92,16 @@ public:
 
 private:
     struct Target { GLuint fbo = 0, color = 0, depth = 0; };
-    struct Tex { GLuint tex = 0, fbo = 0; int w = 0, h = 0; bool used = false; };
+    struct Tex { GLuint tex = 0, fbo = 0; int w = 0, h = 0; bool used = false; QRect bounds, dirty; };
 
     void bindFramebuffer(GLenum target, GLuint fbo);
     void allocate();
     void release();
     int acquire(int w, int h);
     void bindMain();
+    void scissor(const QRect& bounds);
+    void prepareBounded(int texture, const QRect& bounds);
+    QRect layerDirty_;
     void drawCanvas(const Canvas& canvas);
     void bindGeometry(const Canvas& canvas);
     void setBlend(Blend blend, float gain);

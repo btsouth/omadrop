@@ -48,6 +48,7 @@ public:
     void reset(double pixelScale);
     double pixelScale() const { return pixelScale_; }
     bool empty() const { return cmds_.empty(); }
+    std::array<float,4> bounds() const;
 
     // Transform stack.
     void save() { states_.push_back(states_.back()); }
