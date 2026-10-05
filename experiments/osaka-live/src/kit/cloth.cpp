@@ -21,4 +21,24 @@ void OsakaStreetClothV1::draw(Canvas& cv, const RigIn& r, Col cloth) {
                        r.hip.x + 0.06 * r.h, r.hip.y - 0.03 * r.h, 0.05 * r.h, mix(INK, cloth, 0.28));
 }
 
+void OsakaNorenV1::draw(Ctx& c, const OsakaState& s, const Life& L, Canvas& l, double t, double yx) {
+    // Noren drop when the cart opens, then sway and flutter.
+    const double wind = L.wind;
+    for (int i = 0; i < 4; ++i) {
+        const double nx = yx + 10 + i * 40;
+        const double drop = s.chapter ? springStep(t - (5.1 + i * 0.07), 1.6, 5.0) : 1.0;
+        const double len = 4 + 22 * std::max(0.0, drop);
+        const double sway = std::sin(t * 1.3 + i * 0.4) * 3 + wind * 7 * std::sin(t * 6 + i);
+        const double bx = sway * 0.5 + wind * 4;
+        l.color(mix(RED, INK, 0.42), 0.98);
+        l.moveTo(nx, 757); l.lineTo(nx + 37, 757);
+        l.lineTo(nx + 37 + sway * (i % 2 * 2 - 1) * 0.4 + wind * 4, 757 + len);
+        l.lineTo(nx + bx, 757 + len);
+        l.closePath();
+        l.fill();
+        // One kana per panel, riding the cloth's sway.
+        drawSignGlyph(l, 3 + i, nx + 10 + bx * 0.6, 757 + len - 4, 17, mix(CREAM, WARM_T, 0.2), 0.92 * sstep(0.6, 0.95, drop));
+    }
+}
+
 }
