@@ -79,3 +79,6 @@ HEADERS += src/kit/network.h
 
 SOURCES += src/kit/poles.cpp
 HEADERS += src/kit/poles.h
+
+SOURCES += src/kit/strands.cpp
+HEADERS += src/kit/strands.h
