@@ -82,3 +82,6 @@ HEADERS += src/kit/poles.h
 
 SOURCES += src/kit/strands.cpp
 HEADERS += src/kit/strands.h
+
+SOURCES += src/kit/pulses.cpp
+HEADERS += src/kit/pulses.h
