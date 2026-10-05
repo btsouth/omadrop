@@ -19,3 +19,6 @@ HEADERS += src/kit/disc.h
 
 SOURCES += src/kit/mountain.cpp
 HEADERS += src/kit/mountain.h
+
+SOURCES += src/kit/haze.cpp
+HEADERS += src/kit/haze.h

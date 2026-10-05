@@ -3,6 +3,7 @@
 // Persistent elements shared by every world: the bass disc, the mountain,
 // soft haze bands, and the Osaka stage pieces the crossing carries away.
 #include "world.h"
+#include "kit/haze.h"
 #include "kit/mountain.h"
 #include "kit/disc.h"
 #include <functional>
@@ -11,8 +12,7 @@
 namespace Journey {
 
 
-void hazeBand(Ctx& c, double y0, double sigma, double lo, double hi, double shift, double seed, Col col,
-              double gain, V2 noise = {480, 108});
+
 
 // Osaka stage split so the crossing can interleave fog and the next world.
 struct OsakaHooks {
