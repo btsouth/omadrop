@@ -103,3 +103,5 @@ HEADERS += src/kit/actors.h src/kit/figure.h
 
 SOURCES += src/kit/groups.cpp
 HEADERS += src/kit/groups.h
+
+HEADERS += src/kit/effects_shaders.h

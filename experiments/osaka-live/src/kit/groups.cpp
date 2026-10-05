@@ -1,5 +1,5 @@
 #include "groups.h"
-#include "../osaka_shaders.h"
+#include "effects_shaders.h"
 #include "../parts.h"
 #include "actors.h"
 #include "neon.h"
@@ -113,5 +113,77 @@ void OsakaTrainV1::draw(Ctx& c, const OsakaState& s) {
     c.gpu.over(cv);
     c.gpu.over(l, 1.4f);
     c.gpu.add(l, 0.5f, 14);
+}
+void OsakaReflectionV1::draw(Ctx& c, const OsakaState& s) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"reflections");
+    const int snap = c.gpu.snapshot();
+    Program& p = c.gpu.effect("reflect", Shaders::reflect);
+    c.gpu.pass(p, Blend::Add, [&](Program& q) {
+        c.gpu.bindTexture(0, snap, q, "u_img");
+        q.set("u_y0", 936.f); q.set("u_qx", 4000.f); q.set("u_t", float(c.t)); q.set("u_gain", float(s.reflection));
+        q.set("u_kick", float(std::min(1.0, c.kick(4.5))));
+    }, -1, c.staticGeometry ? QRectF(0,936,1920,144) : QRectF());
+}
+void OsakaShootingStarV1::draw(Ctx& c, const OsakaState& s) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"shootingStar");
+    const double age = c.schedule->action(Moment::Star,c.t,0);
+    if (age < 0 || age > 0.9) return;
+    const double u = easeOut(age / 0.75);
+    const double dx=c.schedule->parameter(Moment::Star,1,-80,480,0);
+    const double dy=c.schedule->parameter(Moment::Star,2,-20,35,0);
+    const V2 from(470+dx - s.cam * 0.02, 70+dy), to(150+dx - s.cam * 0.02, 205+dy);
+    const V2 head = lerp(from, to, u);
+    const double fade = 1 - sstep(0.55, 0.9, age);
+    Canvas& cv = c.canvas();
+    for (int j = 0; j < 24; ++j) {
+        const double f = j / 24.0;
+        const V2 q = lerp(from, to, std::max(0.0, u - f * 0.35));
+        cv.disc(q.x, q.y, 1.8 * (1 - f) + 0.3, mix(CREAM, BCYAN, f), std::pow(1 - f, 1.5) * fade);
+    }
+    cv.glow(head.x, head.y, 12, CREAM, 0.9 * fade);
+    c.gpu.over(cv, 1.6f);
+    c.gpu.add(cv, 0.5f, 6);
+}
+void OsakaFogV1::draw(Ctx& c, double amount, double top, double bottom, Col col) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"osakaFog");
+    if (amount <= 0.001) return;
+    Program& p = c.gpu.effect("fog", Shaders::fog);
+    c.gpu.pass(p, Blend::Over, [&](Program& q) {
+        q.set("u_amount", float(amount)); q.set("u_top", float(top)); q.set("u_bottom", float(bottom));
+        q.set("u_t", float(c.t)); q.set("u_col", col);
+    });
+}
+void OsakaGlowThroughV1::draw(Ctx& c, const OsakaState& s, double amount) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"osakaGlowThrough");
+    if (amount <= 0.01) return;
+    const double t = c.t;
+    Canvas& g = c.canvas();
+    const double treble = 0.75 + 0.6 * c.lift(5) + 0.3 * c.lift(4);
+    Rng rng(77);
+    // City: a broad glow with brighter knots where the towers stand.
+    for (int k = 0; k < 26; ++k) {
+        const double x = 930 + rng.normal() * 230 - s.cam * 0.14, y = 650 + rng.uni() * 50;
+        const double tw = 0.75 + 0.25 * std::sin(t * (0.7 + rng.uni()) + k);
+        const Col col = rng.uni() < 0.7 ? WARM_T : (rng.uni() < 0.7 ? BCYAN : MAG);
+        g.glow(x, y, 26 + rng.uni() * 40, col, 0.30 * tw * treble * clamp01(s.land + 0.35));
+    }
+    // Downhill town windows and the festival street, closer and warmer.
+    for (int k = 0; k < 22; ++k) {
+        const double x = 540 + rng.uni() * 720 - s.cam * 0.55, y = 790 + rng.uni() * 150;
+        const double band = c.lift(k % 6);
+        g.glow(x, y, 34 + rng.uni() * 36, k % 3 ? WARM_T : RED, (0.22 + 0.25 * band) * clamp01(s.land + 0.25));
+    }
+    c.gpu.add(g, float(1.1 * amount), 10);
+}
+void OsakaSteamV1::draw(Ctx& c, const OsakaEventState& L, double t, double yx) {
+    // Steam from the pot, lit warm at its base, bent by the wind.
+    const double steam = 1.0;
+    if (steam > 0.01) {
+        Program& st = c.gpu.effect("steam", Shaders::steam);
+        c.gpu.pass(st, Blend::Add, [&](Program& q) {
+            q.set("u_base", float(yx + 126), 838.f); q.set("u_t", float(t)); q.set("u_amt", float(steam));
+            q.set("u_wind", float(L.wind)); q.set("u_puff", float(std::min(1.0, c.kick(3.0))));
+        }, -1, c.staticGeometry ? QRectF(0,500,1920,342) : QRectF());
+    }
 }
 }

@@ -239,15 +239,7 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
     c.gpu.over(p);
     c.gpu.over(l, 1.6f);
     c.gpu.add(l, 0.5f, 24);
-    // Steam from the pot, lit warm at its base, bent by the wind.
-    const double steam = 1.0;
-    if (steam > 0.01) {
-        Program& st = c.gpu.effect("steam", Shaders::steam);
-        c.gpu.pass(st, Blend::Add, [&](Program& q) {
-            q.set("u_base", float(yx + 126), 838.f); q.set("u_t", float(t)); q.set("u_amt", float(steam));
-            q.set("u_wind", float(L.wind)); q.set("u_puff", float(std::min(1.0, c.kick(3.0))));
-        }, -1, c.staticGeometry ? QRectF(0,500,1920,342) : QRectF());
-    }
+    OsakaSteamV1::draw(c, L, t, yx);
 }
 
 // ---------- the six wires ----------
@@ -387,49 +379,21 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
 
 
 
-void reflections(Ctx& c, const OsakaState& s) {
-    GpuProfile::Group profileGroup(c.gpu.profile,"reflections");
-    const int snap = c.gpu.snapshot();
-    Program& p = c.gpu.effect("reflect", Shaders::reflect);
-    c.gpu.pass(p, Blend::Add, [&](Program& q) {
-        c.gpu.bindTexture(0, snap, q, "u_img");
-        q.set("u_y0", 936.f); q.set("u_qx", 4000.f); q.set("u_t", float(c.t)); q.set("u_gain", float(s.reflection));
-        q.set("u_kick", float(std::min(1.0, c.kick(4.5))));
-    }, -1, c.staticGeometry ? QRectF(0,936,1920,144) : QRectF());
-}
+
 }  // namespace
 
 double bearerX(double t) { return OsakaBearerV1::x(t); }
 
 // A shooting star crosses the upper sky on the first strong onset after
 // 15.5 s (timed fallback at 16.8 s): one small thing to catch on a rewatch.
-void shootingStar(Ctx& c, const OsakaState& s) {
-    GpuProfile::Group profileGroup(c.gpu.profile,"shootingStar");
-    const double age = c.schedule->action(Moment::Star,c.t,0);
-    if (age < 0 || age > 0.9) return;
-    const double u = easeOut(age / 0.75);
-    const double dx=c.schedule->parameter(Moment::Star,1,-80,480,0);
-    const double dy=c.schedule->parameter(Moment::Star,2,-20,35,0);
-    const V2 from(470+dx - s.cam * 0.02, 70+dy), to(150+dx - s.cam * 0.02, 205+dy);
-    const V2 head = lerp(from, to, u);
-    const double fade = 1 - sstep(0.55, 0.9, age);
-    Canvas& cv = c.canvas();
-    for (int j = 0; j < 24; ++j) {
-        const double f = j / 24.0;
-        const V2 q = lerp(from, to, std::max(0.0, u - f * 0.35));
-        cv.disc(q.x, q.y, 1.8 * (1 - f) + 0.3, mix(CREAM, BCYAN, f), std::pow(1 - f, 1.5) * fade);
-    }
-    cv.glow(head.x, head.y, 12, CREAM, 0.9 * fade);
-    c.gpu.over(cv, 1.6f);
-    c.gpu.add(cv, 0.5f, 6);
-}
+
 
 void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain, const BackdropHooks* hooks) {
     GpuProfile::Group profileGroup(c.gpu.profile,"drawOsakaBackdrop");
     const Life L = OsakaEventsV1::at(c);
     Kit::OsakaSkyV1::draw(c, s);
     if (hooks && hooks->afterSky) hooks->afterSky();
-    if (s.chapter) shootingStar(c, s);
+    if (s.chapter) OsakaShootingStarV1::draw(c, s);
     if (hooks && hooks->disc) hooks->disc();
     if (disc) {
         DiscLook d;
@@ -503,7 +467,7 @@ void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks) {
     polesWires(c, s, L, plan, false);
     OsakaMothsV1::draw(c, s, POLES[0].x - s.cam * POLES[0].par - 83);
     if (hooks.afterWires) hooks.afterWires();
-    reflections(c, s);
+    OsakaReflectionV1::draw(c, s);
     if (hooks.afterReflections) hooks.afterReflections();
     streetFront(c, s, L);
     drawBirds(c, s, L, plan);
@@ -511,38 +475,13 @@ void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks) {
     wisteria(c, s, L);
 }
 
-void osakaFog(Ctx& c, double amount, double top, double bottom, Col col) {
-    GpuProfile::Group profileGroup(c.gpu.profile,"osakaFog");
-    if (amount <= 0.001) return;
-    Program& p = c.gpu.effect("fog", Shaders::fog);
-    c.gpu.pass(p, Blend::Over, [&](Program& q) {
-        q.set("u_amount", float(amount)); q.set("u_top", float(top)); q.set("u_bottom", float(bottom));
-        q.set("u_t", float(c.t)); q.set("u_col", col);
-    });
-}
 
-void osakaGlowThrough(Ctx& c, const OsakaState& s, double amount) {
-    GpuProfile::Group profileGroup(c.gpu.profile,"osakaGlowThrough");
-    if (amount <= 0.01) return;
-    const double t = c.t;
-    Canvas& g = c.canvas();
-    const double treble = 0.75 + 0.6 * c.lift(5) + 0.3 * c.lift(4);
-    Rng rng(77);
-    // City: a broad glow with brighter knots where the towers stand.
-    for (int k = 0; k < 26; ++k) {
-        const double x = 930 + rng.normal() * 230 - s.cam * 0.14, y = 650 + rng.uni() * 50;
-        const double tw = 0.75 + 0.25 * std::sin(t * (0.7 + rng.uni()) + k);
-        const Col col = rng.uni() < 0.7 ? WARM_T : (rng.uni() < 0.7 ? BCYAN : MAG);
-        g.glow(x, y, 26 + rng.uni() * 40, col, 0.30 * tw * treble * clamp01(s.land + 0.35));
-    }
-    // Downhill town windows and the festival street, closer and warmer.
-    for (int k = 0; k < 22; ++k) {
-        const double x = 540 + rng.uni() * 720 - s.cam * 0.55, y = 790 + rng.uni() * 150;
-        const double band = c.lift(k % 6);
-        g.glow(x, y, 34 + rng.uni() * 36, k % 3 ? WARM_T : RED, (0.22 + 0.25 * band) * clamp01(s.land + 0.25));
-    }
-    c.gpu.add(g, float(1.1 * amount), 10);
-}
+
+
+
+void osakaFog(Ctx& c, double amount, double top, double bottom, Col col) { OsakaFogV1::draw(c, amount, top, bottom, col); }
+
+void osakaGlowThrough(Ctx& c, const OsakaState& s, double amount) { OsakaGlowThroughV1::draw(c, s, amount); }
 
 void drawOsaka(Ctx& c, const OsakaState& s) {
     GpuProfile::Group profileGroup(c.gpu.profile,"drawOsaka");
