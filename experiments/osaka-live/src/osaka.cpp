@@ -447,91 +447,11 @@ void yatai(Ctx& c, const OsakaState& s, const Life& L) {
     Canvas& p = c.canvas();
     Canvas& l = c.canvas();
     Kit::OsakaCartFrameV1::draw(c, s, p, yx);
-    // Cook: ladles in a loop once the cart opens; passes a bowl at 12 s.
-    {
-        const double cookT=c.schedule->action(Moment::Cook,t,11.4);
-        const double step=window(cookT,11.4,0.75,13.3,0.7);
-        const double cx = yx + 72 + 68 * step;
-        const double cadence=c.schedule->parameter(Moment::Cook,1,2.3,2.9,2.6);
-        const double ph = std::fmod(std::max(0.0, t - 5.6), cadence) / cadence;
-        V2 hand;
-        // Hand targets sit where the ladle tip (hand + 18, 20) meets the pot
-        // or the bowl, so the elbow stays bent instead of pointing.
-        const V2 pot(yx + 108, 814), bowl(yx + 92, 826), rest(cx + 20, 846);
-        if (t < 5.6) hand = rest;
-        else if (ph < 0.3) hand = lerp(rest, pot, easeInOut(ph / 0.3));
-        else if (ph < 0.45) hand = pot + V2(2 * std::sin(Tau * (ph - 0.3) / 0.15), 7 * std::sin(Pi * (ph - 0.3) / 0.15));
-        else if (ph < 0.7) hand = lerp(pot, bowl, easeInOut((ph - 0.45) / 0.25));
-        else if (ph < 0.85) hand = bowl + V2(0, 3 * std::sin(Pi * (ph - 0.7) / 0.15));
-        else hand = lerp(bowl, rest, easeInOut((ph - 0.85) / 0.15));
-        const double serve = window(cookT,11.9,0.4,12.9,0.4);
-        const double nod = window(cookT,13.05,0.18,13.25,0.32);
-        hand = lerp(hand, rest, L.hush);
-        hand = lerp(hand, V2(yx + 170, 838), serve);
-        RigIn r;
-        r.h = 108; r.facing = 1; r.hair = Hair::Short; r.garment = Garment::Happi; r.shoulderTowel = true; r.flutter = L.wind * std::sin(t * 3); r.lean = 0.05 + 0.08 * serve + 0.05 * std::max(0.0, (hand.x - rest.x) / 20);
-        r.hip = {cx, 902 - hipHeight(108)};
-        Gait g; g.stride = 62; g.lift = 7; g.bob = 2;
-        const double mv = clamp01(std::abs(68 * (window(cookT + 0.02, 11.4, 0.75, 13.3, 0.7) - window(cookT - 0.02, 11.4, 0.75, 13.3, 0.7)) / 0.04) / 35);
-        const Steps feet = gaitAt(yx + 72, 68 * step, 898, 1, g, mv);
-        r.footF = feet.footF; r.footB = feet.footB; r.hip.y += feet.hipBob;
-        r.handF = hand; r.handB = {cx + 16 + 2 * std::sin(t * 1.7), 852};
-        r.headTilt = -0.25 + 0.2 * serve - 0.38 * nod + L.look * 0.6;
-        r.lean = std::min(r.lean, 0.18);
-        // Keep the ladle inside the rig's reach through the serving step.
-        const V2 shoulder = solve(r).shoulder;
-        const V2 reach = hand - shoulder;
-        if (reach.len() > 0.29 * r.h) hand = shoulder + reach * (0.29 * r.h / reach.len());
-        r.handF = hand;
-        drawBody(p, solve(r), INK);
-        // Headband knot, ladle and steaming pot.
-        const Body bd = solve(r);
-        p.line(bd.head.x - 9, bd.head.y - 6, bd.head.x - 19, bd.head.y - 1, 3.5, INK);
-        if (serve < 0.5) {
-            p.line(hand.x, hand.y, hand.x + 18, hand.y + 20, 3, INK);
-            p.disc(hand.x + 20, hand.y + 23, 6, INK);
-        } else {
-            p.color(INK);
-            p.arc(hand.x + 6, hand.y - 2, 10, 0, Pi);
-            p.closePath();
-            p.fill();
-        }
-        p.fillRect(yx + 104, 836, 46, 24, INK);
-    }
+    OsakaCookV1::draw(c, L, p, t, yx);
     const double wind = L.wind;
     OsakaNorenV1::draw(c, s, L, l, t, yx);
     OsakaCartLanternV1::draw(c, s, p, l, t, yx, wind);
-    // Customer: arrives from the right, sits, takes the bowl and eats.
-    if (s.chapter || t > 9) {
-        const double sx = yx + 262;
-        p.poly({{sx - 14, 936}, {sx - 10, 900}, {sx + 12, 900}, {sx + 16, 936}}, 3.5, INK);
-        const double sit=1;
-        {
-            const double h=118;
-            {
-                // Sit with a small dip of anticipation, then eat in a loop.
-                const double dip = 0;
-                const double eat=std::pow(std::max(0.0,std::sin((t-12.6)*2.1)),3);
-                const double hold = 1;
-                RigIn r;
-                r.h = h; r.facing = -1; r.hair = Hair::Short; r.garment = Garment::Jacket; r.flutter = 0.15 * std::sin(t * 2.2) + L.wind * 0.4;
-                const V2 stand(sx + 10, 936 - hipHeight(h)), seat(sx, 898 - 0.06 * h);
-                r.hip = lerp(stand, seat, sit) + V2(0, dip);
-                r.lean = 0.12 * sit + 0.06 * eat;
-                r.footF = {sx - 0.22 * h * sit - 6, 932}; r.footB = {sx - 0.19 * h * sit, 934};
-                const V2 counter(sx - 40, 870), mouth(sx - 30, 820);
-                r.handF = lerp(counter, mouth, eat * hold);
-                r.handB = lerp(counter + V2(10, 6), mouth + V2(8, 6), eat * hold);
-                r.headTilt = 0.15 * eat * hold - 0.1 * (1 - eat) - 0.38 * c.gesture(13.4, 0.18, 13.65, 0.32) + L.look * 0.6;
-                streetFigure(p, r, BCYAN);
-                if (hold > 0.5) {
-                    const V2 bw = r.handF + V2(-4, -4);
-                    p.color(INK); p.arc(bw.x, bw.y, 9, 0, Pi); p.closePath(); p.fill();
-                    p.line(bw.x + 2, bw.y - 2, bw.x + 14, bw.y - 18, 1.6, INK);
-                }
-            }
-        }
-    }
+    OsakaCustomerV1::draw(c, s, L, p, t, yx);
     // Couple stroll to the railing; one points at the moon, the other leans in.
     {
         const double bx = 1180 + ox;
