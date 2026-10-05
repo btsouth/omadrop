@@ -61,3 +61,6 @@ HEADERS += src/kit/animals.h
 
 SOURCES += src/kit/chime.cpp
 HEADERS += src/kit/chime.h
+
+SOURCES += src/kit/city.cpp
+HEADERS += src/kit/city.h
