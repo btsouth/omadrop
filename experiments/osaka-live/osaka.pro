@@ -58,3 +58,6 @@ HEADERS += src/kit/sky-lanterns.h
 
 SOURCES += src/kit/animals.cpp
 HEADERS += src/kit/animals.h
+
+SOURCES += src/kit/chime.cpp
+HEADERS += src/kit/chime.h

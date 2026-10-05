@@ -6,6 +6,7 @@
 #include "parts.h"
 #include "rig.h"
 #include "kit/neon.h"
+#include "kit/chime.h"
 #include "kit/animals.h"
 #include "kit/sky-lanterns.h"
 #include "kit/festoon.h"
@@ -1451,13 +1452,7 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
         OsakaVerandaCatV1::draw(c, s, L, f, t, ox);
     }
     {
-        // Wind chime under the eave swings in the gust.
-        const double swing = std::sin(t * 2) * 0.05 + 0.35 * ring((c.schedule->action(Moment::Gust,t,0)),1.3,0.7) + 0.06 * L.wind * std::sin(t * 4.7);
-        const V2 top(606 + ox, 596), bell = top + V2(std::sin(swing) * 38, std::cos(swing) * 38);
-        f.line(top.x, top.y, bell.x, bell.y - 4, 1.2, INK);
-        f.disc(bell.x, bell.y, 7, INK);
-        const V2 strip = bell + V2(std::sin(swing * 1.6) * 20, std::cos(swing * 1.6) * 20);
-        f.line(bell.x, bell.y + 6, strip.x, strip.y, 6, mix(WARM_B, INK, 0.25));
+        OsakaChimeV1::draw(c, L, f, t, ox);
     }
     Rng rng(66);
     for (int i = 0; i < 70; ++i) {
