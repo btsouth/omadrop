@@ -18,4 +18,9 @@ struct OsakaLanternV1 {
 
 inline void lantern(Canvas& body, Canvas& light, V2 hand, double swing, double size, double bright) { OsakaLanternV1::draw(body, light, hand, swing, size, bright); }
 
+struct OsakaCartLanternV1 {
+    static constexpr const char* name = "osaka-cart-lantern-v1";
+    static void draw(Ctx& c, const OsakaState& s, Canvas& p, Canvas& l, double t, double yx, double wind);
+};
+
 }
