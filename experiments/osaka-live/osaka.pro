@@ -100,3 +100,6 @@ HEADERS += src/kit/firework.h
 
 SOURCES += src/kit/actors.cpp
 HEADERS += src/kit/actors.h src/kit/figure.h
+
+SOURCES += src/kit/groups.cpp
+HEADERS += src/kit/groups.h
