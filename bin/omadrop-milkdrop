@@ -353,8 +353,26 @@ current_topology_signature() {
       2>/dev/null
 }
 
+# Hyprland maps new windows on the focused monitor and ignores the output SDL
+# asks for, so a second fullscreen window would stay tiled beside the first.
+# A named rule per display places each paired renderer, matched by the title
+# it holds until it maps. Naming the rule replaces it on the next launch.
+place_paired_renderers() {
+  local index monitor fullscreen=
+  ((display_count > 1)) && [[ -n ${monitor_names[0]} ]] || return 0
+  command -v "$hyprctl_command" >/dev/null || return 0
+  [[ $OMADROP_FULLSCREEN == 0 ]] || fullscreen=', fullscreen = true'
+  for ((index = 0; index < display_count; index++)); do
+    monitor=${monitor_names[$index]}
+    [[ $monitor =~ ^[A-Za-z0-9_.-]+$ ]] || continue
+    timeout 1 "$hyprctl_command" eval "hl.window_rule({ name = 'omadrop-milkdrop-display-$index', match = { class = '^org[.]omadrop[.]milkdrop\$', initial_title = '^Omadrop ${monitor//./[.]}\$' }, monitor = '$monitor'$fullscreen })" \
+      >/dev/null 2>&1 || true
+  done
+}
+
 launch_renderers() {
   cleanup_runtime
+  place_paired_renderers
   for ((display_index = 0; display_index < display_count; display_index++)); do
     if ((display_index == 0)); then
       pair_role=leader
