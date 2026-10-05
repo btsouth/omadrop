@@ -55,3 +55,6 @@ HEADERS += src/kit/festoon.h
 
 SOURCES += src/kit/sky-lanterns.cpp
 HEADERS += src/kit/sky-lanterns.h
+
+SOURCES += src/kit/animals.cpp
+HEADERS += src/kit/animals.h
