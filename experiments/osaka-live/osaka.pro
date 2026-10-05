@@ -88,3 +88,6 @@ HEADERS += src/kit/pulses.h
 
 SOURCES += src/kit/flock.cpp
 HEADERS += src/kit/flock.h
+
+SOURCES += src/kit/events.cpp
+HEADERS += src/kit/events.h
