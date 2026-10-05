@@ -28,6 +28,16 @@ checks.
 | `rooms.h` | Separate near-room, right-room-2, right-room-3 and cart-room profiles. The original pane layouts, light gradients, glow and cyan flicker stay with their room. `layout.h` holds the unchanged near and upper-right layout tables. |
 | `neon.h` | `osaka-neon-v1`: board, retained tubes, broad glow, stutter and neon gain. The caller still adds bulbs and invokes `submit` on the shared neon Canvas at its original position. |
 | `sign-outlines.cpp` | The unchanged `drawSignGlyph` implementation reads the existing outline asset. It serves the izakaya sign and cart curtains. |
+| `lanterns.h`, `onset.h` | Paper, hand-held and cart lantern profiles. The original onset lookup reads Score without creating events. |
+| `cloth.h` | Street reflected cloth and separate cart/izakaya curtain profiles. They write into their original shared body/light canvases. |
+| `festoon.h`, `sky-lanterns.h` | Festoon and valley/couple releases. Existing positions, serial-based beat indexing, shell flashes and retirement times. |
+| `animals.h`, `chime.h` | Moths, railing/sill/veranda cats and chime, including original masked-sill insertion and gestures. |
+| `city.h`, `downhill.h` | Procedural city and downhill row profiles, retaining all layout/window RNG draws and cache keys. |
+| `grass.h` | Grass and flowers share the caller's RNG across the original intervening body pass. |
+| `wisteria.h` | Sorted canopy/raceme layout, prepared ellipses, spatial batching and the two shared petal-image passes. |
+| `network.h`, `poles.h`, `strands.h`, `pulses.h` | Original pole/span data and attachments, pole art, strand body/hum and pulse streams. The far/near caller still owns Canvas allocation, retained insertion and final submission. |
+| `flock.h` | Original landing/formation tables, flock rendering and per-frame dip profile shared by strands and pulses. |
+| `events.h`, `light-wave.h`, `firework.h` | Versioned shell/life defaults and one central event input from the unchanged Schedule; the same state feeds panes, festoon, lanterns, birds and figures. Light-wave and star/smoke profiles preserve accumulation and pass order. |
 
 ## Keep the composition contract
 
@@ -39,12 +49,25 @@ Backdrop shader strings remain literal in the kit shader headers, with the
 old shader header including them for remaining callers. Effect names, uniforms
 and blend modes remain the same.
 
-`osaka-legacy.h` is an internal bridge for the current Shell and Life values.
-Firework planning, actors, wires, birds, foliage and the remaining composition
-still live in Osaka. Before data-loaded Osaka is complete, replace that bridge
-with shared event inputs, extract those remaining groups, and make render
-insertion and reflection capture explicit in the composition. Do not add a
-per-world executable extension API.
+`osaka-legacy.h` now provides only a source-compatible include for round 1
+profiles. The `OsakaLegacyLife` name aliases `OsakaEventState` from `events.h`; it owns no
+second shell list, clock or detector. `OsakaEventsV1::at` is invoked at the same
+composition entry points as the original `lifeAt`. All consumers of that draw
+receive the same state. Schedule and Score, including the global event serial,
+remain unchanged.
+
+Procedural defaults stay pinned in their named `osaka-*-v1` profiles:
+city RNG 41 (two layers, x 560..1400 and conditional roof advancement), downhill
+RNG 55 (three row tables and uninterrupted window draws), grass RNG 66 (70
+strokes then 54 flowers on the same stream), wisteria RNG 88 (15 crowns, 30
+sorted racemes and original petal draws), strand RNG 101 plus quay RNG 1012+i,
+and shell/star/smoke RNG 404+31*si / 900+si. All hash keys and jit inputs retain
+their original values and evaluation order.
+
+Actor choreography, near-ridge trees, train, reflections and remaining
+composition stay in Osaka. Before data-loaded Osaka is complete, extract those
+groups and make render insertion/reflection capture explicit. Do not add a
+per-world executable extension API, file format or SVG importer in this step.
 
 For an extraction, retain the previous binary and run both the looped music
 and silent captures on the same GPU, seed, size and scale. Run
@@ -52,3 +75,12 @@ and silent captures on the same GPU, seed, size and scale. Run
 against the original baseline at the milestone. This gates every saved RGB
 pixel and the complete 5 Hz brightness/clock/firework series. It does not check
 every full-rate motion frame or establish artistic acceptance.
+
+Round 2 also compares exact production PCM-hop poses selected from the entire
+music/silent fixtures: full/small launch/burst flashes and finales, bird
+approach/landing/scatter/return, six measured band lifts at onsets and late
+lantern fades. An external capture-only main translation unit supplies those
+saved poses and faster lossless PNG encoding; production main stays unchanged.
+These images close the named cadence gaps, not all possible seeds, camera
+travel or full-rate motion. The original-baseline comparison and same-device
+60 s GPU profiles remain required at the milestone.
