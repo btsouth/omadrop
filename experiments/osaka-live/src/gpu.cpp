@@ -3,6 +3,10 @@
 #include <QTextStream>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <regex>
+#include <set>
+#include <cstring>
 
 namespace Journey {
 namespace {
@@ -111,11 +115,16 @@ void main() {
     int r = min(int(ceil(u_sigma * 3.0)), 24);
     vec4 s = texture(u_tex, v_uv);
     float wsum = 1.0;
-    for (int i = 1; i <= 24; ++i) {
+    // Adjacent Gaussian taps share one linear-filtered fetch. Keep the
+    // original finite support, including an unpaired last tap for odd radii.
+    for (int i = 1; i <= 24; i += 2) {
         if (i > r) break;
-        float w = exp(-0.5 * float(i * i) / (u_sigma * u_sigma));
-        s += w * (texture(u_tex, v_uv + u_dir * float(i)) + texture(u_tex, v_uv - u_dir * float(i)));
-        wsum += 2.0 * w;
+        float w0 = exp(-0.5 * float(i * i) / (u_sigma * u_sigma));
+        float w1 = i + 1 <= r ? exp(-0.5 * float((i+1)*(i+1)) / (u_sigma*u_sigma)) : 0.0;
+        float weight = w0 + w1;
+        float offset = float(i) + w1 / weight;
+        s += weight * (texture(u_tex, v_uv + u_dir * offset) + texture(u_tex, v_uv - u_dir * offset));
+        wsum += 2.0 * weight;
     }
     o = s / wsum;
 }
@@ -198,12 +207,17 @@ GLint Program::loc(const char* name) {
     cache_[name] = l;
     return l;
 }
-void Program::set(const char* n, float v) { glUniform1f(loc(n), v); }
-void Program::set(const char* n, float x, float y) { glUniform2f(loc(n), x, y); }
-void Program::set(const char* n, float x, float y, float z) { glUniform3f(loc(n), x, y, z); }
-void Program::set(const char* n, float x, float y, float z, float w) { glUniform4f(loc(n), x, y, z, w); }
-void Program::set(const char* n, int v) { glUniform1i(loc(n), v); }
+void Program::set(const char* n, float v) { remember(n,&v,1,1); glUniform1f(loc(n), v); }
+void Program::set(const char* n, float x, float y) { const float v[]={ x, y }; remember(n,v,1,2); glUniform2f(loc(n), x, y); }
+void Program::set(const char* n, float x, float y, float z) { const float v[]={ x, y, z }; remember(n,v,1,3); glUniform3f(loc(n), x, y, z); }
+void Program::set(const char* n, float x, float y, float z, float w) { const float v[]={ x, y, z, w }; remember(n,v,1,4); glUniform4f(loc(n), x, y, z, w); }
+void Program::set(const char* n, int v) { if(!body.empty()) { Uniform u;u.integral=true;u.integer=v;uniforms[n]=u; } glUniform1i(loc(n), v); }
+void Program::remember(const char* n,const float* v,int count,int components) {
+    if(body.empty()) return;
+    Uniform u;u.values.assign(v,v+count*components);u.count=count;u.components=components;uniforms[n]=std::move(u);
+}
 void Program::setArray(const char* n, const float* v, int count, int components) {
+    remember(n,v,count,components);
     switch (components) {
     case 1: glUniform1fv(loc(n), count, v); break;
     case 2: glUniform2fv(loc(n), count, v); break;
@@ -214,6 +228,7 @@ void Program::setArray(const char* n, const float* v, int count, int components)
 
 Gpu::Gpu() = default;
 Gpu::~Gpu() {
+    profile.close();
     release();
     clearGeometryCache();
     if (vbo_) glDeleteBuffers(1, &vbo_);
@@ -225,6 +240,12 @@ Gpu::~Gpu() {
 
 bool Gpu::init(QString& error) {
     if (!glGetString(GL_VERSION)) { error = QStringLiteral("No current OpenGL context."); return false; }
+    profile.init();
+    GLint extensions=0;glGetIntegerv(GL_NUM_EXTENSIONS,&extensions);
+    for(int i=0;i<extensions;++i)
+        if(std::string(reinterpret_cast<const char*>(glGetStringi(GL_EXTENSIONS,i)))=="GL_ARB_shading_language_packing") effectFusion_=true;
+    if(std::getenv("OSAKA_DISABLE_EFFECT_FUSION")) effectFusion_=false;
+    memoryProfile_=std::getenv("OSAKA_GPU_MEMORY")!=nullptr;
     canvas_.id = link(canvasVs, canvasFs, "canvas");
     compositeP_.id = link(fullscreenVs, std::string(effectHeader) + compositeFs, "composite");
     blurP_.id = link(fullscreenVs, std::string(effectHeader) + blurFs, "blur");
@@ -255,7 +276,34 @@ bool Gpu::init(QString& error) {
     return true;
 }
 
+void Gpu::trackMemory() {
+    if(!memoryProfile_) return;
+    std::uint64_t pinned=0, pool=0, reduced=0;
+    std::size_t count=0;
+    for(const auto& t:pool_) {
+        const auto bytes=std::uint64_t(t.w)*t.h*8; // RGBA16F
+        pool+=bytes;
+        if(t.pinned) { pinned+=bytes; ++count; }
+    }
+    for(const auto& entry:reducedLayers_)
+        reduced+=std::uint64_t(entry.first.first)*entry.first.second*samples_*12; // colour + D24S8
+    if(pinned>peakPinnedBytes_) { peakPinnedBytes_=pinned; peakPinnedCount_=count; }
+    peakPoolBytes_=std::max(peakPoolBytes_,pool);
+    peakPoolCount_=std::max(peakPoolCount_,pool_.size());
+    peakReducedBytes_=std::max(peakReducedBytes_,reduced);
+    peakReducedCount_=std::max(peakReducedCount_,reducedLayers_.size());
+}
+
 void Gpu::release() {
+    pendingEffect_={};
+    if(memoryProfile_ && peakPoolCount_) {
+        std::fprintf(stderr,"GPU storage peak %dx%d: pinned %zu textures %.3f MiB; pool %zu textures %.3f MiB; reduced %zu targets %.3f MiB (RGBA16F + D24S8, %dx MSAA; logical storage, excluding driver overhead)\n",
+            w_,h_,peakPinnedCount_,peakPinnedBytes_/1048576.0,peakPoolCount_,peakPoolBytes_/1048576.0,
+            peakReducedCount_,peakReducedBytes_/1048576.0,samples_);
+    }
+    peakPinnedBytes_=peakPoolBytes_=peakReducedBytes_=0;
+    peakPinnedCount_=peakPoolCount_=peakReducedCount_=0;
+    clearRasterCache();
     current_ = &main_;
     for (Target* t : {&main_, &layer_, &out_, &alt_}) {
         if (t->fbo) glDeleteFramebuffers(1, &t->fbo);
@@ -271,6 +319,12 @@ void Gpu::release() {
     scaledFbo_=scaledTex_=0;
     for (Tex& t : pool_) { glDeleteFramebuffers(1, &t.fbo); glDeleteTextures(1, &t.tex); }
     pool_.clear();
+    for(auto& entry:reducedLayers_) {
+        auto& t=entry.second;
+        glDeleteFramebuffers(1,&t.fbo); glDeleteRenderbuffers(1,&t.color); glDeleteRenderbuffers(1,&t.depth);
+    }
+    reducedLayers_.clear();
+
 }
 
 void Gpu::allocate() {
@@ -285,7 +339,7 @@ void Gpu::allocate() {
         glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples_, format, w_, h_);
         glBindRenderbuffer(GL_RENDERBUFFER, t.depth);
         glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples_, GL_DEPTH24_STENCIL8, w_, h_);
-        glBindFramebuffer(GL_FRAMEBUFFER, t.fbo);
+        bindFramebuffer(GL_FRAMEBUFFER, t.fbo);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, t.color);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, t.depth);
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -303,7 +357,7 @@ void Gpu::allocate() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glGenFramebuffers(1, &outFbo_);
-    glBindFramebuffer(GL_FRAMEBUFFER, outFbo_);
+    bindFramebuffer(GL_FRAMEBUFFER, outFbo_);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, outTex_, 0);
     allocatedOutputW_=outputW_ ? outputW_ : w_;
     allocatedOutputH_=outputH_ ? outputH_ : h_;
@@ -312,17 +366,17 @@ void Gpu::allocate() {
         glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,allocatedOutputW_,allocatedOutputH_,0,GL_RGBA,GL_UNSIGNED_BYTE,nullptr);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-        glGenFramebuffers(1,&scaledFbo_); glBindFramebuffer(GL_FRAMEBUFFER,scaledFbo_);
+        glGenFramebuffers(1,&scaledFbo_); bindFramebuffer(GL_FRAMEBUFFER,scaledFbo_);
         glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,scaledTex_,0);
     }
 }
 
 int Gpu::acquire(int w, int h) {
     for (std::size_t i = 0; i < pool_.size(); ++i) {
-        if (!pool_[i].used && pool_[i].w == w && pool_[i].h == h) { pool_[i].used = true; return int(i); }
+        if (!pool_[i].used && !pool_[i].pinned && pool_[i].w == w && pool_[i].h == h) { pool_[i].used = true; pool_[i].reduction=1; pool_[i].bounds=QRect(0,0,w,h); return int(i); }
     }
     Tex t;
-    t.w = w; t.h = h; t.used = true;
+    t.w = w; t.h = h; t.used = true; t.bounds=QRect(0,0,w,h); t.dirty=t.bounds;
     glGenTextures(1, &t.tex);
     glBindTexture(GL_TEXTURE_2D, t.tex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
@@ -331,8 +385,12 @@ int Gpu::acquire(int w, int h) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glGenFramebuffers(1, &t.fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, t.fbo);
+    bindFramebuffer(GL_FRAMEBUFFER, t.fbo);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t.tex, 0);
+    // Bounded passes sample transparent pixels outside their content. Define
+    // the entire new allocation once; subsequent reuse only clears old content.
+    glDisable(GL_SCISSOR_TEST);
+    glClearColor(0,0,0,0); glClear(GL_COLOR_BUFFER_BIT);
     pool_.push_back(t);
     return int(pool_.size()) - 1;
 }
@@ -343,7 +401,19 @@ void Gpu::begin(int width, int height) {
         w_ = width; h_ = height;
         allocate();
     }
-    for (Tex& t : pool_) t.used = false;
+    ++rasterFrame_;
+    // Entries not drawn for two frames are no longer retained by this renderer.
+    for(auto it=rasters_.begin();it!=rasters_.end();) {
+        if(it->second.frame+2>=rasterFrame_) { ++it; continue; }
+        const int texture=it->second.texture;
+        pool_[texture].pinned=false;
+        for(auto f=filters_.begin();f!=filters_.end();) {
+            if(f->first.first==texture) { pool_[f->second].pinned=false; f=filters_.erase(f); }
+            else ++f;
+        }
+        it=rasters_.erase(it);
+    }
+    for (Tex& t : pool_) t.used = t.pinned;
     current_ = &main_;
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
@@ -358,8 +428,28 @@ void Gpu::begin(int width, int height) {
     glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
+void Gpu::bindFramebuffer(GLenum target, GLuint fbo) {
+    profile.framebuffer(target, fbo);
+    glBindFramebuffer(target, fbo);
+}
+
+void Gpu::scissor(const QRect& bounds) {
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(bounds.x(),bounds.y(),bounds.width(),bounds.height());
+}
+
+void Gpu::prepareBounded(int texture,const QRect& bounds) {
+    auto& t=pool_[texture];
+    bindFramebuffer(GL_FRAMEBUFFER,t.fbo);
+    // Old support can belong to a completely different canvas or blur chain.
+    scissor(t.dirty);
+    glClearColor(0,0,0,0); glClear(GL_COLOR_BUFFER_BIT);
+    t.bounds=bounds; t.dirty=bounds;
+    scissor(bounds);
+}
+
 void Gpu::bindMain() {
-    glBindFramebuffer(GL_FRAMEBUFFER, current_->fbo);
+    bindFramebuffer(GL_FRAMEBUFFER, current_->fbo);
     glViewport(0, 0, w_, h_);
 }
 
@@ -383,7 +473,27 @@ void Gpu::setBlend(Blend blend, float gain) {
     }
 }
 
+void Gpu::clearRasterCache() {
+    for(const auto& entry:rasters_) pool_[entry.second.texture].pinned=false;
+    for(const auto& entry:filters_) pool_[entry.second].pinned=false;
+    rasters_.clear(); filters_.clear();
+}
+
+bool Gpu::rasterKey(const Canvas& canvas,RasterKey& key) const {
+    if(!cacheGeometry_) return false;
+    // Cache only an entire isolated layer. Collapsing translucent draws inside
+    // the main target would change per-sample blending and half-float rounding.
+    if(canvas.frozen()) key.emplace_back(canvas.identity(),canvas.revision());
+    for(const auto& cmd:canvas.commands()) {
+        if(cmd.kind==Canvas::CmdKind::Cached) {
+            if(!rasterKey(canvas.retained(cmd.first),key)) return false;
+        } else if(!canvas.frozen()) return false;
+    }
+    return !key.empty();
+}
+
 void Gpu::clearGeometryCache() {
+    clearRasterCache();
     for (auto& entry : geometry_) {
         auto& g = entry.second;
         glDeleteBuffers(1, &g.vbo);
@@ -592,26 +702,77 @@ void Gpu::drawCanvas(const Canvas& c) {
 }
 
 void Gpu::draw(const Canvas& canvas, Blend blend, float gain) {
+    flushEffect();
+    GpuProfile::Scope timing(profile,"draw",w_,h_,"RGBA16F-MSAA");
     bindMain();
     setBlend(blend, gain);
     drawCanvas(canvas);
 }
 
-int Gpu::layer(const Canvas& canvas) {
-    glBindFramebuffer(GL_FRAMEBUFFER, layer_.fbo);
-    glViewport(0, 0, w_, h_);
+int Gpu::layer(const Canvas& canvas,float sigmaDesign) {
+    flushEffect();
+    int reduction=1,w=w_,h=h_;
+    while(sigmaDesign*pixelScale()/reduction>3 && reduction<32) {
+        reduction*=2; w=(w+1)/2; h=(h+1)/2;
+    }
+    Target* target=&layer_;
+    if(reduction>1) {
+        target=&reducedLayers_[{w,h}];
+        if(!target->fbo) {
+            glGenFramebuffers(1,&target->fbo);
+            glGenRenderbuffers(1,&target->color); glGenRenderbuffers(1,&target->depth);
+            glBindRenderbuffer(GL_RENDERBUFFER,target->color);
+            glRenderbufferStorageMultisample(GL_RENDERBUFFER,samples_,GL_RGBA16F,w,h);
+            glBindRenderbuffer(GL_RENDERBUFFER,target->depth);
+            glRenderbufferStorageMultisample(GL_RENDERBUFFER,samples_,GL_DEPTH24_STENCIL8,w,h);
+            bindFramebuffer(GL_FRAMEBUFFER,target->fbo);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_RENDERBUFFER,target->color);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_DEPTH_STENCIL_ATTACHMENT,GL_RENDERBUFFER,target->depth);
+            if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE) std::abort();
+        }
+    }
+    RasterKey key;
+    const bool retained=rasterKey(canvas,key);
+    if(retained) key.emplace_back(0,reduction);
+    if(retained) {
+        const auto found=rasters_.find(key);
+        if(found!=rasters_.end()) {
+            found->second.frame=rasterFrame_;
+            return found->second.texture;
+        }
+    }
+    const int raster=profile.start("layer-raster",w,h,"RGBA16F-MSAA");
+    bindFramebuffer(GL_FRAMEBUFFER, target->fbo);
+    glViewport(0, 0, w, h);
+    const auto extent=canvas.bounds();
+    const QRectF box=std::isfinite(extent[0]) ? QRectF(extent[0],extent[1],extent[2]-extent[0],extent[3]-extent[1]) : QRectF();
+    const int x0=std::clamp(int(std::floor(box.left()*w/1920.0))-2,0,w);
+    const int x1=std::clamp(int(std::ceil(box.right()*w/1920.0))+2,0,w);
+    const int y0=std::clamp(int(std::floor((1080-box.bottom())*h/1080.0))-2,0,h);
+    const int y1=std::clamp(int(std::ceil((1080-box.top())*h/1080.0))+2,0,h);
+    const QRect bounds(x0,y0,x1-x0,y1-y0);
+    scissor(target->dirty.united(bounds));
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    target->dirty=bounds;
+    scissor(bounds);
     setBlend(Blend::Over, 1);
     drawCanvas(canvas);
-    const int t = acquire(w_, h_);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, layer_.fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pool_[t].fbo);
-    glBlitFramebuffer(0, 0, w_, h_, 0, 0, w_, h_, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    profile.stop(raster);
+    GpuProfile::Scope timing(profile,"layer-resolve",w,h,"RGBA16F");
+    const int t = acquire(w, h);
+    prepareBounded(t,bounds);
+    bindFramebuffer(GL_READ_FRAMEBUFFER, target->fbo);
+    bindFramebuffer(GL_DRAW_FRAMEBUFFER, pool_[t].fbo);
+    glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glDisable(GL_SCISSOR_TEST);
+    if(retained) { pool_[t].pinned=true; rasters_[key]={t,rasterFrame_}; }
+    pool_[t].reduction=reduction;
     return t;
 }
 
 void Gpu::fullscreen() {
+    profile.fullscreen();
     glBindVertexArray(quadVao_);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glBindVertexArray(0);
@@ -619,8 +780,15 @@ void Gpu::fullscreen() {
 
 int Gpu::downsample(int src) {
     const int w = std::max(1, (pool_[src].w + 1) / 2), h = std::max(1, (pool_[src].h + 1) / 2);
+    GpuProfile::Scope timing(profile,"downsample",w,h,"RGBA16F");
     const int dst = acquire(w, h);
-    glBindFramebuffer(GL_FRAMEBUFFER, pool_[dst].fbo);
+    bindFramebuffer(GL_FRAMEBUFFER, pool_[dst].fbo);
+    const QRect source=pool_[src].bounds;
+    const int x0=std::max(0,int(std::floor(double(source.left())*w/pool_[src].w))-2);
+    const int y0=std::max(0,int(std::floor(double(source.top())*h/pool_[src].h))-2);
+    const int x1=std::min(w,int(std::ceil(double(source.x()+source.width())*w/pool_[src].w))+2);
+    const int y1=std::min(h,int(std::ceil(double(source.y()+source.height())*h/pool_[src].h))+2);
+    prepareBounded(dst,QRect(x0,y0,x1-x0,y1-y0));
     glViewport(0, 0, w, h);
     glDisable(GL_BLEND);
     glUseProgram(downP_.id);
@@ -628,13 +796,18 @@ int Gpu::downsample(int src) {
     glBindTexture(GL_TEXTURE_2D, pool_[src].tex);
     downP_.set("u_tex", 0);
     fullscreen();
+    glDisable(GL_SCISSOR_TEST);
     return dst;
 }
 
 int Gpu::blurPass(int src, float sigma, bool horizontal) {
     const int w = pool_[src].w, h = pool_[src].h;
+    GpuProfile::Scope timing(profile,horizontal?"blur-H":"blur-V",w,h,"RGBA16F",sigma,1+2*std::min(int(std::ceil(sigma*3)),24));
     const int dst = acquire(w, h);
-    glBindFramebuffer(GL_FRAMEBUFFER, pool_[dst].fbo);
+    bindFramebuffer(GL_FRAMEBUFFER, pool_[dst].fbo);
+    const int pad=std::min(int(std::ceil(sigma*3)),24)+2;
+    const QRect support=pool_[src].bounds.adjusted(horizontal?-pad:0,horizontal?0:-pad,horizontal?pad:0,horizontal?0:pad).intersected(QRect(0,0,w,h));
+    prepareBounded(dst,support);
     glViewport(0, 0, w, h);
     glDisable(GL_BLEND);
     glUseProgram(blurP_.id);
@@ -644,14 +817,20 @@ int Gpu::blurPass(int src, float sigma, bool horizontal) {
     blurP_.set("u_sigma", sigma);
     blurP_.set("u_dir", horizontal ? 1.f / w : 0.f, horizontal ? 0.f : 1.f / h);
     fullscreen();
+    glDisable(GL_SCISSOR_TEST);
     return dst;
 }
 
 int Gpu::blurred(int tex, float sigmaDesign) {
     const float s = float(sigmaDesign * pixelScale());
     if (s < 0.3f) return tex;
+    const bool retained=pool_[tex].pinned;
+    if(retained) {
+        const auto found=filters_.find({tex,sigmaDesign});
+        if(found!=filters_.end()) return found->second;
+    }
     int cur = tex;
-    float f = 1;
+    float f = float(pool_[tex].reduction);
     while (s / f > 3.f && f < 32.f) {
         const int next = downsample(cur);
         if (cur != tex) pool_[cur].used = false;
@@ -662,10 +841,13 @@ int Gpu::blurred(int tex, float sigmaDesign) {
     if (cur != tex) pool_[cur].used = false;
     const int b = blurPass(a, s / f, false);
     pool_[a].used = false;
+    if(retained) { pool_[b].pinned=true; filters_[{tex,sigmaDesign}]=b; }
     return b;
 }
 
 void Gpu::composite(int tex, Blend blend, float gain, float opacity) {
+    flushEffect();
+    GpuProfile::Scope timing(profile,"composite",w_,h_,"RGBA16F-MSAA");
     bindMain();
     glUseProgram(compositeP_.id);
     glActiveTexture(GL_TEXTURE0);
@@ -674,13 +856,20 @@ void Gpu::composite(int tex, Blend blend, float gain, float opacity) {
     compositeP_.set("u_gain", gain);
     compositeP_.set("u_opacity", opacity);
     setBlend(blend, 1);
+    const auto& t=pool_[tex];
+    const int x0=std::max(0,int(std::floor(double(t.bounds.x())*w_/t.w))-2);
+    const int y0=std::max(0,int(std::floor(double(t.bounds.y())*h_/t.h))-2);
+    const int x1=std::min(w_,int(std::ceil(double(t.bounds.x()+t.bounds.width())*w_/t.w))+2);
+    const int y1=std::min(h_,int(std::ceil(double(t.bounds.y()+t.bounds.height())*h_/t.h))+2);
+    scissor(QRect(x0,y0,x1-x0,y1-y0));
     fullscreen();
+    glDisable(GL_SCISSOR_TEST);
 }
 
 void Gpu::over(const Canvas& canvas, float gain, float blur, float opacity) {
     if (canvas.empty() || opacity <= 0.001f) return;
     if (blur <= 0 && opacity >= 0.999f) { draw(canvas, Blend::Over, gain); return; }
-    int t = layer(canvas);
+    int t = layer(canvas,blur);
     const int b = blurred(t, blur);
     composite(b, Blend::Over, gain, opacity);
     pool_[t].used = false;
@@ -689,7 +878,7 @@ void Gpu::over(const Canvas& canvas, float gain, float blur, float opacity) {
 
 void Gpu::add(const Canvas& canvas, float gain, float blur) {
     if (canvas.empty() || gain <= 0) return;
-    int t = layer(canvas);
+    int t = layer(canvas,blur);
     const int b = blurred(t, blur);
     composite(b, Blend::Add, gain, 1);
     pool_[t].used = false;
@@ -701,20 +890,171 @@ Program& Gpu::effect(const std::string& name, const char* body) {
     if (it != effects_.end()) return it->second;
     Program& p = effects_[name];
     p.id = link(fullscreenVs, std::string(effectHeader) + body, name.c_str());
+    p.body=body;p.name=name;p.fusible=canFuse(p);
+    if(p.fusible) {
+        const std::regex floats(R"(uniform\s+float\s+([^;]+);)");
+        const std::regex scalar(R"(\s*([A-Za-z_]\w*)\s*(?:,|$))");
+        for(std::sregex_iterator i(p.body.begin(),p.body.end(),floats),end;i!=end;++i) {
+            const std::string fields=(*i)[1];
+            for(std::sregex_iterator j(fields.begin(),fields.end(),scalar),e;j!=e;++j)p.scalarUniforms.insert((*j)[1]);
+        }
+    }
     return p;
 }
 
+
+
+bool Gpu::canFuse(const Program& p) const {
+    // Pure fragment outputs only. Texture reads, fragment side effects and
+    // global state need the original immediate pass boundary.
+    if(p.body.empty() || p.body.find("sampler")!=std::string::npos || p.body.find("discard")!=std::string::npos
+       || p.body.find("gl_")!=std::string::npos || p.body.find('#')!=std::string::npos) return false;
+    const auto body=std::regex_replace(p.body,std::regex(R"(/\*[\s\S]*?\*/|//[^\n]*)"),"");
+    const std::regex uniform(R"(\s*uniform\s+\w+\s+[^;]+;\s*)");
+    const std::regex function(R"(\s*(?:void|float|int|vec[234])\s+\w+\s*\([\s\S]*\)\s*)");
+    int depth=0;std::string declaration;
+    for(char c:body) {
+        if(depth==0) {
+            if(c=='{') {if(!std::regex_match(declaration,function))return false;declaration.clear();++depth;}
+            else {declaration+=c;if(c==';') {if(!std::regex_match(declaration,uniform))return false;declaration.clear();}}
+        } else if(c=='{') ++depth;
+        else if(c=='}') --depth;
+    }
+    return depth==0 && declaration.find_first_not_of(" \t\r\n")==std::string::npos;
+}
+
+void Gpu::applyUniforms(Program& p,const std::map<std::string,Program::Uniform>& values,const std::string& prefix) {
+    for(const auto& entry:values) {
+        const auto& u=entry.second;const auto name=prefix+entry.first;
+        if(u.integral) p.set(name.c_str(),u.integer);
+        else p.setArray(name.c_str(),u.values.data(),u.count,u.components);
+    }
+}
+void Gpu::flushEffect() {
+    if(!pendingEffect_.program) return;
+    auto pending=std::move(pendingEffect_);pendingEffect_={};
+    pass(*pending.program,Blend::Replace,[&](Program& p) { applyUniforms(p,pending.uniforms); },-2,pending.clip);
+}
+bool Gpu::fuseEffect(Program& p,Blend blend,const QRectF& clip) {
+    auto& first=*pendingEffect_.program;
+    if((blend!=Blend::Over && blend!=Blend::Add) || clip!=pendingEffect_.clip || p.body.find("sampler")!=std::string::npos) return false;
+    const auto key=std::make_tuple(first.id,p.id,int(blend));
+    if(fusedEffects_.size()>=64 && !fusedEffects_.count(key)) return false;
+    auto result=fusedEffects_.try_emplace(key);
+    auto& cached=result.first->second;
+    if(result.second) {
+        // Share scalar inputs from identical authored prefixes, such as a
+        // common cloud helper. Keep one program per pair; differing inputs
+        // fall back to the original passes rather than compiling variants.
+        size_t length=0;
+        while(length<first.body.size() && length<p.body.size() && first.body[length]==p.body[length])++length;
+        const auto prefix=first.body.substr(0,length);
+        for(const auto& name:first.scalarUniforms)
+            if(p.scalarUniforms.count(name) && std::regex_search(prefix,std::regex("\\b"+name+"\\b"))) cached.shared.insert(name);
+    }
+    const auto& shared=cached.shared;
+    for(const auto& name:shared) {
+        const auto a=pendingEffect_.uniforms.find(name),b=p.uniforms.find(name);
+        if(a==pendingEffect_.uniforms.end() || b==p.uniforms.end()) return false;
+        const auto& x=a->second;const auto& y=b->second;
+        if(x.integral || y.integral || x.count!=1 || y.count!=1 || x.components!=1 || y.components!=1
+           || x.values.size()!=1 || y.values.size()!=1 || std::memcmp(x.values.data(),y.values.data(),sizeof(float))!=0) return false;
+    }
+    auto& fused=cached.program;
+    if(!fused.id) {
+        std::string source=effectHeader;
+        source.insert(source.find("\n")+1,"#extension GL_ARB_shading_language_packing : require\n");
+        auto stage=[&](const Program& effect,const std::string& prefix) {
+            std::string body=effect.body;
+            if(prefix=="b_") {
+                const std::regex declarations(R"(uniform\s+(\w+)\s+([^;]+);)");
+                std::string rewritten;size_t previous=0;
+                for(std::sregex_iterator i(body.begin(),body.end(),declarations),end;i!=end;++i) {
+                    rewritten+=body.substr(previous,i->position()-previous);
+                    std::string names=(*i)[2];size_t from=0;
+                    while(from<names.size()) {
+                        size_t comma=names.find(',',from);if(comma==std::string::npos)comma=names.size();
+                        std::string field=names.substr(from,comma-from);
+                        const auto start=field.find_first_not_of(" \t\n");
+                        const auto stop=field.find_first_of("[ \t\n",start);
+                        const auto name=field.substr(start,stop-start);
+                        if(!shared.count(name)) rewritten+="uniform "+(*i)[1].str()+" "+field+";\n";
+                        from=comma+1;
+                    }
+                    previous=i->position()+i->length();
+                }
+                body=rewritten+body.substr(previous);
+            }
+            std::set<std::string> names={"main","o"};
+            const std::regex uniform(R"(uniform\s+\w+\s+([^;]+);)");
+            for(std::sregex_iterator i(effect.body.begin(),effect.body.end(),uniform),end;i!=end;++i) {
+                std::string declaration=(*i)[1];
+                const std::regex name(R"(([A-Za-z_]\w*)\s*(?:\[[^\]]*\])?\s*(?:,|$))");
+                for(std::sregex_iterator j(declaration.begin(),declaration.end(),name),e;j!=e;++j) names.insert((*j)[1]);
+            }
+            const std::regex function(R"((?:void|float|int|vec[234])\s+([A-Za-z_]\w*)\s*\()");
+            for(std::sregex_iterator i(effect.body.begin(),effect.body.end(),function),end;i!=end;++i) names.insert((*i)[1]);
+            source+="vec4 "+prefix+"o;\n";
+            if(prefix=="b_") for(const auto& name:shared) names.insert(name);
+            for(const auto& name:names) source+="#define "+name+" "+(prefix=="b_" && shared.count(name) ? "a_" : prefix)+name+"\n";
+            source+=body+"\n";
+            for(const auto& name:names)source+="#undef "+name+"\n";
+        };
+        stage(first,"a_");stage(p,"b_");
+        // Match the stored first pass, including its half-float rounding.
+        source+="vec4 halfRound(vec4 v) { return vec4(unpackHalf2x16(packHalf2x16(v.xy)),unpackHalf2x16(packHalf2x16(v.zw))); }\n";
+        source+="void main() { a_main(); b_main(); vec4 dst=";
+        source+="halfRound(a_o);";
+        source+=blend==Blend::Over ? "o=b_o+dst*(1.0-b_o.a);}" : "o=vec4(dst.rgb+b_o.rgb,dst.a);}";
+        fused.id=link(fullscreenVs,source,"consecutive effects");
+    }
+    GpuProfile::Scope timing(profile,"fused:"+first.name+"+"+p.name,w_,h_,"RGBA16F-MSAA");
+    bindMain();glUseProgram(fused.id);fused.set("u_size",float(w_),float(h_));fused.set("u_scale",float(pixelScale()));
+    applyUniforms(fused,pendingEffect_.uniforms,"a_");applyUniforms(fused,p.uniforms,"b_");
+    setBlend(Blend::Replace,1);
+    if(!clip.isEmpty()) {
+        const int x0=std::clamp(int(std::floor(clip.left()*w_/1920.0))-1,0,w_);
+        const int x1=std::clamp(int(std::ceil(clip.right()*w_/1920.0))+1,0,w_);
+        const int y0=std::clamp(int(std::floor((1080-clip.bottom())*h_/1080.0))-1,0,h_);
+        const int y1=std::clamp(int(std::ceil((1080-clip.top())*h_/1080.0))+1,0,h_);
+        scissor(QRect(x0,y0,x1-x0,y1-y0));
+    }
+    fullscreen();glDisable(GL_SCISSOR_TEST);pendingEffect_={};return true;
+}
+
 void Gpu::pass(Program& p, Blend blend, const std::function<void(Program&)>& setup, int target, const QRectF& clip) {
+    bool configured=false;
+    std::map<std::string,Program::Uniform> configuredUniforms;
+    if(pendingEffect_.program) {
+        if(target==-1 && (blend==Blend::Over || blend==Blend::Add) && clip==pendingEffect_.clip && p.fusible) {
+            glUseProgram(p.id);p.set("u_size",float(w_),float(h_));p.set("u_scale",float(pixelScale()));
+            if(setup)setup(p);
+            configured=true;configuredUniforms=p.uniforms;
+            if(pendingEffect_.program && fuseEffect(p,blend,clip))return;
+        }
+        flushEffect();
+    }
+    if(effectFusion_ && target==-1 && blend==Blend::Replace && p.fusible) {
+        glUseProgram(p.id);p.set("u_size",float(w_),float(h_));p.set("u_scale",float(pixelScale()));
+        if(setup)setup(p);
+        pendingEffect_={&p,clip,p.uniforms};return;
+    }
+
     int w = w_, h = h_;
     if (target >= 0) {
-        glBindFramebuffer(GL_FRAMEBUFFER, pool_[target].fbo);
+        bindFramebuffer(GL_FRAMEBUFFER, pool_[target].fbo);
         w = pool_[target].w; h = pool_[target].h;
         glViewport(0, 0, w, h);
     } else bindMain();
+    std::string name="effect";
+    if(profile.enabled()) for(const auto& entry:effects_) if(entry.second.id==p.id) { name=entry.first;break; }
+    GpuProfile::Scope timing(profile,name,w,h,target>=0?"RGBA16F":"RGBA16F-MSAA");
     glUseProgram(p.id);
     p.set("u_size", float(w), float(h));
     p.set("u_scale", float(pixelScale()));
-    if (setup) setup(p);
+    if(target>=0) pool_[target].dirty=pool_[target].bounds=QRect(0,0,w,h);
+    if(configured) applyUniforms(p,configuredUniforms);
+    else if(setup) setup(p);
     setBlend(blend, 1);
     if(!clip.isEmpty()) {
         const int x0=std::clamp(int(std::floor(clip.left()*w/1920.0))-1,0,w);
@@ -728,6 +1068,7 @@ void Gpu::pass(Program& p, Blend blend, const std::function<void(Program&)>& set
 }
 
 void Gpu::beginOffscreen(bool transparent) {
+    flushEffect();
     current_ = &alt_;
     bindMain();
     glClearColor(0, 0, 0, transparent ? 0.f : 1.f);
@@ -742,10 +1083,13 @@ int Gpu::endOffscreen() {
 }
 
 int Gpu::snapshot() {
+    flushEffect();
+    GpuProfile::Scope timing(profile,"snapshot-resolve",w_,h_,"RGBA16F");
     const int t = acquire(w_, h_);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, current_->fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pool_[t].fbo);
+    bindFramebuffer(GL_READ_FRAMEBUFFER, current_->fbo);
+    bindFramebuffer(GL_DRAW_FRAMEBUFFER, pool_[t].fbo);
     glBlitFramebuffer(0, 0, w_, h_, 0, 0, w_, h_, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    pool_[t].dirty=pool_[t].bounds;
     return t;
 }
 
@@ -756,11 +1100,13 @@ void Gpu::bindTexture(int unit, int tex, Program& p, const char* name) {
 }
 
 void Gpu::finish(const FinishParams& f, const Canvas* overlay) {
+    GpuProfile::Group group(profile,"finish");
     const int img = snapshot();
     int b0 = -1, b1 = -1, b2 = -1;
     if (f.bloom > 0) {
+        const int extract=profile.start("bright-extract",w_,h_,"RGBA16F");
         const int bright = acquire(w_, h_);
-        glBindFramebuffer(GL_FRAMEBUFFER, pool_[bright].fbo);
+        bindFramebuffer(GL_FRAMEBUFFER, pool_[bright].fbo);
         glViewport(0, 0, w_, h_);
         glDisable(GL_BLEND);
         glUseProgram(brightP_.id);
@@ -769,11 +1115,26 @@ void Gpu::finish(const FinishParams& f, const Canvas* overlay) {
         brightP_.set("u_tex", 0);
         brightP_.set("u_threshold", f.threshold);
         fullscreen();
-        b0 = blurred(bright, 5);
-        b1 = blurred(bright, 22);
-        b2 = blurred(bright, 70);
+        pool_[bright].dirty=pool_[bright].bounds;
+        profile.stop(extract);
+        // Each bloom radius used to rebuild the same downsample prefix.
+        // Share that exact pyramid, then run the unchanged separable kernels.
+        int cur=bright, reduction=1;
+        int* results[]={&b0,&b1,&b2};
+        const float sigmas[]={5,22,70};
+        for(int i=0;i<3;++i) {
+            while(sigmas[i]*pixelScale()/reduction>3 && reduction<32) {
+                const int next=downsample(cur);
+                if(cur!=bright) pool_[cur].used=false;
+                cur=next; reduction*=2;
+                pool_[cur].reduction=reduction;
+            }
+            *results[i]=blurred(cur,sigmas[i]);
+        }
+        if(cur!=bright) pool_[cur].used=false;
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, outFbo_);
+    GpuProfile::Scope grade(profile,"grade-overlay",w_,h_,"RGBA8");
+    bindFramebuffer(GL_FRAMEBUFFER, outFbo_);
     glViewport(0, 0, w_, h_);
     glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -801,25 +1162,25 @@ void Gpu::finish(const FinishParams& f, const Canvas* overlay) {
         drawCanvas(*overlay);
     }
     if(scaledFbo_) {
-        glBindFramebuffer(GL_READ_FRAMEBUFFER,outFbo_);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER,scaledFbo_);
+        bindFramebuffer(GL_READ_FRAMEBUFFER,outFbo_);
+        bindFramebuffer(GL_DRAW_FRAMEBUFFER,scaledFbo_);
         glBlitFramebuffer(0,0,w_,h_,0,0,allocatedOutputW_,allocatedOutputH_,GL_COLOR_BUFFER_BIT,GL_LINEAR);
     }
-
+    trackMemory();
 }
 
 
 
 void Gpu::present(GLuint framebuffer) {
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, finishedFbo());
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
+    bindFramebuffer(GL_READ_FRAMEBUFFER, finishedFbo());
+    bindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
     glBlitFramebuffer(0, 0, allocatedOutputW_, allocatedOutputH_, 0, 0, allocatedOutputW_, allocatedOutputH_, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    bindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 }
 
 void Gpu::readRgb(std::vector<unsigned char>& rgb) {
     std::vector<unsigned char> rgba(std::size_t(allocatedOutputW_) * allocatedOutputH_ * 4);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, finishedFbo());
+    bindFramebuffer(GL_READ_FRAMEBUFFER, finishedFbo());
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glReadPixels(0, 0, allocatedOutputW_, allocatedOutputH_, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
     rgb.resize(std::size_t(allocatedOutputW_) * allocatedOutputH_ * 3);

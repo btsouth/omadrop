@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.2
+
+- Osaka Jade renders more than twice as fast on integrated graphics without
+  changing how it looks. On an Intel UHD 770 at 1080p a frame now takes about
+  30 ms instead of 69 ms.
+- Slower GPUs keep full resolution at a steady 30 fps instead of dropping to a
+  lower resolution. Resolution only steps down when 30 fps at full resolution
+  is out of reach. Fast GPUs stay at 60 fps.
+
 ## 0.6.1
 
 - Fix MilkDrop mode not starting with "This screen" selected. Omadrop now

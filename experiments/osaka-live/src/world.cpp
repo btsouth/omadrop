@@ -39,6 +39,7 @@ void World::render(int w,int h,double t,const Audio& audio,const Score& score,co
     w=std::max(1,int(std::lround(w*renderedScale_)));
     h=std::max(1,int(std::lround(h*renderedScale_)));
     QElapsedTimer cpu; cpu.start();
+    gpu_.profile.begin(t,schedule.fullFireworkShow,w,h);
     if(measure) glBeginQuery(GL_TIME_ELAPSED,query.id);
     if (w != cacheWidth_ || h != cacheHeight_) {
         gpu_.clearGeometryCache();
@@ -51,6 +52,7 @@ void World::render(int w,int h,double t,const Audio& audio,const Score& score,co
     gpu_.begin(w,h);
     Ctx c{gpu_,t,audio,&score,seed_,&canvases_,&schedule,cacheGeometry_ ? &staticGeometry_ : nullptr};
     drawOsaka(c,{});
+    gpu_.profile.end();
     if(measure) {
         glEndQuery(GL_TIME_ELAPSED); query.pending=true;
         queryIndex_=(queryIndex_+1)%queries_.size();

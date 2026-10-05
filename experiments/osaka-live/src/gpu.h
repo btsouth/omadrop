@@ -7,11 +7,15 @@
 // finish() applies bloom, vignette, the soft knee and grain into an 8-bit
 // multisampled output where the title is drawn last.
 #include "canvas.h"
+#include "gpu_profile.h"
 #include "glcore.h"
 #include <QString>
 #include <QRectF>
+#include <QRect>
 #include <functional>
 #include <map>
+#include <set>
+#include <tuple>
 #include <memory>
 #include <string>
 #include <vector>
@@ -22,6 +26,12 @@ enum class Blend { Over, Add, Replace, Multiply };
 class Program {
 public:
     GLuint id = 0;
+    struct Uniform { std::vector<float> values; int count=1,components=1,integer=0; bool integral=false; };
+    std::string body,name;
+    bool fusible=false;
+    std::set<std::string> scalarUniforms;
+    std::map<std::string,Uniform> uniforms;
+    void remember(const char* name,const float* values,int count,int components);
     GLint loc(const char* name);
     void set(const char* name, float v);
     void set(const char* name, float x, float y);
@@ -46,6 +56,7 @@ public:
     struct GeometryStats {
         std::uint64_t uploads = 0, staticUploads = 0, vertexBytes = 0, paintBytes = 0;
     };
+    GpuProfile profile;
     Gpu();
     ~Gpu();
     void clearGeometryCache();
@@ -63,7 +74,8 @@ public:
     // Offscreen: render, optionally blur, then composite.
     void over(const Canvas& canvas, float gain = 1.f, float blur = 0.f, float opacity = 1.f);
     void add(const Canvas& canvas, float gain = 1.f, float blur = 0.f);
-    int layer(const Canvas& canvas);
+    // A planned wide blur can render at its already reduced target size.
+    int layer(const Canvas& canvas, float sigmaDesign=0);
     int blurred(int tex, float sigmaDesign);
     void composite(int tex, Blend blend, float gain = 1.f, float opacity = 1.f);
 
@@ -88,17 +100,39 @@ public:
     void readRgb(std::vector<unsigned char>& rgb);
 
 private:
-    struct Target { GLuint fbo = 0, color = 0, depth = 0; };
-    struct Tex { GLuint tex = 0, fbo = 0; int w = 0, h = 0; bool used = false; };
+    struct Target { GLuint fbo = 0, color = 0, depth = 0; QRect dirty; };
+    struct Tex { GLuint tex = 0, fbo = 0; int w = 0, h = 0; int reduction=1; bool used = false, pinned = false; QRect bounds, dirty; };
 
+    void bindFramebuffer(GLenum target, GLuint fbo);
     void allocate();
     void release();
+    void trackMemory();
+    bool memoryProfile_=false;
+    std::uint64_t peakPinnedBytes_=0, peakPoolBytes_=0, peakReducedBytes_=0;
+    std::size_t peakPinnedCount_=0, peakPoolCount_=0, peakReducedCount_=0;
     int acquire(int w, int h);
+    using RasterKey=std::vector<std::pair<std::uint64_t,std::uint64_t>>;
+    struct RasterEntry { int texture; std::uint64_t frame; };
+    std::map<RasterKey,RasterEntry> rasters_;
+    std::map<std::pair<int,float>,int> filters_;
+    std::uint64_t rasterFrame_=0;
+    bool rasterKey(const Canvas& canvas,RasterKey& key) const;
+    void clearRasterCache();
     void bindMain();
+    void scissor(const QRect& bounds);
+    void prepareBounded(int texture, const QRect& bounds);
     void drawCanvas(const Canvas& canvas);
     void bindGeometry(const Canvas& canvas);
     void setBlend(Blend blend, float gain);
     void fullscreen();
+    struct PendingEffect { Program* program=nullptr; QRectF clip; std::map<std::string,Program::Uniform> uniforms; } pendingEffect_;
+    struct FusedEffect { Program program; std::set<std::string> shared; };
+    std::map<std::tuple<GLuint,GLuint,int>,FusedEffect> fusedEffects_;
+    void flushEffect();
+    bool canFuse(const Program&) const;
+    void applyUniforms(Program&,const std::map<std::string,Program::Uniform>&,const std::string& prefix={});
+    bool fuseEffect(Program&,Blend,const QRectF&);
+    bool effectFusion_=false;
     int downsample(int src);
     int blurPass(int src, float sigmaPx, bool horizontal);
 
@@ -112,6 +146,7 @@ private:
     bool cacheGeometry_ = true;
     int w_ = 0, h_ = 0, samples_ = 4;
     Target main_, layer_, out_, alt_;
+    std::map<std::pair<int,int>,Target> reducedLayers_;
     Target* current_ = &main_;
     GLuint outTex_ = 0, outFbo_ = 0;
     GLuint scaledTex_=0,scaledFbo_=0;

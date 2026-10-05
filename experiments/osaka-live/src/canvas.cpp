@@ -1,6 +1,7 @@
 #include "canvas.h"
 
 #include <cmath>
+#include <limits>
 
 namespace Journey {
 void Canvas::reset(double pixelScale) {
@@ -18,6 +19,20 @@ void Canvas::reset(double pixelScale) {
     gradients_.clear();
 }
 
+
+std::array<float,4> Canvas::bounds() const {
+    float x0=std::numeric_limits<float>::infinity(), y0=x0, x1=-x0, y1=-x0;
+    for(const auto& v:verts_) {
+        x0=std::min(x0,v.x); y0=std::min(y0,v.y);
+        x1=std::max(x1,v.x); y1=std::max(y1,v.y);
+    }
+    for(const auto* retained:retained_) {
+        const auto b=retained->bounds();
+        x0=std::min(x0,b[0]); y0=std::min(y0,b[1]);
+        x1=std::max(x1,b[2]); y1=std::max(y1,b[3]);
+    }
+    return {x0,y0,x1,y1};
+}
 
 void Canvas::append(const Canvas& retained) {
     const int index = int(retained_.size());

@@ -191,6 +191,7 @@ void roof(Canvas& cv, double x0, double x1, double ye, double yr, double ov, Col
 
 // ---------- backdrop ----------
 void sky(Ctx& c, const OsakaState& s, const Life& L) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"sky");
     std::string body = std::string(Shaders::cloud) + Shaders::osakaSky;
     Program& p = c.gpu.effect("osakaSky", body.c_str());
     const double energy = 0.45 + 0.35 * c.a.bass + 0.25 * c.a.surge;
@@ -203,6 +204,7 @@ void sky(Ctx& c, const OsakaState& s, const Life& L) {
 }  // namespace
 
 void drawDisc(Ctx& c, const DiscLook& d, double camForClouds) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"drawDisc");
     std::string body = std::string(Shaders::cloud) + Shaders::disc;
     Program& p = c.gpu.effect("disc", body.c_str());
     // Two resting rings breathe; strong bass sends rings travelling outward.
@@ -250,6 +252,7 @@ void band(Ctx& c, double y0, double sigma, double lo, double hi, double shift, d
 }
 
 void ridges(Ctx& c, const OsakaState& s) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"ridges");
     struct Spec { int seed; double base, amp, scale, par; Col top, bot; };
     const Spec specs[3] = {
         {21, 622, 250, 620, 0.04, Col(0.050f, 0.300f, 0.220f), Col(0.30f, 0.84f, 0.60f)},
@@ -281,6 +284,7 @@ void ridges(Ctx& c, const OsakaState& s) {
 
 // The one mountain: a broad cone in Osaka Jade that recedes to Fuji at sea.
 void drawMountain(Ctx& c, const MountainLook& m) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"drawMountain");
     Canvas& cv = c.canvas();
     c.retain(cv, "mountain", [&](Canvas& cv) {
         const double h = m.base - m.peak;
@@ -319,6 +323,7 @@ namespace {
 // streets of lamps, a few cars, and warning lights on the towers. Its
 // windows sparkle with the treble.
 void valleyCity(Ctx& c, const OsakaState& s) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"valleyCity");
     const double t = c.t, ox = -s.cam * 0.14;
     Rng rng(41);
     Canvas& bld = c.canvas();
@@ -390,6 +395,7 @@ void valleyCity(Ctx& c, const OsakaState& s) {
 }
 
 void nearRidge(Ctx& c, const OsakaState& s) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"nearRidge");
     Canvas& cv = c.canvas();
     const auto& pts = c.points("near-ridge", [&] {
         std::vector<V2> points;
@@ -432,6 +438,7 @@ void nearRidge(Ctx& c, const OsakaState& s) {
 
 // A lit train crosses the valley below the ridge; sparks on bass hits.
 void train(Ctx& c, const OsakaState& s) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"train");
     const double t = c.schedule->action(Moment::Train,c.t,9.8);
     if (t < 9.8 || t > 20.0) return;
     const double ox = -s.cam * 0.35;
@@ -471,6 +478,7 @@ void train(Ctx& c, const OsakaState& s) {
 
 // After the firework, sky lanterns rise from the valley.
 void skyLanterns(Ctx& c, const OsakaState& s, const Life& L) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"skyLanterns");
     if (L.surge.t < 0) return;
     const double t = c.t;
     // Retire the complete warm lantern before its glow leaves a dark shell.
@@ -506,6 +514,7 @@ V2 starPos(const Shell& sh, V2 dir, double speed, double age, double fx, double 
 }
 
 void firework(Ctx& c, const OsakaState& s, const Life& L) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"firework");
     if (L.surge.t < 0 || L.shells.empty()) return;
     const double t = c.t;
     Canvas& smoke = c.canvas();
@@ -632,6 +641,7 @@ void firework(Ctx& c, const OsakaState& s, const Life& L) {
 
 // ---------- town ----------
 void downhillRoofs(Ctx& c, const OsakaState& s, const Life& L) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"downhillRoofs");
     Rng rng(55);
     struct Row { double yb, sc, par; int n; Col wall, rf2; };
     const Row rows[3] = {{850, 0.40, 0.42, 10, Col(0.050f, 0.290f, 0.210f), Col(0.085f, 0.420f, 0.300f)},
@@ -682,6 +692,7 @@ void downhillRoofs(Ctx& c, const OsakaState& s, const Life& L) {
 }
 
 void rightHouses(Ctx& c, const OsakaState& s, const Life& L) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"rightHouses");
     const double t = c.t, ox = -s.cam * 0.9;
     Canvas& cv = c.canvas();
     Canvas& w = c.canvas();
@@ -864,6 +875,7 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
 }
 
 void streetSurface(Ctx& c, const OsakaState& s) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"streetSurface");
     const double ox = -s.cam * 0.85;
     Canvas& cv = c.canvas();
     const double qx = QUAY - s.cam * 0.85;
@@ -973,6 +985,7 @@ void streetFigure(Canvas& cv, const RigIn& r, Col cloth) {
 }
 
 void streetFront(Ctx& c, const OsakaState& s, const Life& L) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"streetFront");
     const double t = c.t, ox = -s.cam * 0.95;
     Canvas& p = c.canvas();
     Canvas& l = c.canvas();
@@ -1063,6 +1076,7 @@ void streetFront(Ctx& c, const OsakaState& s, const Life& L) {
 
 // ---------- the noodle cart, the couple, the cat on the rail ----------
 void yatai(Ctx& c, const OsakaState& s, const Life& L) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"yatai");
     const double t = c.t, ox = -s.cam * 0.85, yx = 770 + ox;
     const double yo = s.chapter ? std::min(1.0, flickerOn(t - 5.0)) : 1.0;
     Canvas& b = c.canvas();
@@ -1396,6 +1410,7 @@ const double V_FORM[15][3] = {{0, 0, 1.0}, {-46, 22, 0.95}, {-52, -30, 0.9}, {-1
 // Two passes: `far` draws the valley poles and the spans running down to them,
 // behind the street and under the fog; the near pass draws everything else.
 void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<BirdPlan>& birds, bool far) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"polesWires");
     const double t = c.t, cam = s.cam;
     Canvas& cv = c.canvas();
     Canvas& l = c.canvas();
@@ -1627,6 +1642,7 @@ void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<Bi
 // string (alternating direction), bass hits lift them all, and every
 // firework shell makes them flare as its light arrives.
 void festoon(Ctx& c, const OsakaState& s, const Life& L) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"festoon");
     const double t = c.t;
     const V2 a(628 - s.cam * 1.05, 594), b(POLES[0].x - 16 - s.cam * POLES[0].par, 640);
     if (std::max(a.x, b.x) < -40 || std::min(a.x, b.x) > 1960) return;
@@ -1687,6 +1703,7 @@ void festoon(Ctx& c, const OsakaState& s, const Life& L) {
 
 // Moths circling the street lamp; they get busier with the treble.
 void moths(Ctx& c, const OsakaState& s) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"moths");
     const double t = c.t, px = POLES[0].x - s.cam * POLES[0].par - 83, py = 612;
     if (px < -40 || px > 1960) return;
     Canvas& m = c.canvas();
@@ -1705,6 +1722,7 @@ void moths(Ctx& c, const OsakaState& s) {
 }
 
 void drawBirds(Ctx& c, const OsakaState& s, const Life& L, const std::vector<BirdPlan>& plan) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"drawBirds");
     const double t = c.t;
     Canvas& cv = c.canvas();
     const Spans spans = wireRuns(s.cam);
@@ -1775,6 +1793,7 @@ void drawBearerLantern(Canvas& body, Canvas& light, V2 hand, double swing, doubl
 namespace {
 // ---------- the near house ----------
 void nearHouse(Ctx& c, const OsakaState& s, const Life& L) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"nearHouse");
     const double t = c.t, ox = -s.cam * 1.05;
     Canvas& cv = c.canvas();
     Canvas& w = c.canvas();
@@ -1984,6 +2003,7 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
 }
 
 void wisteria(Ctx& c, const OsakaState& s, const Life& L) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"wisteria");
     if (s.wisteria <= 0) return;
     const double t = c.t, ox = -s.cam * 1.25;
     // Past the quay the whole canopy has left the screen. Bound crowns,
@@ -2063,6 +2083,7 @@ void wisteria(Ctx& c, const OsakaState& s, const Life& L) {
 }
 
 void reflections(Ctx& c, const OsakaState& s) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"reflections");
     const int snap = c.gpu.snapshot();
     Program& p = c.gpu.effect("reflect", Shaders::reflect);
     c.gpu.pass(p, Blend::Add, [&](Program& q) {
@@ -2078,6 +2099,7 @@ double bearerX(double t) { return bearerAt(t).x; }
 // A shooting star crosses the upper sky on the first strong onset after
 // 15.5 s (timed fallback at 16.8 s): one small thing to catch on a rewatch.
 void shootingStar(Ctx& c, const OsakaState& s) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"shootingStar");
     const double age = c.schedule->action(Moment::Star,c.t,0);
     if (age < 0 || age > 0.9) return;
     const double u = easeOut(age / 0.75);
@@ -2098,6 +2120,7 @@ void shootingStar(Ctx& c, const OsakaState& s) {
 }
 
 void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain, const BackdropHooks* hooks) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"drawOsakaBackdrop");
     const Life L = lifeAt(c);
     sky(c, s, L);
     if (hooks && hooks->afterSky) hooks->afterSky();
@@ -2137,6 +2160,7 @@ void drawOsakaBackdrop(Ctx& c, const OsakaState& s, bool disc, bool mountain, co
 }
 
 void drawOsakaCoast(Ctx& c, const OsakaState& s, const BackdropHooks* hooks) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"drawOsakaCoast");
     if (s.land > 0.01) {
         const Life L = lifeAt(c);
         ridges(c, s);
@@ -2149,6 +2173,7 @@ void drawOsakaCoast(Ctx& c, const OsakaState& s, const BackdropHooks* hooks) {
 }
 
 void drawOsakaDistantTown(Ctx& c, const OsakaState& s) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"drawOsakaDistantTown");
     const Life L = lifeAt(c);
     const auto plan = birdPlan(c);
     if (s.land > 0.01) downhillRoofs(c, s, L);
@@ -2156,6 +2181,7 @@ void drawOsakaDistantTown(Ctx& c, const OsakaState& s) {
 }
 
 void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"drawOsakaForeground");
     const Life L = lifeAt(c);
     const auto plan = birdPlan(c);
     if (hooks.town) hooks.town();
@@ -2181,6 +2207,7 @@ void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks) {
 }
 
 void osakaFog(Ctx& c, double amount, double top, double bottom, Col col) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"osakaFog");
     if (amount <= 0.001) return;
     Program& p = c.gpu.effect("fog", Shaders::fog);
     c.gpu.pass(p, Blend::Over, [&](Program& q) {
@@ -2190,6 +2217,7 @@ void osakaFog(Ctx& c, double amount, double top, double bottom, Col col) {
 }
 
 void osakaGlowThrough(Ctx& c, const OsakaState& s, double amount) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"osakaGlowThrough");
     if (amount <= 0.01) return;
     const double t = c.t;
     Canvas& g = c.canvas();
@@ -2212,6 +2240,7 @@ void osakaGlowThrough(Ctx& c, const OsakaState& s, double amount) {
 }
 
 void drawOsaka(Ctx& c, const OsakaState& s) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"drawOsaka");
     drawOsakaBackdrop(c, s, true, true);
     drawOsakaForeground(c, s, {});
     FinishParams f;
