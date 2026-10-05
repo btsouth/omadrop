@@ -3,20 +3,13 @@
 // Persistent elements shared by every world: the bass disc, the mountain,
 // soft haze bands, and the Osaka stage pieces the crossing carries away.
 #include "world.h"
+#include "kit/mountain.h"
 #include "kit/disc.h"
 #include <functional>
 #include <vector>
 
 namespace Journey {
 
-struct MountainLook {
-    double px, peak, base, width;
-    Col top, bot;
-    double snow = 0, snowScale = 1, foot = 30;
-    Col snowCol;
-    double alpha = 1;
-};
-void drawMountain(Ctx& c, const MountainLook& m);
 
 void hazeBand(Ctx& c, double y0, double sigma, double lo, double hi, double shift, double seed, Col col,
               double gain, V2 noise = {480, 108});

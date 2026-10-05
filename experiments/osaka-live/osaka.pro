@@ -16,3 +16,6 @@ HEADERS += src/kit/primitives.h
 
 SOURCES += src/kit/disc.cpp
 HEADERS += src/kit/disc.h
+
+SOURCES += src/kit/mountain.cpp
+HEADERS += src/kit/mountain.h
