@@ -6,6 +6,7 @@
 #include "parts.h"
 #include "rig.h"
 #include "kit/neon.h"
+#include "kit/cloth.h"
 #include "kit/onset.h"
 #include "kit/lanterns.h"
 #include "kit/rooms.h"
@@ -674,16 +675,7 @@ Walker bearerAt(double) { return {800,330,0}; }
 
 // A little reflected lantern light on the street-facing cloth. Keep the
 // silhouette, but let a coat front / obi separate at small viewing sizes.
-void streetFigure(Canvas& cv, const RigIn& r, Col cloth) {
-    const Body b = solve(r);
-    drawBody(cv, b, INK);
-    const V2 side = V2(std::cos(r.lean), r.facing * std::sin(r.lean)) * r.facing;
-    const V2 shoulder = b.shoulder + side * (0.045 * r.h);
-    const V2 waist = r.hip + side * (0.045 * r.h);
-    cv.capsule(shoulder, waist, 0.021 * r.h, 0.024 * r.h, mix(INK, cloth, 0.22));
-    if (r.obi) cv.line(r.hip.x - 0.05 * r.h, r.hip.y - 0.03 * r.h,
-                       r.hip.x + 0.06 * r.h, r.hip.y - 0.03 * r.h, 0.05 * r.h, mix(INK, cloth, 0.28));
-}
+
 
 void streetFront(Ctx& c, const OsakaState& s, const Life& L) {
     GpuProfile::Group profileGroup(c.gpu.profile,"streetFront");

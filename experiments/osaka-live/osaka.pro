@@ -46,3 +46,6 @@ HEADERS += src/kit/palette.h src/kit/disc_shaders.h src/kit/haze_shaders.h \
 
 SOURCES += src/kit/lanterns.cpp
 HEADERS += src/kit/lanterns.h
+
+SOURCES += src/kit/cloth.cpp
+HEADERS += src/kit/cloth.h
