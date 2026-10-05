@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3
+
+- Fix MilkDrop mode with "All screens" selected on more than one display. The
+  second window opened as a small window on the focused display instead of
+  full screen on its own display.
+
 ## 0.6.2
 
 - Osaka Jade renders more than twice as fast on integrated graphics without
