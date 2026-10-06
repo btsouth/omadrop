@@ -225,6 +225,87 @@ public:
         }
         row.data[1]=i;c.gradient(row,translucent);
     }
+
+    Col preciseColor(const Node& n,QString text,const QString& current) const {
+        if(text=="currentColor")text=current;
+        static const QRegularExpression rgb(R"(^rgb\(\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)$)");
+        const auto m=rgb.match(text);
+        if(!m.hasMatch()) {const auto c=color(n,text,current);return Col(c.redF(),c.greenF(),c.blueF());}
+        return Col(std::clamp(number(n,m.captured(1),"color",true,255)/255.,0.,1.),
+                   std::clamp(number(n,m.captured(2),"color",true,255)/255.,0.,1.),
+                   std::clamp(number(n,m.captured(3),"color",true,255)/255.,0.,1.));
+    }
+    using Replay=std::function<void(Canvas&,const Col*,double)>;
+    Replay sourceReplay(const Node& n,const QString& text,double opacity,const Style& s,const QTransform& world,const QRectF& box) const {
+        if(!text.startsWith("url(")) {
+            const auto c=preciseColor(n,text,s.color);const auto a=opacity*color(n,text,s.color).alphaF();
+            return [c,a](Canvas& target,const Col* tint,double alpha) {target.color(tint?*tint:c,a*alpha);};
+        }
+        Canvas sample(scale);paint(sample,n,text,opacity,s,world,box);
+        const auto key=text.mid(text.indexOf('#')+1);const auto id=key.left(key.indexOf(')')).trimmed();
+        const auto g=gradient(*ids[id]);
+        if(sample.gradients().empty()) {
+            if(g.children.empty())return [](Canvas& c,const Col*,double){c.color(Col(0,0,0),0);};
+            const auto& last=*g.children.back();const auto col=preciseColor(last,last.a.value("stop-color","black"),s.color);
+            const auto a=alpha(last,"stop-opacity")*opacity*color(last,last.a.value("stop-color","black"),s.color).alphaF();
+            return [col,a](Canvas& c,const Col* tint,double alpha){c.color(tint?*tint:col,a*alpha);};
+        }
+        auto row=sample.gradients().back();bool translucent=false;
+        // Use the native linear equation, and preserve float channels before
+        // QColor's 16-bit conversion. Both are generic SVG paint operations.
+        const bool nativeLinear=g.tag=="linearGradient"&&g.children.size()<=8;
+        if(nativeLinear)row.data[0]=1;
+        for(std::size_t i=0;i<g.children.size();++i) {
+            const auto& stop=*g.children[i];auto c=preciseColor(stop,stop.a.value("stop-color","black"),s.color);
+            const float a=alpha(stop,"stop-opacity")*opacity*color(stop,stop.a.value("stop-color","black"),s.color).alphaF();
+            translucent|=a<.999f;
+            if(i<8){row.data[24+i*4]=c.r*(nativeLinear?a:1);row.data[25+i*4]=c.g*(nativeLinear?a:1);row.data[26+i*4]=c.b*(nativeLinear?a:1);row.data[27+i*4]=a;}
+            else {row.extraStops[i-8].c=c;row.extraStops[i-8].a=a;}
+        }
+        return [row,translucent](Canvas& c,const Col*,double alpha) {
+            auto r=row;for(int i=0;i<std::min(8,int(r.data[1]));++i)for(int j=r.data[0]==1?0:3;j<4;++j)r.data[24+i*4+j]*=alpha;
+            for(auto& s:r.extraStops)s.a*=alpha;
+            c.gradientUserSpace(std::move(r),translucent||alpha<.999);
+        };
+    }
+    Replay nativeReplay(const Node& n,const Style& s,const QTransform& world,const QPainterPath& path,std::optional<QPainterPath> clip) const {
+        // Viewport clipping uses draw(); replay into an existing span is explicit.
+        if(clip)return {};
+        std::vector<SvgPathCommand> ops;QString error;QPainterPath normalized;
+        if(n.tag=="path")svgPath(n.a.value("d"),normalized,error,&ops);
+        else if(n.tag=="polygon"||n.tag=="polyline")svgPath("M"+n.a.value("points")+(n.tag=="polygon"?" Z":""),normalized,error,&ops);
+        const auto tag=n.tag;
+        std::array<double,6> shape{};
+        if(tag=="rect")shape={value(n,"x"),value(n,"y"),value(n,"width"),value(n,"height"),value(n,"rx",value(n,"ry")),value(n,"ry",value(n,"rx"))};
+        if(tag=="circle"||tag=="ellipse")shape={value(n,"cx"),value(n,"cy"),value(n,tag=="circle"?"r":"rx"),value(n,tag=="circle"?"r":"ry"),0,0};
+        if(tag=="line")shape={value(n,"x1"),value(n,"y1"),value(n,"x2"),value(n,"y2"),0,0};
+        auto geometry=[ops,tag,shape,path](Canvas& c) {
+            if(tag=="rect"&&shape[4]==0&&shape[5]==0) {c.rect(shape[0],shape[1],shape[2],shape[3]);return;}
+            if(tag=="circle"||tag=="ellipse") {c.ellipse(shape[0],shape[1],shape[2],shape[3]);return;}
+            if(tag=="line") {c.moveTo(shape[0],shape[1]);c.lineTo(shape[2],shape[3]);return;}
+            if(ops.empty()) {replay(c,path);return;}
+            for(const auto& op:ops) {const auto& v=op.v;switch(op.code) {
+                case 'M':c.moveTo(v[0],v[1]);break;case 'L':c.lineTo(v[0],v[1]);break;
+                case 'Q':c.quadTo(v[0],v[1],v[2],v[3]);break;
+                case 'C':c.curveTo(v[0],v[1],v[2],v[3],v[4],v[5]);break;case 'Z':c.closePath();break;
+            }}
+        };
+        Replay fill,stroke;
+        if(s.fill!="none")fill=sourceReplay(n,s.fill,s.fillAlpha,s,{},path.boundingRect());
+        if(s.stroke!="none"&&s.width>0)stroke=sourceReplay(n,s.stroke,s.strokeAlpha,s,{},path.boundingRect());
+        const double dot=world.m11()*world.m21()+world.m12()*world.m22();
+        const double x2=world.m11()*world.m11()+world.m12()*world.m12(),y2=world.m21()*world.m21()+world.m22()*world.m22();
+        const bool similarity=std::abs(dot)<1e-12&&std::abs(x2-y2)<1e-12;
+        const bool round=s.cap==Qt::RoundCap&&s.join==Qt::RoundJoin&&similarity;
+        QPainterPath outline;
+        if(stroke&&!round) {QPainterPathStroker stroker;stroker.setWidth(s.width);stroker.setCapStyle(s.cap);stroker.setJoinStyle(s.join);stroker.setMiterLimit(s.miter/2.);stroker.setCurveThreshold(.01);outline=stroker.createStroke(path);}
+        return [geometry,fill,stroke,world,s,round,outline,path,clip](Canvas& c,const Col* tint,double alpha) {
+            c.save();c.transform(world.m11(),world.m12(),world.m21(),world.m22(),world.dx(),world.dy());
+            if(fill) {fill(c,tint,alpha);geometry(c);c.fill(s.rule==Qt::OddEvenFill);}
+            if(stroke) {stroke(c,tint,alpha);if(round){geometry(c);c.stroke(s.width);}else{replay(c,outline);c.fill(outline.fillRule()==Qt::OddEvenFill);}}
+            c.restore();
+        };
+    }
     std::shared_ptr<const Canvas> compile(const std::shared_ptr<Node>& n,Style inherited={},QTransform parent={},bool record=true,bool definition=false,const Node* use=nullptr,std::optional<QPainterPath> clip=std::nullopt) {
         if(active.contains(n.get()))fail(*n,"cyclic use reference",false);
         if(++compilations>20000||active.size()>64)fail(*n,"compiled complexity limit",false);
@@ -239,10 +320,14 @@ public:
             Canvas check(scale);paint(check,*n,n->a[key],1,s,world,QRectF(0,0,1,1));
         }
         auto path=geometry(*n);path.setFillRule(s.rule);
+        std::vector<Replay> replayChildren;
+        if(!path.isEmpty())replayChildren.push_back(nativeReplay(*n,s,world,path,clip));
         if(n->tag=="use") {
             QTransform placement;placement.translate(value(*n,"x"),value(*n,"y"));
             auto ref=reference(*n);if(ref->tag=="svg"||ref->tag=="defs"||ref->tag=="stop"||ref->tag.endsWith("Gradient"))fail(*n,"use target '"+ref->tag+"'");
-            canvas->appendOwned(compile(ref,s,placement*world,false,true,n.get(),clip));
+            auto instance=compile(ref,s,placement*world,false,true,n.get(),clip);
+            canvas->appendOwned(instance);
+            replayChildren.push_back({});
         } else if(n->tag=="symbol" && n->a.contains("viewBox")) {
             const auto list=n->a["viewBox"].split(QRegularExpression("[\\s,]+"),Qt::SkipEmptyParts);
             if(list.size()!=4)fail(*n,"invalid symbol viewBox",false);
@@ -282,7 +367,10 @@ public:
         for(const auto& child:n->children) {
             const bool hidden=child->tag=="defs"||child->tag=="symbol"||child->tag.endsWith("Gradient")||child->tag=="stop";
             auto compiled=compile(child,s,world,record,hidden,nullptr,clip);
-            if(container && !hidden && (n->tag!="defs"||definition))canvas->appendOwned(compiled);
+            if(container && !hidden && (n->tag!="defs"||definition)) {
+                canvas->appendOwned(compiled);
+                if(record)replayChildren.push_back(art->elements_[child->index].replay);
+            }
         }
         vertices+=canvas->vertices().size();if(vertices>2000000)fail(*n,"compiled vertex limit",false);
         canvas->freeze();std::shared_ptr<const Canvas> result=canvas;
@@ -290,6 +378,8 @@ public:
         if(opacity!=1) {auto group=std::make_shared<Canvas>(scale);group->appendOwned(canvas,opacity);group->freeze();result=group;}
         if(record) {
             auto& entry=art->elements_[n->index];entry.geometry=path;entry.transform=world;entry.canvas=result;
+            if(opacity==1&&std::all_of(replayChildren.begin(),replayChildren.end(),[](const auto& draw){return bool(draw);}))
+                entry.replay=[children=std::move(replayChildren)](Canvas& c,const Col* tint,double alpha) {for(const auto& draw:children)draw(c,tint,alpha);};
         }
         active.remove(n.get());return result;
     }
@@ -308,7 +398,7 @@ public:
             if(!root||root->tag!="svg")throw Failure{filename+": expected <svg> root"};
             const auto view=root->a.value("viewBox").split(QRegularExpression("[\\s,]+"),Qt::SkipEmptyParts);
             if(view.size()!=4||number(*root,view[0],"viewBox")!=0||number(*root,view[1],"viewBox")!=0||number(*root,view[2],"viewBox")!=1920||number(*root,view[3],"viewBox")!=1080)fail(*root,"viewBox must be '0 0 1920 1080'",false);
-            for(const auto& n:order)art->elements_.push_back({n->id,n->label,n->tag,n->line,{}, {}, {}});
+            for(const auto& n:order)art->elements_.push_back({n->id,n->label,n->tag,n->line,{}, {}, {}, {}});
             art->root_=compile(root);
             // Definitions must also be validated when they have no consumers.
             for(const auto& n:order)if(n->tag.endsWith("Gradient")) {if(n->id.isEmpty())fail(*n,"gradient requires an id",false);Canvas check(scale);paint(check,*n,"url(#"+n->id+")",1,{}, {},QRectF(0,0,1,1));}
@@ -318,6 +408,9 @@ public:
 };
 bool SvgArt::draw(Canvas& target,const QString& id) const {
     for(const auto& e:elements_)if(e.id==id&&!id.isEmpty()) {target.appendOwned(e.canvas);return true;}return false;
+}
+bool SvgArt::replay(Canvas& target,const QString& id,const Col* tint,double alpha) const {
+    for(const auto& e:elements_)if(e.id==id&&!id.isEmpty()&&e.replay) {e.replay(target,tint,alpha);return true;}return false;
 }
 SvgImport compileSvg(const QByteArray& data,const QString& filename,double pixelScale) {return SvgCompiler(filename,pixelScale).run(data);}
 SvgImport importSvg(const QString& filename,double pixelScale) {

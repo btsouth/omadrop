@@ -58,6 +58,8 @@ public:
     void translate(double x, double y);
     void rotate(double radians);
     void scale(double sx, double sy);
+    void transform(double a,double b,double c,double d,double e,double f);
+    void gradientUserSpace(GradientRow row, bool translucent);
 
     // Source.
     void color(Col c, double alpha = 1.0);

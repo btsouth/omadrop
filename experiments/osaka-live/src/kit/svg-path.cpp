@@ -47,7 +47,10 @@ void arc(QPainterPath& p,double rx,double ry,double degrees,bool large,bool swee
     }
 }
 }
-bool svgPath(const QString& data,QPainterPath& output,QString& error) {
+bool svgPath(const QString& data,QPainterPath& output,QString& error,std::vector<SvgPathCommand>* commands) {
+    std::vector<SvgPathCommand> ops;
+    auto op=[&](char code,std::initializer_list<double> values) { SvgPathCommand c{code};std::copy(values.begin(),values.end(),c.v.begin());ops.push_back(c); };
+    auto point=[&](char code,QPointF a) {op(code,{a.x(),a.y()});};
     Numbers in(data);QPainterPath p;QPointF cubic,quad;QChar command,previous;
     auto fail=[&] {error=QString("invalid path at offset %1").arg(in.at);return false;};
     int operations=0;
@@ -57,25 +60,32 @@ bool svgPath(const QString& data,QPainterPath& output,QString& error) {
         else if(command.isNull())return fail();
         const QChar code=command.toUpper();const bool relative=command.isLower();
         if(p.elementCount()==0 && code!='M')return fail();
-        if(code=='Z') {p.closeSubpath();previous=code;command=QChar();continue;}
+        if(code=='Z') {op('Z',{});p.closeSubpath();previous=code;command=QChar();continue;}
         const int count=code=='H'||code=='V'?1:code=='M'||code=='L'||code=='T'?2:code=='Q'||code=='S'?4:code=='C'?6:code=='A'?7:0;
         if(!count)return fail();
         double v[7]{};
         for(int i=0;i<count;++i)if(!(code=='A' && (i==3||i==4)?in.flag(v[i]):in.number(v[i])))return fail();
         const auto origin=p.currentPosition();
         auto xy=[&](int i){return QPointF(v[i],v[i+1])+(relative?origin:QPointF());};
-        if(code=='M') {p.moveTo(xy(0));command=relative?'l':'L';}
-        else if(code=='L')p.lineTo(xy(0));
-        else if(code=='H')p.lineTo(relative?origin.x()+v[0]:v[0],origin.y());
-        else if(code=='V')p.lineTo(origin.x(),relative?origin.y()+v[0]:v[0]);
-        else if(code=='C') {cubic=xy(2);p.cubicTo(xy(0),cubic,xy(4));}
-        else if(code=='S') {const auto reflected=previous=='C'||previous=='S'?2*origin-cubic:origin;cubic=xy(0);p.cubicTo(reflected,cubic,xy(2));}
-        else if(code=='Q') {quad=xy(0);p.quadTo(quad,xy(2));}
-        else if(code=='T') {quad=previous=='Q'||previous=='T'?2*origin-quad:origin;p.quadTo(quad,xy(0));}
-        else arc(p,v[0],v[1],v[2],v[3]!=0,v[4]!=0,xy(5));
+        if(code=='M') {point('M',xy(0));p.moveTo(xy(0));command=relative?'l':'L';}
+        else if(code=='L') {point('L',xy(0));p.lineTo(xy(0));}
+        else if(code=='H') {QPointF a(relative?origin.x()+v[0]:v[0],origin.y());point('L',a);p.lineTo(a);}
+        else if(code=='V') {QPointF a(origin.x(),relative?origin.y()+v[0]:v[0]);point('L',a);p.lineTo(a);}
+        else if(code=='C') {cubic=xy(2);auto a=xy(0),b=xy(4);op('C',{a.x(),a.y(),cubic.x(),cubic.y(),b.x(),b.y()});p.cubicTo(a,cubic,b);}
+        else if(code=='S') {const auto reflected=previous=='C'||previous=='S'?2*origin-cubic:origin;cubic=xy(0);auto b=xy(2);op('C',{reflected.x(),reflected.y(),cubic.x(),cubic.y(),b.x(),b.y()});p.cubicTo(reflected,cubic,b);}
+        else if(code=='Q') {quad=xy(0);auto b=xy(2);op('Q',{quad.x(),quad.y(),b.x(),b.y()});p.quadTo(quad,b);}
+        else if(code=='T') {quad=previous=='Q'||previous=='T'?2*origin-quad:origin;auto b=xy(0);op('Q',{quad.x(),quad.y(),b.x(),b.y()});p.quadTo(quad,b);}
+        else {
+            const int first=p.elementCount();arc(p,v[0],v[1],v[2],v[3]!=0,v[4]!=0,xy(5));
+            for(int i=first;i<p.elementCount();++i) {
+                auto a=p.elementAt(i);
+                if(a.isLineTo())op('L',{a.x,a.y});
+                else if(a.type==QPainterPath::CurveToElement) {auto b=p.elementAt(++i),c=p.elementAt(++i);op('C',{a.x,a.y,b.x,b.y,c.x,c.y});}
+            }
+        }
         previous=code;
     }
-    output=p;return true;
+    output=p;if(commands)*commands=std::move(ops);return true;
 }
 bool svgTransform(const QString& data,QTransform& output,QString& error) {
     Numbers in(data);QTransform result;

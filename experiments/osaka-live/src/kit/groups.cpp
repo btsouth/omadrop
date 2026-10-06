@@ -1,5 +1,6 @@
 #include "parameters.h"
 #include "groups.h"
+#include "world-art.h"
 #include "effects_shaders.h"
 #include "../parts.h"
 #include "actors.h"
@@ -206,18 +207,18 @@ void OsakaRightTownV1::draw(Ctx& c, const OsakaState& s, const Life& L) {
     OsakaShamisenV1::draw(c, s, L, t, x0, shamisenPane);
     Canvas& f = c.canvas();
     c.retain(f, "izakaya-lattice", [&](Canvas& f) {
-        for (int i = 0; i < 4; ++i) lattice(f, x0 + ups[i].wx, 640, ups[i].ww, 96, ups[i].ww > 70 ? 3 : 2, 3, INK, 1.3);
+        drawWorldArt(f, "izakaya-lattice", ox);
     }, {s.cam});
     const double wind = L.wind;
     OsakaIzakayaClothV1::draw(L, f, t, x0);
     c.retain(f, "izakaya-counter", [&](Canvas& f) {
-        f.line(x0 + 58, 904, x0 + 252, 904, 5, INK);
+        drawWorldArt(f, "izakaya-counter", ox);
     }, {s.cam});
     OsakaPatronsV1::draw(c, L, f, t, x0);
     // Laundry on the valley side of H2: lifts and snaps in the gust.
     const double bx = 1262 + ox;
     c.retain(f, "laundry-line", [&](Canvas& f) {
-        f.line(bx - 6, 788, bx + 150, 788, 1.2, INK);
+        drawWorldArt(f, "laundry-line", ox);
     }, {s.cam});
     for (int i = 0; i < 5; ++i) {
         const double sw = std::sin(t * 1.6 + i) * 3;
@@ -347,12 +348,11 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
     }
     Canvas& f = c.canvas();
     c.retain(f, "near-house-lattice", [&](Canvas& f) {
-        for (const P& q : U) lattice(f, q.x + ox, q.y, q.w, q.h, q.cols, q.rows, INK, 1.6);
+        drawWorldArt(f, "near-house-lattice", ox);
     }, {s.cam});
     const Col roomCol = mix(WARM_T, INK, 0.62);
     c.retain(f, "near-house-lamp-hanger", [&](Canvas& f) {
-        f.fillRect(214 + ox, 648, 20, 4, roomCol);
-        f.line(270 + ox, 640, 270 + ox, 694, 1.5, roomCol);
+        drawWorldArt(f, "near-house-lamp-hanger", ox);
     }, {s.cam});
     f.color(Col(1.0f, 0.96f, 0.80f) * float(room));
     f.ellipse(270 + ox, 716, 26, 24);

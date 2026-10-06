@@ -57,7 +57,7 @@ docker exec "$container" bash -euc '
     bin/mpris-state bin/art-fetch bin/omadrop-doctor bin/omadrop-close-window \
     experiments/projectm-ascii/projectm-ascii-live experiments/projectm-ascii/run-collection.sh \
     presets/pilot.txt VERSION licenses/THIRD_PARTY_NOTICES.md licenses/noto-sans-cjk-OFL.txt \
-    shaders/native scene-api/1 worlds/osaka-jade/scene.json worlds/schema/scene-v1.schema.json; do
+    shaders/native scene-api/1 worlds/osaka-jade/scene.json worlds/osaka-jade/art.svg worlds/schema/scene-v1.schema.json; do
     [[ -e "$root/$f" ]] || { echo "missing: $root/$f" >&2; exit 1; }
   done
   for f in "$root/bin/omadrop-ui" "$root/bin/omadrop-osaka" "$root/experiments/projectm-ascii/projectm-ascii-live"; do

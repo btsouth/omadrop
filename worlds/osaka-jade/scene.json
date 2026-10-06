@@ -518,5 +518,35 @@
       "addGain": 0.35,
       "addBlur": 8
     }
+  },
+  "art": {
+    "file": "art.svg",
+    "elements": {
+      "near-house-shell": "near-house-shell",
+      "right-house-2-shell": "right-house-2-shell",
+      "right-house-3-shell": "right-house-3-shell",
+      "near-house-roof": "near-house-roof",
+      "near-house-eaves": "near-house-eaves",
+      "right-house-2-roof": "right-house-2-roof",
+      "right-house-3-roof": "right-house-3-roof",
+      "right-house-3-eaves": "right-house-3-eaves",
+      "near-house-lattice": "near-house-lattice",
+      "izakaya-lattice": "izakaya-lattice",
+      "near-house-deck": "near-house-deck",
+      "street-railing": "street-railing",
+      "yatai-frame": "yatai-frame",
+      "izakaya-counter": "izakaya-counter",
+      "laundry-line": "laundry-line",
+      "near-house-lamp-hanger": "near-house-lamp-hanger",
+      "sign-glyph-0": "sign-glyph-0",
+      "sign-glyph-1": "sign-glyph-1",
+      "sign-glyph-2": "sign-glyph-2",
+      "sign-glyph-3": "sign-glyph-3",
+      "sign-glyph-4": "sign-glyph-4",
+      "sign-glyph-5": "sign-glyph-5",
+      "sign-glyph-6": "sign-glyph-6",
+      "near-house-mask": "near-house-mask",
+      "shamisen-mask": "shamisen-mask"
+    }
   }
 }
