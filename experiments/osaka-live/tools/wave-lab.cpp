@@ -70,9 +70,9 @@ int main(int argc,char** argv) {
                 "-pix_fmt","yuv420p","-c:a","aac","-b:a","192k","-movflags","+faststart",dir+"/music-60s-1080p30.mp4"});
             if(!encoder.waitForStarted(5000))throw std::runtime_error("ffmpeg did not start");
         }
-        GLuint timer=0;glGenQueries(1,&timer);std::vector<unsigned char> rgb;std::vector<double> costs;
+        GLuint timer=0;glGenQueries(1,&timer);std::vector<unsigned char> rgb;std::vector<double> costs,cpuCosts;
         std::ofstream csv((dir+"/"+mode+"-parameters.csv").toStdString());
-        csv<<"seconds,amplitude,Q,phase_speed,lip_throw,distance,group_center,energy,bass_level,tempo,hero_a,hero_envelope,lip_count,piece_gpu_ms,piece_cpu_ms\n";
+        csv<<"seconds,height,stage,lean,lip_stage,base_width,phase_speed,throw,distance,group_center,energy,bass_level,tempo,hero_a,hero_envelope,hero_stage,hero_height,lip_count,piece_gpu_ms,piece_cpu_ms\n";
         auto frame=[&](const WaveTrainPoseV2& s,const QString& png,int index) {
             gpu.begin(1920,1080);Ctx c{gpu,s.seconds,audio,&score,1,&canvases,nullptr};
             if(!bench){GradientSkyV1::draw(c,background.sky);WaterSurfaceV1::draw(c,background.sea);}
@@ -82,12 +82,12 @@ int main(int argc,char** argv) {
             // Warm the shader/upload path before starting the isolated query.
             glBeginQuery(GL_TIME_ELAPSED,timer);gpu.over(cv);glEndQuery(GL_TIME_ELAPSED);
             GLuint64 ns=0;glGetQueryObjectui64v(timer,GL_QUERY_RESULT,&ns);const double ms=ns/1e6;
-            if(index>=30)costs.push_back(ms);
-            double heroA=-1,heroG=0;int lips=0;
-            if(f.hero>=0){heroA=f.crests[f.hero].a;heroG=f.crests[f.hero].envelope;}
+            if(index>=30){costs.push_back(ms);cpuCosts.push_back(cpuMs);}
+            double heroA=-1,heroG=0,heroStage=0;int lips=0;
+            if(f.hero>=0){heroA=f.crests[f.hero].a;heroG=f.crests[f.hero].envelope;heroStage=f.crests[f.hero].stage;}
             for(const auto& crest:f.crests)if(!crest.outerLip.empty())++lips;
-            csv<<s.seconds<<','<<s.amplitude<<','<<s.q<<','<<s.phaseSpeed<<','<<s.lipThrow<<','<<s.distance<<','<<params.groupOrigin+.5*s.distance
-                <<','<<s.energy<<','<<audio.bassLevel<<','<<s.tempo<<','<<heroA<<','<<heroG<<','<<lips<<','<<ms<<','<<cpuMs<<'\n';
+            csv<<s.seconds<<','<<s.amplitude<<','<<s.stage<<','<<s.lean<<','<<s.lipStage<<','<<s.baseWidth<<','<<s.phaseSpeed<<','<<s.lipThrow<<','<<s.distance<<','<<params.groupOrigin+.5*s.distance
+                <<','<<s.energy<<','<<audio.bassLevel<<','<<s.tempo<<','<<heroA<<','<<heroG<<','<<heroStage<<','<<s.amplitude*heroG<<','<<lips<<','<<ms<<','<<cpuMs<<'\n';
             if(!bench) {
                 FinishParams finish;finish.bloom=finish.vignette=finish.grain=0;finish.paper=.08;finish.time=s.seconds;
                 gpu.finish(finish,nullptr);gpu.readRgb(rgb);
@@ -99,11 +99,11 @@ int main(int argc,char** argv) {
             }
         };
         if(mode=="sweep")for(int i=0;i<12;++i) {
-            WaveTrainPoseV2 s;s.amplitude=330;s.q=lerp(.2,1.6,i/11.);s.lipThrow=110;
+            WaveTrainPoseV2 s;s.amplitude=800;s.stage=lerp(0.,5.,i/11.);
             frame(s,dir+QString("/sweep-%1.png").arg(i,2,10,QChar('0')),i);
         }
         if(mode=="travel")for(int i=0;i<30;++i) {
-            WaveTrainPoseV2 s;s.amplitude=330;s.q=1.6;s.phaseSpeed=88;s.lipThrow=110;
+            WaveTrainPoseV2 s;s.amplitude=800;s.stage=5;s.phaseSpeed=88;s.lipThrow=40;
             s.seconds=i;s.distance=88*i;s.energy=.8;s.flow=.19*i;
             frame(s,dir+QString("/travel-%1.png").arg(i,2,10,QChar('0')),i);
         }
@@ -121,10 +121,10 @@ int main(int argc,char** argv) {
         if(clip){encoder.closeWriteChannel();if(!encoder.waitForFinished(30000)||encoder.exitCode()!=0)throw std::runtime_error("encoding failed");}
         glDeleteQueries(1,&timer);
         if(!costs.empty()) {
-            std::sort(costs.begin(),costs.end());std::ofstream out((dir+"/gpu.txt").toStdString());
+            std::sort(costs.begin(),costs.end());std::sort(cpuCosts.begin(),cpuCosts.end());std::ofstream out((dir+"/gpu.txt").toStdString());
             out<<"renderer="<<context.renderer().toStdString()<<"\n1080p isolated piece, upload + draws + layer composite; excludes background, finish, readback and encoding\n"
                 <<"warmup_frames=30\nsamples="<<costs.size()<<"\nmean_ms="<<std::accumulate(costs.begin(),costs.end(),0.)/costs.size()
-                <<"\np50_ms="<<costs[costs.size()/2]<<"\np95_ms="<<costs[int(costs.size()*.95)]<<"\nmax_ms="<<costs.back()<<'\n';
+                <<"\np50_ms="<<costs[costs.size()/2]<<"\np95_ms="<<costs[int(costs.size()*.95)]<<"\nmax_ms="<<costs.back()<<"\ncpu_mean_ms="<<std::accumulate(cpuCosts.begin(),cpuCosts.end(),0.)/cpuCosts.size()<<"\ncpu_p95_ms="<<cpuCosts[int(cpuCosts.size()*.95)]<<"\ncpu_max_ms="<<cpuCosts.back()<<'\n';
         }
     }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}
 }
