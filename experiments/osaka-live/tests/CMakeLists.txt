@@ -26,3 +26,13 @@ add_executable(osaka-world-loader-tests world_loader_tests.cpp osaka-oracle.cpp 
 target_link_libraries(osaka-world-loader-tests PRIVATE Qt6::Gui Qt6::OpenGL)
 target_compile_definitions(osaka-world-loader-tests PRIVATE OSAKA_WORLD_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/osaka-jade")
 add_test(NAME world-folder-validation COMMAND osaka-world-loader-tests)
+
+add_executable(osaka-svg-tests svg_tests.cpp ../src/kit/svg-art.cpp ../src/kit/svg-path.cpp ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp)
+target_include_directories(osaka-svg-tests PRIVATE ../src)
+target_link_libraries(osaka-svg-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
+target_compile_definitions(osaka-svg-tests PRIVATE SVG_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/svg-fixtures")
+add_test(NAME supported-svg-import COMMAND osaka-svg-tests)
+option(SVG_UPDATE_GOLDENS "Regenerate SVG reference PNGs on the named reference GPU" OFF)
+if(SVG_UPDATE_GOLDENS)
+    set_tests_properties(supported-svg-import PROPERTIES ENVIRONMENT "SVG_UPDATE_GOLDENS=1")
+endif()

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+<rect id="box" x="120" y="120" width="300" height="240" rx="36" fill="#d05040"/>
+<circle id="disc" cx="600" cy="240" r="120" fill="#40b060"/>
+<ellipse id="oval" cx="930" cy="240" rx="150" ry="90" fill="#4050d0"/>
+<polygon id="poly" points="1200,120 1440,240 1200,360" fill="#c0a040"/>
+<path id="arc" d="M120 720 A180 120 30 1 1 480 720 Q360 540 120 720Z" fill="#a050c0"/>
+<path id="hole" d="M600 540h480v360H600Z M720 660h240v120H720Z" fill="#60b0b0" fill-rule="evenodd"/>
+<polyline id="stroke" points="1200,540 1440,720 1200,900" fill="none" stroke="#b0b0b0" stroke-width="48" stroke-linecap="square" stroke-linejoin="miter"/>
+<line id="line" x1="1600" y1="600" x2="1740" y2="900" stroke="#d07040" stroke-width="30" stroke-linecap="butt"/>
+</svg>

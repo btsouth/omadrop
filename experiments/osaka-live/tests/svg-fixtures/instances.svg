@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+<defs><symbol id="tile" viewBox="0 0 100 100"><path id="shape" d="M0 0H100V100H0Z M25 25H75V75H25Z" fill-rule="evenodd"/></symbol></defs>
+<use id="first" href="#tile" x="120" y="120" width="360" height="360" fill="#b04030"/>
+<use id="second" href="#tile" x="1200" y="120" width="480" height="240" fill="#40a080"/>
+<g id="outer" opacity=".5"><g id="inner" opacity=".5"><rect x="600" y="240" width="360" height="360" fill="#ff0000"/><rect x="660" y="300" width="360" height="360" fill="#00ffff"/></g></g>
+<g transform="translate(120 720) scale(1.5) skewX(10)"><path d="M0 0c60 -120 120 120 180 0s120 120 180 0" fill="none" stroke="#c09050" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/></g>
+</svg>
