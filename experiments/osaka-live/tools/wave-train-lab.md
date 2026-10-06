@@ -1,7 +1,8 @@
 # Stage morph wave lab
 
 `omadrop-wave-lab` is an offline surfaceless EGL study, separate from the
-world loader and installed application. Build it through the osaka-live
+installed application. Its default study parameters remain independent of
+the Kanagawa world integration. Build it through the osaka-live
 `tests/CMakeLists.txt`. Its modes are `sweep`, `travel`, `response`, `bench` and
 `clip`; all accept `--out`. The latter two require `--fixture`, stereo
 44100 Hz float32 PCM with at least 60 seconds. `bench` requires UHD 770.
@@ -12,8 +13,9 @@ segments and 22 corresponding controls in normalized wave coordinates.
 S5 retains the cubic water profile from Journey's `studyWave` in
 `ending_water.cpp`; width and height are independently scaled. At default
 full size it occupies approximately 55 percent of frame width and 75 percent
-of frame height. W2 adds cream claws, free spray, broken foam and high-band whitecaps in this
-lab only. The world registry and Osaka renderer do not use this piece.
+of frame height. W2 adds cream claws, free spray, broken foam and high-band whitecaps.
+Kanagawa registers the same piece as `WaveTrain` / `wave-train-v2`; Osaka
+Jade retains its existing pieces.
 
 The profiles are sampled once, then Catmull-Rom interpolated at 112 fixed
 boundary samples. Bezier linearity permits a small per-control displacement
@@ -120,3 +122,28 @@ coordinates. The CSV records world travel, hero anchor, camera x and projected
 lip bounds every frame. Selection can move to the next periodic wave when
 the current group recedes; this is a lab framing aid, not W3 world placement.
 Bench mode retains the unmodified world coordinates and cost definition.
+
+## Kanagawa world integration
+
+The `great-wave` instance uses `WaveTrain` with explicit scene parameters. A
+value-owned controller advances at production analyzer hops in `Schedule`;
+rendering and boat support read that snapshot. World changes atomically
+publish the train parameters. Worlds without a train do not advance its
+controller. Spray emission samples the same configured profile it paints.
+
+Kanagawa scales height to 0.88 and spatial travel to 0.2. The authored profiles,
+claw controls, spring rates, band response and tempo estimation retain the lab
+mapping. The travelling group uses a 1800 px period, 1500 px width and 0.94
+minimum group envelope before the existing departure taper. These placement
+parameters keep a substantial set in view while the original material flow
+and sea waves continue. The world surge raises the stage spring target to S5;
+release settles through the same spring without a collapse state.
+
+Boats resolve their named train and retain their original depth ordering.
+Support samples the drawn sea polyline and the upper water boundary, with the
+existing depth blend for the far boat. Hull angle, keel fit, wake and oar
+contacts share that field. Escape follows the slower body lip with space
+reserved for the hooked details and face/sea junction; independent claw
+flicks do not jerk the hull. Clearance checks the actual detail bounds. The
+standalone world foam-flecks layer is removed because the hero owns its foam,
+whitecaps and spray. The original great-wave piece and its tests remain.

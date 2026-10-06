@@ -211,6 +211,12 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
                 node.kick=slot.params->boat.kickGain>0 || slot.params->boat.splashGain>0;
                 out.nodes.push_back(node);regions.emplace_back();boatRegions.push_back({regions.size()-1,slot.params->boat});
             }
+            if(slot.piece==OsakaOp::WaveTrain) {
+                NodeResult node;node.id=QString::fromStdString(slot.id);node.label="wave-train-v2";
+                node.piece="wave-train";node.movingSurface=true;node.band=0;node.kick=true;node.onset=true;
+                out.nodes.push_back(node);QPainterPath area;area.addRect(QRectF(0,180,1920,900));
+                regions.emplace_back();fillRegion(regions.back(),screen.map(area));
+            }
             if(slot.piece==OsakaOp::GreatWave) {
                 NodeResult node;node.id=QString::fromStdString(slot.id);node.label="great-wave-v1";
                 node.piece="great-wave";node.movingSurface=true;node.band=0;

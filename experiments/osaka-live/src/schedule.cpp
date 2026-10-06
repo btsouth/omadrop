@@ -23,6 +23,11 @@ Schedule::Schedule(int seed):print(seed),seed_(seed) {
 }
 void Schedule::advance(double t,const Audio& a,const Score& score) {
     print.advance(t,a,score);
+    if(auto p=std::atomic_load(&waveTrainParameters)) {
+        Audio driven=a;if(p->surgeEnabled)driven.surge=std::max(driven.surge,print.surge(t));
+        waveTrain.advance(driven,score,t,t-waveTrainLast,*p);
+    }
+    waveTrainLast=t;
     double energy=0;
     for(double b:a.bands) energy+=b*b;
     energy=std::sqrt(energy/6);

@@ -1,11 +1,16 @@
 #pragma once
-#include "../world.h"
+#include "../score.h"
+#include "../art.h"
+#include <vector>
+namespace Journey { struct Ctx; class Canvas; }
 #include <array>
 namespace Journey::Kit {
 // Seven cubic segments, 22 corresponding controls in every hero stage.
 struct WaveTrainParametersV2 {
     double x0=-350,x1=2270,waterline=930,depth=360,wavelength=1180;
     double groupPeriod=2400,groupWidth=620,groupOrigin=400;
+    double groupFloor=0,baseY=1080,width=1060,heightScale=1,travelScale=1,row=7.2;
+    bool surgeEnabled=false;
     Col body=hex(0x285579),bottom=hex(0x102955),underprint=hex(0x1d4673),
         foam=hex(0xdcd7ba),lines=hex(0x7397a4);
 };
@@ -29,7 +34,7 @@ struct CriticalSpringV2 {
 // Reusable detail controller; the lab can hold the body at an authored stage.
 class WaveTrainFoamMotionV2 {
 public:
-    void advance(const Audio&,const Score&,WaveTrainPoseV2&,double seconds,double dt);
+    void advance(const Audio&,const Score&,WaveTrainPoseV2&,double seconds,double dt,const WaveTrainParametersV2& = {});
 private:
     std::array<CriticalSpringV2,WaveTrainFingerCountV2> fingerLength_{};
     std::array<double,WaveTrainFingerCountV2> flick_{},flickVelocity_{};
@@ -43,7 +48,7 @@ private:
 class WaveTrainMotionV2 {
 public:
     WaveTrainMotionV2();
-    void advance(const Audio&,const Score&,double seconds,double dt);
+    void advance(const Audio&,const Score&,double seconds,double dt,const WaveTrainParametersV2& = {});
     const WaveTrainPoseV2& pose() const { return pose_; }
 private:
     CriticalSpringV2 amplitude_,stage_,speed_,throw_,lean_;
@@ -80,9 +85,15 @@ struct WaveTrainProfileV2 {
 };
 struct WaveTrainV2 {
     static constexpr const char* name="wave-train-v2";
+    static WaveTrainPoseV2 worldPose(const Ctx&);
+    static const WaveTrainProfileV2& worldProfile(const Ctx&,const WaveTrainParametersV2&);
+    static double surfaceY(const WaveTrainProfileV2&,double x,double sea);
+    // Full rendered lip/details, not just the cubic body.
+    static double exclusionRight(const WaveTrainProfileV2::Crest&);
     static double envelope(double a,const WaveTrainPoseV2&,const WaveTrainParametersV2&);
     static WaveTrainProfileV2 profile(const WaveTrainPoseV2&,const WaveTrainParametersV2&);
     static void paint(Canvas&,const WaveTrainProfileV2&,const WaveTrainPoseV2&,const WaveTrainParametersV2&);
+    static void drawWorld(Ctx&,const WaveTrainParametersV2&);
     static void draw(Ctx&,const WaveTrainPoseV2&,const WaveTrainParametersV2&);
 };
 }

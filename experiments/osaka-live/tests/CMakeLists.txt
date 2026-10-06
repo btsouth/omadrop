@@ -175,3 +175,10 @@ add_executable(omadrop-wave-lab ../tools/wave-lab.cpp ../src/kit/wave-train.cpp
 target_include_directories(omadrop-wave-lab PRIVATE ../src)
 target_link_libraries(omadrop-wave-lab PRIVATE Qt6::Gui Qt6::OpenGL EGL PkgConfig::FFTW)
 target_compile_definitions(omadrop-wave-lab PRIVATE KANAGAWA_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/kanagawa")
+
+foreach(target osaka-streaming-tests great-wave-tests boat-on-water-tests print-life-tests boat-wave-clearance-tests osaka-reload-tests)
+    target_sources(${target} PRIVATE ../src/kit/wave-train.cpp)
+endforeach()
+target_sources(osaka-streaming-tests PRIVATE ../src/canvas.cpp ../src/gpu.cpp)
+target_link_libraries(osaka-streaming-tests PRIVATE Qt6::Gui Qt6::OpenGL)
+target_sources(osaka-reload-tests PRIVATE ../src/gpu.cpp ../src/score.cpp)

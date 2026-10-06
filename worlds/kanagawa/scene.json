@@ -187,53 +187,6 @@
           "parallaxDepth": 0.75
         },
         {
-          "id": "foam",
-          "piece": "FoamFlecks",
-          "profile": "foam-flecks-v1",
-          "gate": "Always",
-          "params": {
-            "region": {
-              "x": -30,
-              "y": 612,
-              "width": 2030,
-              "height": 500
-            },
-            "rows": 12,
-            "seed": 71,
-            "depthFalloff": 1.45,
-            "driftSpeed": 0.52,
-            "amplitude": 0.52,
-            "bandGain": 1.15,
-            "liftGain": 0.5,
-            "kickGain": 0.35,
-            "opacity": 0.22,
-            "count": 240,
-            "sizeMin": 0.3,
-            "sizeMax": 1.1,
-            "onsetGain": 0.5,
-            "color": "#dcd7ba",
-            "underprint": "#223249",
-            "exclusions": [
-              {
-                "x": -30,
-                "y": 700,
-                "width": 670,
-                "height": 420
-              },
-              {
-                "x": 1080,
-                "y": 810,
-                "width": 580,
-                "height": 135
-              }
-            ],
-            "amplitudeGain": 3.5,
-            "responseGain": 1.7,
-            "surgeEnabled": true
-          },
-          "parallaxDepth": 0.75
-        },
-        {
           "id": "water-life",
           "piece": "PrintMoments",
           "profile": "print-moments-v1",
@@ -286,31 +239,30 @@
         },
         {
           "id": "great-wave",
-          "piece": "GreatWave",
-          "profile": "great-wave-v1",
+          "piece": "WaveTrain",
+          "profile": "wave-train-v2",
           "gate": "Always",
           "params": {
-            "anchorSide": "left",
-            "x": 0,
-            "y": 1100,
-            "width": 1200,
-            "baseHeight": 340,
-            "maxRise": 650,
-            "curlAmount": 0.95,
-            "clawCount": 18,
-            "clawSize": 1,
-            "seed": 71,
-            "lowGain": 2.4,
-            "swellGain": 0.35,
-            "kickGain": 0.5,
-            "onsetGain": 0.5,
+            "x0": -350,
+            "x1": 2270,
+            "waterline": 965,
+            "depth": 360,
+            "wavelength": 1180,
+            "groupPeriod": 1800,
+            "groupWidth": 1500,
+            "groupOrigin": 400,
+            "groupFloor": 0.94,
+            "baseY": 1080,
+            "width": 1060,
+            "heightScale": 0.88,
+            "row": 7.2,
+            "surgeEnabled": true,
             "body": "#285579",
             "bottom": "#102955",
             "underprint": "#1d4673",
             "foam": "#dcd7ba",
             "lines": "#7397a4",
-            "surgeEnabled": true,
-            "row": 7.2
+            "travelScale": 0.2
           },
           "parallaxDepth": 0.75
         },

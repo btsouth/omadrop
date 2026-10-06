@@ -181,7 +181,7 @@ int main(int argc,char** argv) {
         Journey::StreamingAudio analyzer;
         Journey::LiveFrame f; f.schedule=Journey::Schedule(seed);
         std::array<float,1470> hop{};
-        const int hops=int(std::min<qint64>(fixture.size()/5880,36000));
+        const int hops=int(std::min<qint64>(fixture.size()/5880,qint64(std::ceil(seconds*60))));
         for(int i=0;i<hops;++i) {
             if(fixture.read(reinterpret_cast<char*>(hop.data()),5880)!=5880) return 1;
             const double t=(i+1)/60.0;

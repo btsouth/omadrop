@@ -84,6 +84,7 @@ constexpr Piece pieces[] = {
     {"SwellLines", OsakaOp::SwellLines, "swell-lines-v1"},
     {"FoamFlecks", OsakaOp::FoamFlecks, "foam-flecks-v1"},
     {"GreatWave", OsakaOp::GreatWave, "great-wave-v1"},
+    {"WaveTrain", OsakaOp::WaveTrain, "wave-train-v2"},
     {"BoatOnWater", OsakaOp::BoatOnWater, "boat-on-water-v1"},
     {"SmokePlume", OsakaOp::SmokePlume, "smoke-plume-v1"},
     {"BirdFlock", OsakaOp::BirdFlock, "bird-flock-v1"},
@@ -573,6 +574,24 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 for(auto entry:{std::pair<const char*,Col*>{"hull",&boat.hull},{"trim",&boat.trim},{"ink",&boat.ink},{"foam",&boat.foam}})
                     if(data.contains(entry.first))*entry.second=r.color(data[entry.first],paramsPath+"."+entry.first);
                 params=value;
+            } else if (piece->op==OsakaOp::WaveTrain) {
+                if(!slot.contains("params"))r.fail(paramsPath,"required field");
+                const auto data=r.object(slot["params"],paramsPath,{},
+                    {"x0","x1","waterline","depth","wavelength","groupPeriod","groupWidth","groupOrigin","groupFloor","baseY","width","heightScale","travelScale","row","surgeEnabled","body","bottom","underprint","foam","lines"});
+                auto value=std::make_shared<OsakaSlotParamsV1>();auto& wave=value->waveTrain;
+                auto scalar=[&](const char* name,double& target,double lo,double hi){if(!data.contains(name))return;
+                    target=r.number(data[name],paramsPath+"."+name);
+                    if(target<lo || target>hi)r.fail(paramsPath+"."+name,"number in "+QString::number(lo)+".."+QString::number(hi));};
+                scalar("x0",wave.x0,-1920,0);scalar("x1",wave.x1,1920,3840);scalar("waterline",wave.waterline,600,1080);
+                scalar("depth",wave.depth,100,600);scalar("wavelength",wave.wavelength,600,2000);
+                scalar("groupPeriod",wave.groupPeriod,1200,3000);scalar("groupWidth",wave.groupWidth,400,2000);
+                scalar("groupOrigin",wave.groupOrigin,0,1200);scalar("groupFloor",wave.groupFloor,0,1);
+                scalar("baseY",wave.baseY,950,1150);scalar("width",wave.width,700,1400);scalar("heightScale",wave.heightScale,.6,1);
+                scalar("travelScale",wave.travelScale,.1,1);scalar("row",wave.row,0,23);
+                if(data.contains("surgeEnabled"))wave.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
+                for(auto entry:{std::pair<const char*,Col*>{"body",&wave.body},{"bottom",&wave.bottom},{"underprint",&wave.underprint},{"foam",&wave.foam},{"lines",&wave.lines}})
+                    if(data.contains(entry.first))*entry.second=r.color(data[entry.first],paramsPath+"."+entry.first);
+                params=value;
             } else if (piece->op==OsakaOp::GreatWave) {
                 if(!slot.contains("params"))r.fail(paramsPath,"required field");
                 const auto data=r.object(slot["params"],paramsPath,{},
@@ -702,9 +721,11 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             const OsakaRenderSlot* wave=nullptr;std::size_t waveIndex=0,boatIndex=0;
             for(std::size_t i=0;i<stage.size();++i){const auto& candidate=stage[i];
                 if(&candidate==&slot)boatIndex=i;
-                if(candidate.id==value->boat.waveInstance && candidate.piece==OsakaOp::GreatWave){wave=&candidate;waveIndex=i;}}
-            if(!wave)r.fail(path+".waveInstance","id of a GreatWave slot in the same stage");
+                if(candidate.id==value->boat.waveInstance && (candidate.piece==OsakaOp::GreatWave || candidate.piece==OsakaOp::WaveTrain)){wave=&candidate;waveIndex=i;}}
+            if(!wave)r.fail(path+".waveInstance","id of a GreatWave or WaveTrain slot in the same stage");
             value->boat.wave=wave->params->greatWave;
+            if(wave->piece==OsakaOp::WaveTrain){value->boat.ridesWaveTrain=true;value->boat.waveTrain=wave->params->waveTrain;
+                value->boat.wave.row=value->boat.waveTrain.row;}
             value->boat.ridesWave=true;
             const double row=value->boat.row,margin=value->boat.driftRows;
             if(row-margin<value->boat.wave.row && row+margin>=value->boat.wave.row)

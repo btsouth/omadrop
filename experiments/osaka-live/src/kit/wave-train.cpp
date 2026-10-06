@@ -1,4 +1,6 @@
 #include "wave-train.h"
+#include "../world.h"
+#include <sstream>
 namespace Journey::Kit {
 void CriticalSpringV2::advance(double target,double omega,double dt) {
     const double error=value-target,b=velocity+omega*error,e=std::exp(-omega*dt);
@@ -7,7 +9,7 @@ void CriticalSpringV2::advance(double target,double omega,double dt) {
 WaveTrainMotionV2::WaveTrainMotionV2() {
     amplitude_.value=pose_.amplitude;speed_.value=pose_.phaseSpeed;
 }
-void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds,double dt) {
+void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds,double dt,const WaveTrainParametersV2& params) {
     if(!std::isfinite(dt)||dt<=0||dt>.25||!std::isfinite(seconds))return;
     double power=0;for(double b:a.bands)power+=b*b;
     const double energy=clamp01(3.1*std::sqrt(power/6)+.35*clamp01(a.surge));
@@ -22,7 +24,7 @@ void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds
     }
     const double beat=tempo/60,oldSpeed=speed_.value;
     amplitude_.advance(590+240*std::max(0.,a.bassLevel)/(.20+std::max(0.,a.bassLevel)),1.05*beat,dt);
-    stage_.advance(5*sstep(.25,.95,energy),.8*beat,dt);
+    stage_.advance(std::max(5*sstep(.25,.95,energy),params.surgeEnabled?5*sstep(0,.65,a.surge):0),.8*beat,dt);
     speed_.advance(14+6*beat+4*clamp01(count/16.),.65*beat,dt);
     const double mid=std::max(0.,(a.bands[2]+a.bands[3])*.5);
     throw_.advance(62*mid/(.18+mid),2.25*beat,dt);
@@ -34,11 +36,11 @@ void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds
     const double e=std::exp(-zeta*omega*dt),cs=std::cos(w*dt),sn=std::sin(w*dt);
     lip_=stage_.value+e*(x*cs+b*sn);
     lipVelocity_=e*((-zeta*omega*x+w*b)*cs+(-zeta*omega*b-w*x)*sn);
-    pose_.amplitude=amplitude_.value;pose_.stage=stage_.value;pose_.phaseSpeed=speed_.value;
+    pose_.amplitude=amplitude_.value*params.heightScale;pose_.baseWidth=params.width;pose_.stage=stage_.value;pose_.phaseSpeed=speed_.value;
     pose_.lean=lean_.value;pose_.lipThrow=throw_.value;pose_.lipStage=lip_;
     pose_.seconds=seconds;pose_.energy=energy;pose_.tempo=tempo;
-    pose_.distance+=(oldSpeed+speed_.value)*.5*dt;pose_.flow+=(.065+.16*energy)*dt;
-    foam_.advance(a,score,pose_,seconds,dt);
+    pose_.distance+=(oldSpeed+speed_.value)*.5*dt*params.travelScale;pose_.flow+=(.065+.16*energy)*dt;
+    foam_.advance(a,score,pose_,seconds,dt,params);
 }
 namespace {
 constexpr int Segments=7,Steps=16,Count=Segments*Steps;
@@ -157,7 +159,7 @@ double WaveTrainV2::envelope(double a,const WaveTrainPoseV2& s,const WaveTrainPa
         group+=std::exp(-.5*std::pow((d+j*p.groupPeriod)/p.groupWidth,2));
         peak+=std::exp(-.5*std::pow(j*p.groupPeriod/p.groupWidth,2));
     }
-    return (.08+.92*group/peak)*(1-.62*sstep(1400,2200,a));
+    return std::max(p.groupFloor,.08+.92*group/peak)*(1-.62*sstep(1400,2200,a));
 }
 WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrainParametersV2& p) {
     WaveTrainProfileV2 out;out.surface.reserve(161);
@@ -185,10 +187,10 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
             delta[j]=delta[j]+V2(breathe*noise1(s.seconds*.23+j*.17,91),
                 breathe*.9*noise1(s.seconds*.19+j*.13,151));
         }
-        const double height=std::clamp(s.amplitude,450.,850.)*g;
+        const double height=std::clamp(s.amplitude,450.*p.heightScale,850.*p.heightScale)*g;
         auto map=[&](V2 q) {
             const double top=std::max(0.,q.y),tip=sstep(.52,.78,q.x)*sstep(.30,.65,top);
-            return V2(left+width*q.x+s.lean*height*top+s.lipThrow*tip*g*sstep(2,5,crest.stage),1080-height*q.y);
+            return V2(left+width*q.x+s.lean*height*top+s.lipThrow*tip*g*sstep(2,5,crest.stage),p.baseY-height*q.y);
         };
         for(int seg=0;seg<Segments;++seg)for(int j=0;j<Steps;++j) {
             const int k=seg*3,index=seg*Steps+j;
@@ -333,7 +335,10 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
                 cap.inside.push_back(q+V2(.3*size,size*std::sin(Pi*k/8.)*(.55+.3*std::sin(k*2.1+i+s.seconds*.37))));
             }crest.whitecaps.push_back(std::move(cap));
         }
-        if(g>best){best=g;out.hero=int(out.crests.size());}
+        double selection=g;
+        if(p.surgeEnabled){double l=1e9,r=-1e9;for(auto q:crest.boundary){l=std::min(l,q.x);r=std::max(r,q.x);}
+            selection*=std::max(0.,std::min(1920.,r)-std::max(0.,l))/std::max(1.,r-l);}
+        if(selection>best){best=selection;out.hero=int(out.crests.size());}
         out.boundaries.push_back(crest.boundary);out.crests.push_back(std::move(crest));
     }
     const double high=bandLevel((s.bands[4]+s.bands[5])*.5);
@@ -352,7 +357,7 @@ void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPo
         std::vector<V2> line;for(auto v:f.surface)line.push_back(v+V2(0,35+row*35));stripe(cv,line,1.1,p.lines,.24);
     }
     for(const auto& crest:f.crests) {
-        const double top=1080-s.amplitude*crest.envelope;
+        const double top=p.baseY-s.amplitude*crest.envelope;
         cv.linear(0,top,0,1100,{{0,p.body,1},{.38f,hex(0x274569),1},{.78f,p.bottom,1},{1,hex(0x121827),1}});
         fill(cv,crest.boundary);
         stripe(cv,crest.contours[13],22*crest.envelope,p.bottom,.42*crest.contourAlpha[13]);
@@ -404,7 +409,7 @@ void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPo
         }
     }
 }
-void WaveTrainFoamMotionV2::advance(const Audio& a,const Score& score,WaveTrainPoseV2& pose_,double seconds,double dt) {
+void WaveTrainFoamMotionV2::advance(const Audio& a,const Score& score,WaveTrainPoseV2& pose_,double seconds,double dt,const WaveTrainParametersV2& params) {
     if(!std::isfinite(dt)||dt<=0||dt>.25||!std::isfinite(seconds))return;
     std::array<bool,6> onset{};
     for(int band=0;band<6;++band) {
@@ -434,7 +439,7 @@ void WaveTrainFoamMotionV2::advance(const Audio& a,const Score& score,WaveTrainP
     // Bounded at 12 particles per event and 10 event groups/second. Work cannot
     // scale with amplitude or arbitrary event queue lengths.
     sprayClock_=std::max(0.,sprayClock_-dt);
-    const auto shape=WaveTrainV2::profile(pose_,WaveTrainParametersV2{});
+    const auto shape=WaveTrainV2::profile(pose_,params);
     if(shape.hero<0)return;const auto& hero=shape.crests[shape.hero];
     auto random=[&](){rng_^=rng_<<13;rng_^=rng_>>17;rng_^=rng_<<5;return (rng_&0xffffff)/double(0x1000000);};
     if((triggered||kicked) && sprayClock_<=0 && hero.stage>1.15) {
@@ -454,6 +459,47 @@ void WaveTrainFoamMotionV2::advance(const Audio& a,const Score& score,WaveTrainP
     }
     for(int i=0;i<WaveTrainFingerCountV2;++i)previousTip_[i]=hero.fingers[i].tip;
     tipsReady_=true;
+}
+WaveTrainPoseV2 WaveTrainV2::worldPose(const Ctx& c) {
+    return c.schedule?c.schedule->waveTrain.pose():WaveTrainPoseV2{};
+}
+const WaveTrainProfileV2& WaveTrainV2::worldProfile(const Ctx& c,const WaveTrainParametersV2& p) {
+    struct Cached {double t=-1;WaveTrainPoseV2 pose;WaveTrainProfileV2 field;};
+    std::ostringstream key;key.precision(17);key<<name;
+    for(double v:{p.x0,p.x1,p.waterline,p.wavelength,p.groupPeriod,p.groupWidth,p.groupOrigin,p.groupFloor,p.baseY,p.width,p.heightScale})key<<':'<<v;
+    // Non-rendering callers (including CTests) own their fallback, not shared global state.
+    if(!c.staticGeometry){thread_local WaveTrainProfileV2 field;field=profile(worldPose(c),p);return field;}
+    auto& any=c.staticGeometry->layouts[key.str()];
+    if(!any.has_value())any=Cached{};auto& cache=std::any_cast<Cached&>(any);
+    const auto pose=worldPose(c);const auto& old=cache.pose;
+    bool same=cache.t==c.t && old.amplitude==pose.amplitude && old.stage==pose.stage && old.lipStage==pose.lipStage
+        && old.distance==pose.distance && old.flow==pose.flow && old.lean==pose.lean && old.lipThrow==pose.lipThrow && old.energy==pose.energy && old.bands==pose.bands;
+    for(int i=0;i<WaveTrainFingerCountV2 && same;++i)same=old.fingers[i].extension==pose.fingers[i].extension && old.fingers[i].flick==pose.fingers[i].flick;
+    if(!same){cache.field=profile(pose,p);cache.t=c.t;cache.pose=pose;}
+    return cache.field;
+}
+double WaveTrainV2::exclusionRight(const WaveTrainProfileV2::Crest& crest) {
+    double right=-1e9;
+    auto add=[&](const auto& points){for(auto q:points)right=std::max(right,q.x);};
+    add(crest.outerLip);add(crest.foamRim);add(crest.foamInside);
+    for(const auto& f:crest.fingers){add(f.left);add(f.right);add(f.shadow.left);add(f.shadow.right);for(const auto& st:f.twigs){add(st.left);add(st.right);}}
+    for(const auto& st:crest.tangle){add(st.left);add(st.right);}
+    for(const auto& st:crest.falling){add(st.left);add(st.right);}
+    return right;
+}
+double WaveTrainV2::surfaceY(const WaveTrainProfileV2& field,double x,double sea) {
+    auto crossing=[&](V2 a,V2 b,double& y){if(x<std::min(a.x,b.x)||x>std::max(a.x,b.x)||std::abs(b.x-a.x)<1e-9)return;
+        y=std::min(y,lerp(a.y,b.y,(x-a.x)/(b.x-a.x)));};
+    double y=1e9;
+    for(size_t i=1;i<field.surface.size();++i)crossing(field.surface[i-1],field.surface[i],y);
+    if(y==1e9)y=sea;
+    // Top water boundary. Boats exclude the overhang separately before sampling.
+    for(const auto& crest:field.crests)for(int i=1;i<=96;++i)crossing(crest.boundary[i-1],crest.boundary[i],y);
+    return y;
+}
+void WaveTrainV2::drawWorld(Ctx& c,const WaveTrainParametersV2& p) {
+    GpuProfile::Group group(c.gpu.profile,name);const auto& f=worldProfile(c,p);
+    Canvas& cv=c.canvas();paint(cv,f,worldPose(c),p);c.gpu.over(cv);
 }
 void WaveTrainV2::draw(Ctx& c,const WaveTrainPoseV2& s,const WaveTrainParametersV2& p) {
     GpuProfile::Group group(c.gpu.profile,name);auto f=profile(s,p);

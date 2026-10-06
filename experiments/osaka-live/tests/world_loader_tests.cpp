@@ -311,6 +311,15 @@ int main(int argc, char** argv) {
             const auto loaded=loadOsakaWorld(tmp.path());const auto& entries=loaded->description().backdrop;
             const auto& boat=entries.entries[a.backdrop.count+(pair.second?1:0)].params->boat;
             require(boat.ridesWave && boat.wave.row==7.2,"named wave field lost");}
+        auto trainBoat=ridingBoat(7.6,true);
+        {auto stages=trainBoat["stages"].toArray();auto stage=stages[0].toObject();auto trainEntries=stage["slots"].toArray();
+         for(int i=0;i<trainEntries.size();++i){auto slot=trainEntries[i].toObject();if(slot["id"]=="ride-wave"){
+          slot["piece"]="WaveTrain";slot["profile"]="wave-train-v2";slot["params"]=QJsonObject{{"row",7.2},{"groupPeriod",1400},{"groupFloor",.94},{"heightScale",.88}};trainEntries[i]=slot;}}
+         stage["slots"]=trainEntries;stages[0]=stage;trainBoat["stages"]=stages;}
+        {QFile out(file);require(out.open(QIODevice::WriteOnly),"write train fixture");out.write(QJsonDocument(trainBoat).toJson());}
+        {const auto loaded=loadOsakaWorld(tmp.path());const auto& entries=loaded->description().backdrop;
+         const auto& boat=entries.entries[a.backdrop.count+1].params->boat;
+         require(boat.ridesWaveTrain && boat.waveTrain.groupPeriod==1400 && boat.waveTrain.heightScale==.88,"named W2d field parameters lost");}
         invalid(ridingBoat(5.6,true),"$.boat[test-boat].params.waveInstance: expected boat layer order must agree with wave depth");
         invalid(ridingBoat(7.6,false),"$.boat[test-boat].params.waveInstance: expected boat layer order must agree with wave depth");
         invalid(ridingBoat(7.2,true),"$.boat[test-boat].params.row: expected boat lane must remain on one side of the wave depth");

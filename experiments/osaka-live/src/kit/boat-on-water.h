@@ -6,6 +6,8 @@ struct BoatOnWaterParametersV1 {
     bool surgeEnabled=false,gullVisits=false;
     std::string waterInstance,waveInstance;
     GreatWaveParametersV1 wave;
+    WaveTrainParametersV2 waveTrain;
+    bool ridesWaveTrain=false;
     bool ridesWave=false;
     SwellLinesParametersV1 swell; // resolved from the named surface, never a second sea
     double x=1400, row=7, length=300, scale=.6;

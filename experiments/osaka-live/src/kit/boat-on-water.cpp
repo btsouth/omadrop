@@ -13,6 +13,7 @@ double BoatOnWaterV1::surfaceY(const Ctx& c,const BoatOnWaterParametersV1& p,dou
     const int lo=std::min(p.swell.rows-2,int(row));
     const double sea=lerp(SwellLinesV1::field(c,lo,p.swell).y(x),SwellLinesV1::field(c,lo+1,p.swell).y(x),row-lo);
     const double depth=1-sstep(0,2,std::max(0.,p.wave.row-row));
+    if(p.ridesWaveTrain)return lerp(sea,WaveTrainV2::surfaceY(WaveTrainV2::worldProfile(c,p.waveTrain),x,p.waveTrain.waterline),depth);
     return p.ridesWave?lerp(sea,GreatWaveV1::field(c,p.wave).y(x,sea),depth):sea;
 }
 BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1& p) {
@@ -23,16 +24,38 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
     BoatOnWaterPoseV1 s;s.at.x=p.x+p.driftX*(drift(clock)-drift(0))*.5;
     s.row=p.row+p.driftRows*(std::sin(clock*std::sqrt(3.)+phase)-std::sin(phase))*.5;
     const double half=p.length*p.scale*.45;
-    const auto wave= p.ridesWave?GreatWaveV1::field(c,p.wave):GreatWaveFieldV1{};
+    const auto wave= p.ridesWave && !p.ridesWaveTrain?GreatWaveV1::field(c,p.wave):GreatWaveFieldV1{};
+    const auto* train=p.ridesWaveTrain?&WaveTrainV2::worldProfile(c,p.waveTrain):nullptr;
     const int lo=std::min(p.swell.rows-2,int(std::clamp(s.row,0.,double(p.swell.rows-1))));
     const auto low=SwellLinesV1::field(c,lo,p.swell),high=SwellLinesV1::field(c,lo+1,p.swell);
     const double depth=1-sstep(0,2,std::max(0.,p.wave.row-s.row));
-    auto support=[&](double x){const double sea=lerp(low.y(x),high.y(x),s.row-lo);return p.ridesWave?lerp(sea,wave.y(x,sea),depth):sea;};
+    auto support=[&](double x){const double sea=lerp(low.y(x),high.y(x),s.row-lo);return train?lerp(sea,WaveTrainV2::surfaceY(*train,x,p.waveTrain.waterline),depth):(p.ridesWave?lerp(sea,wave.y(x,sea),depth):sea);};
     // The overhang is not navigable water. Move the full hull outward before
     // a growing set reaches its lane, then keep to the lower descending face.
     // This uses the drawn lip bounds, including its forward travel and curl.
     double escape=0;
-    if(p.ridesWave && depth>0){
+    if(train && depth>0) {
+        const double original=s.at.x;
+        // Navigate the trough to the right of each arriving set. Exclusion
+        // covers the full hull, cream hooks, blue peaks and barrel tendrils.
+        // Leave room for the lower face to meet the travelling swell, so a
+        // rigid hull does not bridge the face/sea junction.
+        // The next crest is one group period away, leaving a navigable lower face.
+        for(const auto& crest:train->crests) {
+            double left=1e9;for(auto q:crest.boundary)left=std::min(left,q.x);
+            // Navigate from the slower body lip, with a conservative detail
+            // reserve. Following individual claw flicks would jerk the hull.
+            double lip=-1e9;for(auto q:crest.outerLip)lip=std::max(lip,q.x);
+            lip+=120;
+            if(s.at.x+half*1.4+60<left)continue;
+            double safe=std::max(s.at.x,lip+half*1.4+260);
+            auto lowEnough=[&](double x){return WaveTrainV2::surfaceY(*train,x-half*1.3,p.waveTrain.waterline)>=p.waveTrain.waterline-145;};
+            if(!lowEnough(safe)){double a=safe,b=safe+p.waveTrain.width;
+                for(int j=0;j<24;++j){const double m=(a+b)*.5;if(lowEnough(m))b=m;else a=m;}safe=b;}
+            s.at.x=safe;
+        }
+        escape=clamp01((s.at.x-original)/320);
+    } else if(p.ridesWave && depth>0){
         const auto set=GreatWaveV1::pose(c,p.wave);
         const double side=p.wave.anchorRight?-1.:1.;
         double lip=-1e9;for(int j=16;j<48;++j)lip=std::max(lip,side*wave.face[j].x);
@@ -65,9 +88,10 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
     s.stroke=c.t*p.rowingTempo+p.tempoGain*(c.score?c.score->bandIntegrals[p.band]:0)+hash2(p.seed,43);
     if(p.surgeEnabled && c.schedule)s.stroke+=.6*c.schedule->print.surgeFlow;
     // A set's eased integral accelerates rowing without a beat-dependent clock.
-    if(p.ridesWave && c.schedule){const auto& set=c.schedule->print.wave;
+    if(p.ridesWave && !p.ridesWaveTrain && c.schedule){const auto& set=c.schedule->print.wave;
         const double u=clamp01((c.t-set.start)/set.duration);
         s.stroke+=.20*(set.start+set.duration*(u*u*(3-2*u)));}
+    if(p.ridesWaveTrain && c.schedule)s.stroke+=.012*c.schedule->waveTrain.pose().distance;
     s.splash=std::clamp(.10+p.splashGain*(.55*c.band(p.band)+.45*c.kick(5)),0.,.55);
     s.spray=std::clamp(p.kickGain*c.kick(6)+(p.surgeEnabled && c.schedule?.45*c.schedule->print.surge(c.t):0),0.,.8);
     return s;
@@ -97,11 +121,12 @@ QPainterPath BoatOnWaterV1::responsePath(const BoatOnWaterPoseV1& s,const BoatOn
 }
 void BoatOnWaterV1::paint(Canvas& cv,const Ctx& c,const BoatOnWaterParametersV1& p) {
     const auto s=pose(c,p);const double sc=p.scale,ln=p.length*sc;
-    const auto wave=p.ridesWave?GreatWaveV1::field(c,p.wave):GreatWaveFieldV1{};
+    const auto wave=p.ridesWave && !p.ridesWaveTrain?GreatWaveV1::field(c,p.wave):GreatWaveFieldV1{};
+    const auto* train=p.ridesWaveTrain?&WaveTrainV2::worldProfile(c,p.waveTrain):nullptr;
     const int lo=std::min(p.swell.rows-2,int(s.row));
     const auto low=SwellLinesV1::field(c,lo,p.swell),high=SwellLinesV1::field(c,lo+1,p.swell);
     const double depth=1-sstep(0,2,std::max(0.,p.wave.row-s.row));
-    auto support=[&](double x){double sea=lerp(low.y(x),high.y(x),s.row-lo);return p.ridesWave?lerp(sea,wave.y(x,sea),depth):sea;};
+    auto support=[&](double x){double sea=lerp(low.y(x),high.y(x),s.row-lo);return train?lerp(sea,WaveTrainV2::surfaceY(*train,x,p.waveTrain.waterline),depth):(p.ridesWave?lerp(sea,wave.y(x,sea),depth):sea);};
     const double ca=std::cos(s.tilt),sa=std::sin(s.tilt);
     auto wp=[&](V2 q){return s.at+V2(q.x*ca-q.y*sa,q.x*sa+q.y*ca);};
     // Surface marks beneath the hull; the wake uses the actual contour too.
