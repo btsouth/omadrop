@@ -129,6 +129,18 @@ void stripe(Canvas& cv,const std::vector<V2>& a,double width,Col col,double alph
         l.push_back(a[j]+n);r.push_back(a[j]-n);
     }ribbon(cv,l,r,col,alpha);
 }
+// Tapered stroke whose heading turns by `turn` toward the end (pow > 1 hooks late).
+WaveTrainProfileV2::Strand strand(V2 root,double angle,double length,double width,double turn,double power,int n,double alpha=1) {
+    WaveTrainProfileV2::Strand out;out.alpha=alpha;V2 p=root;
+    out.centre.reserve(n+1);out.left.reserve(n+1);out.right.reserve(n+1);
+    for(int j=0;j<=n;++j) {
+        const double u=j/double(n),a=angle+turn*std::pow(u,power);
+        const V2 normal{-std::sin(a),std::cos(a)};
+        const double w=width>0?width*std::pow(1-u,.95)+std::min(.35,width):0;
+        out.centre.push_back(p);out.left.push_back(p+normal*w);out.right.push_back(p-normal*w);
+        p=p+V2(std::cos(a),std::sin(a))*(length/n);
+    }return out;
+}
 V2 sea(double a,const WaveTrainPoseV2& s,const WaveTrainParametersV2& p) {
     V2 v{a,p.waterline};const double k=Tau/p.wavelength,A=28+48*s.energy;
     const double ratio[]={1,2.37,3.91,6.13},weight[]={1,.25,.12,.06};
@@ -183,140 +195,119 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
             v[index]=v[index]+bezier(delta[k],delta[k+1],delta[k+2],delta[k+3],j/double(Steps));
         }v[Count]=v[0];
         crest.boundary.reserve(Count);for(int j=0;j<Count;++j)crest.boundary.push_back(map(v[j]));
-        // Follow the retained W1 profile with its slow material wobble. Foam is on the water side;
-        // talons extrude into air/barrel along the opposite normal.
+        // The retained W1 lip with its slow material wobble; lipNormal points into the water.
+        std::vector<V2> lipNormal;
         for(int j=8;j<=3*Steps;++j) {
-            const V2 q=map(v[j]),t=map(v[j+1])-map(v[j-1]),normal=unit({-t.y,t.x});
-            const double u=(j-8)/40.,band=s.bands[std::min(5,int(u*6))];
-            const double breakup=1+.13*std::sin(j*2.13+s.seconds*.41)+.10*noise1(j*.8+s.seconds*.18,813);
-            const double w=(4+27*sstep(1,5,crest.stage))*(.72+1.10*bandLevel(band))*g
-                *std::sin(Pi*(.10+.8*u))*breakup;
-            crest.outerLip.push_back(q);crest.foamInside.push_back(q+normal*w);
+            const V2 q=map(v[j]),t=map(v[j+1])-map(v[j-1]);
+            crest.outerLip.push_back(q);lipNormal.push_back(unit({-t.y,t.x}));
         }
+        const int lipCount=int(crest.outerLip.size());
         std::vector<double> lipArc{0};
-        for(size_t j=1;j<crest.outerLip.size();++j)lipArc.push_back(lipArc.back()+(crest.outerLip[j]-crest.outerLip[j-1]).len());
-        auto arcSample=[&](double arc) {
-            if(arc>=lipArc.back())return crest.outerLip.back()+unit(crest.outerLip.back()-crest.outerLip[crest.outerLip.size()-2])*(arc-lipArc.back());
-            const int j=std::max(0,int(std::upper_bound(lipArc.begin(),lipArc.end(),arc)-lipArc.begin())-1);
-            return lerp(crest.outerLip[j],crest.outerLip[j+1],(arc-lipArc[j])/(lipArc[j+1]-lipArc[j]));
+        for(int j=1;j<lipCount;++j)lipArc.push_back(lipArc.back()+(crest.outerLip[j]-crest.outerLip[j-1]).len());
+        const double lipLength=std::max(1.,lipArc.back());
+        auto indexAt=[&](double arc) {
+            arc=std::clamp(arc,0.,lipLength);
+            const int j=std::clamp(int(std::upper_bound(lipArc.begin(),lipArc.end(),arc)-lipArc.begin())-1,0,lipCount-2);
+            return j+(arc-lipArc[j])/std::max(1e-9,lipArc[j+1]-lipArc[j]);
         };
-        const double growth=sstep(1.15,4.,crest.stage);
-        // Nine seeded hands, not a cream rim with regularly spaced spikes.
-        // Fixed slots keep springs and the spray pool deterministic; the last
-        // four slots are thin tip lace whose opacity opens with high bands.
-        constexpr int counts[]={3,4,2,5,3,4,5,5,7};
-        constexpr double centres[]={3.2,8.4,14.0,19.6,24.1,28.7,33.0,36.7,39.3};
-        constexpr double spans[]={3.2,3.8,2.8,3.9,2.8,3.0,2.5,1.9,.9};
-        int slot=0;double covered=0;
-        auto arcAt=[&](double index) {int j=int(index);return lerp(lipArc[j],lipArc[j+1],index-j);};
-        // Integrate one scalar streamline potential, then transport each
-        // root through it analytically. A shared chart and width cells prevent
-        // crossings at different lengths without per-frame path unions.
-        std::array<double,38> rootArcs{};
-        int rootSlot=0;
-        std::array<double,9> begins{},ends{};
-        for(int hand=0;hand<9;++hand) {
-            const int firstSlot=rootSlot;
-            const double ex=std::clamp(s.fingers[firstSlot].extension,0.,1.15);
-            const double half=spans[hand]*(.75+.25*ex)*.5;
-            begins[hand]=arcAt(centres[hand]-half);ends[hand]=arcAt(centres[hand]+half);
-            for(int j=0;j<counts[hand];++j)
-                rootArcs[rootSlot++]=arcAt(lerp(centres[hand]-half,centres[hand]+half,(j+.5+.19*std::sin(hand*2.13+j*4.7))/counts[hand]));
+        auto tangentAt=[&](double index) {return unit(sample(crest.outerLip,index+.3)-sample(crest.outerLip,index-.3));};
+        const double growth=sstep(1.15,4.,crest.stage)*g,highs=bandLevel((s.bands[4]+s.bands[5])*.5);
+        // Hokusai claws after Journey kanagawa.cpp and direction_study.cpp:
+        // unequal clusters of hooked, forked fingers rise out of the lip and
+        // curl over forward. Each finger slot owns a spring; bands run from
+        // the shoulder (lows) to the curl tip (highs).
+        constexpr int Clusters=11;
+        constexpr int counts[Clusters]={3,4,3,3,4,3,4,3,4,3,4};
+        constexpr double along[Clusters]={.05,.135,.215,.30,.385,.47,.555,.64,.725,.805,.88};
+        constexpr double size[Clusters]={.62,.80,.95,1.05,1.15,.92,1.0,.86,.74,.62,.52};
+        std::array<double,Clusters> centreArc{},gate{};
+        for(int c=0;c<Clusters;++c) {
+            const double u=along[c]+.012*std::sin(c*2.7+1.3);centreArc[c]=u*lipLength;
+            // The crest top foams first; shoulder and curl tip follow with stage.
+            const double d=std::min(1.,std::abs(u-.33)/.6);
+            gate[c]=sstep(1.15+1.3*d,2.5+1.7*d,crest.stage)*g;
         }
-        std::vector<double> potential(int(lipArc.back()+200)+2,0);
-        const double decay=std::exp(-1./28);
-        for(size_t j=1;j<potential.size();++j) {
-            const double x=j-.5;double force=.035;
-            for(int hand=0;hand<9;++hand)
-                force+=(1.2+.12*std::sin(hand*1.91))*(1-sstep(ends[hand]+8*growth,ends[hand]+17*growth,x))
-                    *sstep(begins[hand]-4*growth,begins[hand]+4*growth,x);
-            potential[j]=potential[j-1]*decay+force*28*(1-decay);
-        }
-        auto transported=[&](double root,double arc) {
-            auto value=[&](double x) {int j=std::clamp(int(x),0,int(potential.size()-2));return lerp(potential[j],potential[j+1],x-j);};
-            return std::max(0.,value(arc)-value(root)*std::exp(-(arc-root)/28));
-        };
-        for(int hand=0;hand<9;++hand) {
-            const double centre=centres[hand],u=centre/40.;
-            const int mainCount=hand==8?3:counts[hand];
-            const double extension=std::clamp(s.fingers[slot].extension,0.,1.15);
-            const double spread=.75+.25*extension;
-            const double begin=centre-spans[hand]*spread*.5,end=centre+spans[hand]*spread*.5;
-            WaveTrainProfileV2::Clump palm;palm.count=mainCount;palm.begin=begin;palm.end=end;
-            for(int k=0;k<=12;++k) {
-                const double z=k/12.,index=lerp(begin,end,z);const V2 q=sample(crest.outerLip,index);
-                const V2 t=unit(sample(crest.outerLip,index+.25)-sample(crest.outerLip,index-.25));
-                const V2 inward={-t.y,t.x};
-                const double w=(10+23*(1-u))*(.70+.60*extension)*growth*g
-                    *std::pow(std::sin(Pi*z),.55)*(1+.13*std::sin(z*8+hand*2.3+s.seconds*.22));
-                palm.edge.push_back(q);palm.inside.push_back(q+inward*w);
-                crest.foamThickness=std::max(crest.foamThickness,w);
-            }
-            covered+=arcAt(end)-arcAt(begin);crest.clumps.push_back(std::move(palm));
-            for(int local=0;local<counts[hand];++local,++slot) {
-                const bool lace=hand==8 && local>=3;
-                const double zroot=(local+.5+.19*std::sin(hand*2.13+local*4.7))/counts[hand];
-                const double index=lerp(begin,end,zroot);
-                const V2 root=sample(crest.outerLip,index),t=unit(sample(crest.outerLip,index+.3)-sample(crest.outerLip,index-.3));
-                const double rootArc=arcAt(index),cell=(arcAt(end)-arcAt(begin))/counts[hand];
-                const double ext=std::clamp(s.fingers[slot].extension,0.,1.15);
-                const double seed=.5+.5*std::sin(hand*4.13+local*2.71);
-                const double authored=(40+43*(1-u))*(.53+.75*ext+.10*std::clamp(s.fingers[slot].flick,-.35,.35))*(.78+.40*seed);
-                const double cap=std::min(185.,std::max(1.,(lipArc.back()-rootArc)*.87+85*sstep(3.4,4.8,crest.stage)));
-                const double reach=cap*-std::expm1(-(arcAt(end)-rootArc+authored)/cap)*growth*g;
-                WaveTrainProfileV2::Finger finger;finger.root=root;finger.lipIndex=index;
+        double covered=0;int slot=0;
+        for(int c=0;c<Clusters;++c) {
+            const int n=counts[c];const double sz=size[c];
+            const double spacing=(28+16*hash2(c,3))*sz*(.55+.45*gate[c]);
+            WaveTrainProfileV2::Clump clump;clump.count=n;
+            clump.begin=indexAt(centreArc[c]-spacing*(n-1)*.5-6*sz);clump.end=indexAt(centreArc[c]+spacing*(n-1)*.5+6*sz);
+            covered+=spacing*(n-1)+12*sz;crest.clumps.push_back(clump);
+            for(int b=0;b<n;++b,++slot) {
+                const auto& state=s.fingers[slot];
+                const double ext=std::clamp(state.extension,0.,1.15),flick=std::clamp(state.flick,-.35,.35);
+                const double h=hash2(slot,11),k=hash2(slot,29),order=n>1?b/double(n-1):.5;
+                const double index=indexAt(centreArc[c]+(b-(n-1)*.5+.42*(hash2(slot,7)-.5))*spacing);
+                const V2 root=sample(crest.outerLip,index),t=tangentAt(index);
+                // Slow per-finger sway keeps quiet water breathing.
+                const double sway=.10*noise1(s.seconds*.31+slot*.71,401)+.05*std::sin(s.seconds*.47+slot*1.9);
+                // Sickle claws as in the K3 prototype frame: a broad root on the
+                // lip, heading forward and down over the face, hooking to a point.
+                // Loud reaches further forward; an onset flicks out, then settles.
+                const double drop=.38+.28*order+.30*(k-.5)-.18*ext-.9*flick+sway;
+                const double turn=(.55+.95*h)*(.80+.30*ext)+1.5*flick+.5*sway;
+                const double thin=hash2(slot,53)<.36?.45:1;
+                const double length=(45+110*h*h)*(thin<1?1.15:1)*sz*(.50+.60*ext)*gate[c]*(1+.06*noise1(s.seconds*.27+slot,433));
+                // Width follows reach so short claws never fold back over their root.
+                const double width=std::min((5.5+4*k+5*h)*thin*sz*(.75+.35*ext)*gate[c],.26*length);
+                WaveTrainProfileV2::Finger finger;finger.root=root;finger.lipIndex=index;finger.clump=c;
                 finger.band=std::min(5,int(6*(slot+.5+.18*std::sin(slot*2.41))/WaveTrainFingerCountV2));
-                finger.clump=hand;finger.tendril=lace;
-                finger.opacity=lace?(.18+.82*bandLevel(s.bands[5])):1;
-                const double width=std::min(14.,cell*.29)*(lace?.22:1)*growth*(.75+.30*ext);
-                std::array<double,25> cellWidths{};
-                for(int k=0;k<=24;++k) {
-                    const double z=k/24.,arc=rootArc+reach*z;
-                    const V2 anchor=arcSample(arc),tangent=unit(arcSample(arc+10)-arcSample(std::max(0.,arc-10)));
-                    const V2 normal={tangent.y,-tangent.x};
-                    const V2 before=unit(arcSample(arc)-arcSample(std::max(0.,arc-10))),after=unit(arcSample(arc+10)-arcSample(arc));
-                    const double radius=20/std::max(.01,(after-before).len());
-                    const double limit=radius*.38;
-                    auto chart=[&](double q) {return limit*std::tanh(transported(q,arc)/limit);};
-                    double h=chart(rootArc),space=h;
-                    if(slot && arc>=rootArcs[slot-1])space=std::min(space,std::abs(chart(rootArcs[slot-1])-h));
-                    if(slot+1<38 && arc>=rootArcs[slot+1])space=std::min(space,std::abs(chart(rootArcs[slot+1])-h));
-                    cellWidths[k]=.25*space;
-                    // Thin lace is separately bounded and may cross at the tip.
-                    if(lace)h+=growth*(8+7*ext)*std::sin(Pi*z)*(.55+.45*std::sin(9*z+local*1.7));
-                    finger.centre.push_back(anchor+normal*h);
+                const double theta=std::atan2(t.y,t.x);
+                finger.shadow=strand(root-t*(.5*width),theta+drop-.95-.35*hash2(slot,47),std::min(length*(.28+.30*k),14+30*hash2(slot,49)*gate[c]),std::max(width,4.*gate[c])*(1.1+.5*hash2(slot,49)),turn*.3,1.2,12);
+                auto main=strand(root,theta+drop,length,width,turn,1.8,24);
+                // Some claws carry a thin side hook from the middle.
+                if(hash2(slot,41)>.62) {
+                    const int j=int(24*(.40+.15*hash2(slot,43)));
+                    const V2 dir=unit(main.centre[j+1]-main.centre[j]);
+                    const double half=.5*(main.left[j]-main.right[j]).len();
+                    finger.twigs.push_back(strand(main.centre[j],std::atan2(dir.y,dir.x)-.55+.15*sway,length*.36,half*.38,1.9,1.3,12));
                 }
-                for(int k=0;k<=24;++k) {
-                    const double z=k/24.;const V2 direction=unit(finger.centre[std::min(k+1,24)]-finger.centre[std::max(k-1,0)]);
-                    const V2 normal={-direction.y,direction.x};
-                    const double arc=rootArc+reach*z;
-                    const double air=(finger.centre[k]-arcSample(arc)).len();
-                    const V2 a=unit(finger.centre[k]-finger.centre[std::max(k-1,0)]),b=unit(finger.centre[std::min(k+1,24)]-finger.centre[k]);
-                    const double radius=(finger.centre[std::min(k+1,24)]-finger.centre[std::max(k-1,0)]).len()/std::max(.01,(b-a).len());
-                    const double w=std::min(lace?2.0*growth:cellWidths[k]+width*(1-sstep(0.,.12,z)),std::min(.22*radius,std::min(width*std::pow(1-z,1.05)*(1+.13*std::sin(z*9+hand+local)),
-                        .45*air+width*(1-sstep(0.,.20,z)))));
-                    finger.left.push_back(finger.centre[k]+normal*w);finger.right.push_back(finger.centre[k]-normal*w);
-                }
-                if(lace) {
-                    const V2 origin=finger.centre[9],direction=unit(finger.centre[13]-origin);
-                    const V2 side={-direction.y,direction.x};
-                    const double length=(15+22*ext)*growth;
-                    for(int k=0;k<=16;++k) {
-                        const double z=k/16.,a=(local%2?1:-1)*(1.3*z+.45*std::sin(z*Pi));
-                        const V2 q=origin+direction*(length*z)+side*(length*.38*std::sin(a));
-                        const double w=(.6+1.0*ext)*growth*std::pow(1-z,1.2);
-                        finger.forkLeft.push_back(q+side*w);finger.forkRight.push_back(q-side*w);
-                    }
-                }
-                finger.tip=finger.centre.back();
-                const V2 direction=unit(finger.tip-finger.centre[23]);
+                finger.tip=main.centre.back();
+                const V2 direction=unit(main.centre.back()-main.centre[main.centre.size()-2]);
                 // Signed clockwise angle from the forward ROOT lip tangent.
-                finger.angle=std::atan2(t.x*direction.y-t.y*direction.x,t.x*direction.x+t.y*direction.y);
-                for(size_t k=1;k<finger.centre.size();++k)finger.length+=(finger.centre[k]-finger.centre[k-1]).len();
+                finger.angle=length>.5?std::atan2(t.x*direction.y-t.y*direction.x,t.x*direction.x+t.y*direction.y):0;
+                for(size_t q=1;q<main.centre.size();++q)finger.length+=(main.centre[q]-main.centre[q-1]).len();
+                finger.centre=std::move(main.centre);finger.left=std::move(main.left);finger.right=std::move(main.right);
                 crest.fingers.push_back(std::move(finger));
             }
         }
-        crest.gapFraction=1-covered/lipArc.back();
+        crest.gapFraction=std::clamp(1-covered/lipLength,0.,1.);
+        // Ragged cream sheet: deep under clusters, a thin broken rim between them.
+        for(int j=0;j<lipCount;++j) {
+            const double u=lipArc[j]/lipLength;double near=0;
+            for(int c=0;c<Clusters;++c)near=std::max(near,gate[c]*std::exp(-std::pow((lipArc[j]-centreArc[c])/(60*size[c]),2)));
+            const double band=bandLevel(s.bands[std::min(5,int(u*6))]);
+            const double depth=(2+12*near)*(.70+.65*band)*(1+.40*fbm1(u*6+s.seconds*.05,10))*growth;
+            const double rim=(2+4*(.5+.5*noise1(u*20+s.seconds*.11,14)))*growth;
+            crest.foamRim.push_back(crest.outerLip[j]-lipNormal[j]*rim);
+            crest.foamInside.push_back(crest.outerLip[j]+lipNormal[j]*depth);
+            crest.foamThickness=std::max(crest.foamThickness,depth+rim);
+        }
+        // Blue cavities read as lace inside the sheet, not outlined beads.
+        for(int k=0;k<26;++k) {
+            const double index=indexAt((k+.5+.4*(hash2(k,90)-.5))/26*lipLength);
+            const int j=std::min(lipCount-1,int(index+.5));
+            const double depth=(crest.foamInside[j]-crest.outerLip[j]).len();
+            const V2 n=lipNormal[j],at=sample(crest.outerLip,index)+n*(depth*(.30+.45*hash2(k,91)));
+            crest.lace.push_back(strand(at,std::atan2(n.y,n.x)+.7,(5+13*hash2(k,92))*growth,(1+2.2*hash2(k,93))*growth,2.9,1,10,sstep(7,14,depth)));
+        }
+        // The curl tip unravels into thin tangled tendrils and sheds loose fingers into the barrel.
+        const double tipGate=sstep(3.2,4.6,crest.stage)*g;
+        for(int k=0;k<7;++k) {
+            const double index=indexAt((.835+.022*k+.006*std::sin(k*3.1))*lipLength);
+            const V2 root=sample(crest.outerLip,index),t=tangentAt(index);
+            const double sway=.18*noise1(s.seconds*.5+k*1.3,451);
+            crest.tangle.push_back(strand(root,std::atan2(t.y,t.x)-(.2+.9*hash2(k,62))+sway,(26+40*hash2(k,63))*(.55+.75*highs)*tipGate,
+                (1.4+1.6*hash2(k,64))*tipGate,(k%2?1:-1)*(1.6+1.6*hash2(k,65)),1.2,16));
+        }
+        for(int k=0;k<6;++k) {
+            const double phase=wrap(s.flow*2.4+hash2(k,71),1.);
+            const V2 start=sample(crest.outerLip,indexAt((.70+.28*hash2(k,72))*lipLength))+V2(-6-14*hash2(k,73),4);
+            const V2 at=start+V2(-(14+20*hash2(k,74))*phase,(40+120*hash2(k,75))*phase*phase+20*phase)*g;
+            crest.falling.push_back(strand(at,Pi*.5+.9*(hash2(k,76)-.5)+.5*std::sin(phase*4+k),(10+14*hash2(k,77))*tipGate*(.6+.6*highs),
+                (1.6+2*hash2(k,78))*tipGate,(k%2?1:-1)*1.8,1.2,8,sstep(0.,.10,phase)*(1-sstep(.65,1.,phase))));
+        }
         // Material lines advect from the lower face into the barrel. Wrapping
         // ribbons enter/leave invisibly at endpoints instead of phase popping.
         for(int row=0;row<16;++row) {
@@ -370,23 +361,28 @@ void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPo
             if(row%4==0)stripe(cv,crest.contours[row],13*crest.envelope,p.lines,(.12+.07*pulse)*crest.contourAlpha[row]);
             stripe(cv,crest.contours[row],(row%4==0?2:1)*crest.envelope,p.lines,(.30+.16*pulse)*crest.contourAlpha[row]);
         }
-        // Paired underprint belongs to each hand; blue reaches the lip
-        // between hands. No continuous rim and no separate periodic teeth.
-        auto paired=[&](const std::vector<V2>& left,const std::vector<V2>& right,double alpha,bool blue) {
-            std::vector<V2> l,r;
-            for(size_t j=0;j<left.size();++j) {
-                const V2 middle=(left[j]+right[j])*.5;
-                l.push_back(middle+(left[j]-middle)*1.14+V2(-1.1,1.5)*crest.envelope);
-                r.push_back(middle+(right[j]-middle)*1.14+V2(-1.1,1.5)*crest.envelope);
+        // Sheet and lace first, then each stroke's offset blue underprint and
+        // cream in lip order, so later claws overlap earlier ones like a print.
+        if(crest.foamRim.size()>1)ribbon(cv,crest.foamRim,crest.foamInside,p.foam);
+        for(const auto& l:crest.lace)if(l.alpha>0)ribbon(cv,l.left,l.right,p.bottom,.95*l.alpha);
+        auto print=[&](const WaveTrainProfileV2::Strand& st,double alpha) {
+            const double root=.5*(st.left[0]-st.right[0]).len();
+            if(root<=0||alpha<=0)return;
+            const double k=std::clamp(root/6,.3,1.6);const V2 offset=V2(-3.5,-4.5)*k;
+            std::vector<V2> l,r;l.reserve(st.centre.size());r.reserve(st.centre.size());
+            for(size_t j=0;j<st.centre.size();++j) {
+                const V2 half=(st.left[j]-st.right[j])*.5,n=unit(half)*(half.len()+2.0*k);
+                l.push_back(st.centre[j]+offset+n);r.push_back(st.centre[j]+offset-n);
             }
-            if(blue)ribbon(cv,l,r,p.bottom,alpha);else ribbon(cv,left,right,p.foam,alpha);
+            ribbon(cv,l,r,p.bottom,.9*alpha);ribbon(cv,st.left,st.right,p.foam,alpha);
         };
-        for(bool blue:{true,false}) {
-            for(const auto& finger:crest.fingers)if(finger.length>.01)
-                {paired(finger.left,finger.right,finger.opacity,blue);
-                 if(!finger.forkLeft.empty())paired(finger.forkLeft,finger.forkRight,finger.opacity,blue);}
-            for(const auto& hand:crest.clumps)paired(hand.edge,hand.inside,1,blue);
+        for(const auto& f:crest.fingers)if(f.length>.5) {
+            ribbon(cv,f.shadow.left,f.shadow.right,p.underprint,f.opacity);
+            ribbon(cv,f.left,f.right,p.foam,f.opacity);
+            for(const auto& twig:f.twigs)print(twig,f.opacity);
         }
+        for(const auto& st:crest.tangle)print(st,st.alpha);
+        for(const auto& st:crest.falling)print(st,st.alpha);
         for(const auto& cap:crest.whitecaps)ribbon(cv,cap.edge,cap.inside,p.foam,.85);
     }
     for(const auto& cap:f.swellCaps)ribbon(cv,cap.edge,cap.inside,p.foam,.85);

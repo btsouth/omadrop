@@ -52,18 +52,23 @@ private:
     WaveTrainFoamMotionV2 foam_;
 };
 struct WaveTrainProfileV2 {
+    // Tapered foam stroke; paint adds the offset blue underprint.
+    struct Strand {std::vector<V2> centre,left,right;double alpha=1;};
     struct Finger {
         V2 root,tip;double lipIndex=0,length=0,angle=0,opacity=1;int band=0,clump=0;bool tendril=false;
-        std::vector<V2> centre,left,right,forkLeft,forkRight;
+        std::vector<V2> centre,left,right;
+        std::vector<Strand> twigs;
+        Strand shadow; // pointed blue claw rising behind the cream one
     };
-    struct Clump {std::vector<V2> edge,inside;int count=0;double begin=0,end=0;};
+    struct Clump {int count=0;double begin=0,end=0;};
     struct Whitecap {std::vector<V2> edge,inside;};
     struct Crest {
         double a=0,envelope=0,stage=0;
-        std::vector<V2> boundary,outerLip,foamInside;
+        std::vector<V2> boundary,outerLip,foamRim,foamInside;
         std::array<std::vector<V2>,16> contours;
         std::array<double,16> contourAlpha{};
         std::vector<Finger> fingers;
+        std::vector<Strand> lace,tangle,falling;
         std::vector<Whitecap> whitecaps;
         std::vector<Clump> clumps;double foamThickness=0,gapFraction=1;
     };

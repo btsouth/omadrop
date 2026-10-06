@@ -45,35 +45,36 @@ integrated world performance.
 
 ## Lip details and motion
 
-Nine irregularly spaced foam hands attach to the current outer lip, with
-2 to 5 main fingers per hand. The shoulder hands are broad and the last hands
-are smaller; deterministic root offsets, reach, taper and finger counts break
-the old regular spine row. Blue water reaches the lip between hands. Each
-hand and finger has a slightly offset blue underprint, painted before the
-cream so the roots join cleanly. There is no continuous cream rim or separate
-row of dark teeth. S0 and S1 have no foam or fingers; growth starts above 1.15
-and completes at stage 4.
+The claws follow the Journey K3 prototype frame (`kanagawa.cpp` and
+`direction_study.cpp`): cream sickle claws rooted on the current outer lip,
+heading forward and down over the face and hooking to a point. Each claw has a
+short pointed blue claw rising behind it in the underprint colour, so the
+crest silhouette is ragged blue against the sky with cream hooks below. A
+thin ragged cream sheet joins the roots, deeper under the clusters, with blue
+lace cavities inside it.
 
-Thirty-four main fingers and four thin tip tendrils reuse the 38 spring slots.
-Six bands run from shoulder lows to tip highs. Independent critical length
-springs and underdamped flick springs (damping ratio 0.42) remain; onset
-overshoot now changes forward reach. A shared positive lip flow transports
-root order through the curl, with curvature and material-width limits.
-Its arc-distance potential is computed once per crest; no path unions or
-intersection searches run during rendering. Tips turn toward the water as
-the flow relaxes beyond a hand. Reported angles use the forward root lip
-tangent, signed clockwise in screen coordinates, rather than the outward
-normal. Direction is also counted explicitly in screen coordinates.
+The 38 spring slots are 38 main claws in eleven clusters of three or four.
+Spacing, reach, width, hook and drop vary by deterministic hashes, and about a
+third of the claws are slender, so no regular row forms. Some carry a thin
+side hook from the middle. Width is limited to about a quarter of the reach,
+so short claws never fold back over their root. The crest top foams first:
+shoulder and tip clusters open later with stage. S0 and S1 have no foam or
+claws; growth starts above 1.15 and completes near stage 4.
 
-The four tip tendrils have slender curved forks and intentional visual
-overlap. Their lengths, widths and opacity open with highs, making more of
-the lace visible when loud. They are excluded from main-finger crossing and
-body-exclusion tests, but constrained separately to the final hand, finite
-geometry within 220 px of their roots, main stroke width at most 4 px and
-bounded opacity. Main fingers retain the 3 px crossing tolerance.
-Main root edges may join their palm in the first quarter of their length;
-body exclusion is enforced beyond that seam. The new 220 px geometry bound
-allows forward hooks longer than the old 160 px outward spikes.
+Six bands run from shoulder lows to tip highs. Each claw keeps its critical
+length spring and underdamped flick spring (damping ratio 0.42). Louder bands
+reach further, wider and slightly more forward; an onset flicks a claw out and
+up with overshoot, then it settles back. A slow per-claw sway keeps quiet
+water moving. Reported angles use the forward root lip tangent, signed
+clockwise in screen coordinates; at rest every claw hooks forward and down
+(angle between 0 and pi).
+
+The curl tip unravels into seven thin tendrils that curl both ways and overlap
+on purpose; they lengthen with the highs. Six loose claws drop from the curl
+into the barrel on the flow clock and fade in and out, so the cycle never pops.
+Claws overlap each other like the woodblock reference and may lie over the
+face, so there is no body-exclusion or crossing requirement; each claw outline
+must still be simple and bounded.
 
 Whitecaps and contour flow are retained. Quiet coherent material wobble
 continues with zero bands. The six profiles and body stage, bass height,
@@ -95,13 +96,15 @@ opacity goes to zero before a row wraps, keeping the wrap invisible.
 (0.018, small 0.026 rises) and loud (0.42, repeated 0.65 onsets and kicks)
 band inputs. It writes same-time quiet/loud frames and measured arc lengths,
 end tangent angles relative to the forward root lip tangent, alive droplets,
-maximum rooted clump depth, whitecap depth, contour displacement over two
+maximum foam sheet depth, whitecap depth, contour displacement over two
 seconds, and the silhouette's coordinate excursion over a twenty-second
 frozen-stage study. These are isolated element controls, not a replacement
 for the music fixture. Native motion frames show the quiet breathing.
 
-The additional CTests cover exact lip and palm attachment, blue gaps, bounded
-nonintersecting main-finger geometry and separately bounded overlapping tip lace, alternating long/short cells and opposite flicks,
+The additional CTests cover exact lip and sheet attachment, cluster counts,
+bounded simple claw and side-hook outlines, blue claws anchored to their roots,
+forward-and-down hooks at rest, bounded tip tendrils and loose claws,
+alternating long/short cells and opposite flicks,
 per-band monotonic response and impulse isolation, deterministic pool
 saturation/reuse/expiry, and dense stage and frame continuity. The existing
 fixture tests remain in force. Passing tests does not establish artistic
