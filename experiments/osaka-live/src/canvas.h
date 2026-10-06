@@ -23,14 +23,15 @@ struct Vertex {
 struct Stop { float offset; Col c; float a; };
 
 struct GradientRow {
-    std::array<float, 64> data{}; // 16 RGBA32F texels, see gpu.cpp
+    std::array<float, 64> data{}; // original 16 RGBA32F texels, see gpu.cpp
+    std::vector<Stop> extraStops; // SVG stops after the original eight
 };
 
 class Canvas {
 public:
     inline static bool useKnownConvex = true;
-    enum class CmdKind { Direct, StencilFill, StencilOnce, Cached };
-    struct Cmd { CmdKind kind; int first, count, coverFirst, coverCount; };
+    enum class CmdKind { Direct, StencilFill, StencilEvenOdd, StencilOnce, Cached };
+    struct Cmd { CmdKind kind; int first, count, coverFirst, coverCount; float opacity = 1; };
 
     explicit Canvas(double pixelScale = 1.0) : pixelScale_(pixelScale) { states_.push_back({}); }
     Canvas(const Canvas&) = delete;
@@ -38,6 +39,7 @@ public:
     // Insert an immutable geometry span without copying or changing its place
     // in the draw stream. The retained canvas must outlive this canvas's frame.
     void append(const Canvas& retained);
+    void appendOwned(std::shared_ptr<const Canvas> retained, double opacity = 1);
     const Canvas& retained(int index) const { return *retained_[index]; }
     std::uint64_t identity() const { return identity_; }
     std::uint64_t revision() const { return revision_; }
@@ -59,6 +61,7 @@ public:
 
     // Source.
     void color(Col c, double alpha = 1.0);
+    void gradient(const GradientRow& row, bool translucent) { pushRow(row, translucent); }
     void linear(double x0, double y0, double x1, double y1, std::initializer_list<Stop> stops);
     void radial(double cx, double cy, double r, std::initializer_list<Stop> stops);
 
@@ -77,7 +80,7 @@ public:
     void ellipsePrepared(double x,double y,const PreparedEllipse&);
     void fillEllipsePrepared(double x,double y,const PreparedEllipse&);
 
-    void fill();
+    void fill(bool evenOdd = false);
     void stroke(double width);
     void newPath() { recyclePaths(); }
 
@@ -123,6 +126,7 @@ private:
     bool frozen_ = false;
 
     std::vector<const Canvas*> retained_;
+    std::vector<std::shared_ptr<const Canvas>> owned_;
     double pixelScale_;
     std::vector<State> states_;
     Source src_;

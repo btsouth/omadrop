@@ -122,6 +122,9 @@ private:
     void scissor(const QRect& bounds);
     void prepareBounded(int texture, const QRect& bounds);
     void drawCanvas(const Canvas& canvas);
+    void drawOpacity(const Canvas& canvas, float opacity);
+    int opacityDepth_ = 0;
+    std::map<std::tuple<int,int,int>,Target> opacityTargets_;
     void bindGeometry(const Canvas& canvas);
     void setBlend(Blend blend, float gain);
     void fullscreen();

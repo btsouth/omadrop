@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+<defs>
+<linearGradient id="linear"><stop offset="0" stop-color="#c04020"/><stop offset=".4" stop-color="#30b060"/><stop offset="1" stop-color="#3040c0"/></linearGradient>
+<linearGradient id="user" gradientUnits="userSpaceOnUse" x1="0" x2="600" gradientTransform="translate(1080 120) rotate(15)"><stop offset="0" stop-color="#c0b040"/><stop offset="1" stop-color="#206090" stop-opacity=".5"/></linearGradient>
+<radialGradient id="radial" cx=".5" cy=".5" r=".6" fx=".3" fy=".4" gradientTransform="rotate(10 .5 .5)"><stop offset="0" stop-color="#d0b060"/><stop offset=".65" stop-color="#804090"/><stop offset="1" stop-color="#204060"/></radialGradient>
+<linearGradient id="many"><stop offset="0.00000000" stop-color="#14aa28"/><stop offset="0.11111111" stop-color="#269e34"/><stop offset="0.22222222" stop-color="#389240"/><stop offset="0.33333333" stop-color="#4a864c"/><stop offset="0.44444444" stop-color="#5c7a58"/><stop offset="0.55555556" stop-color="#6e6e64"/><stop offset="0.66666667" stop-color="#806270"/><stop offset="0.77777778" stop-color="#92567c"/><stop offset="0.88888889" stop-color="#a44a88"/><stop offset="1.00000000" stop-color="#b63e94"/></linearGradient>
+<radialGradient id="focal" cx=".5" cy=".5" r=".5" fx=".5" fy=".5" fr=".15"><stop offset="0" stop-color="#b08050"/><stop offset="1" stop-color="#304060"/></radialGradient>
+</defs>
+<rect id="r" x="120" y="120" width="720" height="360" fill="url(#linear)"/>
+<rect id="u" x="1080" y="120" width="600" height="360" fill="url(#user)"/>
+<ellipse id="e" cx="600" cy="780" rx="360" ry="180" fill="url(#radial)"/>
+<g id="matrix" transform="matrix(1 .1 .2 1 0 0)"><rect x="1080" y="540" width="480" height="240" fill="#40a0c0" fill-opacity=".6" stroke="#d08040" stroke-width="36" stroke-linejoin="bevel"/></g>
+<rect x="1200" y="900" width="480" height="90" fill="url(#many)"/><circle cx="1740" cy="720" r="90" fill="url(#focal)"/>
+</svg>

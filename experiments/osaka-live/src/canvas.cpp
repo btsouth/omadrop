@@ -9,6 +9,7 @@ void Canvas::reset(double pixelScale) {
     frozen_ = false;
     preserveRaster=false;batchSpatially=false;
     retained_.clear();
+    owned_.clear();
     pixelScale_ = pixelScale;
     states_.assign(1, {});
     src_ = {};
@@ -38,6 +39,12 @@ void Canvas::append(const Canvas& retained) {
     const int index = int(retained_.size());
     retained_.push_back(&retained);
     cmds_.push_back({CmdKind::Cached, index, 0, 0, 0});
+}
+
+void Canvas::appendOwned(std::shared_ptr<const Canvas> retained, double opacity) {
+    owned_.push_back(std::move(retained));
+    append(*owned_.back());
+    cmds_.back().opacity = float(std::clamp(opacity, 0.0, 1.0));
 }
 
 void Canvas::translate(double x, double y) {
@@ -332,7 +339,7 @@ bool Canvas::convex(const Sub& s) const {
     return std::abs(std::abs(turning) - Tau) < 0.2;
 }
 
-void Canvas::fill() {
+void Canvas::fill(bool evenOdd) {
     auto& subs=fillSubs_;subs.clear();
     for (auto& s : paths_) if (s.pts.size() >= 3) subs.push_back(&s);
     if (!subs.empty()) {
@@ -359,7 +366,7 @@ void Canvas::fill() {
             const int cover = int(verts_.size());
             put({x0, y0}); put({x1, y0}); put({x1, y1});
             put({x0, y0}); put({x1, y1}); put({x0, y1});
-            cmds_.push_back({CmdKind::StencilFill, first, cover - first, cover, 6});
+            cmds_.push_back({evenOdd ? CmdKind::StencilEvenOdd : CmdKind::StencilFill, first, cover - first, cover, 6});
         }
     }
     recyclePaths();
