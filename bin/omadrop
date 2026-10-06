@@ -25,12 +25,6 @@ here=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
 config_home=${XDG_CONFIG_HOME:-$HOME/.config}
 mode_file=${OMADROP_MODE_FILE:-$config_home/omadrop/mode.conf}
 milkdrop_backend=${OMADROP_MILKDROP_BACKEND:-$here/omadrop-milkdrop}
-# Theme-to-world choice lives here. Every theme uses Osaka Jade today.
-# Add a future world's binary here when its scene is ready.
-omarchy_world_backend() {
-  printf '%s' "$here/omadrop-osaka"
-}
-omarchy_backend=${OMADROP_OMARCHY_BACKEND:-$(omarchy_world_backend)}
 milkdrop_root=$(dirname "$(dirname "$milkdrop_backend")")
 milkdrop_live=${OMADROP_MILKDROP_LIVE:-${OMADROP_LIVE_EXECUTABLE:-$milkdrop_root/experiments/projectm-ascii/projectm-ascii-live}}
 hyprctl_command=${OMADROP_HYPRCTL:-hyprctl}
@@ -45,6 +39,26 @@ require_backend() {
 worlds_root() {
   printf '%s' "${OMADROP_WORLDS:-$(dirname "$here")/worlds}"
 }
+
+# Theme-to-world choice lives here. A matching installed world is selected
+# without changing the display or session arguments.
+omarchy_world_arguments=()
+omarchy_world_backend() {
+  local theme_link theme_target theme
+  omarchy_world_arguments=()
+
+  theme_link=$config_home/omarchy/current/theme
+  theme_target=$(readlink -f -- "$theme_link" 2>/dev/null || true)
+  [[ -n $theme_target && -d $theme_target ]] || return 0
+
+  theme=$(basename -- "$theme_target")
+  [[ $theme != examples && $theme != template ]] || return 0
+  if [[ -f $(worlds_root)/$theme/scene.json ]]; then
+    omarchy_world_arguments=(--world "$theme")
+  fi
+}
+omarchy_world_backend
+omarchy_backend=${OMADROP_OMARCHY_BACKEND:-$here/omadrop-osaka}
 
 world_usage() {
   cat <<'EOF'
@@ -135,7 +149,9 @@ world_check() {
   while (($#)); do
     case $1 in
       --fixture|--json)
-        (($# >= 2)) && [[ -n $2 ]] || die "world check: $1 requires a file"
+        if (($# < 2)) || [[ -z $2 ]]; then
+          die "world check: $1 requires a file"
+        fi
         options+=("$1" "$2")
         shift 2
         ;;
@@ -369,7 +385,7 @@ case $target_mode in
     ;;
   omarchy)
     require_backend "$omarchy_backend"
-    exec "$omarchy_backend" "${display_args[@]}"
+    exec "$omarchy_backend" "${omarchy_world_arguments[@]}" "${display_args[@]}"
     ;;
   *) die "unknown mode: $target_mode" ;;
 esac

@@ -160,6 +160,35 @@ grep -qx "worlds=$world_parent" "$OMADROP_TEST_BACKEND_LOG" || fail "world check
 grep -qx "args=--check --world demo --fixture $fixture --json $report" "$OMADROP_TEST_BACKEND_LOG" \
   || fail "world check forwarded the wrong arguments"
 
+# Omarchy uses a world named after the current theme when one is installed.
+theme_link=$HOME/.config/omarchy/current/theme
+mkdir -p "$(dirname "$theme_link")"
+rm -f "$theme_link"
+reset_logs
+printf 'mode=omarchy\n' >"$mode_file"
+"$launcher" --single
+grep -qx 'args=--single' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "a missing theme symlink did not use Osaka Jade"
+
+plain_theme=$scratch/themes/plain-theme
+mkdir -p "$plain_theme"
+ln -s "$plain_theme" "$theme_link"
+reset_logs
+"$launcher" --single
+grep -qx 'args=--single' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "a theme without a matching world did not use Osaka Jade"
+
+matched_theme=$scratch/themes/rose-pine
+mkdir -p "$matched_theme"
+cp -a "$install_root/worlds/template" "$install_root/worlds/rose-pine"
+rm -f "$theme_link"
+ln -s "$matched_theme" "$theme_link"
+reset_logs
+"$launcher" --single
+grep -qx 'args=--world rose-pine --single' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "a matching theme world was not selected"
+rm -f "$theme_link"
+
 # Display flags follow the remembered mode.
 reset_logs
 printf 'mode=omarchy\n' >"$mode_file"
