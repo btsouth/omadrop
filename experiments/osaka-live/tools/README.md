@@ -21,15 +21,19 @@ Run each build with an external timeout, then compare:
 ```sh
 timeout 120s BASELINE --fidelity /tmp/baseline --fixture /path/fixture.f32 --seed 1 --width 1920 --height 1080
 timeout 120s CANDIDATE --fidelity /tmp/candidate --fixture /path/fixture.f32 --seed 1 --width 1920 --height 1080
-python3 experiments/osaka-live/tools/compare-frames.py /tmp/baseline /tmp/candidate /tmp/comparison
+python3 experiments/osaka-live/tools/compare-frames.py --require-identical /tmp/baseline /tmp/candidate /tmp/comparison
 ```
 
 The Python comparator requires numpy and Pillow. It rejects mismatched capture
-sets, dimensions and schedule manifests. `metrics.json` reports max and mean
+sets, dimensions and schedule manifests. With `--require-identical`, it also
+exits nonzero for any changed RGB pixel or any changed row in the complete
+brightness, change, clock and firework/schedule series. Without that flag,
+pixel and brightness differences remain diagnostic. Empty series fail closed. `metrics.json` reports max and mean
 absolute RGB channel differences in byte units, percent of pixels with any
 channel differing by more than 2 or 8, and RGB PSNR in dB. Identical PSNR is the
-string `infinity`. Each capture has a side-by-side PNG (baseline left) and an
-absolute difference PNG amplified 16 times. The reactivity diagnostic averages
+string `infinity`. Diagnostic comparisons write side-by-side PNGs (baseline left) and absolute
+difference PNGs amplified 16 times. Strict comparisons omit these duplicate
+images for identical pairs; both original captures remain. The reactivity diagnostic averages
 consecutive frame brightness change across the full fixture, omitting the first
 frame. This is a fixed 5 Hz regression diagnostic, not an artistic score or proof
 of instrument recognition. Numerical metrics support visual inspection; they

@@ -1,6 +1,6 @@
 // Theme titles: accent bar, name in the Omarchy mono face, small label.
 // Fixed vector outlines (no font lookup), drawn after the grade.
-#include "world.h"
+#include "../world.h"
 
 #include <charconv>
 #include <cstring>
@@ -8,7 +8,7 @@
 
 namespace Journey {
 namespace {
-#include "caption-assets/sign-outlines.inc"
+#include "../caption-assets/sign-outlines.inc"
 
 struct Op { char code; double v[6]; };
 
