@@ -53,9 +53,10 @@ private:
 };
 struct WaveTrainProfileV2 {
     struct Finger {
-        V2 root,tip;double lipIndex=0,length=0,angle=0;int band=0;
+        V2 root,tip;double lipIndex=0,length=0,angle=0,opacity=1;int band=0,clump=0;bool tendril=false;
         std::vector<V2> centre,left,right,forkLeft,forkRight;
     };
+    struct Clump {std::vector<V2> edge,inside;int count=0;double begin=0,end=0;};
     struct Whitecap {std::vector<V2> edge,inside;};
     struct Crest {
         double a=0,envelope=0,stage=0;
@@ -64,7 +65,7 @@ struct WaveTrainProfileV2 {
         std::array<double,16> contourAlpha{};
         std::vector<Finger> fingers;
         std::vector<Whitecap> whitecaps;
-        double foamThickness=0;
+        std::vector<Clump> clumps;double foamThickness=0,gapFraction=1;
     };
     std::vector<V2> surface;
     std::vector<Whitecap> swellCaps;

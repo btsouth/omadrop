@@ -191,7 +191,7 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
             const double breakup=1+.13*std::sin(j*2.13+s.seconds*.41)+.10*noise1(j*.8+s.seconds*.18,813);
             const double w=(4+27*sstep(1,5,crest.stage))*(.72+1.10*bandLevel(band))*g
                 *std::sin(Pi*(.10+.8*u))*breakup;
-            crest.outerLip.push_back(q);crest.foamInside.push_back(q+normal*w);crest.foamThickness=std::max(crest.foamThickness,w*.87);
+            crest.outerLip.push_back(q);crest.foamInside.push_back(q+normal*w);
         }
         std::vector<double> lipArc{0};
         for(size_t j=1;j<crest.outerLip.size();++j)lipArc.push_back(lipArc.back()+(crest.outerLip[j]-crest.outerLip[j-1]).len());
@@ -201,54 +201,122 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
             return lerp(crest.outerLip[j],crest.outerLip[j+1],(arc-lipArc[j])/(lipArc[j+1]-lipArc[j]));
         };
         const double growth=sstep(1.15,4.,crest.stage);
-        for(int i=0;i<WaveTrainFingerCountV2;++i) {
-            // Irregular authored spacing, finer near the curl. Each material
-            // cell owns its bend and fork; no independently wandering roots.
-            const double u=(i+.5+.18*std::sin(i*2.41))/WaveTrainFingerCountV2;
-            const double index=3+36*(1-std::pow(1-u,1.18));
-            const V2 root=sample(crest.outerLip,index),t=unit(sample(crest.outerLip,index+.45)-sample(crest.outerLip,index-.45)),n={t.y,-t.x};
-            const double spacing=(sample(crest.outerLip,std::min(40.,index+.50))-sample(crest.outerLip,std::max(0.,index-.50))).len();
-            const V2 before=unit(sample(crest.outerLip,index)-sample(crest.outerLip,index-1)),after=unit(sample(crest.outerLip,index+1)-sample(crest.outerLip,index));
-            const double radius=spacing/std::max(.025,(after-before).len());
-            const int band=std::min(5,int(u*6));
-            const double authored=34+24*(.5+.5*std::sin(i*1.91))+32*u;
-            const double extension=std::clamp(s.fingers[i].extension,0.,1.15);
-            const double cap=std::min(85.,radius*.42),target=authored*(.40+.90*extension);
-            const double length=cap*-std::expm1(-target/cap)*growth*g;
-            const double quietBend=.12*noise1(s.seconds*.32+i*.47,637);
-            const double bend=std::clamp(.28*std::sin(i*1.71)+quietBend+s.fingers[i].flick,-.70,.70);
-            WaveTrainProfileV2::Finger finger;finger.root=root;finger.lipIndex=index;finger.band=band;
-            finger.length=length;finger.angle=bend;
-            const double halfWidth=std::min(12.,spacing*(.26+.10*(.5+.5*std::sin(i*2.7))))*(1-.37*u)*growth;
-            auto clawPoint=[&](double z,double fork=0.) {
-                // Common streamlines depend on physical height, rather than
-                // percentage of each finger's independent length. Short claws
-                // cannot cut across the flow of their longer neighbours.
-                const double h=length*z;
-                const int lo=int(index);
-                const double rootArc=lerp(lipArc[lo],lipArc[lo+1],index-lo);
-                const double arc=rootArc+.020*h*h/(1+.010*h)*(1+.12*bend)+fork*spacing*growth;
-                const V2 anchor=arcSample(arc);
-                const V2 tangent=unit(arcSample(arc+3)-arcSample(std::max(0.,arc-3)));
-                const V2 normal={tangent.y,-tangent.x};
-                return std::pair<V2,V2>{anchor+normal*h,tangent};
-            };
-            for(int k=0;k<=12;++k) {
-                const double z=k/12.;const auto [q,tangent]=clawPoint(z);
-                const double width=halfWidth*std::pow(1-z,1.20)*(1+.20*std::sin(i+z*7));
-                finger.centre.push_back(q);finger.left.push_back(q-tangent*width);finger.right.push_back(q+tangent*width);
-            }
-            if(i%5==2 || (u>.72 && i%3==0))for(int k=0;k<=6;++k) {
-                const double z=k/6.;const auto [q,tangent]=clawPoint(.5+.45*z,.15*z);
-                const double width=halfWidth*.25*std::pow(1-z,1.3);
-                finger.forkLeft.push_back(q-tangent*width);finger.forkRight.push_back(q+tangent*width);
-            }
-            finger.tip=finger.centre.back();finger.length=0;
-            const V2 endDirection=unit(finger.tip-finger.centre[finger.centre.size()-2]);
-            finger.angle=std::atan2(n.x*endDirection.y-n.y*endDirection.x,n.x*endDirection.x+n.y*endDirection.y);
-            for(size_t k=1;k<finger.centre.size();++k)finger.length+=(finger.centre[k]-finger.centre[k-1]).len();
-            crest.fingers.push_back(std::move(finger));
+        // Nine seeded hands, not a cream rim with regularly spaced spikes.
+        // Fixed slots keep springs and the spray pool deterministic; the last
+        // four slots are thin tip lace whose opacity opens with high bands.
+        constexpr int counts[]={3,4,2,5,3,4,5,5,7};
+        constexpr double centres[]={3.2,8.4,14.0,19.6,24.1,28.7,33.0,36.7,39.3};
+        constexpr double spans[]={3.2,3.8,2.8,3.9,2.8,3.0,2.5,1.9,.9};
+        int slot=0;double covered=0;
+        auto arcAt=[&](double index) {int j=int(index);return lerp(lipArc[j],lipArc[j+1],index-j);};
+        // Integrate one scalar streamline potential, then transport each
+        // root through it analytically. A shared chart and width cells prevent
+        // crossings at different lengths without per-frame path unions.
+        std::array<double,38> rootArcs{};
+        int rootSlot=0;
+        std::array<double,9> begins{},ends{};
+        for(int hand=0;hand<9;++hand) {
+            const int firstSlot=rootSlot;
+            const double ex=std::clamp(s.fingers[firstSlot].extension,0.,1.15);
+            const double half=spans[hand]*(.75+.25*ex)*.5;
+            begins[hand]=arcAt(centres[hand]-half);ends[hand]=arcAt(centres[hand]+half);
+            for(int j=0;j<counts[hand];++j)
+                rootArcs[rootSlot++]=arcAt(lerp(centres[hand]-half,centres[hand]+half,(j+.5+.19*std::sin(hand*2.13+j*4.7))/counts[hand]));
         }
+        std::vector<double> potential(int(lipArc.back()+200)+2,0);
+        const double decay=std::exp(-1./28);
+        for(size_t j=1;j<potential.size();++j) {
+            const double x=j-.5;double force=.035;
+            for(int hand=0;hand<9;++hand)
+                force+=(1.2+.12*std::sin(hand*1.91))*(1-sstep(ends[hand]+8*growth,ends[hand]+17*growth,x))
+                    *sstep(begins[hand]-4*growth,begins[hand]+4*growth,x);
+            potential[j]=potential[j-1]*decay+force*28*(1-decay);
+        }
+        auto transported=[&](double root,double arc) {
+            auto value=[&](double x) {int j=std::clamp(int(x),0,int(potential.size()-2));return lerp(potential[j],potential[j+1],x-j);};
+            return std::max(0.,value(arc)-value(root)*std::exp(-(arc-root)/28));
+        };
+        for(int hand=0;hand<9;++hand) {
+            const double centre=centres[hand],u=centre/40.;
+            const int mainCount=hand==8?3:counts[hand];
+            const double extension=std::clamp(s.fingers[slot].extension,0.,1.15);
+            const double spread=.75+.25*extension;
+            const double begin=centre-spans[hand]*spread*.5,end=centre+spans[hand]*spread*.5;
+            WaveTrainProfileV2::Clump palm;palm.count=mainCount;palm.begin=begin;palm.end=end;
+            for(int k=0;k<=12;++k) {
+                const double z=k/12.,index=lerp(begin,end,z);const V2 q=sample(crest.outerLip,index);
+                const V2 t=unit(sample(crest.outerLip,index+.25)-sample(crest.outerLip,index-.25));
+                const V2 inward={-t.y,t.x};
+                const double w=(10+23*(1-u))*(.70+.60*extension)*growth*g
+                    *std::pow(std::sin(Pi*z),.55)*(1+.13*std::sin(z*8+hand*2.3+s.seconds*.22));
+                palm.edge.push_back(q);palm.inside.push_back(q+inward*w);
+                crest.foamThickness=std::max(crest.foamThickness,w);
+            }
+            covered+=arcAt(end)-arcAt(begin);crest.clumps.push_back(std::move(palm));
+            for(int local=0;local<counts[hand];++local,++slot) {
+                const bool lace=hand==8 && local>=3;
+                const double zroot=(local+.5+.19*std::sin(hand*2.13+local*4.7))/counts[hand];
+                const double index=lerp(begin,end,zroot);
+                const V2 root=sample(crest.outerLip,index),t=unit(sample(crest.outerLip,index+.3)-sample(crest.outerLip,index-.3));
+                const double rootArc=arcAt(index),cell=(arcAt(end)-arcAt(begin))/counts[hand];
+                const double ext=std::clamp(s.fingers[slot].extension,0.,1.15);
+                const double seed=.5+.5*std::sin(hand*4.13+local*2.71);
+                const double authored=(40+43*(1-u))*(.53+.75*ext+.10*std::clamp(s.fingers[slot].flick,-.35,.35))*(.78+.40*seed);
+                const double cap=std::min(185.,std::max(1.,(lipArc.back()-rootArc)*.87+85*sstep(3.4,4.8,crest.stage)));
+                const double reach=cap*-std::expm1(-(arcAt(end)-rootArc+authored)/cap)*growth*g;
+                WaveTrainProfileV2::Finger finger;finger.root=root;finger.lipIndex=index;
+                finger.band=std::min(5,int(6*(slot+.5+.18*std::sin(slot*2.41))/WaveTrainFingerCountV2));
+                finger.clump=hand;finger.tendril=lace;
+                finger.opacity=lace?(.18+.82*bandLevel(s.bands[5])):1;
+                const double width=std::min(14.,cell*.29)*(lace?.22:1)*growth*(.75+.30*ext);
+                std::array<double,25> cellWidths{};
+                for(int k=0;k<=24;++k) {
+                    const double z=k/24.,arc=rootArc+reach*z;
+                    const V2 anchor=arcSample(arc),tangent=unit(arcSample(arc+10)-arcSample(std::max(0.,arc-10)));
+                    const V2 normal={tangent.y,-tangent.x};
+                    const V2 before=unit(arcSample(arc)-arcSample(std::max(0.,arc-10))),after=unit(arcSample(arc+10)-arcSample(arc));
+                    const double radius=20/std::max(.01,(after-before).len());
+                    const double limit=radius*.38;
+                    auto chart=[&](double q) {return limit*std::tanh(transported(q,arc)/limit);};
+                    double h=chart(rootArc),space=h;
+                    if(slot && arc>=rootArcs[slot-1])space=std::min(space,std::abs(chart(rootArcs[slot-1])-h));
+                    if(slot+1<38 && arc>=rootArcs[slot+1])space=std::min(space,std::abs(chart(rootArcs[slot+1])-h));
+                    cellWidths[k]=.25*space;
+                    // Thin lace is separately bounded and may cross at the tip.
+                    if(lace)h+=growth*(8+7*ext)*std::sin(Pi*z)*(.55+.45*std::sin(9*z+local*1.7));
+                    finger.centre.push_back(anchor+normal*h);
+                }
+                for(int k=0;k<=24;++k) {
+                    const double z=k/24.;const V2 direction=unit(finger.centre[std::min(k+1,24)]-finger.centre[std::max(k-1,0)]);
+                    const V2 normal={-direction.y,direction.x};
+                    const double arc=rootArc+reach*z;
+                    const double air=(finger.centre[k]-arcSample(arc)).len();
+                    const V2 a=unit(finger.centre[k]-finger.centre[std::max(k-1,0)]),b=unit(finger.centre[std::min(k+1,24)]-finger.centre[k]);
+                    const double radius=(finger.centre[std::min(k+1,24)]-finger.centre[std::max(k-1,0)]).len()/std::max(.01,(b-a).len());
+                    const double w=std::min(lace?2.0*growth:cellWidths[k]+width*(1-sstep(0.,.12,z)),std::min(.22*radius,std::min(width*std::pow(1-z,1.05)*(1+.13*std::sin(z*9+hand+local)),
+                        .45*air+width*(1-sstep(0.,.20,z)))));
+                    finger.left.push_back(finger.centre[k]+normal*w);finger.right.push_back(finger.centre[k]-normal*w);
+                }
+                if(lace) {
+                    const V2 origin=finger.centre[9],direction=unit(finger.centre[13]-origin);
+                    const V2 side={-direction.y,direction.x};
+                    const double length=(15+22*ext)*growth;
+                    for(int k=0;k<=16;++k) {
+                        const double z=k/16.,a=(local%2?1:-1)*(1.3*z+.45*std::sin(z*Pi));
+                        const V2 q=origin+direction*(length*z)+side*(length*.38*std::sin(a));
+                        const double w=(.6+1.0*ext)*growth*std::pow(1-z,1.2);
+                        finger.forkLeft.push_back(q+side*w);finger.forkRight.push_back(q-side*w);
+                    }
+                }
+                finger.tip=finger.centre.back();
+                const V2 direction=unit(finger.tip-finger.centre[23]);
+                // Signed clockwise angle from the forward ROOT lip tangent.
+                finger.angle=std::atan2(t.x*direction.y-t.y*direction.x,t.x*direction.x+t.y*direction.y);
+                for(size_t k=1;k<finger.centre.size();++k)finger.length+=(finger.centre[k]-finger.centre[k-1]).len();
+                crest.fingers.push_back(std::move(finger));
+            }
+        }
+        crest.gapFraction=1-covered/lipArc.back();
         // Material lines advect from the lower face into the barrel. Wrapping
         // ribbons enter/leave invisibly at endpoints instead of phase popping.
         for(int row=0;row<16;++row) {
@@ -302,28 +370,22 @@ void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPo
             if(row%4==0)stripe(cv,crest.contours[row],13*crest.envelope,p.lines,(.12+.07*pulse)*crest.contourAlpha[row]);
             stripe(cv,crest.contours[row],(row%4==0?2:1)*crest.envelope,p.lines,(.30+.16*pulse)*crest.contourAlpha[row]);
         }
-        ribbon(cv,crest.outerLip,crest.foamInside,p.underprint);
-        std::vector<V2> inner;for(size_t j=0;j<crest.outerLip.size();++j)inner.push_back(lerp(crest.outerLip[j],crest.foamInside[j],.87));
-        ribbon(cv,crest.outerLip,inner,p.foam);stripe(cv,crest.outerLip,1.1*crest.envelope,p.lines,.5);
-        for(const auto& finger:crest.fingers)if(finger.length>.01) {
-            // Carved notches stay on the water side of each attachment.
-            const V2 tangent=unit(sample(crest.outerLip,finger.lipIndex+.3)-sample(crest.outerLip,finger.lipIndex-.3));
-            const V2 inward={-tangent.y,tangent.x};
-            const V2 inner=sample(crest.foamInside,finger.lipIndex);
-            const double thickness=(inner-finger.root).len();
-            if(finger.band!=1 && int(finger.lipIndex*5)%3!=0) {
-                const V2 tip=finger.root+inward*(thickness*.26)+tangent*4;
-                std::vector<V2> l,r;
-                for(int k=0;k<=8;++k) {
-                    const double z=k/8.;
-                    l.push_back(bezier(inner-tangent*6,inner-tangent*10-inward*8,tip-tangent*9,tip,z));
-                    r.push_back(bezier(inner+tangent*7,inner-inward*9,tip-inward*7,tip,z));
-                }ribbon(cv,l,r,p.body,sstep(1.15,4.,crest.stage));
+        // Paired underprint belongs to each hand; blue reaches the lip
+        // between hands. No continuous rim and no separate periodic teeth.
+        auto paired=[&](const std::vector<V2>& left,const std::vector<V2>& right,double alpha,bool blue) {
+            std::vector<V2> l,r;
+            for(size_t j=0;j<left.size();++j) {
+                const V2 middle=(left[j]+right[j])*.5;
+                l.push_back(middle+(left[j]-middle)*1.14+V2(-1.1,1.5)*crest.envelope);
+                r.push_back(middle+(right[j]-middle)*1.14+V2(-1.1,1.5)*crest.envelope);
             }
-            ribbon(cv,finger.left,finger.right,p.foam);
-            if(!finger.forkLeft.empty())ribbon(cv,finger.forkLeft,finger.forkRight,p.foam);
-            // Fine carved line on a subset, tapered rather than a flat comb tooth.
-            if(finger.band>=3)stripe(cv,finger.centre,.65*crest.envelope,p.lines,.55);
+            if(blue)ribbon(cv,l,r,p.bottom,alpha);else ribbon(cv,left,right,p.foam,alpha);
+        };
+        for(bool blue:{true,false}) {
+            for(const auto& finger:crest.fingers)if(finger.length>.01)
+                {paired(finger.left,finger.right,finger.opacity,blue);
+                 if(!finger.forkLeft.empty())paired(finger.forkLeft,finger.forkRight,finger.opacity,blue);}
+            for(const auto& hand:crest.clumps)paired(hand.edge,hand.inside,1,blue);
         }
         for(const auto& cap:crest.whitecaps)ribbon(cv,cap.edge,cap.inside,p.foam,.85);
     }
@@ -332,8 +394,18 @@ void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPo
         const double size=d.size*(1-sstep(.30,1.,d.age/d.life));
         const V2 t=unit(d.velocity),n={-t.y,t.x},q=d.position;
         // Crisp teardrops and irregular flecks, no sprites/glow/blur.
-        cv.tri(q-t*size*1.8,q+n*size*.55,q+t*size*.55,p.foam);
-        cv.tri(q-t*size*1.8,q+t*size*.55,q-n*size*.65,p.foam);
+        if(d.serial%4==0) {
+            std::vector<V2> l,r;
+            for(int j=0;j<=10;++j) {
+                const double z=j/10.;const V2 point=q+t*(size*6*(z-.5))+n*(size*2.3*std::sin(Pi*z));
+                const double w=size*.45*std::pow(std::sin(Pi*z),.8);
+                l.push_back(point+n*w);r.push_back(point-n*w);
+            }
+            ribbon(cv,l,r,p.bottom,.8);stripe(cv,l,size*.35,p.foam,1);ribbon(cv,l,r,p.foam);
+        } else {
+            cv.tri(q-t*size*1.8,q+n*size*.55,q+t*size*.55,p.foam);
+            cv.tri(q-t*size*1.8,q+t*size*.55,q-n*size*.65,p.foam);
+        }
     }
 }
 void WaveTrainFoamMotionV2::advance(const Audio& a,const Score& score,WaveTrainPoseV2& pose_,double seconds,double dt) {

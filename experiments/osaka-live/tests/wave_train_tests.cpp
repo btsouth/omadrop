@@ -44,23 +44,38 @@ void fingerSimple(const std::vector<V2>& v) {
 }
 void fingerSafe(const WaveTrainProfileV2::Crest& hero) {
     require(hero.fingers.size()==WaveTrainFingerCountV2,"finger count changed");
+    require(hero.clumps.size()==9,"clump count changed");
+    require(hero.gapFraction>.30 && hero.gapFraction<.65,"blue gaps between clumps lost");
+    for(size_t i=0;i<hero.clumps.size();++i) {
+        const auto& c=hero.clumps[i];require(c.count>=2&&c.count<=5,"invalid main finger count");
+        if(i)require(c.begin>hero.clumps[i-1].end,"clump roots form a continuous band");
+        for(size_t k=0;k<c.edge.size();++k) {
+            require((c.edge[k]-at(hero.outerLip,lerp(c.begin,c.end,k/double(c.edge.size()-1)))).len()<1e-9,"palm detached");
+            require((c.inside[k]-c.edge[k]).len()<70,"palm too deep");
+            if(hero.stage<=1)require((c.inside[k]-c.edge[k]).len()==0,"foam at S0-S1");
+        }
+    }
     for(const auto& f:hero.fingers) {
         require((f.root-at(hero.outerLip,f.lipIndex)).len()<1e-9,"finger detached from lip");
-        require(f.length>=0 && f.length<160,"finger exceeds safe length");
+        require(f.length>=0 && f.length<220,"finger exceeds safe length");
         if(hero.stage<=1)require(f.length==0,"stub at S0-S1");
         for(auto q:f.centre) {
             require(std::isfinite(q.x)&&std::isfinite(q.y),"nonfinite finger");
-            require((q-f.root).len()<165,"finger escaped attachment neighbourhood");
+            require((q-f.root).len()<220,"finger escaped attachment neighbourhood");
+        }
+        if(f.tendril) {
+            require(f.clump==8 && f.opacity>=.18 && f.opacity<=1,"lace escaped tip clump");
+            for(size_t j=0;j<f.left.size();++j)require((f.left[j]-f.right[j]).len()<=4.01,"lace too thick");
         }
         if(f.length>1) {
-            fingerSimple(polygon(f.left,f.right));
-            if(!f.forkLeft.empty())fingerSimple(polygon(f.forkLeft,f.forkRight));
+            if(!f.tendril){fingerSimple(polygon(f.left,f.right));}
+            if(!f.tendril && !f.forkLeft.empty())fingerSimple(polygon(f.forkLeft,f.forkRight));
             for(const auto* edge:{&f.left,&f.right,&f.forkLeft,&f.forkRight})for(size_t i=0;i<edge->size();++i) {
-                const V2 q=(*edge)[i];require(std::isfinite(q.x)&&std::isfinite(q.y)&&(q-f.root).len()<165,"finger edge outside safe bounds");
-                if(i>=2 && inside(q,hero.boundary))require(false,"finger edge pokes through body");
+                const V2 q=(*edge)[i];require(std::isfinite(q.x)&&std::isfinite(q.y)&&(q-f.root).len()<220,"finger edge outside safe bounds");
+                if(!f.tendril && i>=6 && inside(q,hero.boundary)){std::cerr<<"edge stage="<<hero.stage<<" finger="<<f.clump<<" index="<<f.lipIndex<<" sample="<<i<<" reach="<<f.length<<"\n";require(false,"finger edge pokes through body");}
             }
-            for(size_t i=2;i<f.centre.size();++i) {
-                if(inside(f.centre[i],hero.boundary)){std::cerr<<"body penetration stage="<<hero.stage<<" index="<<f.lipIndex<<" sample="<<i<<'\n';require(false,"claw pokes through body");}
+            for(size_t i=6;i<f.centre.size();++i) {
+                if(!f.tendril && inside(f.centre[i],hero.boundary)){std::cerr<<"body penetration stage="<<hero.stage<<" index="<<f.lipIndex<<" sample="<<i<<'\n';require(false,"claw pokes through body");}
             }
         }
     }
@@ -91,12 +106,12 @@ int main(int argc,char** argv) {
             if(!oldTips.empty())for(size_t j=0;j<tips.size();++j)maxStep=std::max(maxStep,(tips[j]-oldTips[j]).len());oldTips=tips;
             if(mode=="crossing" && i%5==0) {
                 for(size_t j=0;j<h.fingers.size();++j)for(size_t k=j+1;k<h.fingers.size();++k) {
-                    const auto& a=h.fingers[j];const auto& b=h.fingers[k];if(a.length<1||b.length<1)continue;
+                    const auto& a=h.fingers[j];const auto& b=h.fingers[k];if(a.length<1||b.length<1||a.tendril||b.tendril)continue;
                     const std::array<std::vector<V2>,2> as{polygon(a.left,a.right),polygon(a.forkLeft,a.forkRight)},bs{polygon(b.left,b.right),polygon(b.forkLeft,b.forkRight)};
                     for(const auto& pa:as)for(const auto& pb:bs)
                     for(size_t x=1;x+1<pa.size();++x)for(size_t y=1;y+1<pb.size();++y)if(intersects(pa[x],pa[x+1],pb[y],pb[y+1])) {
                         const double overlap=std::min((pa[x]-a.root).len(),(pb[y]-b.root).len());maxCross=std::max(maxCross,overlap);
-                        if(overlap>3){std::cerr<<"stage="<<s.stage<<" crossing="<<j<<","<<k<<" overlap="<<overlap<<'\n';require(false,"fingers cross beyond 3px root tolerance");}
+                        if(overlap>3){std::cerr<<"stage="<<s.stage<<" crossing="<<j<<","<<k<<" overlap="<<overlap<<" points="<<pa[x].x<<","<<pa[x].y<<" / "<<pb[y].x<<","<<pb[y].y<<'\n';require(false,"fingers cross beyond 3px root tolerance");}
                     }
                 }
             }

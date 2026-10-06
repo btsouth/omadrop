@@ -72,12 +72,14 @@ int main(int argc,char** argv) {
         }
         GLuint timer=0;glGenQueries(1,&timer);std::vector<unsigned char> rgb;std::vector<double> costs,cpuCosts,geometryCosts;double pendingMotionMs=0;
         std::ofstream csv((dir+"/"+mode+"-parameters.csv").toStdString());
-        csv<<"seconds,height,stage,lean,lip_stage,base_width,phase_speed,throw,distance,group_center,energy,bass_level,tempo,hero_a,hero_envelope,hero_stage,hero_height,lip_count,piece_gpu_ms,piece_cpu_ms,geometry_paint_ms,motion_ms\n";
+        csv<<"seconds,height,stage,lean,lip_stage,base_width,phase_speed,throw,distance,group_center,energy,bass_level,tempo,hero_a,hero_envelope,hero_stage,hero_height,lip_count,piece_gpu_ms,piece_cpu_ms,geometry_paint_ms,motion_ms,camera_x,lip_screen_min_x,lip_screen_max_x\n";
         auto frame=[&](const WaveTrainPoseV2& s,const QString& png,int index) {
             gpu.begin(1920,1080);Ctx c{gpu,s.seconds,audio,&score,1,&canvases,nullptr};
             if(!bench){GradientSkyV1::draw(c,background.sky);WaterSurfaceV1::draw(c,background.sea);}
             const auto cpuStart=std::chrono::steady_clock::now();
-            auto f=WaveTrainV2::profile(s,params);Canvas& cv=c.canvas();WaveTrainV2::paint(cv,f,s,params);
+            auto f=WaveTrainV2::profile(s,params);Canvas& cv=c.canvas();
+            const double cameraX=clip && f.hero>=0?f.crests[f.hero].a-630:0;
+            cv.save();cv.translate(-cameraX,0);WaveTrainV2::paint(cv,f,s,params);cv.restore();
             const double geometryMs=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-cpuStart).count();
             const double cpuMs=geometryMs+pendingMotionMs;
             // Warm the shader/upload path before starting the isolated query.
@@ -88,7 +90,10 @@ int main(int argc,char** argv) {
             if(f.hero>=0){heroA=f.crests[f.hero].a;heroG=f.crests[f.hero].envelope;heroStage=f.crests[f.hero].stage;}
             for(const auto& crest:f.crests)if(!crest.outerLip.empty())++lips;
             csv<<s.seconds<<','<<s.amplitude<<','<<s.stage<<','<<s.lean<<','<<s.lipStage<<','<<s.baseWidth<<','<<s.phaseSpeed<<','<<s.lipThrow<<','<<s.distance<<','<<params.groupOrigin+.5*s.distance
-                <<','<<s.energy<<','<<audio.bassLevel<<','<<s.tempo<<','<<heroA<<','<<heroG<<','<<heroStage<<','<<s.amplitude*heroG<<','<<lips<<','<<ms<<','<<cpuMs<<','<<geometryMs<<','<<pendingMotionMs<<'\n';
+                <<','<<s.energy<<','<<audio.bassLevel<<','<<s.tempo<<','<<heroA<<','<<heroG<<','<<heroStage<<','<<s.amplitude*heroG<<','<<lips<<','<<ms<<','<<cpuMs<<','<<geometryMs<<','<<pendingMotionMs<<','<<cameraX<<',';
+            double minX=1e9,maxX=-1e9;
+            if(f.hero>=0)for(const auto& q:f.crests[f.hero].outerLip){minX=std::min(minX,q.x-cameraX);maxX=std::max(maxX,q.x-cameraX);}
+            csv<<minX<<','<<maxX<<'\n';
             pendingMotionMs=0;
             if(!bench) {
                 FinishParams finish;finish.bloom=finish.vignette=finish.grain=0;finish.paper=.08;finish.time=s.seconds;
@@ -109,7 +114,7 @@ int main(int argc,char** argv) {
         }
         if(mode=="response") {
             std::ofstream report((dir+"/element-response.csv").toStdString());
-            report<<"condition,band,length_min_px,length_max_px,angle_min_rad,angle_max_rad,droplets_alive,foam_thickness_px,wobble_peak_to_peak_px,whitecap_depth_px,contour_drift_px\n";
+            report<<"condition,band,length_min_px,length_max_px,angle_min_rad,angle_max_rad,droplets_alive,foam_thickness_px,wobble_peak_to_peak_px,whitecap_depth_px,contour_drift_px,clumps,fingers_per_clump_min,fingers_per_clump_max,blue_gap_fraction,tip_tendrils,forward_tip_fraction,down_tip_fraction\n";
             for(int loud=0;loud<2;++loud) {
                 WaveTrainPoseV2 s;s.amplitude=800;s.stage=5;s.energy=loud?.90:.04;
                 Audio input;Score sc;WaveTrainFoamMotionV2 details;
@@ -131,9 +136,15 @@ int main(int argc,char** argv) {
                 double capDepth=0;for(const auto& cap:hero.whitecaps)for(size_t i=0;i<cap.edge.size();++i)capDepth=std::max(capDepth,(cap.edge[i]-cap.inside[i]).len());
                 auto next=s;next.flow+=(.065+.16*s.energy)*2;auto nf=WaveTrainV2::profile(next,params);double drift=0;
                 for(size_t i=0;i<hero.contours[5].size();++i)drift=std::max(drift,(hero.contours[5][i]-nf.crests[nf.hero].contours[5][i]).len());
+                int minF=99,maxF=0,tendrils=0,main=0,forward=0,down=0;
+                for(const auto& clump:hero.clumps){minF=std::min(minF,clump.count);maxF=std::max(maxF,clump.count);}
+                for(const auto& finger:hero.fingers)if(finger.tendril)++tendrils;else {
+                    ++main;if(std::cos(finger.angle)>0)++forward;
+                    if((finger.tip-finger.centre[finger.centre.size()-2]).y>0)++down;
+                }
                 for(int band=0;band<6;++band) {
                     double lo=1e9,hi=0,al=1e9,ah=-1e9;for(const auto& finger:hero.fingers)if(finger.band==band){lo=std::min(lo,finger.length);hi=std::max(hi,finger.length);al=std::min(al,finger.angle);ah=std::max(ah,finger.angle);}
-                    report<<(loud?"loud":"quiet")<<','<<band<<','<<lo<<','<<hi<<','<<al<<','<<ah<<','<<alive<<','<<hero.foamThickness<<','<<wobble<<','<<capDepth<<','<<drift<<'\n';
+                    report<<(loud?"loud":"quiet")<<','<<band<<','<<lo<<','<<hi<<','<<al<<','<<ah<<','<<alive<<','<<hero.foamThickness<<','<<wobble<<','<<capDepth<<','<<drift<<','<<hero.clumps.size()<<','<<minF<<','<<maxF<<','<<hero.gapFraction<<','<<tendrils<<','<<forward/double(main)<<','<<down/double(main)<<'\n';
                 }
                 // Native full frames establish silhouette/lip motion at frozen stage.
                 for(int i=0;i<5;++i){auto q=s;q.seconds=i*2.;q.flow=(.065+.16*s.energy)*q.seconds;frame(q,dir+QString("/%1-motion-%2.png").arg(loud?"loud":"quiet").arg(i),i);}

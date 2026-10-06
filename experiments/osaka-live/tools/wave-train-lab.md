@@ -45,31 +45,47 @@ integrated world performance.
 
 ## Lip details and motion
 
-Thirty-eight tapered claws are material strips attached to the current outer
-lip. Their spacing is irregular and gets finer near the curl. Each has a
-critical length spring and an underdamped flick spring (damping ratio 0.42).
-The six analyzer bands run from the shoulder's lows to the curl tip's highs.
-Band rises trigger their own flick, with a 180 ms refractory period; no other
-band receives that impulse. A saturating band mapping and a smooth curvature
-limit preserve room between adjacent fingers. Finger reach follows a common
-streamline field in lip arc length, rather than independently bent straight
-spikes. Occasional narrow forks stay in the same material cell. S0 and S1
-have no claws; growth starts above 1.15 and completes at stage 4.
+Nine irregularly spaced foam hands attach to the current outer lip, with
+2 to 5 main fingers per hand. The shoulder hands are broad and the last hands
+are smaller; deterministic root offsets, reach, taper and finger counts break
+the old regular spine row. Blue water reaches the lip between hands. Each
+hand and finger has a slightly offset blue underprint, painted before the
+cream so the roots join cleanly. There is no continuous cream rim or separate
+row of dark teeth. S0 and S1 have no foam or fingers; growth starts above 1.15
+and completes at stage 4.
 
-Foam hugs the inside of the lip. Its thickness uses local band energy, with
-slow edge variation and curved carved breaks in the cream. Whitecaps on the
-face and nearby swells use the high bands. All geometry has crisp edges and
-uses the piece's existing palette. Quiet material wobble is coherent between
-neighbouring controls and continues with zero bands. Loud energy increases
-its displacement; it does not change the six authored profiles or the body
-controller's stage, height, lean, throw and travel mapping.
+Thirty-four main fingers and four thin tip tendrils reuse the 38 spring slots.
+Six bands run from shoulder lows to tip highs. Independent critical length
+springs and underdamped flick springs (damping ratio 0.42) remain; onset
+overshoot now changes forward reach. A shared positive lip flow transports
+root order through the curl, with curvature and material-width limits.
+Its arc-distance potential is computed once per crest; no path unions or
+intersection searches run during rendering. Tips turn toward the water as
+the flow relaxes beyond a hand. Reported angles use the forward root lip
+tangent, signed clockwise in screen coordinates, rather than the outward
+normal. Direction is also counted explicitly in screen coordinates.
+
+The four tip tendrils have slender curved forks and intentional visual
+overlap. Their lengths, widths and opacity open with highs, making more of
+the lace visible when loud. They are excluded from main-finger crossing and
+body-exclusion tests, but constrained separately to the final hand, finite
+geometry within 220 px of their roots, main stroke width at most 4 px and
+bounded opacity. Main fingers retain the 3 px crossing tolerance.
+Main root edges may join their palm in the first quarter of their length;
+body exclusion is enforced beyond that seam. The new 220 px geometry bound
+allows forward hooks longer than the old 160 px outward spikes.
+
+Whitecaps and contour flow are retained. Quiet coherent material wobble
+continues with zero bands. The six profiles and body stage, bass height,
+mid lean/throw and tempo travel mappings are unchanged.
 
 Spray uses a fixed 192-slot deterministic xorshift pool. Band onsets and bass
 hits can emit at most twelve droplets per event group, at most ten groups per
 second. Each particle starts at a finger tip or crest root, inherits bounded
 lip velocity, and receives a directional toss and wind. Gravity, mild drag
 and shrink-out govern its lifetime (1.4 to 2.7 seconds). Pool exhaustion drops
-new emissions. There is no collapse, collision, impact or crash state.
+new emissions. Every fourth fleck is drawn as a curved detached foam finger using the same
+ballistic particle state. There is no collapse, collision, impact or crash state.
 
 Sixteen contour ribbons advect through corresponding outer/inner profiles.
 Their phase speed follows the existing energy/travel flow clock. Endpoint
@@ -78,15 +94,26 @@ opacity goes to zero before a row wraps, keeping the wrap invisible.
 `response` holds the hero at S5 and 800 px amplitude while exercising quiet
 (0.018, small 0.026 rises) and loud (0.42, repeated 0.65 onsets and kicks)
 band inputs. It writes same-time quiet/loud frames and measured arc lengths,
-end tangent angles relative to the lip outward normal, alive droplets,
-maximum cream thickness, whitecap depth, contour displacement over two
+end tangent angles relative to the forward root lip tangent, alive droplets,
+maximum rooted clump depth, whitecap depth, contour displacement over two
 seconds, and the silhouette's coordinate excursion over a twenty-second
 frozen-stage study. These are isolated element controls, not a replacement
 for the music fixture. Native motion frames show the quiet breathing.
 
-The additional CTests cover exact lip attachment, bounded nonintersecting
-parent/fork geometry, alternating long/short cells and opposite flicks,
+The additional CTests cover exact lip and palm attachment, blue gaps, bounded
+nonintersecting main-finger geometry and separately bounded overlapping tip lace, alternating long/short cells and opposite flicks,
 per-band monotonic response and impulse isolation, deterministic pool
 saturation/reuse/expiry, and dense stage and frame continuity. The existing
 fixture tests remain in force. Passing tests does not establish artistic
 acceptance or integrated world performance; world placement is W3.
+
+
+## Lab clip camera
+
+Only clip mode follows the selected travelling hero: its material anchor is
+held at screen x=630 by a canvas translation. The pose, profile, envelope,
+travel distance and music mapping are unchanged. The background stays in lab
+coordinates. The CSV records world travel, hero anchor, camera x and projected
+lip bounds every frame. Selection can move to the next periodic wave when
+the current group recedes; this is a lab framing aid, not W3 world placement.
+Bench mode retains the unmodified world coordinates and cost definition.
