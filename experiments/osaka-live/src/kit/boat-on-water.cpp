@@ -42,6 +42,8 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
         // rigid hull does not bridge the face/sea junction.
         // The next crest is one group period away, leaving a navigable lower face.
         for(const auto& crest:train->crests) {
+            // A risen or sunk set lies flat in the sea; the hull rows over it.
+            if(crest.envelope<.2)continue;
             double left=1e9;for(auto q:crest.boundary)left=std::min(left,q.x);
             // Navigate from the slower body lip, with a conservative detail
             // reserve. Following individual claw flicks would jerk the hull.
@@ -84,6 +86,7 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
         const double bounded=std::clamp(s.at.x,hullRadius+16,1920-hullRadius-16);
         bool clear=true;
         for(const auto& crest:train->crests) {
+            if(crest.envelope<.2)continue;
             double left=1e9;for(auto q:crest.boundary)left=std::min(left,q.x);
             if(bounded+half*1.4+20>=left && bounded-half*1.4<=WaveTrainV2::exclusionRight(crest)+20)clear=false;
         }
