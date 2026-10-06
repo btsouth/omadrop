@@ -191,6 +191,17 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
     for (const auto* stage : {&description.backdrop,&description.coast,&description.distantTown,&description.foreground}) {
         for (std::size_t i=0;i<stage->count;++i) {
             const auto& slot=stage->entries[i];
+            if (slot.piece==OsakaOp::SwellLines) {
+                const auto& swell=slot.params->swell;
+                for(int row=0;row<swell.rows;++row) {
+                    NodeResult node;node.id=QString::fromStdString(slot.id)+".row"+QString::number(row);
+                    node.label="swell-lines-v1";node.piece="swell-lines";node.movingSurface=true;
+                    node.band=SwellLinesV1::band(row,swell.rows);node.kick=swell.kickGain>0;out.nodes.push_back(node);
+                    QPainterPath area;area.addRect(SwellLinesV1::responseArea(row,swell));
+                    for(const auto& box:swell.exclusions){QPainterPath excluded;excluded.addRect(box);area=area.subtracted(excluded);}
+                    regions.emplace_back();fillRegion(regions.back(),screen.map(area));
+                }
+            }
             if (slot.piece!=OsakaOp::WaterSurface) continue;
             const auto& water=slot.params->water;
             for (int row=0;row<water.rows;++row) {

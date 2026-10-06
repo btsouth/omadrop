@@ -134,3 +134,6 @@ HEADERS += src/kit/gradient-sky.h
 
 SOURCES += src/kit/water-surface.cpp
 HEADERS += src/kit/water-surface.h
+
+SOURCES += src/kit/swell-lines.cpp
+HEADERS += src/kit/swell-lines.h

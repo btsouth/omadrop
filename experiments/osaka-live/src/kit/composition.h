@@ -6,6 +6,7 @@
 #include "ridges.h"
 #include "gradient-sky.h"
 #include "water-surface.h"
+#include "swell-lines.h"
 #include "svg-art.h"
 #include "window-label.h"
 #include <map>
@@ -16,7 +17,7 @@ enum class OsakaOp {
     CoastHook, Ridges, City, Firework, AfterValley, NearRidge, Train, SkyLanterns,
     TownHook, Downhill, FarNetwork, AfterTown, RightTown, StreetSurface, Cart,
     AfterCart, Festoon, NearNetwork, Moths, AfterWires, ReflectionCapture,
-    AfterReflections, StreetActors, Birds, NearHouse, Wisteria, Haze, GradientSky, WaterSurface
+    AfterReflections, StreetActors, Birds, NearHouse, Wisteria, Haze, GradientSky, WaterSurface, SwellLines
 };
 enum class OsakaGate { Always, Chapter, DiscEnabled, MountainEnabled, Land,
                        DefaultCoastLand, DefaultCoastChapter, DefaultTownLand };
@@ -31,6 +32,7 @@ struct OsakaSlotParamsV1 {
     OsakaHazeSlotV1 haze;
     GradientSkyParametersV1 gradientSky;
     WaterSurfaceParametersV1 water;
+    SwellLinesParametersV1 swell;
     std::vector<OsakaRidgeSpecV1> ridges;
 };
 struct OsakaRenderSlot {

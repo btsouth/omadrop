@@ -235,3 +235,10 @@ Port sources: Journey `journey-osaka-polish` at `4c2d413`,
 `ending_water.cpp:35-61` (calm texture), `64-142` (printed sea and crest caps).
 Only the reusable landscape drawing is carried over, with world-controlled
 paints and density. The prototype checkout is preserved.
+
+`swell-lines-v1` ports the printed sea curl and calm sea texture into broken
+contours. Parameters: region, exclusions, count, rows, depthFalloff, width and
+length ranges, seed, driftSpeed, amplitude, color, opacity and band/lift/kick
+gains. Perspective rows map treble at the horizon to bass near the viewer.
+Individual offscreen wraps and incommensurate contour clocks avoid a short
+shared loop. Foam and hull support can sample `SwellLinesV1::field`.

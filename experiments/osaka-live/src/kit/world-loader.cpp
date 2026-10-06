@@ -81,6 +81,7 @@ constexpr Piece pieces[] = {
     {"Sky", OsakaOp::Sky, "osaka-sky-v1"},
     {"GradientSky", OsakaOp::GradientSky, "gradient-sky-v1"},
     {"WaterSurface", OsakaOp::WaterSurface, "water-surface-v1"},
+    {"SwellLines", OsakaOp::SwellLines, "swell-lines-v1"},
     {"AfterSky", OsakaOp::AfterSky, "after-sky"},
     {"Star", OsakaOp::Star, "osaka-shooting-star-v1"},
     {"DiscHook", OsakaOp::DiscHook, "disc-port"},
@@ -514,6 +515,39 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 color("top",water.top); color("bottom",water.bottom); color("crest",water.crest);
                 color("texture",water.texture); color("foam",water.foam); color("underprint",water.underprint);
                 color("glint",water.glint); color("hotGlint",water.hotGlint);
+                params=value;
+            } else if (piece->op==OsakaOp::SwellLines) {
+                if (!slot.contains("params")) r.fail(paramsPath,"required field");
+                const auto data=r.object(slot["params"],paramsPath,{},
+                    {"region","exclusions","count","rows","seed","depthFalloff","widthMin","widthMax",
+                     "lengthMin","lengthMax","driftSpeed","amplitude","opacity","bandGain","liftGain","kickGain","color"});
+                auto value=std::make_shared<OsakaSlotParamsV1>(); auto& swell=value->swell;
+                auto box=[&](const QJsonValue& item,const QString& path) {
+                    const auto v=r.object(item,path,{"x","y","width","height"});
+                    const double x=r.number(v["x"],path+".x"),y=r.number(v["y"],path+".y");
+                    const double w=r.number(v["width"],path+".width"),h=r.number(v["height"],path+".height");
+                    if(x<-2000 || x>3840 || y<0 || y>1200 || w<=0 || w>5840 || h<=0 || h>1200)
+                        r.fail(path,"bounded rectangle with positive width and height");
+                    return QRectF(x,y,w,h);
+                };
+                if(data.contains("region"))swell.region=box(data["region"],paramsPath+".region");
+                if(data.contains("exclusions")) {
+                    if(!data["exclusions"].isArray() || data["exclusions"].toArray().size()>8)r.fail(paramsPath+".exclusions","array of at most 8 rectangles");
+                    const auto list=data["exclusions"].toArray();
+                    for(int k=0;k<list.size();++k)swell.exclusions.push_back(box(list[k],paramsPath+".exclusions["+QString::number(k)+"]"));
+                }
+                auto scalar=[&](const char* name,double& target,double lo,double hi) {
+                    if(!data.contains(name))return;target=r.number(data[name],paramsPath+"."+name);
+                    if(target<lo || target>hi)r.fail(paramsPath+"."+name,"number in "+QString::number(lo)+".."+QString::number(hi));
+                };
+                auto integer=[&](const char* name,int& target,int lo,int hi) {if(data.contains(name))target=r.integer(data[name],paramsPath+"."+name,lo,hi);};
+                integer("count",swell.count,0,600);integer("rows",swell.rows,6,24);integer("seed",swell.seed,0,1000000);
+                scalar("depthFalloff",swell.depthFalloff,1,3);scalar("widthMin",swell.widthMin,.2,4);scalar("widthMax",swell.widthMax,.2,6);
+                scalar("lengthMin",swell.lengthMin,20,1200);scalar("lengthMax",swell.lengthMax,20,1600);
+                scalar("driftSpeed",swell.driftSpeed,0,2);scalar("amplitude",swell.amplitude,0,1.5);scalar("opacity",swell.opacity,0,1);
+                scalar("bandGain",swell.bandGain,0,2);scalar("liftGain",swell.liftGain,0,1);scalar("kickGain",swell.kickGain,0,.5);
+                if(swell.widthMax<swell.widthMin || swell.lengthMax<swell.lengthMin)r.fail(paramsPath,"ordered width and length ranges");
+                if(data.contains("color"))swell.color=r.color(data["color"],paramsPath+".color");
                 params=value;
             } else if (piece->op==OsakaOp::Haze) {
                 if (!slot.contains("params")) r.fail(paramsPath,"required field");

@@ -98,3 +98,9 @@ target_link_libraries(osaka-reload-tests PRIVATE Qt6::Gui Qt6::OpenGL)
 target_compile_definitions(osaka-reload-tests PRIVATE LIT_WINDOWS_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/examples/lit-windows")
 add_test(NAME preview-world-reload COMMAND osaka-reload-tests)
 set_tests_properties(preview-world-reload PROPERTIES TIMEOUT 120)
+
+add_executable(swell-piece-tests swell_piece_tests.cpp ../src/kit/swell-lines.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp)
+target_include_directories(swell-piece-tests PRIVATE ../src)
+target_link_libraries(swell-piece-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
+add_test(NAME swell-lines-deterministic-and-music COMMAND swell-piece-tests)
