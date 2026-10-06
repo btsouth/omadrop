@@ -90,6 +90,10 @@ stage_from_repo() {
   install -Dm755 "$root/experiments/projectm-ascii/projectm-ascii-live" \
     "$dest/experiments/projectm-ascii/projectm-ascii-live"
   cp -a "$root/worlds/." "$dest/worlds/"
+  for world in osaka-jade template examples/lit-windows examples/night-street; do
+    [[ -f $dest/worlds/$world/scene.json && -f $dest/worlds/$world/art.svg ]] \
+      || { echo "install: missing world: $world" >&2; exit 1; }
+  done
   cp -a "$root/presets/pilot/." "$dest/presets/pilot/"
   install -Dm644 "$root/presets/pilot.txt" "$dest/presets/pilot.txt"
   cp -a "$root/presets/textures" "$dest/presets/"
