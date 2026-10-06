@@ -1,11 +1,43 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
-  <!-- Street and kerb -->
-  <rect id="street" data-name="street" x="0" y="930" width="1920" height="150" fill="#050e0c"/>
-  <rect id="kerb" data-name="kerb" x="0" y="926" width="1920" height="6" fill="#16322a"/>
+  <defs>
+    <linearGradient id="street-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="930" x2="0" y2="1080">
+      <stop offset="0" stop-color="#1a473b"/>
+      <stop offset="0.22" stop-color="#0f2d25"/>
+      <stop offset="0.65" stop-color="#071812"/>
+      <stop offset="1" stop-color="#020806"/>
+    </linearGradient>
+    <linearGradient id="shop-left-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="366" x2="0" y2="930">
+      <stop offset="0" stop-color="#173c32"/>
+      <stop offset="0.52" stop-color="#0d251e"/>
+      <stop offset="1" stop-color="#07160f"/>
+    </linearGradient>
+    <linearGradient id="shop-right-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="310" x2="0" y2="930">
+      <stop offset="0" stop-color="#15382f"/>
+      <stop offset="0.55" stop-color="#0c231d"/>
+      <stop offset="1" stop-color="#06140f"/>
+    </linearGradient>
+    <linearGradient id="roof-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="310" x2="0" y2="440">
+      <stop offset="0" stop-color="#123229"/>
+      <stop offset="1" stop-color="#05120e"/>
+    </linearGradient>
+    <linearGradient id="distance-veil-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="430" x2="0" y2="940">
+      <stop offset="0" stop-color="#04130f" stop-opacity="0"/>
+      <stop offset="0.3" stop-color="#04130f" stop-opacity="0.38"/>
+      <stop offset="0.75" stop-color="#04130f" stop-opacity="0.48"/>
+      <stop offset="1" stop-color="#04130f" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Static distance veil softens the jade horizon; backdrop ridges and haze live in scene.json. -->
+  <rect id="distance-veil" data-name="distance-veil" x="0" y="430" width="1920" height="510" fill="url(#distance-veil-gradient)"/>
+
+  <!-- Street and kerb: the lifted top edge blends into the low mist. -->
+  <path id="street" data-name="street" d="M0 930 C310 926 620 927 960 929 C1300 931 1610 928 1920 930 L1920 1080 L0 1080 Z" fill="url(#street-gradient)"/>
+  <path id="kerb" data-name="kerb" d="M0 930 C310 926 620 927 960 929 C1300 931 1610 928 1920 930" fill="none" stroke="#2a5d4c" stroke-opacity="0.35" stroke-width="2"/>
 
   <!-- Left shop -->
-  <path id="shop-left-roof" data-name="shop-left-roof" d="M40 440 L110 366 L570 366 L640 440 Z" fill="#04100c"/>
-  <rect id="shop-left" data-name="shop-left" x="70" y="436" width="540" height="494" fill="#081a15"/>
+  <path id="shop-left-roof" data-name="shop-left-roof" d="M40 440 L110 366 L570 366 L640 440 Z" fill="url(#roof-gradient)"/>
+  <rect id="shop-left" data-name="shop-left" x="70" y="436" width="540" height="494" fill="url(#shop-left-gradient)"/>
   <rect id="shop-left-eave" data-name="shop-left-eave" x="60" y="430" width="560" height="12" fill="#030b09"/>
   <rect id="shop-left-door" data-name="shop-left-door" x="270" y="730" width="130" height="200" rx="6" fill="#030c09" stroke="#1d3b31" stroke-width="5"/>
   <rect id="left-window-0" data-name="window.band1.always" x="110" y="490" width="120" height="120" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="6"/>
@@ -15,8 +47,8 @@
   <rect id="left-window-4" data-name="window.band4.always.kick" x="450" y="750" width="110" height="110" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="6"/>
 
   <!-- Right building -->
-  <path id="shop-right-roof" data-name="shop-right-roof" d="M1090 380 L1150 310 L1790 310 L1850 380 Z" fill="#04100c"/>
-  <rect id="shop-right" data-name="shop-right" x="1110" y="376" width="720" height="554" fill="#081a15"/>
+  <path id="shop-right-roof" data-name="shop-right-roof" d="M1090 380 L1150 310 L1790 310 L1850 380 Z" fill="url(#roof-gradient)"/>
+  <rect id="shop-right" data-name="shop-right" x="1110" y="376" width="720" height="554" fill="url(#shop-right-gradient)"/>
   <rect id="shop-right-eave" data-name="shop-right-eave" x="1100" y="370" width="740" height="12" fill="#030b09"/>
   <rect id="shop-right-door" data-name="shop-right-door" x="1620" y="740" width="130" height="190" rx="6" fill="#030c09" stroke="#1d3b31" stroke-width="5"/>
   <rect id="right-window-0" data-name="window.band2.always" x="1170" y="430" width="110" height="130" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="6"/>

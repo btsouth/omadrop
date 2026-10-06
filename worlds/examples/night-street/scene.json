@@ -12,17 +12,30 @@
         {
           "id": "hills", "piece": "Ridges", "gate": "Always", "profile": "osaka-ridges-v1",
           "params": {"ridges": [
-            {"seed": 21, "base": 690, "amp": 190, "scale": 620, "parallax": 0.04, "top": "#082820", "bottom": "#185a46"},
-            {"seed": 22, "base": 740, "amp": 110, "scale": 330, "parallax": 0.07, "top": "#06201a", "bottom": "#10443a"}
+            {"seed": 21, "base": 608, "amp": 180, "scale": 760, "parallax": 0.03, "top": "#0a3027", "bottom": "#1b5c49"},
+            {"seed": 24, "base": 728, "amp": 110, "scale": 420, "parallax": 0.05, "top": "#08261f", "bottom": "#123f35"}
           ]}
         },
         {
           "id": "valley-haze", "piece": "Haze", "gate": "Always", "profile": "osaka-haze-v1",
-          "params": {"y": 740, "sigma": 54, "lo": 0.2, "hi": 0.45, "drift": 5, "seed": 31, "color": "#5deba9", "gain": 0.14}
+          "params": {"y": 714, "sigma": 72, "lo": 0.18, "hi": 0.43, "drift": 5, "seed": 31, "color": "#5deba9", "gain": 0.06}
+        },
+        {
+          "id": "near-hills", "piece": "Ridges", "gate": "Always", "profile": "osaka-ridges-v1",
+          "params": {"ridges": [
+            {"seed": 25, "base": 856, "amp": 86, "scale": 320, "parallax": 0.075, "top": "#061d18", "bottom": "#0b3027"}
+          ]}
+        },
+        {
+          "id": "street-mist", "piece": "Haze", "gate": "Always", "profile": "osaka-haze-v1",
+          "params": {"y": 886, "sigma": 40, "lo": 0.06, "hi": 0.24, "drift": 3, "seed": 36, "color": "#4fcf94", "gain": 0.06}
         }
       ]
     }
   ],
   "disc": {"profile": "osaka-disc-v1", "x": 1450, "y": 200, "parallax": 0, "radius": 84},
+  "profiles": {
+    "osaka-sky-v1": {"energyBase": 0.2, "energyBass": 0.15, "energySurge": 0.1, "timeOffset": 10}
+  },
   "art": {"file": "art.svg"}
 }
