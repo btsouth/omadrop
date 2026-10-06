@@ -36,6 +36,132 @@ milkdrop_live=${OMADROP_MILKDROP_LIVE:-${OMADROP_LIVE_EXECUTABLE:-$milkdrop_root
 hyprctl_command=${OMADROP_HYPRCTL:-hyprctl}
 screensaver_class=${OMADROP_SCREENSAVER_CLASS:-org.omadrop.screensaver}
 
+die() { echo "omadrop: $*" >&2; exit 2; }
+
+require_backend() {
+  [[ -x $1 ]] || { echo "omadrop: backend not found or not executable: $1" >&2; exit 1; }
+}
+
+worlds_root() {
+  printf '%s' "${OMADROP_WORLDS:-$(dirname "$here")/worlds}"
+}
+
+world_usage() {
+  cat <<'EOF'
+Usage: omadrop world new NAME [DIR]
+       omadrop world preview PATH [--fixture FILE]
+       omadrop world check PATH [--fixture FILE] [--json OUT]
+
+NAME uses lowercase letters, digits and dashes. PATH is a world folder
+containing scene.json. DIR defaults to the current directory.
+EOF
+}
+
+world_path() {
+  local path=${1:-}
+  [[ -n $path ]] || die "world: PATH is required"
+  [[ -d $path ]] || die "world: PATH is not a folder: $path"
+  path=$(readlink -f -- "$path") || die "world: cannot resolve PATH: $path"
+  [[ -f $path/scene.json ]] || die "world: scene.json not found in $path"
+  printf '%s' "$path"
+}
+
+world_new() {
+  local name=${1:-} directory=${2:-$PWD} staging destination template
+  (($# <= 2)) || die "world new: too many arguments"
+  [[ -n $name ]] || die "world new: NAME is required"
+  [[ $name =~ ^[a-z0-9-]+$ ]] \
+    || die "world new: NAME must use lowercase letters, digits and dashes"
+  [[ -d $directory ]] || die "world new: DIR is not a folder: $directory"
+  directory=$(readlink -f -- "$directory") || die "world new: cannot resolve DIR: $directory"
+  destination=$directory/$name
+  [[ ! -e $destination ]] || die "world new: destination already exists: $destination"
+
+  template=$(worlds_root)/template
+  [[ -f $template/scene.json && -f $template/art.svg ]] \
+    || die "world new: starter template not found: $template"
+  command -v jq >/dev/null 2>&1 || die "world new: jq is required"
+
+  staging=$(mktemp -d "$directory/.omadrop-$name.XXXXXX") \
+    || die "world new: could not create a temporary folder in $directory"
+  if ! cp -a "$template/." "$staging/"; then
+    rm -rf -- "$staging"
+    die "world new: could not copy the starter template"
+  fi
+  if ! jq --arg world "$name" '.world = $world' \
+      "$staging/scene.json" >"$staging/scene.json.tmp"; then
+    rm -rf -- "$staging"
+    die "world new: could not update scene.json"
+  fi
+  mv -- "$staging/scene.json.tmp" "$staging/scene.json" \
+    || die "world new: could not update scene.json"
+  mv -- "$staging" "$destination" || die "world new: could not create $destination"
+  printf 'Created %s\n' "$destination"
+}
+
+world_launch() {
+  local kind=$1 path
+  path=$(world_path "${2:-}")
+  shift 2
+
+  local parent name
+  parent=$(dirname -- "$path")
+  name=$(basename -- "$path")
+  require_backend "$here/omadrop-osaka"
+  export OMADROP_WORLDS=$parent
+
+  if [[ $kind == preview ]]; then
+    exec "$here/omadrop-osaka" --preview --world "$name" "$@"
+  fi
+  "$here/omadrop-osaka" --check --world "$name" "$@"
+}
+
+world_preview() {
+  (($# >= 1)) || { world_usage >&2; exit 2; }
+  local path=$1
+  shift
+  if (($#)); then
+    [[ $# -eq 2 && $1 == --fixture && -n ${2:-} ]] \
+      || die "world preview: expected PATH [--fixture FILE]"
+  fi
+  world_launch preview "$path" "$@"
+}
+
+world_check() {
+  (($# >= 1)) || { world_usage >&2; exit 2; }
+  local path=$1
+  shift
+  local -a options=()
+  while (($#)); do
+    case $1 in
+      --fixture|--json)
+        (($# >= 2)) && [[ -n $2 ]] || die "world check: $1 requires a file"
+        options+=("$1" "$2")
+        shift 2
+        ;;
+      *) die "world check: unknown option: $1" ;;
+    esac
+  done
+  world_launch check "$path" "${options[@]}"
+}
+
+world_command() {
+  case ${1:-} in
+    new) shift; world_new "$@" ;;
+    preview) shift; world_preview "$@" ;;
+    check) shift; world_check "$@" ;;
+    -h|--help) world_usage ;;
+    "") world_usage >&2; exit 2 ;;
+    *) die "unknown world command: $1" ;;
+  esac
+}
+
+if [[ ${1:-} == world ]]; then
+  shift
+  world_command "$@"
+  exit 0
+fi
+
 # The native app owns normal launches; explicit engine flags stay compatible.
 native_ui=${OMADROP_NATIVE_UI:-$here/omadrop-ui}
 if [[ -x $native_ui ]]; then
@@ -48,12 +174,6 @@ if [[ -x $native_ui ]]; then
     --controls) exec "$native_ui" --controls ;;
   esac
 fi
-
-die() { echo "omadrop: $*" >&2; exit 2; }
-
-require_backend() {
-  [[ -x $1 ]] || { echo "omadrop: backend not found or not executable: $1" >&2; exit 1; }
-}
 
 load_mode() {
   local saved
@@ -135,11 +255,15 @@ Usage: omadrop [--controls|--play]
        omadrop --controls
        omadrop [--ascii|--no-ascii] [--mode milkdrop]
        omadrop [--current-mode|--stop|--version]
+       omadrop world new NAME [DIR]
+       omadrop world preview PATH [--fixture FILE]
+       omadrop world check PATH [--fixture FILE] [--json OUT]
 
 Opening Omadrop shows controls. Opening it while visuals play stops them
 and returns to controls. --play starts the remembered mode directly.
 Choose a mode with --mode. Omarchy keeps its authored characters.
 MilkDrop controls, calibration and pack commands remain available.
+World commands create, preview and check music-reactive worlds.
 
 --scene N starts the MilkDrop collection on scene number N (1..21), honoring
 hidden scenes from omadrop/scenes.conf.
