@@ -47,22 +47,23 @@ int main(int argc,char** argv){QCoreApplication app(argc,argv);try{
    auto far=p;far.x=1140;far.row=5.6;far.scale=.5;far.length=285;
    require(BoatOnWaterV1::pose(c,far).at.y>600,"distant boat rides foreground height");
    const auto boat=BoatOnWaterV1::pose(c,p);require(std::abs(boat.tilt)<=.55,"boat tips over");const auto field=GreatWaveV1::field(c,p.wave);
-   for(int j=0;j<=16;++j){double qx=p.length*p.scale*(j/16.-.5)*1.18;
-     const double x=boat.at.x+qx*std::cos(boat.tilt)-26*p.scale*std::sin(boat.tilt);
-     const double y=boat.at.y+qx*std::sin(boat.tilt)+26*p.scale*std::cos(boat.tilt);
+   for(int j=0;j<=16;++j){const auto q=BoatOnWaterV1::keel(p,j/16.);double qx=q.x;
+     const double x=boat.at.x+qx*std::cos(boat.tilt)-q.y*std::sin(boat.tilt);
+     const double y=boat.at.y+qx*std::sin(boat.tilt)+q.y*std::cos(boat.tilt);
      const double clearance=BoatOnWaterV1::surfaceY(c,p,x,boat.row)-y;
      lowestClearance=std::min(lowestClearance,clearance);require(clearance>=-1e-6,"hull enters wave height field");}
    auto swellOnly=p;swellOnly.ridesWave=false;
    highestLift=std::max(highestLift,BoatOnWaterV1::pose(c,swellOnly).at.y-boat.at.y);
    if(i>1)largestStep=std::max(largestStep,std::abs(boat.at.y-lastY));lastY=boat.at.y;
  }
- require(highestLift>60 && largestStep<12,"boat does not ride smoothly over passing set");
+ std::cout<<"Measured lift "<<highestLift<<", step "<<largestStep<<" px\n";
+ require(highestLift<190 && largestStep<12,"boat does not escape smoothly at believable height");
  // Compare the rigid hull's support against actual body triangles, not only
  // the field implementation. All samples must stay outside the water fill.
  for(int i=0;i<180;++i){c.t=i;Canvas body,flow,foam;GreatWaveV1::paint(body,flow,foam,c,p.wave);
    const auto boat=BoatOnWaterV1::pose(c,p);const auto&vertices=body.vertices();
-   for(int j=0;j<=10;++j){double qx=p.length*p.scale*(j/10.-.5);
-     V2 q=boat.at+V2(qx*std::cos(boat.tilt)-25*p.scale*std::sin(boat.tilt),qx*std::sin(boat.tilt)+25*p.scale*std::cos(boat.tilt));
+   for(int j=0;j<=10;++j){const auto keel=BoatOnWaterV1::keel(p,j/10.);double qx=keel.x;
+     V2 q=boat.at+V2(qx*std::cos(boat.tilt)-keel.y*std::sin(boat.tilt),qx*std::sin(boat.tilt)+keel.y*std::cos(boat.tilt));
      for(const auto&cmd:body.commands())for(int k=cmd.first;k+2<cmd.first+cmd.count;k+=3){
        auto a=vertices[k],b=vertices[k+1],v=vertices[k+2];
        auto cross=[&](auto a,auto b){return (b.x-a.x)*(q.y-a.y)-(b.y-a.y)*(q.x-a.x);};

@@ -139,3 +139,9 @@ add_test(NAME print-moments-deterministic-and-exit COMMAND print-life-tests mome
 
 add_test(NAME check-kanagawa-ready COMMAND osaka-check-tests ${CHECK_REPO_WORLDS} kanagawa ready)
 set_tests_properties(check-kanagawa-ready PROPERTIES TIMEOUT 900)
+
+add_executable(boat-wave-clearance-tests boat_wave_clearance_tests.cpp ../src/kit/boat-on-water.cpp ../src/kit/swell-lines.cpp ../src/kit/great-wave.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/score.cpp ../src/rig.cpp ../src/schedule.cpp)
+target_include_directories(boat-wave-clearance-tests PRIVATE ../src)
+target_link_libraries(boat-wave-clearance-tests PRIVATE Qt6::Gui Qt6::OpenGL)
+add_test(NAME boat-hull-below-crest-and-outside-curl COMMAND boat-wave-clearance-tests)

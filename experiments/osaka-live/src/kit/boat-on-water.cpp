@@ -2,6 +2,12 @@
 #include "../rig.h"
 #include <QTransform>
 namespace Journey::Kit {
+V2 BoatOnWaterV1::keel(const BoatOnWaterParametersV1&p,double u){
+    const double sc=p.scale,ln=p.length*sc,v=1-u;
+    // The actual lower hull Bezier, not a rectangle beneath the raised ends.
+    return V2(ln/2-4*sc,10*sc)*(v*v*v)+V2(ln/4,26*sc)*(3*v*v*u)
+        +V2(-ln/4,26*sc)*(3*v*u*u)+V2(-ln/2,6*sc)*(u*u*u);
+}
 double BoatOnWaterV1::surfaceY(const Ctx& c,const BoatOnWaterParametersV1& p,double x,double row) {
     row=std::clamp(row,0.,double(p.swell.rows-1));
     const int lo=std::min(p.swell.rows-2,int(row));
@@ -22,23 +28,46 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
     const auto low=SwellLinesV1::field(c,lo,p.swell),high=SwellLinesV1::field(c,lo+1,p.swell);
     const double depth=1-sstep(0,2,std::max(0.,p.wave.row-s.row));
     auto support=[&](double x){const double sea=lerp(low.y(x),high.y(x),s.row-lo);return p.ridesWave?lerp(sea,wave.y(x,sea),depth):sea;};
+    // The overhang is not navigable water. Move the full hull outward before
+    // a growing set reaches its lane, then keep to the lower descending face.
+    // This uses the drawn lip bounds, including its forward travel and curl.
+    double escape=0;
+    if(p.ridesWave && depth>0){
+        const auto set=GreatWaveV1::pose(c,p.wave);
+        const double side=p.wave.anchorRight?-1.:1.;
+        double lip=-1e9;for(int j=16;j<48;++j)lip=std::max(lip,side*wave.face[j].x);
+        const double original=side*s.at.x;
+        double safe=std::max(original,lip+half*1.4+60);
+        auto lowEnough=[&](double outward){const double x=side*(outward-half*1.3);
+            const double sea=lerp(low.y(x),high.y(x),s.row-lo);
+            return wave.y(x,sea)>=sea-15;};
+        if(!lowEnough(safe)){double a=safe,b=safe+p.wave.width;
+            for(int j=0;j<24;++j){const double m=(a+b)*.5;if(lowEnough(m))b=m;else a=m;}safe=b;}
+        escape=sstep(0,.14,set.phase)*(1-sstep(.94,1,set.phase));
+        s.at.x=side*lerp(original,safe,escape);
+    }
     const double left=support(s.at.x-half),right=support(s.at.x+half);
     s.waterline=(left+2*support(s.at.x)+right)*.25;
     s.tilt=std::atan2(right-left,2*half);
     if(p.ridesWave)s.tilt=.55*std::tanh(s.tilt/.55);
     s.at.y=s.waterline-14*p.scale*std::cos(s.tilt);
     if(p.ridesWave){
+        // Fit the rigid hull to the lower face after excluding the overhang.
         // The near hull sits entirely above the shared face. Fit the rigid hull
         // to its most demanding support point, not only its average centre.
-        for(int j=0;j<=16;++j){double local=p.length*p.scale*(j/16.-.5)*1.18;
-            const double x=s.at.x+local*std::cos(s.tilt)-26*p.scale*std::sin(s.tilt);
-            s.at.y=std::min(s.at.y,support(x)-local*std::sin(s.tilt)-26*p.scale*std::cos(s.tilt));}
+        for(int j=0;j<=32;++j){const auto q=keel(p,j/32.);
+            const double x=s.at.x+q.x*std::cos(s.tilt)-q.y*std::sin(s.tilt);
+            s.at.y=std::min(s.at.y,support(x)-q.x*std::sin(s.tilt)-q.y*std::cos(s.tilt));}
     }
-    s.brace=clamp01(.9*c.kick(6)+.45*c.hit(6)+(p.surgeEnabled && c.schedule?.65*c.schedule->print.surge(c.t):0));
+    s.brace=clamp01(.65*escape+.9*c.kick(6)+.45*c.hit(6)+(p.surgeEnabled && c.schedule?.65*c.schedule->print.surge(c.t):0));
     // Integral makes tempo change continuously; never multiply time by the
     // current band/kick (that would jump the pose on every beat).
     s.stroke=c.t*p.rowingTempo+p.tempoGain*(c.score?c.score->bandIntegrals[p.band]:0)+hash2(p.seed,43);
     if(p.surgeEnabled && c.schedule)s.stroke+=.6*c.schedule->print.surgeFlow;
+    // A set's eased integral accelerates rowing without a beat-dependent clock.
+    if(p.ridesWave && c.schedule){const auto& set=c.schedule->print.wave;
+        const double u=clamp01((c.t-set.start)/set.duration);
+        s.stroke+=.20*(set.start+set.duration*(u*u*(3-2*u)));}
     s.splash=std::clamp(.10+p.splashGain*(.55*c.band(p.band)+.45*c.kick(5)),0.,.55);
     s.spray=std::clamp(p.kickGain*c.kick(6)+(p.surgeEnabled && c.schedule?.45*c.schedule->print.surge(c.t):0),0.,.8);
     return s;

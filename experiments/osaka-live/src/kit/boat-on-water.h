@@ -19,6 +19,7 @@ struct BoatOnWaterPoseV1 {
 };
 struct BoatOnWaterV1 {
     static constexpr const char* name="boat-on-water-v1";
+    static V2 keel(const BoatOnWaterParametersV1&,double u);
     static double surfaceY(const Ctx&,const BoatOnWaterParametersV1&,double x,double row);
     static BoatOnWaterPoseV1 pose(const Ctx&,const BoatOnWaterParametersV1&);
     static QPainterPath responsePath(const BoatOnWaterPoseV1&,const BoatOnWaterParametersV1&);
