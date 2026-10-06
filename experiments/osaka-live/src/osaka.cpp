@@ -12,6 +12,7 @@ QString osakaWorldsRoot() {
 void initializeOsakaWorld() {
     world = loadOsakaWorld(QDir(osakaWorldsRoot()).filePath("osaka-jade"));
 }
+const OsakaParametersV1& osakaParameters() { return osakaWorld().parameters; }
 const OsakaWorldDescription& osakaWorld() {
     if (!world) throw std::logic_error("Osaka world was not initialized at startup");
     return world->description();

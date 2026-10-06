@@ -7,6 +7,7 @@
 #include <QJsonParseError>
 #include <QSet>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 namespace Journey::Kit {
 namespace {
@@ -34,6 +35,20 @@ struct Reader {
     double number(const QJsonValue& v, const QString& p) const {
         if (!v.isDouble() || !std::isfinite(v.toDouble())) fail(p, "finite number");
         return v.toDouble();
+    }
+    int integer(const QJsonValue& v, const QString& p, int lo, int hi) const {
+        const double n=number(v,p);
+        if (n!=std::floor(n) || n<lo || n>hi) fail(p, "integer in "+QString::number(lo)+".."+QString::number(hi));
+        return int(n);
+    }
+    float scalar(const QJsonValue& v, const QString& p) const {
+        const double n=number(v,p);
+        if (std::abs(n)>std::numeric_limits<float>::max()) fail(p,"finite float");
+        return float(n);
+    }
+    bool boolean(const QJsonValue& v, const QString& p) const {
+        if (!v.isBool()) fail(p,"boolean");
+        return v.toBool();
     }
     void id(const QJsonValue& v, const QString& p) {
         const auto s=string(v,p);
@@ -100,7 +115,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     if (error.error!=QJsonParseError::NoError)
         r.fail("$", "valid JSON (byte "+QString::number(error.offset)+": "+error.errorString()+")");
     const auto root=r.object(doc.isObject() ? QJsonValue(doc.object()) : QJsonValue(doc.array()), "$",
-                             {"schema","world","profile","stages","finish","disc","mountain"});
+                             {"schema","world","profile","stages","finish","disc","mountain","profiles"});
     if (r.number(root["schema"],"$.schema")!=1) r.fail("$.schema","schema version 1");
     r.literal(root["world"],"$.world","osaka-jade");
     r.literal(root["profile"],"$.profile","osaka-world-v1");
@@ -114,6 +129,182 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     const auto mountain=r.object(root["mountain"],"$.mountain",{"profile","x","parallax","peak","base","width"});
     r.literal(mountain["profile"],"$.mountain.profile","osaka-mountain-v1");
     w.mountain={r.number(mountain["x"],"$.mountain.x"),r.number(mountain["parallax"],"$.mountain.parallax"),r.number(mountain["peak"],"$.mountain.peak"),r.number(mountain["base"],"$.mountain.base"),r.number(mountain["width"],"$.mountain.width")};
+    const auto profiles=r.object(root["profiles"],"$.profiles",{"osaka-finish-v1","osaka-disc-v1","osaka-mountain-v1","osaka-haze-v1","osaka-sky-v1","osaka-pane-v1","osaka-neon-v1"});
+    {
+        const QString p="$.profiles.osaka-finish-v1";
+        const auto data=r.object(profiles["osaka-finish-v1"],p,{"bloom","threshold","vignette","grain","knee","paper"});
+        w.finish.defaults.bloom=r.scalar(data["bloom"],p+".bloom");
+        w.finish.defaults.threshold=r.scalar(data["threshold"],p+".threshold");
+        w.finish.defaults.vignette=r.scalar(data["vignette"],p+".vignette");
+        w.finish.defaults.grain=r.scalar(data["grain"],p+".grain");
+        w.finish.defaults.knee=r.scalar(data["knee"],p+".knee");
+        w.finish.defaults.paper=r.scalar(data["paper"],p+".paper");
+    }
+    {
+        const QString p="$.profiles.osaka-disc-v1";
+        const auto data=r.object(profiles["osaka-disc-v1"],p,{"creamHex","warmHex","colorGain","haloR","haloG","haloB","energyBase","energyBass","energySurge","energyKick","veil","texture","haloA","haloBRadius","haloC","haloD","haloFar","restRings","ring0Offset","ring0Energy","ring0Alpha","ring1Offset","ring1Energy","ring1Alpha","ringAlphaBase","hitSeconds","hitThreshold","hitOffset","hitTravel","hitAlpha","timeOffset"});
+        w.parameters.disc.creamHex=r.integer(data["creamHex"],p+".creamHex",0,16777215);
+        w.parameters.disc.warmHex=r.integer(data["warmHex"],p+".warmHex",0,16777215);
+        w.parameters.disc.colorGain=r.number(data["colorGain"],p+".colorGain");
+        w.parameters.disc.haloR=r.number(data["haloR"],p+".haloR");
+        w.parameters.disc.haloG=r.number(data["haloG"],p+".haloG");
+        w.parameters.disc.haloB=r.number(data["haloB"],p+".haloB");
+        w.parameters.disc.energyBase=r.number(data["energyBase"],p+".energyBase");
+        w.parameters.disc.energyBass=r.number(data["energyBass"],p+".energyBass");
+        w.parameters.disc.energySurge=r.number(data["energySurge"],p+".energySurge");
+        w.parameters.disc.energyKick=r.number(data["energyKick"],p+".energyKick");
+        w.parameters.disc.veil=r.number(data["veil"],p+".veil");
+        w.parameters.disc.texture=r.number(data["texture"],p+".texture");
+        w.parameters.disc.haloA=r.number(data["haloA"],p+".haloA");
+        w.parameters.disc.haloBRadius=r.number(data["haloBRadius"],p+".haloBRadius");
+        w.parameters.disc.haloC=r.number(data["haloC"],p+".haloC");
+        w.parameters.disc.haloD=r.number(data["haloD"],p+".haloD");
+        w.parameters.disc.haloFar=r.number(data["haloFar"],p+".haloFar");
+        w.parameters.disc.restRings=r.number(data["restRings"],p+".restRings");
+        w.parameters.disc.ring0Offset=r.number(data["ring0Offset"],p+".ring0Offset");
+        w.parameters.disc.ring0Energy=r.number(data["ring0Energy"],p+".ring0Energy");
+        w.parameters.disc.ring0Alpha=r.number(data["ring0Alpha"],p+".ring0Alpha");
+        w.parameters.disc.ring1Offset=r.number(data["ring1Offset"],p+".ring1Offset");
+        w.parameters.disc.ring1Energy=r.number(data["ring1Energy"],p+".ring1Energy");
+        w.parameters.disc.ring1Alpha=r.number(data["ring1Alpha"],p+".ring1Alpha");
+        w.parameters.disc.ringAlphaBase=r.number(data["ringAlphaBase"],p+".ringAlphaBase");
+        w.parameters.disc.hitSeconds=r.number(data["hitSeconds"],p+".hitSeconds");
+        if (w.parameters.disc.hitSeconds<=0) r.fail(p+".hitSeconds","positive number");
+        w.parameters.disc.hitThreshold=r.number(data["hitThreshold"],p+".hitThreshold");
+        w.parameters.disc.hitOffset=r.number(data["hitOffset"],p+".hitOffset");
+        w.parameters.disc.hitTravel=r.number(data["hitTravel"],p+".hitTravel");
+        w.parameters.disc.hitAlpha=r.number(data["hitAlpha"],p+".hitAlpha");
+        w.parameters.disc.timeOffset=r.number(data["timeOffset"],p+".timeOffset");
+    }
+    {
+        const QString p="$.profiles.osaka-mountain-v1";
+        const auto data=r.object(profiles["osaka-mountain-v1"],p,{"topR","topG","topB","bottomR","bottomG","bottomB","foot","samples","span","shapePower","rippleGain","ripplePeriod","summitWidth","summitOffset","summitCurve","summitHeight","gradientStop","gradientMix"});
+        w.parameters.mountain.topR=r.number(data["topR"],p+".topR");
+        w.parameters.mountain.topG=r.number(data["topG"],p+".topG");
+        w.parameters.mountain.topB=r.number(data["topB"],p+".topB");
+        w.parameters.mountain.bottomR=r.number(data["bottomR"],p+".bottomR");
+        w.parameters.mountain.bottomG=r.number(data["bottomG"],p+".bottomG");
+        w.parameters.mountain.bottomB=r.number(data["bottomB"],p+".bottomB");
+        w.parameters.mountain.foot=r.number(data["foot"],p+".foot");
+        w.parameters.mountain.samples=r.integer(data["samples"],p+".samples",1,4096);
+        w.parameters.mountain.span=r.number(data["span"],p+".span");
+        if (w.parameters.mountain.span<=0) r.fail(p+".span","positive number");
+        w.parameters.mountain.shapePower=r.number(data["shapePower"],p+".shapePower");
+        w.parameters.mountain.rippleGain=r.number(data["rippleGain"],p+".rippleGain");
+        w.parameters.mountain.ripplePeriod=r.number(data["ripplePeriod"],p+".ripplePeriod");
+        if (w.parameters.mountain.ripplePeriod<=0) r.fail(p+".ripplePeriod","positive number");
+        w.parameters.mountain.summitWidth=r.number(data["summitWidth"],p+".summitWidth");
+        if (w.parameters.mountain.summitWidth<=0) r.fail(p+".summitWidth","positive number");
+        w.parameters.mountain.summitOffset=r.number(data["summitOffset"],p+".summitOffset");
+        w.parameters.mountain.summitCurve=r.number(data["summitCurve"],p+".summitCurve");
+        w.parameters.mountain.summitHeight=r.number(data["summitHeight"],p+".summitHeight");
+        if (w.parameters.mountain.summitHeight<=0) r.fail(p+".summitHeight","positive number");
+        w.parameters.mountain.gradientStop=r.number(data["gradientStop"],p+".gradientStop");
+        w.parameters.mountain.gradientMix=r.number(data["gradientMix"],p+".gradientMix");
+    }
+    {
+        const QString p="$.profiles.osaka-haze-v1";
+        const auto data=r.object(profiles["osaka-haze-v1"],p,{"noiseX","noiseY","cullSigma"});
+        w.parameters.haze.noiseX=r.number(data["noiseX"],p+".noiseX");
+        if (w.parameters.haze.noiseX<=0) r.fail(p+".noiseX","positive number");
+        w.parameters.haze.noiseY=r.number(data["noiseY"],p+".noiseY");
+        if (w.parameters.haze.noiseY<=0) r.fail(p+".noiseY","positive number");
+        w.parameters.haze.cullSigma=r.number(data["cullSigma"],p+".cullSigma");
+        if (w.parameters.haze.cullSigma<=0) r.fail(p+".cullSigma","positive number");
+    }
+    {
+        const QString p="$.profiles.osaka-sky-v1";
+        const auto data=r.object(profiles["osaka-sky-v1"],p,{"energyBase","energyBass","energySurge","timeOffset"});
+        w.parameters.sky.energyBase=r.number(data["energyBase"],p+".energyBase");
+        w.parameters.sky.energyBass=r.number(data["energyBass"],p+".energyBass");
+        w.parameters.sky.energySurge=r.number(data["energySurge"],p+".energySurge");
+        w.parameters.sky.timeOffset=r.number(data["timeOffset"],p+".timeOffset");
+    }
+    {
+        const QString p="$.profiles.osaka-pane-v1";
+        const auto data=r.object(profiles["osaka-pane-v1"],p,{"alwaysOnCutoff","base","hush","band","lift","kick","near","upper","right"});
+        w.parameters.windows.alwaysOnCutoff=r.number(data["alwaysOnCutoff"],p+".alwaysOnCutoff");
+        w.parameters.windows.base=r.number(data["base"],p+".base");
+        w.parameters.windows.hush=r.number(data["hush"],p+".hush");
+        w.parameters.windows.band=r.number(data["band"],p+".band");
+        w.parameters.windows.lift=r.number(data["lift"],p+".lift");
+        w.parameters.windows.kick=r.number(data["kick"],p+".kick");
+        if (!data["near"].isArray() || data["near"].toArray().size()!=4) r.fail(p+".near","array of 4 panes");
+        for (int i=0;i<4;++i) {
+            const QString q=p+".near["+QString::number(i)+"]";
+            const auto item=r.object(data["near"].toArray()[i],q,{"x","y","w","h","cols","rows","on","band"});
+            w.parameters.windows.near[i].x=r.number(item["x"],q+".x");
+            w.parameters.windows.near[i].y=r.number(item["y"],q+".y");
+            w.parameters.windows.near[i].w=r.number(item["w"],q+".w");
+            w.parameters.windows.near[i].h=r.number(item["h"],q+".h");
+            w.parameters.windows.near[i].cols=r.integer(item["cols"],q+".cols",1,64);
+            w.parameters.windows.near[i].rows=r.integer(item["rows"],q+".rows",1,64);
+            w.parameters.windows.near[i].on=r.number(item["on"],q+".on");
+            w.parameters.windows.near[i].band=r.integer(item["band"],q+".band",0,5);
+        }
+        if (!data["upper"].isArray() || data["upper"].toArray().size()!=4) r.fail(p+".upper","array of 4 panes");
+        for (int i=0;i<4;++i) {
+            const QString q=p+".upper["+QString::number(i)+"]";
+            const auto item=r.object(data["upper"].toArray()[i],q,{"wx","ww","cyan","on","band"});
+            w.parameters.windows.upper[i].wx=r.number(item["wx"],q+".wx");
+            w.parameters.windows.upper[i].ww=r.number(item["ww"],q+".ww");
+            w.parameters.windows.upper[i].cyan=r.boolean(item["cyan"],q+".cyan");
+            w.parameters.windows.upper[i].on=r.number(item["on"],q+".on");
+            w.parameters.windows.upper[i].band=r.integer(item["band"],q+".band",0,5);
+        }
+        if (!data["right"].isArray() || data["right"].toArray().size()!=3) r.fail(p+".right","array of 3 panes");
+        for (int i=0;i<3;++i) {
+            const QString q=p+".right["+QString::number(i)+"]";
+            const auto item=r.object(data["right"].toArray()[i],q,{"x","y","w","h","on"});
+            w.parameters.windows.right[i].x=r.number(item["x"],q+".x");
+            w.parameters.windows.right[i].y=r.number(item["y"],q+".y");
+            w.parameters.windows.right[i].w=r.number(item["w"],q+".w");
+            w.parameters.windows.right[i].h=r.number(item["h"],q+".h");
+            w.parameters.windows.right[i].on=r.number(item["on"],q+".on");
+        }
+    }
+    {
+        const QString p="$.profiles.osaka-neon-v1";
+        const auto data=r.object(profiles["osaka-neon-v1"],p,{"stutterRate","stutterProbability","stutterLevel","boardX","boardY","boardW","boardH","boardR","boardG","boardB","tubeR","tubeG","tubeB","tubeMix","magHex","outlineAlpha","outlineX","outlineY","outlineW","outlineH","outlineWidth","glyphCount","glyphX","glyphY","glyphStep","glyphSize","glowX","glowY","glowRadius","glowBase","glowKick","levelBase","levelSine","levelRate","levelKick","overGain","addGain","addBlur"});
+        w.parameters.signs.stutterRate=r.number(data["stutterRate"],p+".stutterRate");
+        w.parameters.signs.stutterProbability=r.number(data["stutterProbability"],p+".stutterProbability");
+        w.parameters.signs.stutterLevel=r.number(data["stutterLevel"],p+".stutterLevel");
+        w.parameters.signs.boardX=r.number(data["boardX"],p+".boardX");
+        w.parameters.signs.boardY=r.number(data["boardY"],p+".boardY");
+        w.parameters.signs.boardW=r.number(data["boardW"],p+".boardW");
+        w.parameters.signs.boardH=r.number(data["boardH"],p+".boardH");
+        w.parameters.signs.boardR=r.number(data["boardR"],p+".boardR");
+        w.parameters.signs.boardG=r.number(data["boardG"],p+".boardG");
+        w.parameters.signs.boardB=r.number(data["boardB"],p+".boardB");
+        w.parameters.signs.tubeR=r.number(data["tubeR"],p+".tubeR");
+        w.parameters.signs.tubeG=r.number(data["tubeG"],p+".tubeG");
+        w.parameters.signs.tubeB=r.number(data["tubeB"],p+".tubeB");
+        w.parameters.signs.tubeMix=r.number(data["tubeMix"],p+".tubeMix");
+        w.parameters.signs.magHex=r.integer(data["magHex"],p+".magHex",0,16777215);
+        w.parameters.signs.outlineAlpha=r.number(data["outlineAlpha"],p+".outlineAlpha");
+        w.parameters.signs.outlineX=r.number(data["outlineX"],p+".outlineX");
+        w.parameters.signs.outlineY=r.number(data["outlineY"],p+".outlineY");
+        w.parameters.signs.outlineW=r.number(data["outlineW"],p+".outlineW");
+        w.parameters.signs.outlineH=r.number(data["outlineH"],p+".outlineH");
+        w.parameters.signs.outlineWidth=r.number(data["outlineWidth"],p+".outlineWidth");
+        w.parameters.signs.glyphCount=r.integer(data["glyphCount"],p+".glyphCount",1,3);
+        w.parameters.signs.glyphX=r.number(data["glyphX"],p+".glyphX");
+        w.parameters.signs.glyphY=r.number(data["glyphY"],p+".glyphY");
+        w.parameters.signs.glyphStep=r.number(data["glyphStep"],p+".glyphStep");
+        w.parameters.signs.glyphSize=r.number(data["glyphSize"],p+".glyphSize");
+        w.parameters.signs.glowX=r.number(data["glowX"],p+".glowX");
+        w.parameters.signs.glowY=r.number(data["glowY"],p+".glowY");
+        w.parameters.signs.glowRadius=r.number(data["glowRadius"],p+".glowRadius");
+        w.parameters.signs.glowBase=r.number(data["glowBase"],p+".glowBase");
+        w.parameters.signs.glowKick=r.number(data["glowKick"],p+".glowKick");
+        w.parameters.signs.levelBase=r.number(data["levelBase"],p+".levelBase");
+        w.parameters.signs.levelSine=r.number(data["levelSine"],p+".levelSine");
+        w.parameters.signs.levelRate=r.number(data["levelRate"],p+".levelRate");
+        w.parameters.signs.levelKick=r.number(data["levelKick"],p+".levelKick");
+        w.parameters.signs.overGain=r.number(data["overGain"],p+".overGain");
+        w.parameters.signs.addGain=r.number(data["addGain"],p+".addGain");
+        w.parameters.signs.addBlur=r.number(data["addBlur"],p+".addBlur");
+    }
     if (w.disc.radius<=0) r.fail("$.disc.radius","positive radius");
     if (w.mountain.width<=0) r.fail("$.mountain.width","positive width");
     if (!root["stages"].isArray() || root["stages"].toArray().size()!=4) r.fail("$.stages","four ordered stages");

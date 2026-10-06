@@ -1,3 +1,4 @@
+#include "parameters.h"
 #include "groups.h"
 #include "effects_shaders.h"
 #include "../parts.h"
@@ -197,7 +198,7 @@ void OsakaRightTownV1::draw(Ctx& c, const OsakaState& s, const Life& L) {
     Kit::OsakaRightRoom2V1::draw(c, s, L, w, x0);
     x0 = 1512 + ox;
     Kit::OsakaRightHouse3V1::draw(c, s, cv, x0, wall, rf, rf2);
-    const auto& ups = Kit::upperPanes;
+    const auto& ups = osakaParameters().windows.upper;
     double shamisenPane = 0;
     Kit::OsakaRightRoom3V1::draw(c, s, L, w, t, x0, ups, shamisenPane);
     c.gpu.over(cv);
@@ -310,7 +311,7 @@ void OsakaNearGroupV1::draw(Ctx& c, const OsakaState& s, const Life& L) {
     Kit::OsakaNearHouseV1::draw(c, s, cv, x0, x1, wall, rf, rf2);
     // Upstairs panes, laid out like a tiling window manager: master + stack.
     using P = Kit::NearPane;
-    const auto& U = Kit::nearPanes;
+    const auto& U = osakaParameters().windows.near;
     double lv[4];
     double room;
     Kit::OsakaNearRoomV1::draw(c, s, L, w, t, ox, U, lv, room);

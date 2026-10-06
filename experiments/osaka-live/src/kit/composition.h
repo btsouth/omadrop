@@ -1,6 +1,7 @@
 #pragma once
 #include "../parts.h"
 #include "events.h"
+#include "parameters.h"
 namespace Journey::Kit {
 enum class OsakaPhase { Backdrop, Coast, DistantTown, Foreground };
 enum class OsakaOp {
@@ -41,6 +42,7 @@ struct OsakaWorldDescription {
     OsakaFinishV1 finish;
     OsakaDiscPlacementV1 disc;
     OsakaMountainPlacementV1 mountain;
+    OsakaParametersV1 parameters;
 };
 // World supplies ordered typed instances, never drawing callbacks.
 const OsakaWorldDescription& osakaWorld();

@@ -8,7 +8,8 @@
     "stages",
     "finish",
     "disc",
-    "mountain"
+    "mountain",
+    "profiles"
   ],
   "properties": {
     "schema": {
@@ -2946,6 +2947,653 @@
         "width": {
           "type": "number",
           "exclusiveMinimum": 0
+        }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "osaka-finish-v1",
+        "osaka-disc-v1",
+        "osaka-mountain-v1",
+        "osaka-haze-v1",
+        "osaka-sky-v1",
+        "osaka-pane-v1",
+        "osaka-neon-v1"
+      ],
+      "properties": {
+        "osaka-finish-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bloom",
+            "threshold",
+            "vignette",
+            "grain",
+            "knee",
+            "paper"
+          ],
+          "properties": {
+            "bloom": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            },
+            "threshold": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            },
+            "vignette": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            },
+            "grain": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            },
+            "knee": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            },
+            "paper": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            }
+          }
+        },
+        "osaka-disc-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "creamHex",
+            "warmHex",
+            "colorGain",
+            "haloR",
+            "haloG",
+            "haloB",
+            "energyBase",
+            "energyBass",
+            "energySurge",
+            "energyKick",
+            "veil",
+            "texture",
+            "haloA",
+            "haloBRadius",
+            "haloC",
+            "haloD",
+            "haloFar",
+            "restRings",
+            "ring0Offset",
+            "ring0Energy",
+            "ring0Alpha",
+            "ring1Offset",
+            "ring1Energy",
+            "ring1Alpha",
+            "ringAlphaBase",
+            "hitSeconds",
+            "hitThreshold",
+            "hitOffset",
+            "hitTravel",
+            "hitAlpha",
+            "timeOffset"
+          ],
+          "properties": {
+            "creamHex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16777215
+            },
+            "warmHex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16777215
+            },
+            "colorGain": {
+              "type": "number"
+            },
+            "haloR": {
+              "type": "number"
+            },
+            "haloG": {
+              "type": "number"
+            },
+            "haloB": {
+              "type": "number"
+            },
+            "energyBase": {
+              "type": "number"
+            },
+            "energyBass": {
+              "type": "number"
+            },
+            "energySurge": {
+              "type": "number"
+            },
+            "energyKick": {
+              "type": "number"
+            },
+            "veil": {
+              "type": "number"
+            },
+            "texture": {
+              "type": "number"
+            },
+            "haloA": {
+              "type": "number"
+            },
+            "haloBRadius": {
+              "type": "number"
+            },
+            "haloC": {
+              "type": "number"
+            },
+            "haloD": {
+              "type": "number"
+            },
+            "haloFar": {
+              "type": "number"
+            },
+            "restRings": {
+              "type": "number"
+            },
+            "ring0Offset": {
+              "type": "number"
+            },
+            "ring0Energy": {
+              "type": "number"
+            },
+            "ring0Alpha": {
+              "type": "number"
+            },
+            "ring1Offset": {
+              "type": "number"
+            },
+            "ring1Energy": {
+              "type": "number"
+            },
+            "ring1Alpha": {
+              "type": "number"
+            },
+            "ringAlphaBase": {
+              "type": "number"
+            },
+            "hitSeconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "hitThreshold": {
+              "type": "number"
+            },
+            "hitOffset": {
+              "type": "number"
+            },
+            "hitTravel": {
+              "type": "number"
+            },
+            "hitAlpha": {
+              "type": "number"
+            },
+            "timeOffset": {
+              "type": "number"
+            }
+          }
+        },
+        "osaka-mountain-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "topR",
+            "topG",
+            "topB",
+            "bottomR",
+            "bottomG",
+            "bottomB",
+            "foot",
+            "samples",
+            "span",
+            "shapePower",
+            "rippleGain",
+            "ripplePeriod",
+            "summitWidth",
+            "summitOffset",
+            "summitCurve",
+            "summitHeight",
+            "gradientStop",
+            "gradientMix"
+          ],
+          "properties": {
+            "topR": {
+              "type": "number"
+            },
+            "topG": {
+              "type": "number"
+            },
+            "topB": {
+              "type": "number"
+            },
+            "bottomR": {
+              "type": "number"
+            },
+            "bottomG": {
+              "type": "number"
+            },
+            "bottomB": {
+              "type": "number"
+            },
+            "foot": {
+              "type": "number"
+            },
+            "samples": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4096
+            },
+            "span": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "shapePower": {
+              "type": "number"
+            },
+            "rippleGain": {
+              "type": "number"
+            },
+            "ripplePeriod": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "summitWidth": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "summitOffset": {
+              "type": "number"
+            },
+            "summitCurve": {
+              "type": "number"
+            },
+            "summitHeight": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "gradientStop": {
+              "type": "number"
+            },
+            "gradientMix": {
+              "type": "number"
+            }
+          }
+        },
+        "osaka-haze-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "noiseX",
+            "noiseY",
+            "cullSigma"
+          ],
+          "properties": {
+            "noiseX": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "noiseY": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "cullSigma": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        "osaka-sky-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "energyBase",
+            "energyBass",
+            "energySurge",
+            "timeOffset"
+          ],
+          "properties": {
+            "energyBase": {
+              "type": "number"
+            },
+            "energyBass": {
+              "type": "number"
+            },
+            "energySurge": {
+              "type": "number"
+            },
+            "timeOffset": {
+              "type": "number"
+            }
+          }
+        },
+        "osaka-pane-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "alwaysOnCutoff",
+            "base",
+            "hush",
+            "band",
+            "lift",
+            "kick",
+            "near",
+            "upper",
+            "right"
+          ],
+          "properties": {
+            "alwaysOnCutoff": {
+              "type": "number"
+            },
+            "base": {
+              "type": "number"
+            },
+            "hush": {
+              "type": "number"
+            },
+            "band": {
+              "type": "number"
+            },
+            "lift": {
+              "type": "number"
+            },
+            "kick": {
+              "type": "number"
+            },
+            "near": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "w",
+                  "h",
+                  "cols",
+                  "rows",
+                  "on",
+                  "band"
+                ],
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "w": {
+                    "type": "number"
+                  },
+                  "h": {
+                    "type": "number"
+                  },
+                  "cols": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 64
+                  },
+                  "rows": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 64
+                  },
+                  "on": {
+                    "type": "number"
+                  },
+                  "band": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 5
+                  }
+                }
+              }
+            },
+            "upper": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "wx",
+                  "ww",
+                  "cyan",
+                  "on",
+                  "band"
+                ],
+                "properties": {
+                  "wx": {
+                    "type": "number"
+                  },
+                  "ww": {
+                    "type": "number"
+                  },
+                  "cyan": {
+                    "type": "boolean"
+                  },
+                  "on": {
+                    "type": "number"
+                  },
+                  "band": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 5
+                  }
+                }
+              }
+            },
+            "right": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "w",
+                  "h",
+                  "on"
+                ],
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "w": {
+                    "type": "number"
+                  },
+                  "h": {
+                    "type": "number"
+                  },
+                  "on": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "osaka-neon-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stutterRate",
+            "stutterProbability",
+            "stutterLevel",
+            "boardX",
+            "boardY",
+            "boardW",
+            "boardH",
+            "boardR",
+            "boardG",
+            "boardB",
+            "tubeR",
+            "tubeG",
+            "tubeB",
+            "tubeMix",
+            "magHex",
+            "outlineAlpha",
+            "outlineX",
+            "outlineY",
+            "outlineW",
+            "outlineH",
+            "outlineWidth",
+            "glyphCount",
+            "glyphX",
+            "glyphY",
+            "glyphStep",
+            "glyphSize",
+            "glowX",
+            "glowY",
+            "glowRadius",
+            "glowBase",
+            "glowKick",
+            "levelBase",
+            "levelSine",
+            "levelRate",
+            "levelKick",
+            "overGain",
+            "addGain",
+            "addBlur"
+          ],
+          "properties": {
+            "stutterRate": {
+              "type": "number"
+            },
+            "stutterProbability": {
+              "type": "number"
+            },
+            "stutterLevel": {
+              "type": "number"
+            },
+            "boardX": {
+              "type": "number"
+            },
+            "boardY": {
+              "type": "number"
+            },
+            "boardW": {
+              "type": "number"
+            },
+            "boardH": {
+              "type": "number"
+            },
+            "boardR": {
+              "type": "number"
+            },
+            "boardG": {
+              "type": "number"
+            },
+            "boardB": {
+              "type": "number"
+            },
+            "tubeR": {
+              "type": "number"
+            },
+            "tubeG": {
+              "type": "number"
+            },
+            "tubeB": {
+              "type": "number"
+            },
+            "tubeMix": {
+              "type": "number"
+            },
+            "magHex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16777215
+            },
+            "outlineAlpha": {
+              "type": "number"
+            },
+            "outlineX": {
+              "type": "number"
+            },
+            "outlineY": {
+              "type": "number"
+            },
+            "outlineW": {
+              "type": "number"
+            },
+            "outlineH": {
+              "type": "number"
+            },
+            "outlineWidth": {
+              "type": "number"
+            },
+            "glyphCount": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            },
+            "glyphX": {
+              "type": "number"
+            },
+            "glyphY": {
+              "type": "number"
+            },
+            "glyphStep": {
+              "type": "number"
+            },
+            "glyphSize": {
+              "type": "number"
+            },
+            "glowX": {
+              "type": "number"
+            },
+            "glowY": {
+              "type": "number"
+            },
+            "glowRadius": {
+              "type": "number"
+            },
+            "glowBase": {
+              "type": "number"
+            },
+            "glowKick": {
+              "type": "number"
+            },
+            "levelBase": {
+              "type": "number"
+            },
+            "levelSine": {
+              "type": "number"
+            },
+            "levelRate": {
+              "type": "number"
+            },
+            "levelKick": {
+              "type": "number"
+            },
+            "overGain": {
+              "type": "number"
+            },
+            "addGain": {
+              "type": "number"
+            },
+            "addBlur": {
+              "type": "number"
+            }
+          }
         }
       }
     }

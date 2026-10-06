@@ -301,5 +301,222 @@
     "peak": 396,
     "base": 632,
     "width": 330
+  },
+  "profiles": {
+    "osaka-finish-v1": {
+      "bloom": 0.55,
+      "threshold": 0.62,
+      "vignette": 0.42,
+      "grain": 0.014,
+      "knee": 0.8,
+      "paper": 0
+    },
+    "osaka-disc-v1": {
+      "creamHex": 16246962,
+      "warmHex": 14839866,
+      "colorGain": 1.22,
+      "haloR": 0.55,
+      "haloG": 0.95,
+      "haloB": 0.74,
+      "energyBase": 0.35,
+      "energyBass": 0.6,
+      "energySurge": 0.2,
+      "energyKick": 0.5,
+      "veil": 1,
+      "texture": 1,
+      "haloA": 70,
+      "haloBRadius": 40,
+      "haloC": 0.3,
+      "haloD": 0.2,
+      "haloFar": 0.13,
+      "restRings": 1,
+      "ring0Offset": 34,
+      "ring0Energy": 10,
+      "ring0Alpha": 0.1,
+      "ring1Offset": 80,
+      "ring1Energy": 14,
+      "ring1Alpha": 0.06,
+      "ringAlphaBase": 0.5,
+      "hitSeconds": 2.6,
+      "hitThreshold": 0.35,
+      "hitOffset": 24,
+      "hitTravel": 300,
+      "hitAlpha": 0.22,
+      "timeOffset": 10
+    },
+    "osaka-mountain-v1": {
+      "topR": 0.05,
+      "topG": 0.3,
+      "topB": 0.22,
+      "bottomR": 0.3,
+      "bottomG": 0.84,
+      "bottomB": 0.6,
+      "foot": 30,
+      "samples": 160,
+      "span": 3.2,
+      "shapePower": 1.35,
+      "rippleGain": 0.012,
+      "ripplePeriod": 23,
+      "summitWidth": 0.079,
+      "summitOffset": 4,
+      "summitCurve": 6,
+      "summitHeight": 236,
+      "gradientStop": 0.62,
+      "gradientMix": 0.22
+    },
+    "osaka-haze-v1": {
+      "noiseX": 480,
+      "noiseY": 108,
+      "cullSigma": 7
+    },
+    "osaka-sky-v1": {
+      "energyBase": 0.45,
+      "energyBass": 0.35,
+      "energySurge": 0.25,
+      "timeOffset": 10
+    },
+    "osaka-pane-v1": {
+      "alwaysOnCutoff": -50,
+      "base": 0.74,
+      "hush": 0.2,
+      "band": 0.3,
+      "lift": 0.62,
+      "kick": 0.22,
+      "near": [
+        {
+          "x": 96,
+          "y": 312,
+          "w": 178,
+          "h": 196,
+          "cols": 3,
+          "rows": 4,
+          "on": 6.4,
+          "band": 1
+        },
+        {
+          "x": 284,
+          "y": 312,
+          "w": 104,
+          "h": 93,
+          "cols": 2,
+          "rows": 2,
+          "on": 9.6,
+          "band": 4
+        },
+        {
+          "x": 284,
+          "y": 415,
+          "w": 104,
+          "h": 93,
+          "cols": 2,
+          "rows": 2,
+          "on": -100,
+          "band": 2
+        },
+        {
+          "x": 398,
+          "y": 312,
+          "w": 96,
+          "h": 196,
+          "cols": 2,
+          "rows": 4,
+          "on": 3.9,
+          "band": 3
+        }
+      ],
+      "upper": [
+        {
+          "wx": 30,
+          "ww": 96,
+          "cyan": false,
+          "on": 16.4,
+          "band": 3
+        },
+        {
+          "wx": 134,
+          "ww": 96,
+          "cyan": false,
+          "on": 7.5,
+          "band": 1
+        },
+        {
+          "wx": 262,
+          "ww": 60,
+          "cyan": true,
+          "on": 4.8,
+          "band": 5
+        },
+        {
+          "wx": 330,
+          "ww": 110,
+          "cyan": false,
+          "on": 10.2,
+          "band": 0
+        }
+      ],
+      "right": [
+        {
+          "x": 22,
+          "y": 724,
+          "w": 62,
+          "h": 50,
+          "on": 9.2
+        },
+        {
+          "x": 104,
+          "y": 724,
+          "w": 62,
+          "h": 50,
+          "on": 12.0
+        },
+        {
+          "x": 24,
+          "y": 826,
+          "w": 96,
+          "h": 74,
+          "on": 5.8
+        }
+      ]
+    },
+    "osaka-neon-v1": {
+      "stutterRate": 6,
+      "stutterProbability": 0.04,
+      "stutterLevel": 0.35,
+      "boardX": 289,
+      "boardY": 792,
+      "boardW": 40,
+      "boardH": 126,
+      "boardR": 0.016,
+      "boardG": 0.035,
+      "boardB": 0.03,
+      "tubeR": 1,
+      "tubeG": 0.92,
+      "tubeB": 0.97,
+      "tubeMix": 0.35,
+      "magHex": 13789340,
+      "outlineAlpha": 0.9,
+      "outlineX": 291,
+      "outlineY": 794,
+      "outlineW": 36,
+      "outlineH": 122,
+      "outlineWidth": 1.6,
+      "glyphCount": 3,
+      "glyphX": 294,
+      "glyphY": 826,
+      "glyphStep": 36,
+      "glyphSize": 30,
+      "glowX": 309,
+      "glowY": 856,
+      "glowRadius": 120,
+      "glowBase": 0.3,
+      "glowKick": 0.25,
+      "levelBase": 0.85,
+      "levelSine": 0.15,
+      "levelRate": 5,
+      "levelKick": 0.5,
+      "overGain": 1.3,
+      "addGain": 0.35,
+      "addBlur": 8
+    }
   }
 }
