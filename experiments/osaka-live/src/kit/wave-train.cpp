@@ -175,7 +175,11 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
         const double left=a-500,width=std::clamp(s.baseWidth,700.,1400.);
         if(left>p.x1||left+width+180<p.x0)continue;
         WaveTrainProfileV2::Crest crest;crest.a=a;crest.envelope=g;
-        crest.stage=std::clamp(s.stage,0.,5.)*sstep(.12,.88,g);
+        // A sinking set keeps its curl while it lowers and pitches its lip
+        // forward, so it reads as a wave breaking, not a deflating hump.
+        const double sink=p.sinkTo>p.sinkFrom?sstep(p.sinkFrom,p.sinkTo,a):0,held=sink>0?g/std::max(.05,1-sink):g;
+        crest.stage=std::clamp(s.stage,0.,5.)*sstep(.12,.88,held)*sstep(0,.3,1-sink);
+        const double crash=sink>0?190*std::sin(Pi*std::min(1.,sink*1.25)):0;
         Samples v=blend(crest.stage);Controls delta{};const auto& st=stages();
         auto controlsAt=[&](double stage,int j) {
             stage=std::clamp(stage,0.,5.);const int i=std::min(4,int(stage));
@@ -190,10 +194,13 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
             delta[j]=delta[j]+V2(breathe*noise1(s.seconds*.23+j*.17,91),
                 breathe*.9*noise1(s.seconds*.19+j*.13,151));
         }
-        const double height=std::clamp(s.amplitude,450.*p.heightScale,980.*p.heightScale)*g;
+        // Below the curl the authored hump reads as a dark dome; a quiet set
+        // settles low into the sea and stands tall again as its lip forms.
+        const double settle=p.sinkTo>p.riseFrom?lerp(.42,1.,sstep(.9,2.9,crest.stage)):1;
+        const double height=std::clamp(s.amplitude,450.*p.heightScale,980.*p.heightScale)*g*settle;
         auto map=[&](V2 q) {
             const double top=std::max(0.,q.y),tip=sstep(.52,.78,q.x)*sstep(.30,.65,top);
-            return V2(left+width*q.x+s.lean*height*top+s.lipThrow*tip*g*sstep(2,5,crest.stage),p.baseY-height*q.y);
+            return V2(left+width*q.x+s.lean*height*top+(s.lipThrow*g+crash)*tip*sstep(2,5,crest.stage),p.baseY-height*q.y);
         };
         for(int seg=0;seg<Segments;++seg)for(int j=0;j<Steps;++j) {
             const int k=seg*3,index=seg*Steps+j;
