@@ -1,22 +1,52 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
-  <!-- Ground -->
-  <rect id="ground" data-name="ground" x="0" y="900" width="1920" height="180" fill="#06130f"/>
-  <rect id="ground-edge" data-name="ground-edge" x="0" y="896" width="1920" height="6" fill="#17372d"/>
+  <defs>
+    <linearGradient id="ground-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="885" x2="0" y2="1080">
+      <stop offset="0" stop-color="#1d4a3c"/>
+      <stop offset="0.2" stop-color="#12352b"/>
+      <stop offset="0.62" stop-color="#081c17"/>
+      <stop offset="1" stop-color="#020806"/>
+    </linearGradient>
+    <linearGradient id="building-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="390" x2="0" y2="900">
+      <stop offset="0" stop-color="#173b31"/>
+      <stop offset="0.55" stop-color="#0d241e"/>
+      <stop offset="1" stop-color="#071510"/>
+    </linearGradient>
+    <linearGradient id="roof-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="294" x2="0" y2="390">
+      <stop offset="0" stop-color="#14352c"/>
+      <stop offset="1" stop-color="#06130f"/>
+    </linearGradient>
+    <linearGradient id="distance-veil-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="430" x2="0" y2="940">
+      <stop offset="0" stop-color="#04130f" stop-opacity="0"/>
+      <stop offset="0.3" stop-color="#04130f" stop-opacity="0.38"/>
+      <stop offset="0.75" stop-color="#04130f" stop-opacity="0.48"/>
+      <stop offset="1" stop-color="#04130f" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Static distance veil softens the jade horizon; backdrop ridges and haze live in scene.json. -->
+  <rect id="distance-veil" data-name="distance-veil" x="0" y="430" width="1920" height="510" fill="url(#distance-veil-gradient)"/>
+
+  <!-- Ground: the soft top edge should sit under the backdrop haze. -->
+  <path id="ground" data-name="ground" d="M0 900 C310 892 620 886 960 889 C1300 892 1610 896 1920 902 L1920 1080 L0 1080 Z" fill="url(#ground-gradient)"/>
+  <path id="ground-edge" data-name="ground-edge" d="M0 900 C310 892 620 886 960 889 C1300 892 1610 896 1920 902" fill="none" stroke="#3a7561" stroke-opacity="0.22" stroke-width="2"/>
 
   <!-- One small building -->
-  <rect id="building-body" data-name="building-body" x="680" y="390" width="560" height="510" rx="8" fill="#081a15"/>
-  <path id="building-roof" data-name="building-roof" d="M648 390 L760 294 L1160 294 L1272 390 Z" fill="#040f0c"/>
+  <rect id="building-body" data-name="building-body" x="680" y="390" width="560" height="510" rx="8" fill="url(#building-gradient)"/>
+  <path id="building-roof" data-name="building-roof" d="M648 390 L760 294 L1160 294 L1272 390 Z" fill="url(#roof-gradient)"/>
+  <path id="building-eave" data-name="building-eave" d="M662 391 H1258" fill="none" stroke="#284b3d" stroke-width="3"/>
   <rect id="building-door" data-name="building-door" x="910" y="742" width="100" height="158" rx="5" fill="#030b09" stroke="#1f4638" stroke-width="6"/>
 
-  <!-- Three windows, each following a different band -->
+  <!-- Rename unique ids freely. Music uses data-name: window + band0-band5 + optional always, kick, onset. -->
   <rect id="window-left" data-name="window.band1.always" x="750" y="480" width="112" height="132" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="7"/>
+  <!-- Center window flashes on bass hits; change band3 to choose another band. -->
   <rect id="window-center" data-name="window.band3.kick" x="904" y="480" width="112" height="132" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="7"/>
+  <!-- Right window flashes on new sounds (onset). -->
   <rect id="window-right" data-name="window.band5.onset" x="1058" y="480" width="112" height="132" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="7"/>
 
-  <!-- One lantern -->
+  <!-- Lantern: keep the lantern label and band for glow, kick and sway. -->
   <path id="lantern-hook" data-name="lantern-hook" d="M650 470 H704" fill="none" stroke="#030b09" stroke-width="5"/>
   <ellipse id="lantern" data-name="lantern.band2.kick.sway" cx="704" cy="520" rx="25" ry="33" fill="#e8a24f"/>
 
-  <!-- One wire with travelling pulses -->
+  <!-- Wire: use wire, one band from 0-5 and pulse. The path is redrawn by the piece. -->
   <path id="wire" data-name="wire.band4.pulse" d="M560 340 C 720 430 850 500 1240 380" fill="none" stroke="#030b09" stroke-width="2"/>
 </svg>

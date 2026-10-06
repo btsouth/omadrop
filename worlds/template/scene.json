@@ -8,7 +8,28 @@
       "phase": "Backdrop",
       "slots": [
         {"id": "template-sky", "piece": "Sky", "gate": "Always", "profile": "osaka-sky-v1"},
-        {"id": "template-moon", "piece": "Disc", "gate": "DiscEnabled", "profile": "osaka-disc-v1"}
+        {"id": "template-moon", "piece": "Disc", "gate": "DiscEnabled", "profile": "osaka-disc-v1"},
+        {
+          "id": "template-far-ridges", "piece": "Ridges", "gate": "Always", "profile": "osaka-ridges-v1",
+          "params": {"ridges": [
+            {"seed": 41, "base": 610, "amp": 160, "scale": 760, "parallax": 0.025, "top": "#0d3229", "bottom": "#174f3e"},
+            {"seed": 42, "base": 735, "amp": 95, "scale": 430, "parallax": 0.045, "top": "#09271f", "bottom": "#103c32"}
+          ]}
+        },
+        {
+          "id": "template-horizon-haze", "piece": "Haze", "gate": "Always", "profile": "osaka-haze-v1",
+          "params": {"y": 718, "sigma": 75, "lo": 0.18, "hi": 0.42, "drift": 4, "seed": 47, "color": "#63e4aa", "gain": 0.09}
+        },
+        {
+          "id": "template-near-ridge", "piece": "Ridges", "gate": "Always", "profile": "osaka-ridges-v1",
+          "params": {"ridges": [
+            {"seed": 43, "base": 868, "amp": 62, "scale": 290, "parallax": 0.075, "top": "#071c17", "bottom": "#0b2d25"}
+          ]}
+        },
+        {
+          "id": "template-low-mist", "piece": "Haze", "gate": "Always", "profile": "osaka-haze-v1",
+          "params": {"y": 887, "sigma": 40, "lo": 0.08, "hi": 0.25, "drift": 3, "seed": 48, "color": "#4fc98f", "gain": 0.06}
+        }
       ]
     },
     {
@@ -18,5 +39,8 @@
     }
   ],
   "disc": {"profile": "osaka-disc-v1", "x": 1480, "y": 210, "parallax": 0, "radius": 86},
+  "profiles": {
+    "osaka-sky-v1": {"energyBase": 0.18, "energyBass": 0.14, "energySurge": 0.1, "timeOffset": 10}
+  },
   "art": {"file": "art.svg"}
 }
