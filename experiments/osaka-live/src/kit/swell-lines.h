@@ -10,6 +10,9 @@ struct SwellLinesParametersV1 {
     int count=260, rows=12, seed=71;
     double depthFalloff=1.45, widthMin=.55, widthMax=2.0;
     double lengthMin=110, lengthMax=650, driftSpeed=.52, amplitude=1;
+    // Scales the band-integral share of drift; with a lower driftSpeed the
+    // sea runs with the music instead of a constant clock.
+    double flowGain=1;
     bool surgeEnabled=false;
     bool orderedRows=true; // printed contours; background WaterSurface retains its authored field
     double amplitudeGain=0;

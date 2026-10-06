@@ -501,7 +501,8 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                     {"horizon","nearY","x0","x1","rows","textureRows","glints","seed","sampleStep",
                      "amplitude","wavelength","drift","phase","top","bottom","crest","texture","foam",
                      "underprint","glint","hotGlint","opacity","bandGain","liftGain","kickGain",
-                     "capDensity","capScale","glintX","glintDepth","innerLines","crestOpacity","swellSeed","amplitudeGain","surgeEnabled","shade","shadeLight"});
+                     "capDensity","capScale","glintX","glintDepth","innerLines","crestOpacity","swellSeed","amplitudeGain","surgeEnabled","shade","shadeLight",
+                     "glitter","glitterWidth","glitterSpread","flowGain"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();
                 auto& water=value->water;
                 if(data.contains("surgeEnabled"))water.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
@@ -519,13 +520,14 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 scalar("kickGain",water.kickGain,0,.5); scalar("capDensity",water.capDensity,0,1);
                 scalar("capScale",water.capScale,0,1.5); scalar("glintX",water.glintX,-2000,3840);
                 scalar("glintDepth",water.glintDepth,1,1080);scalar("crestOpacity",water.crestOpacity,0,1);scalar("shade",water.shade,0,1);
+                scalar("glitterWidth",water.glitterWidth,0,400);scalar("flowGain",water.flowGain,0,4);scalar("glitterSpread",water.glitterSpread,0,2);
                 if (water.nearY<=water.horizon+2) r.fail(paramsPath+".nearY","position below horizon + 2");
                 if (water.x1<=water.x0) r.fail(paramsPath+".x1","position right of x0");
                 auto integer=[&](const char* name,int& target,int lo,int hi) {
                     if (data.contains(name)) target=r.integer(data[name],paramsPath+"."+name,lo,hi);
                 };
                 integer("rows",water.rows,3,24);integer("swellSeed",water.swellSeed,0,1000000);integer("innerLines",water.innerLines,0,3); integer("textureRows",water.textureRows,0,65);
-                integer("glints",water.glints,0,115); integer("seed",water.seed,0,1000000);
+                integer("glints",water.glints,0,115); integer("seed",water.seed,0,1000000); integer("glitter",water.glitter,0,400);
                 auto color=[&](const char* name,Col& target) { if (data.contains(name)) target=r.color(data[name],paramsPath+"."+name); };
                 color("top",water.top); color("bottom",water.bottom); color("crest",water.crest); color("shadeLight",water.shadeLight);
                 color("texture",water.texture); color("foam",water.foam); color("underprint",water.underprint);
@@ -623,9 +625,10 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             } else if (piece->op==OsakaOp::SwellLines || piece->op==OsakaOp::FoamFlecks) {
                 if (!slot.contains("params")) r.fail(paramsPath,"required field");
                 QStringList keys={"region","exclusions","count","rows","seed","depthFalloff","widthMin","widthMax",
-                     "lengthMin","lengthMax","driftSpeed","amplitude","opacity","bandGain","liftGain","kickGain","color","highlight","amplitudeGain","surgeEnabled"};
+                     "lengthMin","lengthMax","driftSpeed","amplitude","opacity","bandGain","liftGain","kickGain","color","highlight","amplitudeGain","surgeEnabled","flowGain"};
                 const bool foam=piece->op==OsakaOp::FoamFlecks;
-                if(foam)keys.append({"sizeMin","sizeMax","onsetGain","underprint","responseGain","waveInstance"});
+                if(foam)keys.append({"sizeMin","sizeMax","onsetGain","underprint","responseGain","waveInstance",
+                    "breakers","breakerScale","breakerLife","spray","sprayThreshold","breakerBody","breakerFace"});
                 const auto data=r.object(slot["params"],paramsPath,{},keys);
                 auto value=std::make_shared<OsakaSlotParamsV1>(); auto& swell=foam?value->foam.swell:value->swell;
                 if(data.contains("surgeEnabled"))swell.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
@@ -651,7 +654,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 integer("count",foam?value->foam.count:swell.count,0,foam?300:600);integer("rows",swell.rows,6,24);integer("seed",swell.seed,0,1000000);
                 scalar("amplitudeGain",swell.amplitudeGain,0,4);scalar("depthFalloff",swell.depthFalloff,1,3);scalar("widthMin",swell.widthMin,.2,4);scalar("widthMax",swell.widthMax,.2,6);
                 scalar("lengthMin",swell.lengthMin,20,1200);scalar("lengthMax",swell.lengthMax,20,1600);
-                scalar("driftSpeed",swell.driftSpeed,0,2);scalar("amplitude",swell.amplitude,0,1.5);scalar("opacity",swell.opacity,0,1);
+                scalar("driftSpeed",swell.driftSpeed,0,2);scalar("flowGain",swell.flowGain,0,4);scalar("amplitude",swell.amplitude,0,1.5);scalar("opacity",swell.opacity,0,1);
                 scalar("bandGain",swell.bandGain,0,2);scalar("liftGain",swell.liftGain,0,1);scalar("kickGain",swell.kickGain,0,.5);
                 if(swell.widthMax<swell.widthMin || swell.lengthMax<swell.lengthMin)r.fail(paramsPath,"ordered width and length ranges");
                 if(data.contains("color"))(foam?value->foam.color:swell.color)=r.color(data["color"],paramsPath+".color");
@@ -660,8 +663,13 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                     if(data.contains("waveInstance"))value->foam.waveInstance=r.string(data["waveInstance"],paramsPath+".waveInstance").toStdString();
                     scalar("responseGain",value->foam.responseGain,0,3);scalar("sizeMin",value->foam.sizeMin,.1,2);scalar("sizeMax",value->foam.sizeMax,.1,2);
                     scalar("onsetGain",value->foam.onsetGain,0,.5);
+                    integer("breakers",value->foam.breakers,0,200);integer("spray",value->foam.spray,0,40);
+                    scalar("breakerScale",value->foam.breakerScale,.1,3);scalar("breakerLife",value->foam.breakerLife,.4,4);
+                    scalar("sprayThreshold",value->foam.sprayThreshold,0,1);
                     if(value->foam.sizeMax<value->foam.sizeMin)r.fail(paramsPath,"ordered size range");
                     if(data.contains("underprint"))value->foam.underprint=r.color(data["underprint"],paramsPath+".underprint");
+                    if(data.contains("breakerBody"))value->foam.body=r.color(data["breakerBody"],paramsPath+".breakerBody");
+                    if(data.contains("breakerFace"))value->foam.face=r.color(data["breakerFace"],paramsPath+".breakerFace");
                 }
                 params=value;
             } else if (piece->op==OsakaOp::Haze) {

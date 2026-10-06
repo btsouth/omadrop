@@ -43,7 +43,7 @@ void WaterSurfaceV1::draw(Ctx& c,const WaterSurfaceParametersV1& p) {
         SwellLinesParametersV1 shared;
         shared.orderedRows=true; // caps, contours and hulls share the same noncrossing crests
         shared.region=QRectF(p.x0,p.horizon,p.x1-p.x0,p.nearY-p.horizon);
-        shared.surgeEnabled=p.surgeEnabled;shared.amplitudeGain=p.amplitudeGain;shared.rows=p.rows;shared.seed=p.swellSeed;shared.amplitude=p.amplitude;shared.driftSpeed=p.drift;shared.liftGain=p.liftGain;shared.bandGain=p.bandGain;shared.kickGain=p.kickGain;
+        shared.surgeEnabled=p.surgeEnabled;shared.amplitudeGain=p.amplitudeGain;shared.rows=p.rows;shared.seed=p.swellSeed;shared.amplitude=p.amplitude;shared.driftSpeed=p.drift;shared.flowGain=p.flowGain;shared.liftGain=p.liftGain;shared.bandGain=p.bandGain;shared.kickGain=p.kickGain;
         const auto field=p.swellSeed>=0 ? SwellLinesV1::field(c,row,shared) : SwellRowV1{};
         auto top=[&](double x) {
             if(p.swellSeed>=0)return field.y(x);
@@ -141,6 +141,26 @@ void WaterSurfaceV1::draw(Ctx& c,const WaterSurfaceParametersV1& p) {
         const double response=.16+p.bandGain*c.band(b)+p.liftGain*c.lift(b)+p.kickGain*kick;
         cv.line(xx-w/2,yy,xx+w/2,yy,1.6+depth/90,hot?p.hotGlint:p.glint,
                 std::min(1.0,response)*(1-depth/(p.glintDepth+50))*tw);
+    }
+    // Each dash owns a hashed depth and lane in a column widening toward the
+    // viewer. The treble strand clock sets how fast dashes swap on and off,
+    // treble level and lift set how many are lit, and each onset reshuffles
+    // the column at once. Lit dashes are flat sun colour, like lamps.
+    if(p.glitter>0) {
+        const double treble=.6*c.band(5)+.4*c.band(4),sparkle=std::max(c.lift(5),c.lift(4));
+        const double clock=c.score?c.score->strandPhase[5]*22:c.t*3;
+        const Event* onset=c.score?Score::last(c.score->onsets,c.t):nullptr;
+        const double serial=onset?double(onset->serial%100000):0;
+        const double duty=std::clamp(.12+.6*treble+.25*sparkle+.45*c.hit(7),0.,.9);
+        for(int i=0;i<p.glitter;++i) {
+            const double depth=std::pow(hash2(i,p.seed+301),1.6)*p.glintDepth,y=p.horizon+3+depth;
+            const double half=p.glitterWidth+depth*p.glitterSpread;
+            const double lane=(hash2(i,p.seed+302)+hash2(i,p.seed+303)+hash2(i,p.seed+304))/1.5-1;
+            const double rate=.6+.8*hash2(i,p.seed+305),epoch=std::floor(clock*rate+hash2(i,p.seed+306)*7);
+            if(hash2(i*3.1+epoch,serial+p.seed+307)>=duty*(1-.55*depth/p.glintDepth))continue;
+            const double length=(5+depth*.17)*(.55+.9*hash2(i,p.seed+308)),x=p.glintX+lane*half;
+            cv.line(x-length/2,y,x+length/2,y,1.3+depth/120,p.glint,1);
+        }
     }
     c.gpu.over(cv,1,0,float(p.opacity));
 }
