@@ -1,0 +1,181 @@
+{
+  "schema": 1,
+  "world": "kanagawa",
+  "profile": "osaka-world-v1",
+  "stages": [
+    {
+      "id": "landscape",
+      "phase": "Backdrop",
+      "slots": [
+        {
+          "id": "sky",
+          "piece": "GradientSky",
+          "profile": "gradient-sky-v1",
+          "gate": "Always",
+          "params": {
+            "stops": [
+              {
+                "y": 0,
+                "color": "#12121a"
+              },
+              {
+                "y": 190,
+                "color": "#1c2033"
+              },
+              {
+                "y": 380,
+                "color": "#33375a"
+              },
+              {
+                "y": 500,
+                "color": "#7a5a78"
+              },
+              {
+                "y": 570,
+                "color": "#c17158"
+              },
+              {
+                "y": 612,
+                "color": "#e6c384"
+              }
+            ],
+            "paperTop": "#e8daba",
+            "paperBottom": "#a3a49d",
+            "printGrade": 0.72,
+            "grain": 0
+          }
+        },
+        {
+          "id": "sun",
+          "piece": "Disc",
+          "profile": "osaka-disc-v1",
+          "gate": "Always"
+        },
+        {
+          "id": "fuji",
+          "piece": "Mountain",
+          "profile": "osaka-mountain-v1",
+          "gate": "Always"
+        },
+        {
+          "id": "sea",
+          "piece": "WaterSurface",
+          "profile": "water-surface-v1",
+          "gate": "Always",
+          "params": {
+            "horizon": 612,
+            "nearY": 1050,
+            "rows": 6,
+            "textureRows": 40,
+            "glints": 90,
+            "sampleStep": 16,
+            "amplitude": 0.55,
+            "wavelength": 1,
+            "drift": 0.52,
+            "top": "#376582",
+            "bottom": "#102657",
+            "crest": "#143154",
+            "texture": "#7397a4",
+            "foam": "#dcd7ba",
+            "underprint": "#223249",
+            "glint": "#e6c384",
+            "hotGlint": "#c34043",
+            "capScale": 0.72,
+            "bandGain": 1.15,
+            "liftGain": 0.5,
+            "kickGain": 0.12
+          }
+        }
+      ]
+    }
+  ],
+  "disc": {
+    "profile": "osaka-disc-v1",
+    "x": 1310,
+    "y": 512,
+    "parallax": 0,
+    "radius": 112
+  },
+  "mountain": {
+    "profile": "osaka-mountain-v1",
+    "x": 1086,
+    "parallax": 0,
+    "peak": 476,
+    "base": 616,
+    "width": 150
+  },
+  "profiles": {
+    "osaka-disc-v1": {
+      "creamHex": 13205376,
+      "warmHex": 13205376,
+      "colorGain": 1,
+      "haloR": 0.7568627450980392,
+      "haloG": 0.44313725490196076,
+      "haloB": 0.34509803921568627,
+      "energyBase": 0.35,
+      "energyBass": 0.6,
+      "energySurge": 0,
+      "energyKick": 0.35,
+      "veil": 0,
+      "texture": 0,
+      "haloA": 90,
+      "haloBRadius": 50,
+      "haloC": 0.12,
+      "haloD": 0,
+      "haloFar": 0,
+      "restRings": 1.6,
+      "ring0Offset": 34,
+      "ring0Energy": 10,
+      "ring0Alpha": 0.018,
+      "ring1Offset": 80,
+      "ring1Energy": 14,
+      "ring1Alpha": 0.011,
+      "ringAlphaBase": 0.5,
+      "hitSeconds": 2.6,
+      "hitThreshold": 0.35,
+      "hitOffset": 24,
+      "hitTravel": 300,
+      "hitAlpha": 0.04,
+      "timeOffset": 10,
+      "color2Hex": 13533819,
+      "ringHex": 15123332,
+      "energyLift": 0.55
+    },
+    "osaka-mountain-v1": {
+      "topR": 0.246078431372549,
+      "topG": 0.27156862745098037,
+      "topB": 0.39509803921568626,
+      "bottomR": 0.246078431372549,
+      "bottomG": 0.27156862745098037,
+      "bottomB": 0.39509803921568626,
+      "foot": 0,
+      "samples": 160,
+      "span": 3.2,
+      "shapePower": 1.35,
+      "rippleGain": 0.012,
+      "ripplePeriod": 23,
+      "summitWidth": 0.079,
+      "summitOffset": 4,
+      "summitCurve": 6,
+      "summitHeight": 236,
+      "gradientStop": 0.62,
+      "gradientMix": 0.22,
+      "snow": 1,
+      "snowScale": 1,
+      "snowR": 0.8627450980392157,
+      "snowG": 0.8431372549019608,
+      "snowB": 0.7294117647058823
+    },
+    "osaka-finish-v1": {
+      "bloom": 0.28,
+      "threshold": 0.62,
+      "vignette": 0.25,
+      "grain": 0.008,
+      "knee": 0.8,
+      "paper": 1
+    }
+  },
+  "art": {
+    "file": "art.svg"
+  }
+}
