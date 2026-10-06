@@ -2,7 +2,8 @@
 
 A paper-print sunset: Fuji and a low red sun above a living indigo sea.
 The sky, disc, snow cap, sea contours and broken foam come from the Journey
-prototype. The left third and foreground leave room for a wave and small boats.
+prototype. A standing wave frames Fuji from the left; the right foreground leaves room
+for small boats.
 
 The sky uses `gradient-sky-v1`, with a constant 0.72 paper wash. The existing Disc
 uses independent sunset paints and soft bass rings; Mountain uses its original
@@ -33,5 +34,12 @@ faded sun; the sea retains its derived Prussian-blue paints. The finish uses the
 prototype's paper fibre, grain 0.008, bloom 0.28 and vignette 0.25.
 
 The stable composition removes Journey's chapter grades, sun travel and story
-beats. Wave, boat, crew and bird art are not part of this landscape yet.
+beats. Boat, crew and bird art are not part of this landscape yet.
 Artwork and kit code use the repo's MIT license.
+
+`great-wave-v1` sits at (0, 1100) on the left, width 1200, base height 650,
+maximum added rise 210, curl 0.65, 18 forked crest claws and seed 71. It retains
+the prototype body and flow family, with masked contours, Prussian underprint
+and paper foam. The 1.6 second low-band envelopes ease its rise and settling;
+kicks and onsets flick only the claws and spray. It never crashes. Even at
+maximum rise, Fuji's summit and the right-hand boat reserve remain visible.

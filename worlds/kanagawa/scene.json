@@ -162,6 +162,33 @@
               }
             ]
           }
+        },
+        {
+          "id": "great-wave",
+          "piece": "GreatWave",
+          "profile": "great-wave-v1",
+          "gate": "Always",
+          "params": {
+            "anchorSide": "left",
+            "x": 0,
+            "y": 1100,
+            "width": 1200,
+            "baseHeight": 650,
+            "maxRise": 210,
+            "curlAmount": 0.65,
+            "clawCount": 18,
+            "clawSize": 1,
+            "seed": 71,
+            "lowGain": 2.4,
+            "swellGain": 0.35,
+            "kickGain": 0.22,
+            "onsetGain": 0.18,
+            "body": "#285579",
+            "bottom": "#102955",
+            "underprint": "#1d4673",
+            "foam": "#dcd7ba",
+            "lines": "#7397a4"
+          }
         }
       ]
     }
