@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "world": "night-street",
+  "profile": "osaka-world-v1",
+  "stages": [
+    {
+      "id": "backdrop",
+      "phase": "Backdrop",
+      "slots": [
+        {"id": "sky", "piece": "Sky", "gate": "Always", "profile": "osaka-sky-v1"},
+        {"id": "moon", "piece": "Disc", "gate": "DiscEnabled", "profile": "osaka-disc-v1"},
+        {
+          "id": "hills", "piece": "Ridges", "gate": "Always", "profile": "osaka-ridges-v1",
+          "params": {"ridges": [
+            {"seed": 21, "base": 690, "amp": 190, "scale": 620, "parallax": 0.04, "top": "#082820", "bottom": "#185a46"},
+            {"seed": 22, "base": 740, "amp": 110, "scale": 330, "parallax": 0.07, "top": "#06201a", "bottom": "#10443a"}
+          ]}
+        },
+        {
+          "id": "valley-haze", "piece": "Haze", "gate": "Always", "profile": "osaka-haze-v1",
+          "params": {"y": 740, "sigma": 54, "lo": 0.2, "hi": 0.45, "drift": 5, "seed": 31, "color": "#5deba9", "gain": 0.14}
+        }
+      ]
+    }
+  ],
+  "disc": {"profile": "osaka-disc-v1", "x": 1450, "y": 200, "parallax": 0, "radius": 84},
+  "art": {"file": "art.svg"}
+}

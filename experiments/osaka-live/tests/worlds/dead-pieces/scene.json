@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "world": "dead-pieces",
+  "profile": "osaka-world-v1",
+  "stages": [
+    {"id": "foreground", "phase": "Foreground", "slots": []}
+  ],
+  "art": {"file": "art.svg"}
+}
