@@ -10,6 +10,9 @@ struct WaveTrainParametersV2 {
     double x0=-350,x1=2270,waterline=930,depth=360,wavelength=1180;
     double groupPeriod=2400,groupWidth=620,groupOrigin=400;
     double groupFloor=0,baseY=1080,width=1060,heightScale=1,travelScale=1,row=7.2;
+    // Optional screen-space life of each crest: it grows between riseFrom and
+    // riseTo, then sinks between sinkFrom and sinkTo (crest anchor x).
+    double riseFrom=0,riseTo=0,sinkFrom=0,sinkTo=0;
     bool surgeEnabled=false;
     Col body=hex(0x285579),bottom=hex(0x102955),underprint=hex(0x1d4673),
         foam=hex(0xdcd7ba),lines=hex(0x7397a4);

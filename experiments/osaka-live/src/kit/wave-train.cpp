@@ -159,7 +159,8 @@ double WaveTrainV2::envelope(double a,const WaveTrainPoseV2& s,const WaveTrainPa
         group+=std::exp(-.5*std::pow((d+j*p.groupPeriod)/p.groupWidth,2));
         peak+=std::exp(-.5*std::pow(j*p.groupPeriod/p.groupWidth,2));
     }
-    return std::max(p.groupFloor,.08+.92*group/peak)*(1-.62*sstep(1400,2200,a));
+    const double life=p.sinkTo>p.riseFrom?sstep(p.riseFrom,p.riseTo,a)*(1-sstep(p.sinkFrom,p.sinkTo,a)):1;
+    return std::max(p.groupFloor,.08+.92*group/peak)*(1-.62*sstep(1400,2200,a))*life;
 }
 WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrainParametersV2& p) {
     WaveTrainProfileV2 out;out.surface.reserve(161);

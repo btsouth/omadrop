@@ -250,7 +250,7 @@
             "waterline": 965,
             "depth": 360,
             "wavelength": 1180,
-            "groupPeriod": 1800,
+            "groupPeriod": 900,
             "groupWidth": 1500,
             "groupOrigin": 400,
             "groupFloor": 0.94,
@@ -264,7 +264,11 @@
             "underprint": "#1d4673",
             "foam": "#dcd7ba",
             "lines": "#7397a4",
-            "travelScale": 1.0
+            "travelScale": 0.55,
+            "riseFrom": -380,
+            "riseTo": 20,
+            "sinkFrom": 470,
+            "sinkTo": 860
           },
           "parallaxDepth": 0.75
         },
