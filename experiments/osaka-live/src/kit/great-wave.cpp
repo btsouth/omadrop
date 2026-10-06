@@ -1,5 +1,5 @@
-// Body, material curves and forked Hokusai talons ported from Journey's
-// studyWave. The standing version never advances into the film's plunge.
+// Printed Hokusai water with independent material motion and travelling sets.
+// The lip curls and settles, and never advances into a plunge.
 #include "great-wave.h"
 #include <array>
 namespace Journey::Kit {
@@ -34,28 +34,42 @@ void tendril(Canvas& cv,V2 root,double angle,double length,double width,double t
 }
 }
 GreatWavePoseV1 GreatWaveV1::pose(const Ctx& c,const GreatWaveParametersV1& p){
-    // Score's existing 1.6 s causal envelopes ease the entire body over
-    // several beats. Never bind the mass to instantaneous kicks or onsets.
-    double drive=0,sw=0;
-    if(c.score){
-        drive=p.lowGain*(.65*c.score->bandBody[2][0]+.35*c.score->bandBody[2][1]);
-        sw=p.swellGain*pulse(c.score->surges,c.t,.75,3);
-    }
+    GreatWavePoseV1 out;out.time=c.t;
+    double drive=c.score?p.lowGain*(.65*c.score->bandBody[2][0]+.35*c.score->bandBody[2][1]):0;
+    if(c.schedule){const auto& set=c.schedule->print.wave;
+        out.setStart=set.start;out.setDuration=set.duration;out.setCycle=set.cycle;
+        drive=set.energy*(p.lowGain/2.4);
+    }else{out.setDuration=32+5*hash2(p.seed,95);out.setCycle=unsigned(std::max(0.,std::floor(c.t/out.setDuration)));
+        out.setStart=out.setCycle*out.setDuration;}
+    out.phase=clamp01((c.t-out.setStart)/out.setDuration);
+    out.growth=sstep(0,.30,out.phase)*(1-sstep(.72,1,out.phase));
     const double surge=p.surgeEnabled && c.schedule?c.schedule->print.surge(c.t):0;
-    const double energy=clamp01(drive+sw+surge);
-    GreatWavePoseV1 out;out.rise=p.maxRise*sstep(0,1,energy);out.height=p.baseHeight+out.rise;
-    out.curl=p.curlAmount*(.32+.68*sstep(0,1,energy));
+    const double swell=c.score?p.swellGain*pulse(c.score->surges,c.t,.75,3):0;
+    out.energy=clamp01(drive+swell);
+    const double energy=lerp(out.energy,1.,surge);
+    out.rise=p.maxRise*sstep(0,1,energy)*out.growth;
+    out.height=(p.baseHeight+p.maxRise*sstep(0,1,energy))*out.growth;
+    out.travel=p.width*lerp(-.42,.24,sstep(0,1,out.phase));
+    out.curl=p.curlAmount*out.growth*(.25+.75*sstep(0,1,energy))
+        *(.87+.08*std::sin(c.t*.31+p.seed)+.05*std::sin(c.t*.31*std::sqrt(2.)+1.7));
     if(c.score)out.flick=p.kickGain*pulse(c.score->bassHits,c.t,.09,1.6)+p.onsetGain*pulse(c.score->onsets,c.t,.07,1.3);
     out.flick+=.8*surge;
     return out;
 }
 V2 GreatWaveV1::map(V2 q,const GreatWavePoseV1& s,const GreatWaveParametersV1& p){
     const double crest=1-sstep(580,1080,q.y),lip=sstep(540,1040,q.x)*crest;
-    const double x=(q.x+120*s.curl*lip)*p.width/1440.;
-    return {p.x+(p.anchorRight?-x:x),p.y+(q.y-1080)*s.height/1000.};
+    const double phase=s.time*.27+p.seed*.13;
+    // Spatially varying phases deform the whole face, not its bounding box.
+    // Irrationally related slow rates keep the body breathing between sets.
+    const double sway=(22*std::sin(phase+q.y*.004)+14*std::sin(phase*std::sqrt(2.)+q.x*.005)
+        +9*std::sin(phase*std::sqrt(3.)-q.y*.006))*s.growth;
+    const double heave=(17*std::sin(phase*.79+q.x*.006)+11*std::sin(phase*1.37-q.y*.005))*s.growth;
+    const double ripple=5*std::sin(q.x*.027-s.time*.82)*crest*s.growth;
+    const double x=(q.x+170*s.curl*lip+sway*crest)*p.width/1440.+s.travel;
+    return {p.x+(p.anchorRight?-x:x),p.y+(q.y-1080)*s.height/1000.+heave*crest+ripple};
 }
 QRectF GreatWaveV1::responseArea(const GreatWaveParametersV1& p){
-    return QRectF(p.anchorRight?p.x-p.width*.88:p.x,p.y-p.baseHeight-p.maxRise-100,p.width*.88,p.baseHeight+p.maxRise-20);
+    return QRectF(p.anchorRight?p.x-p.width*1.35:p.x-p.width*.5,p.y-p.baseHeight-p.maxRise-120,p.width*1.85,p.baseHeight+p.maxRise+120);
 }
 void GreatWaveV1::paint(Canvas& body,Canvas& flow,Canvas& foam,const Ctx& c,const GreatWaveParametersV1& p){
     const auto s=pose(c,p);
@@ -78,12 +92,22 @@ void GreatWaveV1::paint(Canvas& body,Canvas& flow,Canvas& foam,const Ctx& c,cons
     const double scale=p.width/1440.;
     for(int band=0;band<6;++band){
         const double body=c.score?c.score->bandBody[1][band]:0;
-        const double f=.09+band*.13;
+        const double f=.09+band*.13+.018*std::sin(c.t*.38+band);
         flow.color(mix(p.body,p.lines,.42+.07*band),.20+.55*body);stream(f);flow.stroke((26+14*body)*scale);
         flow.color(p.lines,.23+.35*body);stream(f+.015);flow.stroke(2.2*scale);
     }
-    for(int i=0;i<18;++i){const double f=.045+(i+.13*hash2(i,p.seed+17))*.044;
+    for(int i=0;i<18;++i){const double f=.045+(i+.13*hash2(i,p.seed+17))*.044+.014*std::sin(c.t*.43+i*.4);
         flow.color(i%6==0?p.foam:p.lines,i%6==0?.26:.34);stream(f);flow.stroke((i%6==0?1.8:.8)*scale);}
+    // Water is pulled up the face. Each tapered streak advects in material
+    // coordinates; entry and exit fade to zero before the phase wraps.
+    for(int i=0;i<18;++i){
+        const double f=.04+(i+.3)*.043,clock=c.t*(.035+.009*hash2(i,p.seed+18))
+            +(c.score?.06*c.score->bandIntegrals[i%6]:0)+hash2(i,p.seed+19);
+        const double u=clock-std::floor(clock),alpha=sstep(0,.09,u)*(1-sstep(.85,1,u));
+        Cubic track{{-155+f*1540,1120},{-230+f*1170,825},{-145+f*700,245+f*325},{240+f*475,158+f*306}};
+        std::vector<V2> streak;for(int j=0;j<=10;++j)streak.push_back(mapped(track.at(std::clamp(u-j*.011,0.,1.))));
+        flow.polyline(streak,(1.2+1.3*hash2(i,p.seed))*scale,p.foam,.38*alpha);
+    }
     const std::array<Cubic,3> crown={{{{-110,420},{-45,270},{110,165},{220,130}},
         {{220,130},{475,-25},{825,65},{990,245}},{{990,245},{1145,395},{1120,515},{1000,560}}}};
     for(int seg=0;seg<3;++seg){const auto& q=crown[seg];std::vector<V2> rim,inside;

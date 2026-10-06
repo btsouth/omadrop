@@ -295,14 +295,15 @@ label pieces' light areas. Hidden or unresponsive water rows fail music response
 
 ### GreatWave / great-wave-v1
 
-A standing Hokusai wave ported from Journey: indigo body, masked material
+A living Hokusai wave ported from Journey: indigo body, masked material
 contours, connected whitewater, blue underprint, hooked talons with two forks,
-and restrained spray. It has no break, plunge, crash state or timed endpoint.
+and restrained spray. Seeded 24..38 second sets roll in, build and settle into
+the swell. The first set lasts 36 seconds. No break, plunge or crash state exists.
 Place it after the sea and before boats in a Backdrop stage, with gate Always.
 
 `anchorSide` is `left` (default) or `right`; `x` and `y` anchor the foot, and
 `width` scales the authored 1440-unit body (300..1800). `baseHeight` (150..900)
-is always present; `maxRise` (0..400) adds bounded musical height. Their sum
+is the quiet set height; `maxRise` (0..800) adds bounded musical height. Their sum
 must not exceed 1050. `curlAmount` (0..1) controls the lip's forward reach.
 `clawCount` (6..30), `clawSize` (0.25..1.5) and `seed` (0..1000000) control
 crest detail. Talon/fork length is capped by local crest spacing; the lip's
@@ -310,7 +311,9 @@ shorter hooks are rooted on its exterior, away from the hollow.
 
 Paints `body`, `bottom`, `underprint`, `foam` and `lines` are #RRGGBB colors.
 `lowGain` (0..4, default 2.4) binds the existing 1.6 second causal envelopes of
-bands 0 and 1 to height and curl. `swellGain` (0..1, default 0.35) adds measured
+bands 0 and 1 to height and curl while each set forms. A surge raises the
+active set to its tallest size. Independent slow phases sway and undulate the
+body, curl the lip and ripple the crest; material streaks flow up its face. `swellGain` (0..1, default 0.35) adds measured
 swell pulses with a 0.75 second eased attack. `kickGain` and `onsetGain`
 (0..0.5, defaults 0.22/0.18) flick the claws and spray through continuous
 attack/release pulses. They never move the wave body. The check tool measures

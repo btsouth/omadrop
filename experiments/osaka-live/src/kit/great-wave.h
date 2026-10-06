@@ -11,8 +11,12 @@ struct GreatWaveParametersV1 {
     Col body=hex(0x285579),bottom=hex(0x102955),underprint=hex(0x1d4673),
         foam=hex(0xdcd7ba),lines=hex(0x7397a4);
 };
-// A standing wave has no timeline, plunge, break flag or crash state.
-struct GreatWavePoseV1 { double rise=0,height=0,curl=0,flick=0; };
+// A travelling set settles into the sea. There is no plunge or crash state.
+struct GreatWavePoseV1 {
+    double rise=0,height=0,curl=0,flick=0;
+    double time=0,phase=0,growth=0,travel=0,energy=0,setStart=0,setDuration=36;
+    unsigned setCycle=0;
+};
 struct GreatWaveV1 {
     static constexpr const char* name="great-wave-v1";
     static GreatWavePoseV1 pose(const Ctx&,const GreatWaveParametersV1&);

@@ -6,6 +6,7 @@ namespace Journey::Kit {
 // Independent opt-in life clock. Osaka's authored schedule never reads it.
 enum class PrintMoment { Fish, Cranes, FishingBoat, LanternBoat, Gust, Squall, SnowGlint, Star, Birds, Count };
 struct PrintEventV1 { double start=-1000,duration=7,speed=1,height=0,direction=1; int count=0; unsigned cycle=0; };
+struct WaveSetV1 { double start=0,duration=36,energy=0; unsigned cycle=0; };
 struct MomentScheduleV1 {
     explicit MomentScheduleV1(int seed=1):seed(seed) { dragonNext=varied(91,0,180,300); }
     int seed=1;double next=4,last=0,heldBass=0,surgeStart=-1000,surgeReady=10,dragonNext=240;
@@ -13,6 +14,7 @@ struct MomentScheduleV1 {
     PrintEventV1 dragon,flock;
     double birdNext=6;
     double surgeFlow=0;
+    WaveSetV1 wave,previousWave;
     std::array<PrintEventV1,int(PrintMoment::Count)> events{};
     double varied(int key,unsigned cycle,double lo,double hi)const{return lerp(lo,hi,hash2(seed*71.+key,cycle));}
     static const char* name(PrintMoment m){static constexpr const char* names[]={"fish","crane-pair","fishing-boat","lantern-boat","wind-gust","horizon-squall","snow-glint","shooting-star","bird-flock"};return names[int(m)];}
@@ -26,6 +28,14 @@ struct MomentScheduleV1 {
             if(t>=surgeReady && heldBass>=1.8 && a.bassLevel>=.25 && e>=.035 && beat->strength>=.55){surgeStart=t;surgeReady=t+varied(90,++surgeCycle,45,90);}
             beatSerial=beat->serial;
         }
+        // A set captures the causal low-band body while it forms, then carries
+        // that size across the sea. The next set is invisible at the seam.
+        if(t>=wave.start+wave.duration){
+            previousWave=wave;wave.start+=wave.duration;++wave.cycle;
+            wave.duration=varied(95,wave.cycle,24,38);wave.energy=0;
+        }
+        if(t-wave.start<.30*wave.duration)
+            wave.energy=clamp01(2.4*(.65*s.bandBody[2][0]+.35*s.bandBody[2][1]));
         if(t>=next){
             // Seeded permutation per nine-event round guarantees every type
             // recurs, with a fresh cyclic rotation and stride each round.
