@@ -17,10 +17,11 @@ OMADROP_WORLDS="$PWD/worlds" experiments/osaka-live/build/omadrop-osaka --world 
 ```
 
 Numbers use exact decimal doubles; existing float conversions happen at the
-same drawing boundaries. Every profile field is required. Instance IDs are
-unique across stages, slots and explicit nodes; stage and slot array order is
-significant. Version 1 accepts the Osaka world, the window shorthand example
-and their named library profiles.
+same drawing boundaries. Inside a profile block every field is required, and a
+block you leave out keeps the library defaults. Instance IDs are unique across
+stages, slots and explicit nodes; stage and slot array order is significant.
+Version 1 accepts the Osaka world, the example worlds and their named library
+profiles.
 
 Art paths, shaders and procedural behavior remain in the kit. SVG validation,
 scene art bindings and window label shorthand are available below. No general
@@ -52,7 +53,12 @@ unsupported elements or properties produce a filename, element ID and line
 number so you can fix the export. Use plain numbers or px for shape dimensions;
 percentages are supported for opacity, gradient coordinates and stop offsets.
 
-## Make a window react to music
+## Make layers react to music
+
+Windows are the simplest piece. Lanterns, lamps, neon signs, glows and wires
+work the same way and are in the table further down.
+
+### Windows
 
 Name an SVG element with `window.band0`, replacing `band0` with the music band
 you want from `band0` through `band5`. The label can also include `kick`,
@@ -88,6 +94,76 @@ It prints subset version 1 and each element's ID, label, type and source line as
 JSON. Invalid art prints a diagnostic and exits with status 1. Artwork is bounded
 to 16 MiB, 10,000 source elements, nesting depth 64, 20,000 compiled instances
 and 2 million compiled vertices; extreme coordinates are rejected too.
+
+### Lanterns, lamps, neon, glows and wires
+
+Every label is a piece name followed by dot separated tokens, all lowercase,
+with exactly one band from `band0` to `band5`. Tokens can come in any order.
+
+| Label | Tokens | What it does |
+| --- | --- | --- |
+| `window` | `kick` `onset` `always` | Fills the shape with warm light that follows the band (see above). |
+| `lantern` | `kick` `sway` | A paper lantern at the middle of the shape, as tall as the shape, with Osaka's warm paper look. Its glow follows the band. `kick` adds a flash on the bass, `sway` a gentle swing in the wind. The flat shape itself is not drawn, so use any placeholder shape. |
+| `lamp` | `kick` | A soft pool of light centered on the shape, about three times as wide as it is. The light follows the band, and `kick` adds a flash on the bass. The shape stays as the fixture, so label the lamp head. |
+| `neon` | `kick` `flicker` | Draws the shape in its own colors as a glowing neon tube with bloom. Brightness follows the band, and `kick` adds a flash on the bass. `flicker` adds Osaka's slow shimmer and the odd stutter. Outlined shapes (a stroke and no fill) look best. The flat shape itself is not drawn. |
+| `glow` | `kick` `onset` `always` | A soft blurred glow of the shape, in the shape's colors, added on top of it. Good for signs, moons and crystals. It follows the band, and the tokens work as they do for windows. The shape itself stays visible. |
+| `wire` | `pulse` | Draws a path as a thin dark wire with a pale upper edge, exactly along the path. A faint light hums along it with the band. `pulse` sends points of light travelling along it, faster and brighter as the band rises. The flat path itself is not drawn. |
+
+Lanterns, lamps and glows need a shape (path, rect, circle, ellipse, line, polygon
+or polyline), not a group. Neon and glow also need a shape that is not a `use`
+reference and has no clip or group opacity. A mistake in a label stops the world
+from loading and names the file, element id, label and the problem, for example
+`art.svg: element id 'sign' label 'neon.band0.pulse': unknown token 'pulse'`.
+A label that does not start with one of these names is plain art, so `lamp-post`
+and `lanterns` are fine, but `lamp.post` is read as a lamp and is an error.
+`omadrop-osaka --check` makes sure every labelled layer visibly responds.
+
+`worlds/examples/night-street/` uses all of them: a lamp post, two lanterns, a
+neon sign and two wires with pulses, plus windows. Its sky, moon, ridges and
+haze come from `scene.json`.
+
+## Backdrop pieces in scene.json
+
+A world lists only the stages it draws, in render order (`Backdrop`, `Coast`,
+`DistantTown`, `Foreground`, each at most once), and `slots` can be empty.
+`events` can be left out and means `Life`. The `finish`, `disc`, `mountain`
+and `profiles` blocks and each profile inside `profiles` can be left out too.
+`disc` is needed when a `Disc` slot is used, and `mountain` when a `Mountain`
+slot is. A block that is present must be complete, and anything unknown is an
+error with the file, the JSON path and what was expected. The art is drawn at
+the start of the `Foreground` stage, so the buildings in `art.svg` sit in front
+of everything in the `Backdrop` stage.
+
+| Piece | Where its settings go | What it draws |
+| --- | --- | --- |
+| `Sky` | `profiles["osaka-sky-v1"]`: `energyBase`, `energyBass`, `energySurge`, `timeOffset` | The night sky, clouds and stars. |
+| `Disc` | `disc`: `x`, `y`, `parallax`, `radius`; colors and rings in `profiles["osaka-disc-v1"]` | The moon with its halo, and rings that travel out on strong bass hits. |
+| `Mountain` | `mountain`: `x`, `parallax`, `peak`, `base`, `width`; colors in `profiles["osaka-mountain-v1"]` | A single mountain. |
+| `Ridges` | The slot's `params.ridges`: a list of 1 to 8 ridges with `seed`, `base`, `amp`, `scale`, `parallax`, `top` and `bottom` (colors like `"#1d6a52"`). Leave `params` out for Osaka's three ridges. | Rolling hills with haze on each. |
+| `Haze` | The slot's `params`: `y`, `sigma`, `lo`, `hi`, `color`, `gain`, and optionally `shift`, `drift` and `seed`. Noise size is in `profiles["osaka-haze-v1"]`. | A soft drifting band of mist across the picture. |
+| `Firework` | None. The shells and their timing come from the schedule. | Fireworks bursts, in the `Chapter` gate. |
+
+A slot is `{"id", "piece", "gate", "profile"}`, plus `params` where the table
+says so. `gate` is usually `Always`; `Disc` and `Mountain` can use
+`DiscEnabled` and `MountainEnabled`. `profile` is `osaka-sky-v1`,
+`osaka-disc-v1`, `osaka-mountain-v1`, `osaka-ridges-v1`, `osaka-haze-v1` or
+`osaka-firework-v1` for the matching piece. Here is the backdrop of
+`examples/night-street`:
+
+```json
+{"id": "backdrop", "phase": "Backdrop", "slots": [
+  {"id": "sky", "piece": "Sky", "gate": "Always", "profile": "osaka-sky-v1"},
+  {"id": "moon", "piece": "Disc", "gate": "DiscEnabled", "profile": "osaka-disc-v1"},
+  {"id": "hills", "piece": "Ridges", "gate": "Always", "profile": "osaka-ridges-v1",
+   "params": {"ridges": [
+     {"seed": 21, "base": 690, "amp": 190, "scale": 620, "parallax": 0.04, "top": "#082820", "bottom": "#185a46"}]}},
+  {"id": "valley-haze", "piece": "Haze", "gate": "Always", "profile": "osaka-haze-v1",
+   "params": {"y": 740, "sigma": 54, "lo": 0.2, "hi": 0.45, "drift": 5, "seed": 31, "color": "#5deba9", "gain": 0.14}}
+]}
+```
+
+These pieces keep Osaka's drawing. A world can place and color them but cannot
+change how they move.
 
 ## Preview while you draw
 
@@ -128,8 +204,9 @@ required check passes:
    identical frames. A failure means something changes between runs, such as the
    clock or an unseeded random value.
 3. **Reacts to music.** The picture must differ from the same world in silence.
-   If the world labels layers `window.band0` to `window.band5`, each of those
-   layers must visibly respond too, and the ones that never do are listed.
+   If the world labels layers (`window`, `lantern`, `lamp`, `neon`, `glow` or
+   `wire` with `band0` to `band5`), each of those layers must visibly respond
+   too, and the ones that never do are listed.
 4. **Frame budget.** The world's GPU time per 1080p frame, measured in the same
    run as Osaka Jade, must be no more than Osaka Jade plus 10%. Both numbers and
    the GPU name are printed. Under software rendering (for example
