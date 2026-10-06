@@ -84,6 +84,7 @@ constexpr Piece pieces[] = {
     {"SwellLines", OsakaOp::SwellLines, "swell-lines-v1"},
     {"FoamFlecks", OsakaOp::FoamFlecks, "foam-flecks-v1"},
     {"GreatWave", OsakaOp::GreatWave, "great-wave-v1"},
+    {"BoatOnWater", OsakaOp::BoatOnWater, "boat-on-water-v1"},
     {"AfterSky", OsakaOp::AfterSky, "after-sky"},
     {"Star", OsakaOp::Star, "osaka-shooting-star-v1"},
     {"DiscHook", OsakaOp::DiscHook, "disc-port"},
@@ -518,6 +519,28 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 color("texture",water.texture); color("foam",water.foam); color("underprint",water.underprint);
                 color("glint",water.glint); color("hotGlint",water.hotGlint);
                 params=value;
+            } else if (piece->op==OsakaOp::BoatOnWater) {
+                if(!slot.contains("params"))r.fail(paramsPath,"required field");
+                const auto data=r.object(slot["params"],paramsPath,{"waterInstance"},
+                    {"x","row","length","scale","driftX","driftRows","driftSpeed","crewCount","oarCount","seed","band",
+                     "rowingTempo","tempoGain","splashGain","kickGain","hull","trim","ink","foam"});
+                auto value=std::make_shared<OsakaSlotParamsV1>();auto& boat=value->boat;
+                boat.waterInstance=r.string(data["waterInstance"],paramsPath+".waterInstance").toStdString();
+                auto scalar=[&](const char* name,double& target,double lo,double hi){
+                    if(!data.contains(name))return;target=r.number(data[name],paramsPath+"."+name);
+                    if(target<lo || target>hi)r.fail(paramsPath+"."+name,"number in "+QString::number(lo)+".."+QString::number(hi));
+                };
+                scalar("x",boat.x,-1920,3840);scalar("row",boat.row,0,23);scalar("length",boat.length,80,600);
+                scalar("scale",boat.scale,.15,1.5);scalar("driftX",boat.driftX,0,500);scalar("driftRows",boat.driftRows,0,2);
+                scalar("driftSpeed",boat.driftSpeed,0,.05);scalar("rowingTempo",boat.rowingTempo,.1,.6);
+                scalar("tempoGain",boat.tempoGain,0,.5);scalar("splashGain",boat.splashGain,0,.5);scalar("kickGain",boat.kickGain,0,.35);
+                auto integer=[&](const char* name,int& target,int lo,int hi){if(data.contains(name))target=r.integer(data[name],paramsPath+"."+name,lo,hi);};
+                integer("crewCount",boat.crewCount,0,10);integer("oarCount",boat.oarCount,0,10);
+                integer("seed",boat.seed,0,1000000);integer("band",boat.band,0,5);
+                if(boat.oarCount>boat.crewCount)r.fail(paramsPath+".oarCount","at most crewCount");
+                for(auto entry:{std::pair<const char*,Col*>{"hull",&boat.hull},{"trim",&boat.trim},{"ink",&boat.ink},{"foam",&boat.foam}})
+                    if(data.contains(entry.first))*entry.second=r.color(data[entry.first],paramsPath+"."+entry.first);
+                params=value;
             } else if (piece->op==OsakaOp::GreatWave) {
                 if(!slot.contains("params"))r.fail(paramsPath,"required field");
                 const auto data=r.object(slot["params"],paramsPath,{},
@@ -626,6 +649,20 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             entries.push_back({piece->op,gate->gate,piece->profile,slot["id"].toString().toStdString(),params});
         }
         *targets[phase]={entries.data(),entries.size(),events=="Life" ? OsakaEventRef::Life : OsakaEventRef::LifeAndFlock,stage["id"].toString().toStdString()};
+    }
+    // Resolve after all slots exist: references may cross stage/order boundaries.
+    // Copy the immutable field description, not independently authored settings.
+    for(auto& stage:loaded->entries_)for(auto& slot:stage)if(slot.piece==OsakaOp::BoatOnWater){
+        const OsakaRenderSlot* surface=nullptr;
+        for(const auto& sources:loaded->entries_)for(const auto& candidate:sources)
+            if(candidate.id==slot.params->boat.waterInstance && candidate.piece==OsakaOp::SwellLines)surface=&candidate;
+        const QString path="$.boat["+QString::fromStdString(slot.id)+"].params";
+        if(!surface)r.fail(path+".waterInstance","id of a SwellLines slot");
+        auto value=std::make_shared<OsakaSlotParamsV1>(*slot.params);
+        value->boat.swell=surface->params->swell;
+        if(value->boat.row-value->boat.driftRows<0 || value->boat.row+value->boat.driftRows>value->boat.swell.rows-1)
+            r.fail(path+".row","row and driftRows within the named surface");
+        slot.params=value;
     }
     if (usesDisc && !hasDisc) r.fail("$.disc","required field");
     if (usesMountain && !hasMountain) r.fail("$.mountain","required field");

@@ -155,6 +155,8 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
     std::vector<Region> regions(windows.size() + pieces.size());
     struct MovingRegion {std::size_t index;int row;SwellLinesParametersV1 field;double width;};
     std::vector<MovingRegion> movingRegions;
+    struct BoatRegion {std::size_t index;BoatOnWaterParametersV1 params;};
+    std::vector<BoatRegion> boatRegions;
     const QTransform screen = QTransform().scale(double(w) / 1920.0, double(h) / 1080.0);
     auto fillRegion = [&](Region& region, const QPainterPath& shape) {
         const QRectF box = shape.boundingRect();
@@ -194,6 +196,12 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
     for (const auto* stage : {&description.backdrop,&description.coast,&description.distantTown,&description.foreground}) {
         for (std::size_t i=0;i<stage->count;++i) {
             const auto& slot=stage->entries[i];
+            if(slot.piece==OsakaOp::BoatOnWater) {
+                NodeResult node;node.id=QString::fromStdString(slot.id);node.label="boat-on-water-v1";
+                node.piece="boat-on-water";node.movingSurface=true;node.band=slot.params->boat.band;
+                node.kick=slot.params->boat.kickGain>0 || slot.params->boat.splashGain>0;
+                out.nodes.push_back(node);regions.emplace_back();boatRegions.push_back({regions.size()-1,slot.params->boat});
+            }
             if(slot.piece==OsakaOp::GreatWave) {
                 NodeResult node;node.id=QString::fromStdString(slot.id);node.label="great-wave-v1";
                 node.piece="great-wave";node.movingSurface=true;node.band=0;
@@ -276,6 +284,14 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
             const auto box=area.boundingRect().toAlignedRect().intersected(QRect(0,0,w,h));
             for(int y=box.top();y<=box.bottom();++y){const auto* line=mask.constScanLine(y);
                 for(int x=box.left();x<=box.right();++x)if(line[x])pixels.push_back(std::uint32_t(y*w+x));}
+        }
+        for(const auto& boat:boatRegions) {
+            Ctx mc{world.gpu(),t,music.audio,&music.score,options.seed,nullptr,&music.schedule};
+            Ctx sc{world.gpu(),t,silence.audio,&silence.score,options.seed,nullptr,&silence.schedule};
+            auto area=BoatOnWaterV1::responsePath(BoatOnWaterV1::pose(mc,boat.params),boat.params);
+            area.addPath(BoatOnWaterV1::responsePath(BoatOnWaterV1::pose(sc,boat.params),boat.params));
+            area.setFillRule(Qt::WindingFill);auto& pixels=regions[boat.index].pixels;pixels.clear();
+            fillRegion(regions[boat.index],screen.map(area));
         }
         for (std::size_t n = 0; n < regions.size(); ++n) {
             double gap = 0;

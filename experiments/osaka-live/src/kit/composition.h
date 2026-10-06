@@ -9,6 +9,7 @@
 #include "swell-lines.h"
 #include "foam-flecks.h"
 #include "great-wave.h"
+#include "boat-on-water.h"
 #include "svg-art.h"
 #include "window-label.h"
 #include <map>
@@ -19,7 +20,7 @@ enum class OsakaOp {
     CoastHook, Ridges, City, Firework, AfterValley, NearRidge, Train, SkyLanterns,
     TownHook, Downhill, FarNetwork, AfterTown, RightTown, StreetSurface, Cart,
     AfterCart, Festoon, NearNetwork, Moths, AfterWires, ReflectionCapture,
-    AfterReflections, StreetActors, Birds, NearHouse, Wisteria, Haze, GradientSky, WaterSurface, SwellLines, FoamFlecks, GreatWave
+    AfterReflections, StreetActors, Birds, NearHouse, Wisteria, Haze, GradientSky, WaterSurface, SwellLines, FoamFlecks, GreatWave, BoatOnWater
 };
 enum class OsakaGate { Always, Chapter, DiscEnabled, MountainEnabled, Land,
                        DefaultCoastLand, DefaultCoastChapter, DefaultTownLand };
@@ -37,6 +38,7 @@ struct OsakaSlotParamsV1 {
     SwellLinesParametersV1 swell;
     FoamFlecksParametersV1 foam;
     GreatWaveParametersV1 greatWave;
+    BoatOnWaterParametersV1 boat;
     std::vector<OsakaRidgeSpecV1> ridges;
 };
 struct OsakaRenderSlot {

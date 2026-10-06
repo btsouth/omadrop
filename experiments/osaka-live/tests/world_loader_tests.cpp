@@ -271,6 +271,31 @@ int main(int argc, char** argv) {
         invalid(withWave(QJsonObject{{"clawCount",18.5}}),wavePath+".clawCount: expected integer in 6..30");
         invalid(withWave(QJsonObject{{"breakEnabled",true}}),wavePath+".breakEnabled: expected known field (unknown field)");
         invalid(withWave(QJsonObject{{"crashAt",60}}),wavePath+".crashAt: expected known field (unknown field)");
+        auto withBoat=[&](const QJsonObject& settings){
+            auto r=original;auto stages=r["stages"].toArray();auto stage=stages[0].toObject();
+            auto entries=stage["slots"].toArray();
+            entries.append(QJsonObject{{"id","test-boat"},{"piece","BoatOnWater"},{"profile","boat-on-water-v1"},{"gate","Always"},{"params",settings}});
+            // Forward reference also proves resolution is independent of order.
+            entries.append(QJsonObject{{"id","test-swell"},{"piece","SwellLines"},{"profile","swell-lines-v1"},{"gate","Always"},
+                {"params",QJsonObject{{"seed",123},{"rows",12},{"amplitude",.63},{"driftSpeed",.37}}}});
+            stage["slots"]=entries;stages[0]=stage;r["stages"]=stages;return r;
+        };
+        const QJsonObject boatSettings{{"waterInstance","test-swell"},{"row",7.3},{"length",290},{"scale",.5},{"crewCount",6},{"oarCount",4},{"seed",82}};
+        root=withBoat(boatSettings);
+        {QFile out(file);require(out.open(QIODevice::WriteOnly),"write boat fixture failed");out.write(QJsonDocument(root).toJson());}
+        const auto boatWorld=loadOsakaWorld(tmp.path());const auto& parsedBoat=boatWorld->description().backdrop.entries[a.backdrop.count].params->boat;
+        require(parsedBoat.row==7.3 && parsedBoat.length==290 && parsedBoat.scale==.5 && parsedBoat.crewCount==6 && parsedBoat.oarCount==4 && parsedBoat.seed==82,"boat parameters lost");
+        require(parsedBoat.swell.seed==123 && parsedBoat.swell.rows==12 && parsedBoat.swell.amplitude==.63 && parsedBoat.swell.driftSpeed==.37,"boat does not share the named swell field");
+        auto missing=boatSettings;missing["waterInstance"]="absent";
+        invalid(withBoat(missing),"$.boat[test-boat].params.waterInstance: expected id of a SwellLines slot");
+        missing["waterInstance"]="test-boat";
+        invalid(withBoat(missing),"$.boat[test-boat].params.waterInstance: expected id of a SwellLines slot");
+        missing=boatSettings;missing["row"]=11;
+        invalid(withBoat(missing),"$.boat[test-boat].params.row: expected row and driftRows within the named surface");
+        missing=boatSettings;missing["oarCount"]=7;
+        invalid(withBoat(missing),wavePath+".oarCount: expected at most crewCount");
+        missing=boatSettings;missing["row"]=7.2;missing["boardingAt"]=35;
+        invalid(withBoat(missing),wavePath+".boardingAt: expected known field (unknown field)");
         std::cout<<"PASS: loaded Osaka equals compiled oracle; exact invalid diagnostics\n";
     } catch (const std::exception& e) { std::cerr<<e.what()<<'\n';return 1; }
 }

@@ -143,3 +143,5 @@ HEADERS += src/kit/foam-flecks.h
 
 SOURCES += src/kit/great-wave.cpp
 HEADERS += src/kit/great-wave.h
+SOURCES += src/kit/boat-on-water.cpp
+HEADERS += src/kit/boat-on-water.h

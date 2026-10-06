@@ -255,3 +255,23 @@ its horizon/nearY, rows, amplitude and drift should match the swell instance.
 `innerLines` (0..3) and `crestOpacity` (0..1) allow a world to replace the old
 full-width accents with broken contours. With no swellSeed, the original water
 arithmetic and default accents are preserved. Water supports 3..24 depth rows.
+
+`boat-on-water-v1` ports Journey's shallow oshiokuri hull, seated jointed crew,
+raised ends and recovery/catch/drive/settle oars. One canvas pass includes faint
+surface-following wakes, oar rings and five small kick-driven bow spray specks.
+There is no boarding, lantern story, break, wreck or departure clock.
+
+A `BoatOnWater` slot names a `SwellLines` slot with required `waterInstance`.
+The loader resolves that immutable field across stages; missing/wrong references
+and depth ranges outside its rows fail. `x` and fractional `row` place the hull;
+`length` (80..600) times `scale` (.15..1.5) sets its size. `driftX` (0..500),
+`driftRows` (0..2), `driftSpeed` (0 to .05) and `seed` select bounded continuous
+incommensurate paths. Heave is weighted three-point swell support; pitch uses
+both ends of the same field. No independently phased bob is added.
+
+`crewCount` (0..10), `oarCount` (0..crewCount), `hull`, `trim`, `ink`, `foam`,
+`band` (0..5), `rowingTempo` (.1 to .6 cycles/s), `tempoGain` (0 to .5),
+`splashGain` (0 to .5) and `kickGain` (0 to .35) control art/music. Rowing phase is
+base tempo plus the selected causal band integral, so changing music does not
+jump a pose. Band energy/kick lightly brighten oar rings; kick adds bow spray.
+The check tool measures each boat's current music/silence hull-and-oar footprint.

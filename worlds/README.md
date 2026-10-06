@@ -316,3 +316,12 @@ swell pulses with a 0.75 second eased attack. `kickGain` and `onsetGain`
 attack/release pulses. They never move the wave body. The check tool measures
 the wave's declared response region against silence, with band, kick and onset
 binding tokens. All geometry remains deterministic for identical music/seed.
+
+### Boats on shared swells
+
+Place a `BoatOnWater` / `boat-on-water-v1` slot after the sea, foam and wave.
+Its required `params.waterInstance` is the id of a `SwellLines` slot in the same
+world. `x`, fractional `row`, `length`, `scale`, `crewCount`, `oarCount`, hull
+paints, seeded `driftX` / `driftRows` / `driftSpeed`, and rowing/splash gains are
+independent per boat. Surface settings come from the named swell slot, ensuring
+pitch and heave agree with the water. See the kit README for bounds and bindings.
