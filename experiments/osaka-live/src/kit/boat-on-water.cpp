@@ -145,11 +145,41 @@ void BoatOnWaterV1::paint(Canvas& cv,const Ctx& c,const BoatOnWaterParametersV1&
     auto support=[&](double x){double sea=lerp(low.y(x),high.y(x),s.row-lo);return train?std::min(sea,lerp(sea,WaveTrainV2::surfaceY(*train,x,p.waveTrain.waterline),depth)):(p.ridesWave?lerp(sea,wave.y(x,sea),depth):sea);};
     const double ca=std::cos(s.tilt),sa=std::sin(s.tilt);
     auto wp=[&](V2 q){return s.at+V2(q.x*ca-q.y*sa,q.x*sa+q.y*ca);};
-    // Surface marks beneath the hull; the wake uses the actual contour too.
-    for(int j=0;j<3;++j){std::vector<V2> points;
-        for(int k=0;k<10;++k){const double x=s.at.x-ln*.52-(12+j*9)*sc+k*ln*.04;
-            points.push_back({x,support(x)+(2+j*3)*sc});}
-        cv.polyline(points,1.1*sc,p.foam,.17*(1-j*.22));}
+    // A narrow waterline seam and two broken trailing ribbons bind the
+    // ochre hull to its sampled swell. Rowing and the travelling set enlarge
+    // them; none of these marks changes the clearance or rocking solution.
+    const double phase=Tau*hash2(p.seed,41),clock=c.t*p.driftSpeed;
+    const double driftSpeed=std::abs(p.driftX*p.driftSpeed*.5*
+        (.65*std::cos(clock+phase)+.35*std::sqrt(2.)*std::cos(clock*std::sqrt(2.)+phase*.73)));
+    const double escapeSpeed=train && c.schedule?
+        sstep(40,320,s.at.x-p.x)*c.schedule->waveTrain.pose().phaseSpeed*p.waveTrain.travelScale:0;
+    const double pace=clamp01(.12+.02*(driftSpeed+escapeSpeed)+s.splash+s.spray*.5+std::abs(s.tilt)*1.2);
+    for(int j=0;j<2;++j){
+        const double span=(24+45*pace)*(1-.28*j)*sc;
+        const double x0=s.at.x-ln*.46-span;
+        const int n=12;
+        cv.color(p.foam,(.36+.30*pace)*(1-.28*j));
+        cv.moveTo(x0,support(x0)+(2+j*5)*sc);
+        for(int k=1;k<=n;++k){const double u=k/double(n),x=x0+span*u;
+            cv.lineTo(x,support(x)+(2+j*5)*sc);}
+        for(int k=n;k>=0;--k){const double u=k/double(n),x=x0+span*u;
+            cv.lineTo(x,support(x)+(2+j*5)*sc+(1.2+3*pace)*sc*std::sin(Pi*u));}
+        cv.closePath();cv.fill();
+    }
+    // The cream seam follows the keel itself, so steep pitch cannot detach
+    // the wake from either raised end.
+    std::vector<V2> seam;
+    for(int k=3;k<=29;++k)seam.push_back(wp(keel(p,k/32.)));
+    cv.polyline(seam,(1.1+pace)*sc,p.foam,.45+.3*pace);
+    const double nose=s.at.x+ln*.48*ca;
+    const double bowSpan=(8+20*pace)*sc;
+    cv.color(p.foam,.65+.2*pace);cv.moveTo(nose-5*sc,support(nose-5*sc));
+    cv.curveTo(nose+6*sc,support(nose+6*sc)-5*sc,
+        nose+bowSpan,support(nose+bowSpan)-3*sc,
+        nose+bowSpan+3*sc,support(nose+bowSpan+3*sc)+2*sc);
+    cv.curveTo(nose+bowSpan*.6,support(nose+bowSpan*.6)+sc,
+        nose+6*sc,support(nose+6*sc)+4*sc,nose-5*sc,support(nose-5*sc)+sc);
+    cv.closePath();cv.fill();
     cv.save();cv.translate(s.at.x,s.at.y);cv.rotate(s.tilt);
     // Journey drawBoat: shallow raised ends, ochre side and distinct gunwale.
     cv.color(p.ink);cv.moveTo(-ln/2-26*sc,-16*sc);

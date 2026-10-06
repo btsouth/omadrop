@@ -8,7 +8,11 @@ double SwellRowV1::y(double x,double offset) const {
     const double displacement=offset+amplitude*(std::sin(a)+.23*std::sin(a*2.1+.6)
         +.075*std::sin(x/(scale*.43)+detail))
         -lift*(.65+.35*std::sin(a*.47+detail*.31));
-    return base+(displacementLimit>0 ? displacementLimit*std::tanh(displacement/displacementLimit) : displacement);
+    // Normalize the driven contour before the soft envelope. At loud levels
+    // the old tanh flattened most of each crest into a horizontal shelf.
+    // This keeps the same strict row bounds while retaining curved shoulders.
+    const double envelope=std::hypot(displacementLimit,amplitude*1.305+lift);
+    return base+(displacementLimit>0 ? displacementLimit*std::tanh(displacement/envelope) : displacement);
 }
 int SwellLinesV1::band(int row,int rows) {
     return std::clamp(int(std::round((1-row/double(rows-1))*5)),0,5);
@@ -59,36 +63,29 @@ bool SwellLinesV1::allowed(const QRectF& bounds,const SwellLinesParametersV1& p)
 void SwellLinesV1::paint(Canvas& cv,const Ctx& c,const SwellLinesParametersV1& p) {
     std::vector<SwellRowV1> fields;
     for(int row=0;row<p.rows;++row)fields.push_back(field(c,row,p));
-    std::vector<V2> points;points.reserve(64);
     for(int i=0;i<p.count;++i) {
         const int row=i%p.rows;const auto& f=fields[row];
         const double id=hash2(i,p.seed+31),depth=std::pow(f.z,p.depthFalloff);
-        const double span=lerp(p.lengthMin,p.lengthMax,id)*(.38+.82*depth);
-        // Offscreen wraps and individually seeded speeds have no short common
-        // cycle; even silent sea keeps moving. Audio flow carries the contour.
+        const double span=lerp(p.lengthMin,p.lengthMax,id)*(.30+.70*depth);
         const double margin=p.lengthMax*1.4,period=p.region.width()+2*margin;
         const double travel=c.t*p.driftSpeed*(7+12*hash2(i,p.seed+32));
         const double x0=p.region.left()-margin+std::fmod(period*hash2(i,p.seed+33)+travel,period);
-        const double offset=(hash2(i,p.seed+34)-.48)*(12+37*depth);
-        const double surge=p.kickGain*c.kick(5)*(2+8*depth);
+        const double offset=(hash2(i,p.seed+34)-.48)*(5+15*depth)-p.kickGain*c.kick(5)*(2+8*depth);
         const double width=lerp(p.widthMin,p.widthMax,depth)*(.65+.65*hash2(i,p.seed+35));
-        points.clear();
-        auto flush=[&]() {if(points.size()>1)cv.polyline(points,width,mix(p.color,p.highlight,f.highlight),f.brightness*(.35+.65*id));points.clear();};
-        const int n=std::max(5,int(std::ceil(span/20)));
-        for(int j=0;j<=n;++j) {
-            const double u=j/double(n),x=x0+u*span;
-            const double y=f.y(x,offset+2*depth*std::sin(Pi*u)-surge);
-            const QRectF bounds(x-width,y-width,2*width,2*width);
-            if(!allowed(bounds,p)){flush();continue;}
-            // Do not bridge a reserved area when sampling crosses its corner.
-            if(!points.empty()) {
-                const auto& last=points.back();
-                const QRectF segment(QPointF(std::min(last.x,x)-width,std::min(last.y,y)-width),QPointF(std::max(last.x,x)+width,std::max(last.y,y)+width));
-                if(!allowed(segment,p))flush();
-            }
-            points.push_back({x,y});
+        const double alpha=f.brightness*(.22+.48*id)*(.30+.70*depth);
+        const Col color=mix(p.color,p.highlight,f.highlight*.5);
+        // Flat filled ribbons give each broken contour pointed ends instead
+        // of the canvas stroke's round, constant-width ruled appearance.
+        const int n=std::max(8,int(std::ceil(span/12)));
+        for(int j=0;j<n;++j){
+            const double u=j/double(n),v=(j+1)/double(n),x=x0+u*span,xx=x0+v*span;
+            const double y=f.y(x,offset),yy=f.y(xx,offset);
+            const double w=width*std::sin(Pi*u)*.5,ww=width*std::sin(Pi*v)*.5;
+            const QRectF bounds(QPointF(x-width,std::min(y,yy)-width),QPointF(xx+width,std::max(y,yy)+width));
+            if(!allowed(bounds,p))continue;
+            cv.tri({x,y-w},{xx,yy-ww},{xx,yy+ww},color,alpha);
+            cv.tri({x,y-w},{xx,yy+ww},{x,y+w},color,alpha);
         }
-        flush();
     }
 }
 void SwellLinesV1::draw(Ctx& c,const SwellLinesParametersV1& p) {

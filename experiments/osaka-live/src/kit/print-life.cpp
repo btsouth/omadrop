@@ -49,7 +49,10 @@ std::vector<PrintBirdPoseV1> BirdFlockV1::poses(const Ctx&c,const PrintLifeParam
         const double y=p.y+p.height*event.height+(p.nearEvents?45:18)*std::sin(c.t*.6+i*.8)-i*7-105*scatter*(.5+id);
         const double phase=c.t*(4+id)+(c.score?c.score->bandIntegrals[p.band]*3:0)+i*1.4;
         const double flap=std::sin(phase)*(1+.65*c.hit(7)+.7*scatter);
-        out.push_back({x,y,p.scale*(.65+.35*id),flap,direction,alpha});}
+        // The horizon flock is distant. Close passes stay high in the sky,
+        // with a smooth size falloff toward the sea rather than equal sprites.
+        const double perspective=p.nearEvents?lerp(1.,.28,sstep(280,612,y)):1.;
+        out.push_back({x,y,p.scale*(.65+.35*id)*perspective,flap,direction,alpha});}
     return out;
 }
 void BirdFlockV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){for(const auto&b:poses(c,p))printBird(cv,b,p);}
@@ -105,8 +108,8 @@ void PrintMomentsV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
     auto active=[&](PrintMoment m){const auto&v=clock.events[int(m)];double u=(c.t-v.start)/v.duration;return std::pair<double,double>{u,sstep(0,.10,u)*(1-sstep(.80,1,u))};};
     if(p.domain==0){
         auto [u,alpha]=active(PrintMoment::Cranes);const auto&v=clock.events[int(PrintMoment::Cranes)];
-        if(alpha>0)for(int i=0;i<2;++i){double x=p.x+(v.direction>0?u:1-u)*(p.width+160)-80-i*65*v.direction,y=p.y+60+p.height*v.height*.45+i*23;
-            printBird(cv,{x,y,(p.nearEvents?1.9:1.35)*p.scale,std::sin(c.t*3.4+i*.5+(c.score?c.score->bandIntegrals[p.band]:0))*(1+.5*c.hit(6)),v.direction,alpha},p,true);}
+        if(alpha>0 && (!p.nearEvents || v.cycle%2==0))for(int i=0;i<(p.nearEvents?1:2);++i){double x=p.x+(v.direction>0?u:1-u)*(p.width+160)-80-i*65*v.direction,y=p.y+60+p.height*v.height*.45+i*23;
+            printBird(cv,{x,y,(p.nearEvents?.65:1.35)*p.scale,std::sin(c.t*3.4+i*.5+(c.score?c.score->bandIntegrals[p.band]:0))*(1+.5*c.hit(6)),v.direction,alpha},p,true);}
         auto [su,sa]=active(PrintMoment::Star);if(sa>0){const auto&v=clock.events[int(PrintMoment::Star)];double x=p.x+p.width*(.30+.35*v.height)+su*330,y=p.y-130+su*115;
             cv.line(x-90,y-32,x,y,1.8*p.scale,p.accent,.6*sa);cv.disc(x,y,2.4*p.scale,p.accent,sa);}
         auto [qu,qa]=active(PrintMoment::Squall);if(qa>0){const auto&v=clock.events[int(PrintMoment::Squall)];
@@ -126,6 +129,23 @@ void PrintMomentsV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
         for(auto type:{PrintMoment::FishingBoat,PrintMoment::LanternBoat}){auto [u,alpha]=active(type);if(alpha<=0)continue;const auto&v=clock.events[int(type)];
             const double x=p.x+(v.direction>0?u:1-u)*(p.width+160)-80;
             const double y=printWater(c,p,x);
+            // The occasional fishing and lantern hulls get the same crisp
+            // contact language as the rowboats, scaled by their crossing speed.
+            const double pace=std::min(1.,(p.width+160)/v.duration/240.);
+            const double tail=x-v.direction*60*p.scale,wake=(16+22*pace)*p.scale;
+            cv.color(p.accent,.5*alpha);cv.moveTo(tail,printWater(c,p,tail)+9*p.scale);
+            cv.curveTo(tail-v.direction*wake*.35,printWater(c,p,tail)+10*p.scale,
+                tail-v.direction*wake*.75,printWater(c,p,tail-v.direction*wake)+11*p.scale,
+                tail-v.direction*wake,printWater(c,p,tail-v.direction*wake)+9*p.scale);
+            cv.curveTo(tail-v.direction*wake*.65,printWater(c,p,tail-v.direction*wake)+13*p.scale,
+                tail-v.direction*wake*.2,printWater(c,p,tail)+13*p.scale,tail,printWater(c,p,tail)+9*p.scale);
+            cv.closePath();cv.fill();
+            const double bow=x+v.direction*60*p.scale;
+            cv.color(p.accent,.7*alpha);cv.moveTo(bow-3*v.direction*p.scale,printWater(c,p,bow)+4*p.scale);
+            cv.curveTo(bow+6*v.direction*p.scale,printWater(c,p,bow)-2*p.scale,
+                bow+12*v.direction*p.scale,printWater(c,p,bow)+p.scale,
+                bow+14*v.direction*p.scale,printWater(c,p,bow)+7*p.scale);
+            cv.lineTo(bow+5*v.direction*p.scale,printWater(c,p,bow)+6*p.scale);cv.closePath();cv.fill();
             cv.save();cv.translate(x,y);cv.scale(v.direction*p.scale,p.scale);
             cv.color(p.ink,alpha);cv.moveTo(-62,-6);cv.curveTo(-25,7,25,7,65,-8);cv.lineTo(48,13);cv.curveTo(10,19,-40,15,-62,-6);cv.closePath();cv.fill();
             cv.color(p.accent,.65*alpha);cv.moveTo(-58,-4);cv.curveTo(-20,9,20,9,60,-6);cv.stroke(1.6);

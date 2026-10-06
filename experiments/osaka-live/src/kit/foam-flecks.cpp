@@ -40,58 +40,71 @@ void FoamFlecksV1::paint(Canvas& cv,const Ctx& c,const FoamFlecksParametersV1& p
     const auto& s=p.swell;
     const auto waveExclusion=exclusionPath(c,p);
     std::vector<SwellRowV1> fields;for(int row=0;row<s.rows;++row)fields.push_back(SwellLinesV1::field(c,row,s));
-    const double kick=c.kick(5);
-
+    // Seeded patches choose real local minima of the shared swell, never
+    // evenly spaced lanes. Reject duplicate crests instead of stacking stamps.
+    std::vector<std::vector<double>> used(s.rows);
     for(int i=0;i<p.count;++i) {
-        const int row=i%s.rows;const auto& f=fields[row];const double depth=std::pow(f.z,s.depthFalloff);
+        const int row=i%s.rows;const auto& f=fields[row];
+        const double depth=std::pow(f.z,s.depthFalloff),id=hash2(i,s.seed+71);
         const int band=SwellLinesV1::band(row,s.rows);
-        const double bandDrive=clamp01(3.6*(c.score?c.score->bandBody[0][band]:c.band(band)));
+        const double drive=clamp01(3.6*(c.score?c.score->bandBody[0][band]:c.band(band)));
         const double flare=c.score?(p.onsetGain*rowPulse(c.score->onsets,c.t-row*.012)
-            +s.kickGain*rowPulse(c.score->bassHits,c.t-row*.012))*(.35+.65*bandDrive):0;
-        const double id=hash2(i,s.seed+71),spanScale=lerp(p.sizeMin,p.sizeMax,id*id);
-        const double breath=.84+.16*std::sin(c.t*(.45+.55*hash2(i,s.seed+72))+Tau*hash2(i,s.seed+73));
-        const double size=spanScale*breath*(1+p.responseGain*(c.score?c.score->bandBody[1][0]:c.band(0)))*(1+.20*s.liftGain*c.lift(band))*(1+1.5*flare);
-        const double span=(18+130*depth)*size,thick=(2+19*depth)*(.7+.5*size);
-        const double margin=260,period=s.region.width()+2*margin;
-        const double travel=c.t*s.driftSpeed*(7+12*hash2(i,s.seed+32));
-        const int lane=i/s.rows,lanes=(p.count+s.rows-row-1)/s.rows;
-        const double start=(lane+.12+.76*hash2(i,s.seed+74))/lanes;
-        const double x0=s.region.left()-margin+std::fmod(period*start+travel,period);
-        const double offset=(hash2(i,s.seed+75)-.45)*(8+20*depth)-s.kickGain*kick*(2+8*depth);
-        auto top=[&](double x){return f.y(x,offset);};
-        const int lobes=2+int(4*hash2(i,s.seed+76));
-        auto under=[&](double u){
-            const double lobe=.62+.38*std::abs(std::sin(Pi*u*lobes+hash2(i,s.seed+77)*3));
-            return thick*std::pow(std::max(0.0,std::sin(Pi*u)),.65)*lobe*(.7+.6*u)*(1+.22*noise1(u*9,i));
-        };
-        double lo=top(x0),hi=lo;
-        for(int j=1;j<=12;++j){const double y=top(x0+j*span/12);lo=std::min(lo,y);hi=std::max(hi,y);}
-        const double finger=(5+19*depth)*(.7+.6*hash2(i,s.seed+78))*(.6+.5*size);
-        // Cull the complete authored silhouette, including its fingers and
-        // underprint, so a wave/hull reserve never receives a stray fragment.
-        const int fingers=span>35 ? std::min(3,int(1+3*size*hash2(i,s.seed+79))) : 0;
-        const double side=fingers?5:1,above=fingers?8:1;
-        const double below=fingers?finger+20:4+2*depth;
-        const QRectF bounds(x0-side,lo-above,span+2*side+(fingers?finger*1.2:0),hi-lo+thick*1.9+below+above);
+            +s.kickGain*rowPulse(c.score->bassHits,c.t-row*.012))*(.35+.65*drive):0;
+        const double visibility=sstep(id-.18,id+.12,.52+.40*drive+.20*flare);
+        if(visibility<.01)continue;
+        const double margin=260,wavelength=Tau*f.scale;
+        const int cycles=int(std::ceil((s.region.width()+2*margin)/wavelength))+1;
+        const double period=cycles*wavelength;
+        const double seedPhase=Tau*hash2(row,s.seed+19)-depth*6;
+        const double target=s.region.left()-margin+period*hash2(i,s.seed+74);
+        const double k=std::round((target/f.scale-seedPhase+Pi/2)/Tau);
+        const double origin=(f.phase-Pi/2+Tau*k)*f.scale;
+        // Wrap by complete wavelengths only outside the viewport. Each
+        // seeded patch rides one crest continuously rather than changing
+        // crests when a drifting candidate crosses a nearest-point boundary.
+        const double middle=s.region.left()-margin+
+            std::fmod(std::fmod(origin-s.region.left()+margin,period)+period,period);
+        double a=middle-.65*f.scale,b=middle+.65*f.scale;
+        for(int j=0;j<18;++j){const double l=(2*a+b)/3,r=(a+2*b)/3;
+            if(f.y(l)<f.y(r))b=r;else a=l;}
+        const double crest=(a+b)*.5+(hash2(i,s.seed+75)-.5)*f.scale*1.3;
+        bool duplicate=false;for(double x:used[row])if(std::abs(x-crest)<f.scale*.10)duplicate=true;
+        if(duplicate)continue;
+        used[row].push_back(crest);
+        const double breath=.9+.1*std::sin(c.t*(.45+.55*hash2(i,s.seed+72))+Tau*hash2(i,s.seed+73));
+        const double size=lerp(p.sizeMin,p.sizeMax,id)*breath
+            *(1+p.responseGain*(c.score?c.score->bandBody[1][0]:c.band(0)))
+            *(1+.15*s.liftGain*c.lift(band))*(1+.65*flare);
+        const int shape=int(hash2(i,s.seed+76)*3);
+        const double span=(12+82*depth)*size,thick=(1+6*depth)*(.7+.35*size);
+        const double x0=crest-span*(.35+.3*hash2(i,s.seed+77));
+        const double finger=(2+8*depth)*(.6+.4*size);
+        double lo=f.y(x0),hi=lo;for(int j=1;j<=16;++j){double y=f.y(x0+j*span/16);lo=std::min(lo,y);hi=std::max(hi,y);}
+        const QRectF bounds(x0-2,lo-2,span+finger+4,hi-lo+thick+finger+8);
         if(!SwellLinesV1::allowed(bounds,s) || waveExclusion.intersects(bounds))continue;
-        // Depth rows flare with their frequency band and a small beat travel delay.
-        const double flick=flare;
-        const double alpha=std::min(1.0,.61+.28*f.brightness+flick);
-        for(int pass=0;pass<2;++pass) {
-            const double dy=pass?0:2.5+2*depth;
-            cv.color(pass?p.color:p.underprint,pass?alpha:.42);cv.moveTo(x0,top(x0)+dy);
-            for(int j=1;j<=12;++j){const double x=x0+j*span/12;cv.lineTo(x,top(x)-(pass?0:1)+dy);}
-            for(int j=12;j>=0;--j){const double u=j/12.0,x=x0+u*span;cv.lineTo(x,top(x)+under(u)+dy);}
-            cv.closePath();cv.fill();
+        const double alpha=visibility*(.72+.20*f.brightness+.18*flare)*(.65+.35*depth);
+        const int pieces=shape==2?2:1;
+        for(int part=0;part<pieces;++part){
+            const double begin=part? .61:0,end=pieces==2 && !part?.43:1;
+            for(int pass=0;pass<2;++pass){
+                const double dy=pass?0:1.5+depth;
+                cv.color(pass?p.color:p.underprint,pass?alpha:alpha*.34);
+                cv.moveTo(x0+span*begin,f.y(x0+span*begin)+dy);
+                for(int j=1;j<=16;++j){const double u=lerp(begin,end,j/16.),x=x0+span*u;cv.lineTo(x,f.y(x)+dy);}
+                for(int j=16;j>=0;--j){const double u=lerp(begin,end,j/16.),x=x0+span*u;
+                    const double taper=std::sin(Pi*(u-begin)/(end-begin));
+                    cv.lineTo(x,f.y(x)+dy+thick*taper*(.8+.2*std::sin(u*11+i)));}
+                cv.closePath();cv.fill();
+            }
         }
-        // Prototype printSea's curled leading-edge fingers, kept only on the
-        // larger fragments; tiny lobed chips supply most of the texture.
-        for(int j=0;j<fingers;++j) {
-            const double u=.62+.34*(j+.5)/fingers,x=x0+span*u,yy=top(x)+under(u)*.55;
-            const double ln=finger*(.8+.2*hash2(j,i));
-            cv.color(p.color,alpha);cv.moveTo(x-3,yy-2);
-            cv.curveTo(x+ln*.45,yy-6,x+ln*1.15,yy,x+ln*.95,yy+ln*.7);
-            cv.curveTo(x+ln*.70,yy+ln*.25,x+ln*.3,yy+6,x-3,yy+3);cv.closePath();cv.fill();
+        // Only one third of patches curl; slivers and broken pairs leave ink
+        // water between the two or three small, pointed claws.
+        if(shape==1 && span>18)for(int j=0;j<2+int(id>.65);++j){
+            const double x=x0+span*(.52+.16*j),y=f.y(x),ln=finger*(1-.18*j);
+            cv.color(p.color,alpha);cv.moveTo(x-2,y);
+            cv.curveTo(x+ln*.5,y-1,x+ln*1.1,y+ln*.25,x+ln*.85,y+ln);
+            cv.curveTo(x+ln*.6,y+ln*.35,x+ln*.15,y+thick,x-2,y+thick*.65);
+            cv.closePath();cv.fill();
         }
     }
 }

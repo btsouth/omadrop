@@ -20,7 +20,11 @@ int main(int argc,char**argv){QCoreApplication app(argc,argv);try{
  }else if(mode=="birds"){
  schedule.print.flock.start=10;schedule.print.flock.duration=12;schedule.print.flock.count=7;schedule.print.flock.height=.5;
  p.x=0;p.y=300;p.width=1920;p.height=180;
- auto birds=BirdFlockV1::poses(c,p);need(birds.size()==7,"flock count");auto original=birds[0];auto rgb=capture();need(rgb==capture(),"bird RGB nondeterminism");
+ auto birds=BirdFlockV1::poses(c,p);need(birds.size()==7,"flock count");auto original=birds[0];
+ p.nearEvents=true;p.y=160;const double highSize=BirdFlockV1::poses(c,p)[0].size;
+ p.y=550;const double horizonSize=BirdFlockV1::poses(c,p)[0].size;
+ need(horizonSize<highSize*.4,"horizon birds do not recede");
+ p.nearEvents=false;p.y=300;auto rgb=capture();need(rgb==capture(),"bird RGB nondeterminism");
  score.onsets={{13.9,1,1}};need(BirdFlockV1::poses(c,p)[0].flap!=original.flap,"onset ignores flap");need(rgb!=capture(),"flap not rendered");
  schedule.print.surgeStart=12;need(BirdFlockV1::poses(c,p)[0].y<original.y,"surge ignores scatter");
  schedule.print.surgeStart=-1000;c.t=25;need(BirdFlockV1::poses(c,p).empty(),"birds fail to exit");

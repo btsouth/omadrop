@@ -41,7 +41,7 @@ void WaterSurfaceV1::draw(Ctx& c,const WaterSurfaceParametersV1& p) {
         const double clock=c.t*p.drift+travel-p.phase;
         const double waveScale=(55+115*z)*p.wavelength;
         SwellLinesParametersV1 shared;
-        shared.orderedRows=false; // retain the authored background planes and their music response
+        shared.orderedRows=true; // caps, contours and hulls share the same noncrossing crests
         shared.region=QRectF(p.x0,p.horizon,p.x1-p.x0,p.nearY-p.horizon);
         shared.surgeEnabled=p.surgeEnabled;shared.amplitudeGain=p.amplitudeGain;shared.rows=p.rows;shared.seed=p.swellSeed;shared.amplitude=p.amplitude;shared.driftSpeed=p.drift;shared.liftGain=p.liftGain;shared.bandGain=p.bandGain;shared.kickGain=p.kickGain;
         const auto field=p.swellSeed>=0 ? SwellLinesV1::field(c,row,shared) : SwellRowV1{};
