@@ -4,9 +4,12 @@ Thanks for helping with Omadrop.
 
 ## Living worlds
 
-The biggest open project is a contributor kit for living worlds: music-reactive
-scenes for Omarchy themes, in the style of Osaka Jade. The kit is not ready
-yet. The plan, and the place to say what you would like to work on, is
+Living worlds are music-reactive scenes for Omarchy themes. The starter
+template, live preview and readiness check are ready to use. See
+[Build a living world](docs/worlds.md) for the quick start, style guide and
+review criteria.
+
+The plan and the place to say what you would like to work on is
 [Living worlds: contributor kit](https://github.com/btsouth/omadrop/issues/6).
 
 ## Bugs and ideas
@@ -26,6 +29,7 @@ part of unrelated cleanup.
 the parts you change:
 
 - Launcher: `bash tests/product/product-test`
+- Worlds: `omadrop world check PATH`
 - Controls: `cd app && bash tests/run-tests.sh`
 - Osaka Jade: the CMake tests in `experiments/osaka-live/tests`
 - Packaging or installer: `bash packaging/test-in-arch.sh` (needs Docker)

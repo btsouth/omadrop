@@ -84,9 +84,9 @@ plays the fixed Osaka Jade artwork on one display or all displays.
 ## Help build living worlds
 
 The goal is a living world for every Omarchy theme, and eventually a Journey
-mode that travels between them. A contributor kit is in the works so artists,
-theme authors and developers can build worlds in the style of Osaka Jade. The
-plan, and the place to say you want in, is
+mode that travels between them. Artists, theme authors and developers can use
+the starter template and commands to [build a living world](docs/worlds.md) in
+the style of Osaka Jade. The plan, and the place to say you want in, is
 [Living worlds: contributor kit](https://github.com/btsouth/omadrop/issues/6).
 
 ## Credits
