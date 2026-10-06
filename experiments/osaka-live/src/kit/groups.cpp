@@ -371,4 +371,27 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
     OsakaGrassFlowersV1::draw(az, rng, ox);
     c.gpu.over(az, 1.3f);
 }
+void OsakaNetworkGroupV1::draw(Ctx& c, const OsakaState& s, const Life& L, const std::vector<BirdPlan>& birds, bool far) {
+    GpuProfile::Group profileGroup(c.gpu.profile,"polesWires");
+    const double t = c.t, cam = s.cam;
+    Canvas& cv = c.canvas();
+    Canvas& l = c.canvas();
+    Canvas& cone = c.canvas();
+    l.preserveRaster=cone.preserveRaster=true;
+    Spans spans = wireRuns(cam);
+    const auto outs = osakaOutRuns(cam);
+    const double land = clamp01(s.land);
+    Canvas* staticPoles = c.retainedBuilder(cv, far ? "far-poles" : "near-poles", {cam, land});
+    if(staticPoles)staticPoles->preserveRaster=true;
+    OsakaPolesV1::draw(c, s, L, cv, l, cone, staticPoles, t, cam, land, far);
+    const auto dips = OsakaFlockDipV1::make(c, L, birds, t);
+    auto dipAt = [&](int wire, double u) { return dips.at(wire, u); };
+    static const auto tailFade=[] {std::array<double,16> values{};for(int j=0;j<16;++j)values[j]=std::pow(1-j/16.0,1.6);return values;}();
+    OsakaStrandsV1::draw(c, s, L, cv, l, spans, outs, dipAt, t, land, far);
+    OsakaPulseStreamV1::draw(c, s, l, spans, outs, dipAt, tailFade, land, far);
+    c.gpu.add(cone, 1.0f, 7);
+    c.gpu.over(cv);
+    c.gpu.over(l, 1.9f);
+    c.gpu.add(l, 0.5f, 12);
+}
 }

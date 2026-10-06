@@ -50,4 +50,8 @@ struct OsakaNearGroupV1 {
     static constexpr const char* name = "osaka-near-group-v1";
     static void draw(Ctx& c, const OsakaState& s, const OsakaEventState& L);
 };
+struct OsakaNetworkGroupV1 {
+    static constexpr const char* name = "osaka-network-group-v1";
+    static void draw(Ctx& c, const OsakaState& s, const OsakaEventState& L, const std::vector<BirdPlan>& birds, bool far);
+};
 }

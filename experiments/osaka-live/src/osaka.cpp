@@ -151,29 +151,7 @@ namespace {
 
 // Two passes: `far` draws the valley poles and the spans running down to them,
 // behind the street and under the fog; the near pass draws everything else.
-void polesWires(Ctx& c, const OsakaState& s, const Life& L, const std::vector<BirdPlan>& birds, bool far) {
-    GpuProfile::Group profileGroup(c.gpu.profile,"polesWires");
-    const double t = c.t, cam = s.cam;
-    Canvas& cv = c.canvas();
-    Canvas& l = c.canvas();
-    Canvas& cone = c.canvas();
-    l.preserveRaster=cone.preserveRaster=true;
-    Spans spans = wireRuns(cam);
-    const auto outs = osakaOutRuns(cam);
-    const double land = clamp01(s.land);
-    Canvas* staticPoles = c.retainedBuilder(cv, far ? "far-poles" : "near-poles", {cam, land});
-    if(staticPoles)staticPoles->preserveRaster=true;
-    OsakaPolesV1::draw(c, s, L, cv, l, cone, staticPoles, t, cam, land, far);
-    const auto dips = OsakaFlockDipV1::make(c, L, birds, t);
-    auto dipAt = [&](int wire, double u) { return dips.at(wire, u); };
-    static const auto tailFade=[] {std::array<double,16> values{};for(int j=0;j<16;++j)values[j]=std::pow(1-j/16.0,1.6);return values;}();
-    OsakaStrandsV1::draw(c, s, L, cv, l, spans, outs, dipAt, t, land, far);
-    OsakaPulseStreamV1::draw(c, s, l, spans, outs, dipAt, tailFade, land, far);
-    c.gpu.add(cone, 1.0f, 7);
-    c.gpu.over(cv);
-    c.gpu.over(l, 1.9f);
-    c.gpu.add(l, 0.5f, 12);
-}
+
 
 // Festival lanterns strung from the near eave to the street pole. They come
 // on one by one at 3 s; each onset then sends a wave of light along the
@@ -266,7 +244,7 @@ void drawOsakaDistantTown(Ctx& c, const OsakaState& s) {
     const Life L = OsakaEventsV1::at(c);
     const auto plan = birdPlan(c);
     if (s.land > 0.01) downhillRoofs(c, s, L);
-    if (s.land > 0.01) polesWires(c, s, L, plan, true);
+    if (s.land > 0.01) OsakaNetworkGroupV1::draw(c, s, L, plan, true);
 }
 
 void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks) {
@@ -276,7 +254,7 @@ void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks) {
     if (hooks.town) hooks.town();
     else {
         if (s.land > 0.01) downhillRoofs(c, s, L);
-        if (s.land > 0.01) polesWires(c, s, L, plan, true);
+        if (s.land > 0.01) OsakaNetworkGroupV1::draw(c, s, L, plan, true);
     }
     if (hooks.afterTown) hooks.afterTown();
     OsakaRightTownV1::draw(c, s, L);
@@ -284,7 +262,7 @@ void drawOsakaForeground(Ctx& c, const OsakaState& s, const OsakaHooks& hooks) {
     OsakaCartGroupV1::draw(c, s, L);
     if (hooks.afterYatai) hooks.afterYatai();
     OsakaFestoonV1::draw(c, s, L, V2(POLES[0].x - 16 - s.cam * POLES[0].par, 640));
-    polesWires(c, s, L, plan, false);
+    OsakaNetworkGroupV1::draw(c, s, L, plan, false);
     OsakaMothsV1::draw(c, s, POLES[0].x - s.cam * POLES[0].par - 83);
     if (hooks.afterWires) hooks.afterWires();
     OsakaReflectionV1::draw(c, s);
