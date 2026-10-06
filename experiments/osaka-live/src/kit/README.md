@@ -180,3 +180,11 @@ Seven reusable sign paths now live in SVG, preserving the OFL notice/provenance;
 `drawSignGlyph` applies the original animated placement, size, tint and alpha.
 The exporter reads only the historical migration revision and is not used at
 build or runtime. Edit SVG paths in place while preserving bound IDs.
+
+## World check, step 3A
+
+`check-analysis.*` is the pure frame analysis (brightness change, WCAG 2.3.1
+general and red flash counting) with no GPU or Qt dependency, so the preview tool
+can reuse it. `check-signal.*` generates the built-in test music. `check.*` runs
+the five checks headless and builds the text and JSON reports for
+`omadrop-osaka --check`. See `worlds/README.md` for what each check means.

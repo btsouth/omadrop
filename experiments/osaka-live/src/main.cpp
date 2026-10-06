@@ -1,3 +1,4 @@
+#include "kit/check.h"
 #include "kit/world-loader.h"
 #include "session.h"
 #include "world.h"
@@ -67,7 +68,7 @@ int main(int argc,char** argv) {
     for(int i=1;i<argc;++i) if(QString::fromLocal8Bit(argv[i])=="--record"
         || QString::fromLocal8Bit(argv[i])=="--probe" || QString::fromLocal8Bit(argv[i])=="--bench"
         || QString::fromLocal8Bit(argv[i])=="--verify-render"
-        || QString::fromLocal8Bit(argv[i])=="--fidelity") headless=true;
+        || QString::fromLocal8Bit(argv[i])=="--fidelity" || QString::fromLocal8Bit(argv[i])=="--check") headless=true;
     const QString fpsOption=qEnvironmentVariable("OMADROP_OSAKA_FPS","auto");
     int fixedFps=0;
     if(fpsOption!="auto") {
@@ -92,7 +93,10 @@ int main(int argc,char** argv) {
         {"uncapped","Run a bounded throughput benchmark without frame pacing."},
         {"verify-render","Compare optimized drawing with accepted canvas output."},
         {"fidelity","Deterministic offline frame capture (developer tool).","directory"},
-        {"fixture","Stereo float32 44100 Hz fixture for fidelity capture.","path"},
+        {"fixture","Stereo float32 44100 Hz music for fidelity capture or --check (built-in music when omitted).","path"},
+        {"check","Check that a world is ready: loads, reacts to music, frame cost, no harsh flashing."},
+        {"json","Write the full --check report as JSON.","path"},
+        {"reference","Osaka Jade folder to compare --check frame cost with (default: osaka-jade under the worlds folder).","folder"},
         {"seconds","Bounded recording/probe length; preview loops when omitted.","number","60"},
         {"fps","Recording frames per second.","number","30"},
         {"width","Frame width.","number","1920"},{"height","Frame height.","number","1080"},
@@ -101,6 +105,23 @@ int main(int argc,char** argv) {
         {"world","World folder under OMADROP_WORLDS.","name","osaka-jade"},
         {"stats","Per-frame response and timing CSV.","path"}});
     parser.process(*app);
+    if(parser.isSet("check")) {
+        Journey::Kit::Check::Options check;
+        check.world=parser.value("world"); check.fixture=parser.value("fixture");
+        check.jsonPath=parser.value("json"); check.reference=parser.value("reference");
+        bool valid=false;
+        if(parser.isSet("seed")) { check.seed=parser.value("seed").toInt(&valid); if(!valid || check.seed<0) return 2; }
+        if(parser.isSet("seconds")) {
+            check.analysisSeconds=parser.value("seconds").toDouble(&valid);
+            if(!valid || !std::isfinite(check.analysisSeconds) || check.analysisSeconds<1 || check.analysisSeconds>600) return 2;
+        }
+        if(parser.isSet("fps")) {
+            check.fps=parser.value("fps").toInt(&valid);
+            if(!valid || (check.fps!=30 && check.fps!=60)) { QTextStream(stderr)<<"--check needs --fps 30 or 60\n"; return 2; }
+        }
+        QTextStream out(stdout), err(stderr);
+        return Journey::Kit::Check::runCheckCommand(check,out,err);
+    }
     try { Journey::Kit::initializeOsakaWorld(parser.value("world")); }
     catch (const std::exception& e) { QTextStream(stderr)<<e.what()<<'\n'; return 2; }
     bool ok=false;

@@ -122,3 +122,6 @@ HEADERS += src/kit/window-label.h
 
 SOURCES += src/kit/generic-window.cpp
 HEADERS += src/kit/generic-window.h
+
+SOURCES += src/kit/check-analysis.cpp src/kit/check-signal.cpp src/kit/check.cpp
+HEADERS += src/kit/check-analysis.h src/kit/check-signal.h src/kit/check.h

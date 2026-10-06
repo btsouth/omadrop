@@ -89,6 +89,52 @@ JSON. Invalid art prints a diagnostic and exits with status 1. Artwork is bounde
 to 16 MiB, 10,000 source elements, nesting depth 64, 20,000 compiled instances
 and 2 million compiled vertices; extreme coordinates are rejected too.
 
+## Check your world
+
+One command tells you whether a world is ready. It needs no window and no
+sound card:
+
+```sh
+OMADROP_WORLDS="$PWD/worlds" experiments/osaka-live/build/omadrop-osaka --check --world examples/lit-windows
+```
+
+It prints PASS or FAIL for five checks and exits with status 0 only when every
+required check passes:
+
+1. **Loads.** The scene and artwork are valid. Errors name the file, element and
+   line, the same as the SVG import tool.
+2. **Opens the same way.** Two separate runs with the same seed and music draw
+   identical frames. A failure means something changes between runs, such as the
+   clock or an unseeded random value.
+3. **Reacts to music.** The picture must differ from the same world in silence.
+   If the world labels layers `window.band0` to `window.band5`, each of those
+   layers must visibly respond too, and the ones that never do are listed.
+4. **Frame budget.** The world's GPU time per 1080p frame, measured in the same
+   run as Osaka Jade, must be no more than Osaka Jade plus 10%. Both numbers and
+   the GPU name are printed. Under software rendering (for example
+   `LIBGL_ALWAYS_SOFTWARE=1`) the numbers are only informational and do not
+   decide the result.
+5. **No harsh flashing.** The check renders the busiest 30 seconds of the music
+   at 30 frames per second and applies the WCAG 2.3.1 flash rules. A flash is a
+   pair of opposing brightness changes of at least 10% where the darker side is
+   below 0.80 relative luminance. More than three flashes in one second over more
+   than a quarter of the picture fails, and so does the same for saturated red.
+   The worst second, when it happened and how much of the picture flashed are
+   printed. WCAG measures area in a 10 degree field of view at normal viewing
+   distance. This check simplifies that to a quarter of the whole frame, and it
+   counts each pixel's own flashes, so it can miss flashes that move around the
+   screen.
+
+Options: `--fixture FILE` uses your own music (raw stereo float32, 44100 Hz).
+Without it, a built-in 60 second test track is used. `--seconds N` sets how much
+music is analyzed (default 30), `--seed N` the schedule seed (default 1), and
+`--json OUT` writes the full report. The frame budget needs Osaka Jade: it is
+found in the worlds folder, or give its folder with `--reference`.
+
+`experiments/osaka-live/tests/worlds/` holds two deliberately bad worlds used by
+the tests: `ignores-music` fails check 3 and `harsh-flashing` fails check 5.
+They are not in `worlds/` and are not meant to be installed.
+
 ## Osaka static artwork
 
 `osaka-jade/art.svg` is the source of truth for the static near/right shells,
