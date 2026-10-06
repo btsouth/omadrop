@@ -9,12 +9,14 @@ namespace Journey::Kit {
 class LoadedOsakaWorld {
 public:
     const OsakaWorldDescription& description() const { return world_; }
+    const std::vector<QString>& notes() const { return notes_; }
     LoadedOsakaWorld(const LoadedOsakaWorld&) = delete;
     LoadedOsakaWorld& operator=(const LoadedOsakaWorld&) = delete;
 private:
     LoadedOsakaWorld() = default;
     std::array<std::vector<OsakaRenderSlot>, 4> entries_;
     OsakaWorldDescription world_{};
+    std::vector<QString> notes_;
     friend std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString&);
 };
 QString osakaWorldsRoot();

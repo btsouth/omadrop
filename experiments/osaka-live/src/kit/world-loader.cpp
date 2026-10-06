@@ -1,6 +1,8 @@
 #include "world-loader.h"
+#include "window-label.h"
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -124,9 +126,11 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     if (error.error!=QJsonParseError::NoError)
         r.fail("$", "valid JSON (byte "+QString::number(error.offset)+": "+error.errorString()+")");
     const auto root=r.object(doc.isObject() ? QJsonValue(doc.object()) : QJsonValue(doc.array()), "$",
-                             {"schema","world","profile","stages","finish","disc","mountain","profiles","art"});
+                             {"schema","world","profile","stages","finish","disc","mountain","profiles","art","nodes"});
     if (r.number(root["schema"],"$.schema")!=1) r.fail("$.schema","schema version 1");
-    r.literal(root["world"],"$.world","osaka-jade");
+    const auto worldName=r.string(root["world"],"$.world");
+    const auto folderName=QFileInfo(folder).fileName();
+    if (worldName!=folderName) r.fail("$.world",QString("'%1'").arg(folderName));
     r.literal(root["profile"],"$.profile","osaka-world-v1");
     auto loaded=std::unique_ptr<LoadedOsakaWorld>(new LoadedOsakaWorld);
     auto& w=loaded->world_;
@@ -136,6 +140,41 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     const auto imported=importSvg(QDir(folder).filePath(file));
     if(!imported)r.fail("$.art.file",imported.diagnostic);
     w.art=imported.art;
+    QSet<QString> explicitWindowIds;
+    if (root.contains("nodes")) {
+        if (!root["nodes"].isArray() || root["nodes"].toArray().size()>256)
+            r.fail("$.nodes","array of at most 256 window nodes");
+        const auto nodes=root["nodes"].toArray();
+        for (int i=0;i<nodes.size();++i) {
+            const QString p="$.nodes["+QString::number(i)+"]";
+            const auto node=r.object(nodes[i],p,{"id","piece","profile","band","kick","onset","always"});
+            const auto id=r.string(node["id"],p+".id");
+            r.id(node["id"],p+".id");
+            r.literal(node["piece"],p+".piece","window");
+            r.literal(node["profile"],p+".profile","generic-window-v1");
+            OsakaWindowNodeV1 window;
+            window.id=id.toStdString();
+            window.band=r.integer(node["band"],p+".band",0,5);
+            window.kick=r.boolean(node["kick"],p+".kick");
+            window.onset=r.boolean(node["onset"],p+".onset");
+            window.always=r.boolean(node["always"],p+".always");
+            window.explicitNode=true;
+            bool found=false;
+            for(const auto& element:w.art->elements()) if(element.id==id) {found=true;break;}
+            if(!found)r.fail(p+".id","SVG element ID in "+file);
+            explicitWindowIds.insert(id);
+            w.windows.push_back(window);
+        }
+    }
+    for(const auto& element:w.art->elements()) {
+        if(!isWindowLabelCandidate(element.label))continue;
+        if(explicitWindowIds.contains(element.id)) {
+            loaded->notes_.push_back(QString("%1: element id '%2' label '%3': explicit window node overrides shorthand")
+                .arg(file,element.id,element.label));
+            continue;
+        }
+        w.windows.push_back(parseWindowLabel(file,element.id,element.label));
+    }
     if(!art["elements"].isObject())r.fail("$.art.elements","element binding object");
     const auto bindings=r.object(art["elements"],"$.art.elements",{"near-house-shell","right-house-2-shell","right-house-3-shell","near-house-roof","near-house-eaves","right-house-2-roof","right-house-3-roof","right-house-3-eaves","near-house-lattice","izakaya-lattice","near-house-deck","street-railing","yatai-frame","izakaya-counter","laundry-line","near-house-lamp-hanger","sign-glyph-0","sign-glyph-1","sign-glyph-2","sign-glyph-3","sign-glyph-4","sign-glyph-5","sign-glyph-6","near-house-mask","shamisen-mask"});
     for(auto it=bindings.begin();it!=bindings.end();++it) {

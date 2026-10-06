@@ -3,6 +3,7 @@
 #include "events.h"
 #include "parameters.h"
 #include "svg-art.h"
+#include "window-label.h"
 #include <map>
 namespace Journey::Kit {
 enum class OsakaPhase { Backdrop, Coast, DistantTown, Foreground };
@@ -47,6 +48,7 @@ struct OsakaWorldDescription {
     OsakaParametersV1 parameters;
     std::shared_ptr<const SvgArt> art;
     std::map<std::string,QString> artwork;
+    std::vector<OsakaWindowNodeV1> windows;
 };
 // World supplies ordered typed instances, never drawing callbacks.
 const OsakaWorldDescription& osakaWorld();

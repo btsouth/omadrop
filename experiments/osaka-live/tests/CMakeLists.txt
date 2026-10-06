@@ -22,7 +22,7 @@ add_executable(osaka-render-comparison-tests render_comparison_tests.cpp)
 target_include_directories(osaka-render-comparison-tests PRIVATE ../src)
 add_test(NAME bounded-render-comparison COMMAND osaka-render-comparison-tests)
 
-add_executable(osaka-world-loader-tests world_loader_tests.cpp osaka-oracle.cpp ../src/kit/world-loader.cpp ../src/kit/svg-art.cpp ../src/kit/svg-path.cpp ../src/canvas.cpp)
+add_executable(osaka-world-loader-tests world_loader_tests.cpp osaka-oracle.cpp ../src/kit/world-loader.cpp ../src/kit/window-label.cpp ../src/kit/svg-art.cpp ../src/kit/svg-path.cpp ../src/canvas.cpp)
 target_link_libraries(osaka-world-loader-tests PRIVATE Qt6::Gui Qt6::OpenGL)
 target_compile_definitions(osaka-world-loader-tests PRIVATE OSAKA_WORLD_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/osaka-jade")
 add_test(NAME world-folder-validation COMMAND osaka-world-loader-tests)
