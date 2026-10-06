@@ -28,7 +28,7 @@ target_compile_definitions(osaka-world-loader-tests PRIVATE OSAKA_WORLD_FOLDER="
 add_test(NAME world-folder-validation COMMAND osaka-world-loader-tests)
 
 file(GLOB OSAKA_KIT_SOURCES CONFIGURE_DEPENDS ../src/kit/*.cpp)
-list(REMOVE_ITEM OSAKA_KIT_SOURCES ../src/kit/svg-check.cpp)
+list(FILTER OSAKA_KIT_SOURCES EXCLUDE REGEX "/svg-check\\.cpp$")
 add_executable(osaka-window-shorthand-tests window_shorthand_tests.cpp
     ${OSAKA_KIT_SOURCES}
     ../src/world.cpp ../src/canvas.cpp ../src/gpu.cpp ../src/rig.cpp ../src/osaka.cpp

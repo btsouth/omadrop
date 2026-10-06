@@ -54,7 +54,11 @@ void OsakaCompositionV1::render(Ctx& c, const OsakaState& s, const OsakaWorldDes
     const auto L = OsakaEventsV1::at(c);
     const auto plan = stage.events == OsakaEventRef::LifeAndFlock ? birdPlan(c) : std::vector<BirdPlan>{};
     const bool drawWindows = phase == OsakaPhase::Foreground && !world.windows.empty();
-    if (drawWindows) world.art->draw(c.canvas());
+    if (drawWindows) {
+        Canvas& art = c.canvas();
+        world.art->draw(art);
+        c.gpu.draw(art);
+    }
     bool defaultCoastLand = false, defaultTown = false;
     auto enabled = [&](OsakaGate gate) {
         switch (gate) {

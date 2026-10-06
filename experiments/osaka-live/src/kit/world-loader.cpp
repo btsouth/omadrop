@@ -125,7 +125,11 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     const auto doc=QJsonDocument::fromJson(f.readAll(), &error);
     if (error.error!=QJsonParseError::NoError)
         r.fail("$", "valid JSON (byte "+QString::number(error.offset)+": "+error.errorString()+")");
-    const auto root=r.object(doc.isObject() ? QJsonValue(doc.object()) : QJsonValue(doc.array()), "$",
+    if (!doc.isObject()) r.fail("$","object");
+    auto rootObject=doc.object();
+    const bool hasNodes=rootObject.contains("nodes");
+    if (!hasNodes) rootObject.insert("nodes",QJsonArray{});
+    const auto root=r.object(rootObject, "$",
                              {"schema","world","profile","stages","finish","disc","mountain","profiles","art","nodes"});
     if (r.number(root["schema"],"$.schema")!=1) r.fail("$.schema","schema version 1");
     const auto worldName=r.string(root["world"],"$.world");
@@ -141,7 +145,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     if(!imported)r.fail("$.art.file",imported.diagnostic);
     w.art=imported.art;
     QSet<QString> explicitWindowIds;
-    if (root.contains("nodes")) {
+    if (hasNodes) {
         if (!root["nodes"].isArray() || root["nodes"].toArray().size()>256)
             r.fail("$.nodes","array of at most 256 window nodes");
         const auto nodes=root["nodes"].toArray();

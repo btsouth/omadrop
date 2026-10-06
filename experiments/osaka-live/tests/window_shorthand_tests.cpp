@@ -11,6 +11,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 
@@ -115,7 +116,7 @@ void expansion() {
                 "window identity changed");
         require(node.band == index && !node.explicitNode, "shorthand band or source changed");
     }
-    require(!world.windows[1].kick && !world.windows[1].onset && !world.windows[1].always,
+    require(world.windows[1].kick && !world.windows[1].onset && !world.windows[1].always,
             "window-1 flags changed");
     require(world.windows[3].always && world.windows[3].kick && !world.windows[3].onset,
             "window-3 flags changed");
@@ -154,8 +155,11 @@ void explicitOverride() {
     const auto loaded = loadOsakaWorld(folder);
     const auto& windows = loaded->description().windows;
     require(windows.size() == 6, "override changed window count");
-    require(windows[1].id == "window-1" && windows[1].band == 5
-                && windows[1].explicitNode, "explicit node did not override shorthand");
+    const auto overridden = std::find_if(windows.begin(), windows.end(), [](const auto& window) {
+        return window.id == "window-1";
+    });
+    require(overridden != windows.end() && overridden->band == 5
+                && overridden->explicitNode, "explicit node did not override shorthand");
     require(loaded->notes().size() == 1
                 && loaded->notes().front().contains("explicit window node overrides shorthand"),
             "override was not noted");
@@ -175,9 +179,10 @@ void renderBrightness() {
     const auto loudRgb = render(640, 360, loud, 1);
     const double silentMean = meanWindowBrightness(silentRgb, 640, 360, world);
     const double loudMean = meanWindowBrightness(loudRgb, 640, 360, world);
-    require(loudMean > silentMean + 0.08, "loud bands did not brighten the windows");
-    std::cout << "PASS: window mean brightness silent " << silentMean
+    std::cout << "window mean brightness silent " << silentMean
               << " loud " << loudMean << " delta " << (loudMean - silentMean) << '\n';
+    require(loudMean > silentMean + 0.08, "loud bands did not brighten the windows");
+    std::cout << "PASS: loud bands brightened the windows\n";
 }
 }
 

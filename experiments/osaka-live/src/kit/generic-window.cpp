@@ -29,7 +29,11 @@ bool GenericWindowV1::draw(Ctx& c, const OsakaWindowNodeV1& window) {
     const double alpha = std::min(1.0, 0.95 * std::min(value, 1.0) + 0.05);
     const float gain = float(0.82 + 0.30 * value);
     const auto& art = *osakaWorld().art;
-    return art.fillGradient(c.canvas(), QString::fromStdString(window.id),
-                            WARM_T * gain, WARM_B * gain, alpha);
+    Canvas& canvas = c.canvas();
+    if (!art.fillGradient(canvas, QString::fromStdString(window.id),
+                          WARM_T * gain, WARM_B * gain, alpha))
+        return false;
+    c.gpu.draw(canvas);
+    return true;
 }
 }
