@@ -110,3 +110,9 @@ add_executable(foam-piece-tests foam_piece_tests.cpp ../src/kit/foam-flecks.cpp 
 target_include_directories(foam-piece-tests PRIVATE ../src)
 target_link_libraries(foam-piece-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
 add_test(NAME foam-flecks-deterministic-and-music COMMAND foam-piece-tests)
+
+add_executable(great-wave-tests great_wave_tests.cpp ../src/kit/great-wave.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp)
+target_include_directories(great-wave-tests PRIVATE ../src)
+target_link_libraries(great-wave-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
+add_test(NAME great-wave-standing-bounded-and-music COMMAND great-wave-tests)

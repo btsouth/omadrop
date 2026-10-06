@@ -292,3 +292,27 @@ flow is continuous; measured level and lift brighten ripples and caps, while
 kick adds a localized reflection shimmer. No crash, impact, spray or story clock.
 The readiness check measures each depth row's crest and ripple area like the
 label pieces' light areas. Hidden or unresponsive water rows fail music response.
+
+### GreatWave / great-wave-v1
+
+A standing Hokusai wave ported from Journey: indigo body, masked material
+contours, connected whitewater, blue underprint, hooked talons with two forks,
+and restrained spray. It has no break, plunge, crash state or timed endpoint.
+Place it after the sea and before boats in a Backdrop stage, with gate Always.
+
+`anchorSide` is `left` (default) or `right`; `x` and `y` anchor the foot, and
+`width` scales the authored 1440-unit body (300..1800). `baseHeight` (150..900)
+is always present; `maxRise` (0..400) adds bounded musical height. Their sum
+must not exceed 1050. `curlAmount` (0..1) controls the lip's forward reach.
+`clawCount` (6..30), `clawSize` (0.25..1.5) and `seed` (0..1000000) control
+crest detail. Talon/fork length is capped by local crest spacing; the lip's
+shorter hooks are rooted on its exterior, away from the hollow.
+
+Paints `body`, `bottom`, `underprint`, `foam` and `lines` are #RRGGBB colors.
+`lowGain` (0..4, default 2.4) binds the existing 1.6 second causal envelopes of
+bands 0 and 1 to height and curl. `swellGain` (0..1, default 0.35) adds measured
+swell pulses with a 0.75 second eased attack. `kickGain` and `onsetGain`
+(0..0.5, defaults 0.22/0.18) flick the claws and spray through continuous
+attack/release pulses. They never move the wave body. The check tool measures
+the wave's declared response region against silence, with band, kick and onset
+binding tokens. All geometry remains deterministic for identical music/seed.

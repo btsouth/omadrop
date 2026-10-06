@@ -194,6 +194,13 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
     for (const auto* stage : {&description.backdrop,&description.coast,&description.distantTown,&description.foreground}) {
         for (std::size_t i=0;i<stage->count;++i) {
             const auto& slot=stage->entries[i];
+            if(slot.piece==OsakaOp::GreatWave) {
+                NodeResult node;node.id=QString::fromStdString(slot.id);node.label="great-wave-v1";
+                node.piece="great-wave";node.movingSurface=true;node.band=0;
+                node.kick=slot.params->greatWave.kickGain>0;node.onset=slot.params->greatWave.onsetGain>0;
+                out.nodes.push_back(node);QPainterPath area;area.addRect(GreatWaveV1::responseArea(slot.params->greatWave));
+                regions.emplace_back();fillRegion(regions.back(),screen.map(area));
+            }
             if (slot.piece==OsakaOp::SwellLines || slot.piece==OsakaOp::FoamFlecks) {
                 const bool foam=slot.piece==OsakaOp::FoamFlecks;
                 const auto& swell=foam?slot.params->foam.swell:slot.params->swell;

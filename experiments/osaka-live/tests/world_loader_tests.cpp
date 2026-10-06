@@ -251,6 +251,26 @@ int main(int argc, char** argv) {
         const auto roundTrip=loadOsakaWorld(tmp.path());
         require(roundTrip->description().disc.x==1.0000000000000002,"double failed to round-trip exactly");
         require(a.disc.x==b.disc.x,"loading a second world changed the first immutable description");
+        // Generic standing-wave parameters round-trip, while invalid bounds
+        // and every attempt to configure a crash fail closed.
+        auto withWave=[&](const QJsonObject& settings){
+            auto r=original;auto stages=r["stages"].toArray();auto stage=stages[0].toObject();
+            auto entries=stage["slots"].toArray();entries.append(QJsonObject{{"id","test-wave"},{"piece","GreatWave"},
+                {"profile","great-wave-v1"},{"gate","Always"},{"params",settings}});
+            stage["slots"]=entries;stages[0]=stage;r["stages"]=stages;return r;
+        };
+        root=withWave(QJsonObject{{"anchorSide","right"},{"x",1890},{"maxRise",123},{"seed",9}});
+        {QFile out(file);require(out.open(QIODevice::WriteOnly),"write wave fixture failed");out.write(QJsonDocument(root).toJson());}
+        const auto waveWorld=loadOsakaWorld(tmp.path());const auto& stageWave=waveWorld->description().backdrop;
+        const auto& parsedWave=stageWave.entries[stageWave.count-1].params->greatWave;
+        require(parsedWave.anchorRight && parsedWave.x==1890 && parsedWave.maxRise==123 && parsedWave.seed==9,"wave settings lost");
+        const QString wavePath="$.stages[0].slots["+QString::number(a.backdrop.count)+"].params";
+        invalid(withWave(QJsonObject{{"anchorSide","up"}}),wavePath+".anchorSide: expected left or right");
+        invalid(withWave(QJsonObject{{"maxRise",401}}),wavePath+".maxRise: expected number in 0..400");
+        invalid(withWave(QJsonObject{{"baseHeight",900},{"maxRise",200}}),wavePath+": expected baseHeight + maxRise at most 1050");
+        invalid(withWave(QJsonObject{{"clawCount",18.5}}),wavePath+".clawCount: expected integer in 6..30");
+        invalid(withWave(QJsonObject{{"breakEnabled",true}}),wavePath+".breakEnabled: expected known field (unknown field)");
+        invalid(withWave(QJsonObject{{"crashAt",60}}),wavePath+".crashAt: expected known field (unknown field)");
         std::cout<<"PASS: loaded Osaka equals compiled oracle; exact invalid diagnostics\n";
     } catch (const std::exception& e) { std::cerr<<e.what()<<'\n';return 1; }
 }

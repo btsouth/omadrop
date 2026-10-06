@@ -140,3 +140,6 @@ HEADERS += src/kit/swell-lines.h
 
 SOURCES += src/kit/foam-flecks.cpp
 HEADERS += src/kit/foam-flecks.h
+
+SOURCES += src/kit/great-wave.cpp
+HEADERS += src/kit/great-wave.h

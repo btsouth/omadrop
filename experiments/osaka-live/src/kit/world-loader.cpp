@@ -83,6 +83,7 @@ constexpr Piece pieces[] = {
     {"WaterSurface", OsakaOp::WaterSurface, "water-surface-v1"},
     {"SwellLines", OsakaOp::SwellLines, "swell-lines-v1"},
     {"FoamFlecks", OsakaOp::FoamFlecks, "foam-flecks-v1"},
+    {"GreatWave", OsakaOp::GreatWave, "great-wave-v1"},
     {"AfterSky", OsakaOp::AfterSky, "after-sky"},
     {"Star", OsakaOp::Star, "osaka-shooting-star-v1"},
     {"DiscHook", OsakaOp::DiscHook, "disc-port"},
@@ -516,6 +517,33 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 color("top",water.top); color("bottom",water.bottom); color("crest",water.crest);
                 color("texture",water.texture); color("foam",water.foam); color("underprint",water.underprint);
                 color("glint",water.glint); color("hotGlint",water.hotGlint);
+                params=value;
+            } else if (piece->op==OsakaOp::GreatWave) {
+                if(!slot.contains("params"))r.fail(paramsPath,"required field");
+                const auto data=r.object(slot["params"],paramsPath,{},
+                    {"anchorSide","x","y","width","baseHeight","maxRise","curlAmount","clawCount","clawSize","seed",
+                     "lowGain","swellGain","kickGain","onsetGain","body","bottom","underprint","foam","lines"});
+                auto value=std::make_shared<OsakaSlotParamsV1>();auto& wave=value->greatWave;
+                if(data.contains("anchorSide")) {
+                    const auto side=r.string(data["anchorSide"],paramsPath+".anchorSide");
+                    if(side!="left" && side!="right")r.fail(paramsPath+".anchorSide","left or right");
+                    wave.anchorRight=side=="right";
+                }
+                auto scalar=[&](const char* name,double& target,double lo,double hi){
+                    if(!data.contains(name))return;target=r.number(data[name],paramsPath+"."+name);
+                    if(target<lo || target>hi)r.fail(paramsPath+"."+name,"number in "+QString::number(lo)+".."+QString::number(hi));
+                };
+                scalar("x",wave.x,-1920,3840);scalar("y",wave.y,400,1200);scalar("width",wave.width,300,1800);
+                scalar("baseHeight",wave.baseHeight,150,900);scalar("maxRise",wave.maxRise,0,400);
+                if(wave.baseHeight+wave.maxRise>1050)r.fail(paramsPath,"baseHeight + maxRise at most 1050");
+                scalar("curlAmount",wave.curlAmount,0,1);scalar("clawSize",wave.clawSize,.25,1.5);
+                scalar("lowGain",wave.lowGain,0,4);scalar("swellGain",wave.swellGain,0,1);
+                scalar("kickGain",wave.kickGain,0,.5);scalar("onsetGain",wave.onsetGain,0,.5);
+                if(data.contains("clawCount"))wave.clawCount=r.integer(data["clawCount"],paramsPath+".clawCount",6,30);
+                if(data.contains("seed"))wave.seed=r.integer(data["seed"],paramsPath+".seed",0,1000000);
+                for(auto entry:{std::pair<const char*,Col*>{"body",&wave.body},{"bottom",&wave.bottom},
+                    {"underprint",&wave.underprint},{"foam",&wave.foam},{"lines",&wave.lines}})
+                    if(data.contains(entry.first))*entry.second=r.color(data[entry.first],paramsPath+"."+entry.first);
                 params=value;
             } else if (piece->op==OsakaOp::SwellLines || piece->op==OsakaOp::FoamFlecks) {
                 if (!slot.contains("params")) r.fail(paramsPath,"required field");
