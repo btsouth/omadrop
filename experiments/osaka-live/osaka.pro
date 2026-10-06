@@ -145,3 +145,6 @@ SOURCES += src/kit/great-wave.cpp
 HEADERS += src/kit/great-wave.h
 SOURCES += src/kit/boat-on-water.cpp
 HEADERS += src/kit/boat-on-water.h
+
+SOURCES += src/kit/print-life.cpp
+HEADERS += src/kit/print-life.h src/kit/moment-schedule.h

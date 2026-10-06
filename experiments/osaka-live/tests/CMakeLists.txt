@@ -122,3 +122,7 @@ add_executable(boat-on-water-tests boat_on_water_tests.cpp ../src/kit/boat-on-wa
 target_include_directories(boat-on-water-tests PRIVATE ../src)
 target_link_libraries(boat-on-water-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
 add_test(NAME boat-on-water-contact-deterministic-and-music COMMAND boat-on-water-tests)
+
+add_executable(print-schedule-tests print_schedule_tests.cpp ../src/score.cpp)
+target_include_directories(print-schedule-tests PRIVATE ../src)
+add_test(NAME print-schedule-bounds-and-sustained-surge COMMAND print-schedule-tests)

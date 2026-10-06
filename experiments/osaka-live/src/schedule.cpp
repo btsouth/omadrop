@@ -10,7 +10,7 @@ constexpr std::array<double,7> gaps{30,28,34,15,32,12,34};
 double Schedule::varied(double key,std::uint64_t cycle,double lo,double hi) const {
     return lo+(hi-lo)*hash2(key+seed_*71.0,double(cycle));
 }
-Schedule::Schedule(int seed):seed_(seed) {
+Schedule::Schedule(int seed):print(seed),seed_(seed) {
     combinationAt=varied(200,0,240,360);
     for(int i=0;i<int(Moment::Count);++i) {
         auto& m=moments[i]; m.duration=durations[i];
@@ -22,6 +22,7 @@ Schedule::Schedule(int seed):seed_(seed) {
     }
 }
 void Schedule::advance(double t,const Audio& a,const Score& score) {
+    print.advance(t,a,score);
     double energy=0;
     for(double b:a.bands) energy+=b*b;
     energy=std::sqrt(energy/6);

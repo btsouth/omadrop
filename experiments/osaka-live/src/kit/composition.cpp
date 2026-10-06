@@ -86,6 +86,7 @@ void OsakaCompositionV1::render(Ctx& c, const OsakaState& s, const OsakaWorldDes
         case OsakaOp::WaterSurface: WaterSurfaceV1::draw(c, slot.params->water); break;
         case OsakaOp::SwellLines: SwellLinesV1::draw(c, slot.params->swell); break;
         case OsakaOp::BoatOnWater: BoatOnWaterV1::draw(c,slot.params->boat); break;
+        case OsakaOp::PrintMoments: {Canvas& cv=c.canvas();PrintMomentsV1::paint(cv,c,slot.params->life);c.gpu.over(cv);break;}
         case OsakaOp::GreatWave: GreatWaveV1::draw(c,slot.params->greatWave); break;
         case OsakaOp::FoamFlecks: FoamFlecksV1::draw(c, slot.params->foam); break;
         case OsakaOp::GradientSky: GradientSkyV1::draw(c, slot.params->gradientSky); break;

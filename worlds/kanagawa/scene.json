@@ -58,6 +58,19 @@
           "gate": "Always"
         },
         {
+          "id": "sky-life",
+          "piece": "PrintMoments",
+          "profile": "print-moments-v1",
+          "gate": "Always",
+          "params": {
+            "x": 0,
+            "y": 310,
+            "width": 1920,
+            "height": 280,
+            "surgeEnabled": true
+          }
+        },
+        {
           "id": "sea",
           "piece": "WaterSurface",
           "profile": "water-surface-v1",
@@ -88,7 +101,8 @@
             "innerLines": 0,
             "crestOpacity": 0.72,
             "swellSeed": 71,
-            "amplitudeGain": 3.5
+            "amplitudeGain": 3.5,
+            "surgeEnabled": true
           }
         },
         {
@@ -119,7 +133,8 @@
             "lengthMax": 760,
             "color": "#7397a4",
             "highlight": "#dcd7ba",
-            "amplitudeGain": 3.5
+            "amplitudeGain": 3.5,
+            "surgeEnabled": true
           }
         },
         {
@@ -164,7 +179,8 @@
               }
             ],
             "amplitudeGain": 3.5,
-            "responseGain": 1.7
+            "responseGain": 1.7,
+            "surgeEnabled": true
           }
         },
         {
@@ -191,7 +207,8 @@
             "bottom": "#102955",
             "underprint": "#1d4673",
             "foam": "#dcd7ba",
-            "lines": "#7397a4"
+            "lines": "#7397a4",
+            "surgeEnabled": true
           }
         },
         {
@@ -219,7 +236,8 @@
             "hull": "#c0a36e",
             "trim": "#e6c384",
             "ink": "#14141c",
-            "foam": "#dcd7ba"
+            "foam": "#dcd7ba",
+            "surgeEnabled": true
           }
         },
         {
@@ -247,7 +265,8 @@
             "hull": "#c0a36e",
             "trim": "#e6c384",
             "ink": "#14141c",
-            "foam": "#dcd7ba"
+            "foam": "#dcd7ba",
+            "surgeEnabled": true
           }
         }
       ]

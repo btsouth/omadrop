@@ -3,6 +3,7 @@
 #include <QRectF>
 namespace Journey::Kit {
 struct GreatWaveParametersV1 {
+    bool surgeEnabled=false;
     bool anchorRight=false;
     double x=0,y=1100,width=1200,baseHeight=650,maxRise=210,curlAmount=.65;
     int clawCount=18,seed=71;

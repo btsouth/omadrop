@@ -5,6 +5,7 @@ namespace Journey::Kit {
 // Reduced printed sea and calm texture from Journey ending_water.cpp. All art,
 // density, placement and response are world parameters, never chapter state.
 struct WaterSurfaceParametersV1 {
+    bool surgeEnabled=false;
     double amplitudeGain=0;
     double horizon=612, nearY=1114, x0=-30, x1=2000;
     int rows=7, textureRows=28, glints=90, seed=5, innerLines=3, swellSeed=-1;

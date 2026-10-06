@@ -2,6 +2,7 @@
 #include "swell-lines.h"
 namespace Journey::Kit {
 struct BoatOnWaterParametersV1 {
+    bool surgeEnabled=false;
     std::string waterInstance;
     SwellLinesParametersV1 swell; // resolved from the named surface, never a second sea
     double x=1400, row=7, length=300, scale=.6;

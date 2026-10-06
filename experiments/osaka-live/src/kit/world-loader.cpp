@@ -85,6 +85,7 @@ constexpr Piece pieces[] = {
     {"FoamFlecks", OsakaOp::FoamFlecks, "foam-flecks-v1"},
     {"GreatWave", OsakaOp::GreatWave, "great-wave-v1"},
     {"BoatOnWater", OsakaOp::BoatOnWater, "boat-on-water-v1"},
+    {"PrintMoments", OsakaOp::PrintMoments, "print-moments-v1"},
     {"AfterSky", OsakaOp::AfterSky, "after-sky"},
     {"Star", OsakaOp::Star, "osaka-shooting-star-v1"},
     {"DiscHook", OsakaOp::DiscHook, "disc-port"},
@@ -490,9 +491,10 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                     {"horizon","nearY","x0","x1","rows","textureRows","glints","seed","sampleStep",
                      "amplitude","wavelength","drift","phase","top","bottom","crest","texture","foam",
                      "underprint","glint","hotGlint","opacity","bandGain","liftGain","kickGain",
-                     "capDensity","capScale","glintX","glintDepth","innerLines","crestOpacity","swellSeed","amplitudeGain"});
+                     "capDensity","capScale","glintX","glintDepth","innerLines","crestOpacity","swellSeed","amplitudeGain","surgeEnabled"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();
                 auto& water=value->water;
+                if(data.contains("surgeEnabled"))water.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
                 auto scalar=[&](const char* name,double& target,double lo,double hi) {
                     if (!data.contains(name)) return;
                     target=r.number(data[name],paramsPath+"."+name);
@@ -519,12 +521,28 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 color("texture",water.texture); color("foam",water.foam); color("underprint",water.underprint);
                 color("glint",water.glint); color("hotGlint",water.hotGlint);
                 params=value;
+            } else if (piece->op==OsakaOp::PrintMoments) {
+                const auto data=r.object(slot["params"],paramsPath,{},
+                    {"x","y","width","height","scale","gain","speed","count","seed","band","surgeEnabled","waterInstance","color","accent","ink"});
+                auto value=std::make_shared<OsakaSlotParamsV1>();auto& life=value->life;
+                auto scalar=[&](const char* key,double& target,double lo,double hi){if(data.contains(key)){target=r.number(data[key],paramsPath+"."+key);if(target<lo || target>hi)r.fail(paramsPath+"."+key,"bounded print piece parameter");}};
+                scalar("x",life.x,-1920,3840);scalar("y",life.y,0,1200);scalar("width",life.width,1,3840);scalar("height",life.height,1,1200);
+                scalar("scale",life.scale,.1,3);scalar("gain",life.gain,0,4);scalar("speed",life.speed,.1,4);
+                if(data.contains("count"))life.count=r.integer(data["count"],paramsPath+".count",1,30);
+                if(data.contains("seed"))life.seed=r.integer(data["seed"],paramsPath+".seed",0,1000000);
+                if(data.contains("band"))life.band=r.integer(data["band"],paramsPath+".band",0,5);
+                if(data.contains("surgeEnabled"))life.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
+                if(data.contains("waterInstance"))life.waterInstance=r.string(data["waterInstance"],paramsPath+".waterInstance").toStdString();
+                for(auto entry:{std::pair<const char*,Col*>{"color",&life.color},{"accent",&life.accent},{"ink",&life.ink}})
+                    if(data.contains(entry.first))*entry.second=r.color(data[entry.first],paramsPath+"."+entry.first);
+                params=value;
             } else if (piece->op==OsakaOp::BoatOnWater) {
                 if(!slot.contains("params"))r.fail(paramsPath,"required field");
                 const auto data=r.object(slot["params"],paramsPath,{"waterInstance"},
                     {"x","row","length","scale","driftX","driftRows","driftSpeed","crewCount","oarCount","seed","band",
-                     "rowingTempo","tempoGain","splashGain","kickGain","hull","trim","ink","foam"});
+                     "rowingTempo","tempoGain","splashGain","kickGain","hull","trim","ink","foam","surgeEnabled"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();auto& boat=value->boat;
+                if(data.contains("surgeEnabled"))boat.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
                 boat.waterInstance=r.string(data["waterInstance"],paramsPath+".waterInstance").toStdString();
                 auto scalar=[&](const char* name,double& target,double lo,double hi){
                     if(!data.contains(name))return;target=r.number(data[name],paramsPath+"."+name);
@@ -545,8 +563,9 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 if(!slot.contains("params"))r.fail(paramsPath,"required field");
                 const auto data=r.object(slot["params"],paramsPath,{},
                     {"anchorSide","x","y","width","baseHeight","maxRise","curlAmount","clawCount","clawSize","seed",
-                     "lowGain","swellGain","kickGain","onsetGain","body","bottom","underprint","foam","lines"});
+                     "lowGain","swellGain","kickGain","onsetGain","body","bottom","underprint","foam","lines","surgeEnabled"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();auto& wave=value->greatWave;
+                if(data.contains("surgeEnabled"))wave.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
                 if(data.contains("anchorSide")) {
                     const auto side=r.string(data["anchorSide"],paramsPath+".anchorSide");
                     if(side!="left" && side!="right")r.fail(paramsPath+".anchorSide","left or right");
@@ -571,11 +590,12 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             } else if (piece->op==OsakaOp::SwellLines || piece->op==OsakaOp::FoamFlecks) {
                 if (!slot.contains("params")) r.fail(paramsPath,"required field");
                 QStringList keys={"region","exclusions","count","rows","seed","depthFalloff","widthMin","widthMax",
-                     "lengthMin","lengthMax","driftSpeed","amplitude","opacity","bandGain","liftGain","kickGain","color","highlight","amplitudeGain"};
+                     "lengthMin","lengthMax","driftSpeed","amplitude","opacity","bandGain","liftGain","kickGain","color","highlight","amplitudeGain","surgeEnabled"};
                 const bool foam=piece->op==OsakaOp::FoamFlecks;
                 if(foam)keys.append({"sizeMin","sizeMax","onsetGain","underprint","responseGain"});
                 const auto data=r.object(slot["params"],paramsPath,{},keys);
                 auto value=std::make_shared<OsakaSlotParamsV1>(); auto& swell=foam?value->foam.swell:value->swell;
+                if(data.contains("surgeEnabled"))swell.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
                 auto box=[&](const QJsonValue& item,const QString& path) {
                     const auto v=r.object(item,path,{"x","y","width","height"});
                     const double x=r.number(v["x"],path+".x"),y=r.number(v["y"],path+".y");

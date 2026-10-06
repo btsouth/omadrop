@@ -41,10 +41,12 @@ GreatWavePoseV1 GreatWaveV1::pose(const Ctx& c,const GreatWaveParametersV1& p){
         drive=p.lowGain*(.65*c.score->bandBody[2][0]+.35*c.score->bandBody[2][1]);
         sw=p.swellGain*pulse(c.score->surges,c.t,.75,3);
     }
-    const double energy=clamp01(drive+sw);
+    const double surge=p.surgeEnabled && c.schedule?c.schedule->print.surge(c.t):0;
+    const double energy=clamp01(drive+sw+surge);
     GreatWavePoseV1 out;out.rise=p.maxRise*sstep(0,1,energy);out.height=p.baseHeight+out.rise;
     out.curl=p.curlAmount*(.32+.68*sstep(0,1,energy));
     if(c.score)out.flick=p.kickGain*pulse(c.score->bassHits,c.t,.09,1.6)+p.onsetGain*pulse(c.score->onsets,c.t,.07,1.3);
+    out.flick+=.8*surge;
     return out;
 }
 V2 GreatWaveV1::map(V2 q,const GreatWavePoseV1& s,const GreatWaveParametersV1& p){
@@ -119,11 +121,12 @@ void GreatWaveV1::paint(Canvas& body,Canvas& flow,Canvas& foam,const Ctx& c,cons
     }
     // Persistent specks breathe and flick in place. No modulo birth/death
     // clock or full-frame white flash can pop at a particle cycle boundary.
-    for(int i=0;i<30;++i){const double u=.12+.74*hash2(i,p.seed+64);const V2 source=mapped(crown[1].at(u));
+    for(int i=0;i<48;++i){const double u=.12+.74*hash2(i,p.seed+64);const V2 source=mapped(crown[1].at(u));
         const double phase=c.t*(.55+.15*hash2(i,p.seed+67))+Tau*hash2(i,p.seed+68);
-        const double dist=12+55*hash2(i,p.seed+69)+12*std::sin(phase)+150*s.flick;
+        const double fan=p.surgeEnabled && c.schedule?c.schedule->print.surge(c.t):0;
+        const double dist=180*fan*hash2(i,p.seed+70)+12+55*hash2(i,p.seed+69)+12*std::sin(phase)+150*s.flick;
         const double x=source.x+(p.anchorRight?1:-1)*dist*.72,y=source.y-dist*.65;
-        foam.color(p.foam,.16+.18*(.5+.5*std::sin(phase))+.7*s.flick);
+        foam.color(p.foam,.35*fan+.16+.18*(.5+.5*std::sin(phase))+.7*s.flick);
         foam.ellipse(x,y,(1+1.5*hash2(i,p.seed+65))*scale,(1.2+2*hash2(i,p.seed+66))*scale);foam.fill();
     }
 }
