@@ -48,7 +48,8 @@ public:
     QSet<const Node*> active;
     std::size_t compilations=0,vertices=0;
     std::shared_ptr<SvgArt> art=std::make_shared<SvgArt>();
-    SvgCompiler(QString name,double pixelScale):filename(std::move(name)),scale(pixelScale) {}
+    LabelFilter hideLabel;
+    SvgCompiler(QString name,double pixelScale,LabelFilter hide={}):filename(std::move(name)),scale(pixelScale),hideLabel(std::move(hide)) {}
     [[noreturn]] void fail(const Node& n,const QString& feature,bool unsupported=true) const {
         throw Failure{QString("%1:%2: element <%3> id='%4': %5%6%7").arg(filename).arg(n.line).arg(n.tag,n.id,unsupported?"unsupported feature '":"",feature,unsupported?"'":"")};
     }
@@ -372,7 +373,8 @@ public:
             const bool hidden=child->tag=="defs"||child->tag=="symbol"||child->tag.endsWith("Gradient")||child->tag=="stop";
             auto compiled=compile(child,s,world,record,hidden,nullptr,clip);
             if(container && !hidden && (n->tag!="defs"||definition)) {
-                canvas->appendOwned(compiled);
+                // Elements a piece draws itself stay recorded but are left out of the plain art.
+                if(!(hideLabel && hideLabel(child->label)))canvas->appendOwned(compiled);
                 if(record)replayChildren.push_back(art->elements_[child->index].replay);
             }
         }
@@ -435,10 +437,10 @@ bool SvgArt::fillGradient(Canvas& target,const QString& id,const Col& top,const 
     }
     return false;
 }
-SvgImport compileSvg(const QByteArray& data,const QString& filename,double pixelScale) {return SvgCompiler(filename,pixelScale).run(data);}
-SvgImport importSvg(const QString& filename,double pixelScale) {
+SvgImport compileSvg(const QByteArray& data,const QString& filename,double pixelScale,LabelFilter hideLabel) {return SvgCompiler(filename,pixelScale,std::move(hideLabel)).run(data);}
+SvgImport importSvg(const QString& filename,double pixelScale,LabelFilter hideLabel) {
     QFile file(filename);if(!file.open(QIODevice::ReadOnly))return {{},filename+": cannot open SVG: "+file.errorString()};
     if(file.size()>16*1024*1024)return {{},filename+": SVG exceeds 16 MiB"};
-    return compileSvg(file.readAll(),filename,pixelScale);
+    return compileSvg(file.readAll(),filename,pixelScale,std::move(hideLabel));
 }
 }

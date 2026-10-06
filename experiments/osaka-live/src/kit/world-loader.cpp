@@ -1,4 +1,5 @@
 #include "world-loader.h"
+#include "piece-label.h"
 #include "window-label.h"
 #include <QDir>
 #include <QFile>
@@ -149,7 +150,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                          : r.object(root["art"],"$.art",{"file"},{"elements"});
     const auto file=r.string(art["file"],"$.art.file");
     if(file!="art.svg")r.fail("$.art.file","art.svg in the world folder");
-    const auto imported=importSvg(QDir(folder).filePath(file));
+    const auto imported=importSvg(QDir(folder).filePath(file),1.0,pieceReplacesArt);
     if(!imported)r.fail("$.art.file",imported.diagnostic);
     w.art=imported.art;
     QSet<QString> explicitWindowIds;
@@ -178,7 +179,15 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             w.windows.push_back(window);
         }
     }
-    for(const auto& element:w.art->elements()) {
+    for(std::size_t index=0;index<w.art->elements().size();++index) {
+        const auto& element=w.art->elements()[index];
+        if(isPieceLabelCandidate(element.label)) {
+            auto node=parsePieceLabel(file,element.id,element.label);
+            checkPieceElement(file,element,node);
+            node.element=index;
+            w.pieces.push_back(node);
+            continue;
+        }
         if(!isWindowLabelCandidate(element.label))continue;
         if(explicitWindowIds.contains(element.id)) {
             loaded->notes_.push_back(QString("%1: element id '%2' label '%3': explicit window node overrides shorthand")

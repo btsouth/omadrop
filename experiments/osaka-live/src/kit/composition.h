@@ -2,6 +2,7 @@
 #include "../parts.h"
 #include "events.h"
 #include "parameters.h"
+#include "piece-label.h"
 #include "ridges.h"
 #include "svg-art.h"
 #include "window-label.h"
@@ -61,6 +62,7 @@ struct OsakaWorldDescription {
     std::shared_ptr<const SvgArt> art;
     std::map<std::string,QString> artwork;
     std::vector<OsakaWindowNodeV1> windows;
+    std::vector<OsakaPieceNodeV1> pieces;
 };
 // World supplies ordered typed instances, never drawing callbacks.
 const OsakaWorldDescription& osakaWorld();
