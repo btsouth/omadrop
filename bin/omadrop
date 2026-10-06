@@ -118,16 +118,22 @@ world_launch() {
   path=$(world_path "${2:-}")
   shift 2
 
-  local parent name
+  local parent name reference
   parent=$(dirname -- "$path")
   name=$(basename -- "$path")
+  # The frame budget compares against the installed Osaka Jade, which is not
+  # beside a contributor's world folder.
+  reference=$(worlds_root)/osaka-jade
   require_backend "$here/omadrop-osaka"
   export OMADROP_WORLDS=$parent
 
   if [[ $kind == preview ]]; then
     exec "$here/omadrop-osaka" --preview --world "$name" "$@"
   fi
-  "$here/omadrop-osaka" --check --world "$name" "$@"
+  if [[ -f $reference/scene.json && $name != osaka-jade ]]; then
+    exec "$here/omadrop-osaka" --check --world "$name" --reference "$reference" "$@"
+  fi
+  exec "$here/omadrop-osaka" --check --world "$name" "$@"
 }
 
 world_preview() {
