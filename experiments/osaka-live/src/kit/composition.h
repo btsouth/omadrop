@@ -2,6 +2,7 @@
 #include "../parts.h"
 #include "events.h"
 #include "parameters.h"
+#include "ridges.h"
 #include "svg-art.h"
 #include "window-label.h"
 #include <map>
@@ -12,16 +13,27 @@ enum class OsakaOp {
     CoastHook, Ridges, City, Firework, AfterValley, NearRidge, Train, SkyLanterns,
     TownHook, Downhill, FarNetwork, AfterTown, RightTown, StreetSurface, Cart,
     AfterCart, Festoon, NearNetwork, Moths, AfterWires, ReflectionCapture,
-    AfterReflections, StreetActors, Birds, NearHouse, Wisteria
+    AfterReflections, StreetActors, Birds, NearHouse, Wisteria, Haze
 };
 enum class OsakaGate { Always, Chapter, DiscEnabled, MountainEnabled, Land,
                        DefaultCoastLand, DefaultCoastChapter, DefaultTownLand };
 enum class OsakaEventRef { Life, LifeAndFlock };
+// A soft band of haze, from the slot's params in scene.json.
+struct OsakaHazeSlotV1 {
+    double y = 0, sigma = 1, lo = 0, hi = 0, shift = 0, drift = 0, seed = 0, gain = 0;
+    Col color;
+};
+// Settings a slot carries in scene.json. Osaka's slots carry none.
+struct OsakaSlotParamsV1 {
+    OsakaHazeSlotV1 haze;
+    std::vector<OsakaRidgeSpecV1> ridges;
+};
 struct OsakaRenderSlot {
     OsakaOp piece;
     OsakaGate gate;
     const char* profile;
     std::string id;
+    std::shared_ptr<const OsakaSlotParamsV1> params = nullptr;
 };
 struct OsakaRenderStage {
     const OsakaRenderSlot* entries;

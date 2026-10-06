@@ -15,6 +15,7 @@
 #include "lanterns.h"
 #include "actors.h"
 #include "palette.h"
+#include "haze.h"
 #include "generic-window.h"
 namespace Journey::Kit {
 namespace {
@@ -89,7 +90,15 @@ void OsakaCompositionV1::render(Ctx& c, const OsakaState& s, const OsakaWorldDes
             defaultCoastLand = !(b && b->coast) && s.land > 0.01;
             if (b && b->coast) b->coast();
             break;
-        case OsakaOp::Ridges: OsakaRidgesV1::draw(c, s); break;
+        case OsakaOp::Ridges:
+            if (slot.params && !slot.params->ridges.empty()) OsakaRidgesV1::draw(c, s, slot.params->ridges, slot.id);
+            else OsakaRidgesV1::draw(c, s);
+            break;
+        case OsakaOp::Haze: {
+            const auto& h = slot.params->haze;
+            hazeBand(c, h.y, h.sigma, h.lo, h.hi, h.shift + c.t * h.drift, h.seed, h.color, h.gain);
+            break;
+        }
         case OsakaOp::City: valleyCity(c, s); break;
         case OsakaOp::Firework: firework(c, s, L); break;
         case OsakaOp::AfterValley: if (b && b->afterValley) b->afterValley(); break;
