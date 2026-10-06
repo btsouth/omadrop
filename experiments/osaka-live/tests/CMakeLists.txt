@@ -32,9 +32,9 @@ list(FILTER OSAKA_KIT_SOURCES EXCLUDE REGEX "/svg-check\\.cpp$")
 add_executable(osaka-window-shorthand-tests window_shorthand_tests.cpp
     ${OSAKA_KIT_SOURCES}
     ../src/world.cpp ../src/canvas.cpp ../src/gpu.cpp ../src/rig.cpp ../src/osaka.cpp
-    ../src/headless.cpp ../src/score.cpp ../src/schedule.cpp)
+    ../src/headless.cpp ../src/score.cpp ../src/schedule.cpp ../src/audio.cpp)
 target_include_directories(osaka-window-shorthand-tests PRIVATE ../src)
-target_link_libraries(osaka-window-shorthand-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
+target_link_libraries(osaka-window-shorthand-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL PkgConfig::FFTW)
 target_compile_definitions(osaka-window-shorthand-tests PRIVATE
     WORLDS_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds"
     LIT_WINDOWS_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/examples/lit-windows")
@@ -55,3 +55,24 @@ target_include_directories(omadrop-svg-import PRIVATE ../src)
 target_link_libraries(omadrop-svg-import PRIVATE Qt6::Gui)
 target_compile_definitions(osaka-svg-tests PRIVATE SVG_CHECK_TOOL="$<TARGET_FILE:omadrop-svg-import>")
 add_dependencies(osaka-svg-tests omadrop-svg-import)
+
+add_executable(osaka-check-analysis-tests check_analysis_tests.cpp ../src/kit/check-analysis.cpp)
+target_include_directories(osaka-check-analysis-tests PRIVATE ../src)
+add_test(NAME check-flash-analysis COMMAND osaka-check-analysis-tests)
+
+add_executable(osaka-check-tests check_world_tests.cpp
+    ${OSAKA_KIT_SOURCES}
+    ../src/world.cpp ../src/canvas.cpp ../src/gpu.cpp ../src/rig.cpp ../src/osaka.cpp
+    ../src/headless.cpp ../src/score.cpp ../src/schedule.cpp ../src/audio.cpp)
+target_include_directories(osaka-check-tests PRIVATE ../src)
+target_link_libraries(osaka-check-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL PkgConfig::FFTW)
+target_compile_definitions(osaka-check-tests PRIVATE WORLDS_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds")
+set(CHECK_REPO_WORLDS "${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds")
+set(CHECK_TEST_WORLDS "${CMAKE_CURRENT_SOURCE_DIR}/worlds")
+add_test(NAME check-osaka-jade-ready COMMAND osaka-check-tests ${CHECK_REPO_WORLDS} osaka-jade ready)
+add_test(NAME check-lit-windows-ready COMMAND osaka-check-tests ${CHECK_REPO_WORLDS} examples/lit-windows ready)
+add_test(NAME check-ignores-music-fails-reacts COMMAND osaka-check-tests ${CHECK_TEST_WORLDS} ignores-music fail:reacts)
+add_test(NAME check-harsh-flashing-fails-flashing COMMAND osaka-check-tests ${CHECK_TEST_WORLDS} harsh-flashing fail:flashing strobe)
+add_test(NAME check-unloadable-art-fails-loads COMMAND osaka-check-tests --broken-art ${CHECK_REPO_WORLDS})
+set_tests_properties(check-osaka-jade-ready check-lit-windows-ready check-ignores-music-fails-reacts
+    check-harsh-flashing-fails-flashing check-unloadable-art-fails-loads PROPERTIES TIMEOUT 900)

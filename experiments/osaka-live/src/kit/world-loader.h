@@ -21,6 +21,10 @@ private:
 };
 QString osakaWorldsRoot();
 void initializeOsakaWorld(const QString& world = QStringLiteral("osaka-jade"));
+// The folder a world name resolves to under the worlds root. Throws for invalid names.
+QString osakaWorldFolder(const QString& name);
+// Loads the world in a folder as the current world. Throws like loadOsakaWorld.
+void initializeOsakaWorldAt(const QString& folder);
 // Throws std::runtime_error with file, JSON path and expectation.
 std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder);
 }

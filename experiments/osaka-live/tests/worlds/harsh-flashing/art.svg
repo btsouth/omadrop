@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <rect id="building" data-name="building"
+        x="470" y="190" width="980" height="760" rx="24"
+        fill="#0b2521" stroke="#b98243" stroke-width="10"/>
+  <rect id="strobe" data-name="window.band0.kick.onset"
+        x="0" y="0" width="1920" height="1080"
+        fill="#10201b"/>
+</svg>

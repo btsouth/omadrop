@@ -9,14 +9,16 @@ QString osakaWorldsRoot() {
     if (qEnvironmentVariableIsSet("OMADROP_WORLDS")) return qEnvironmentVariable("OMADROP_WORLDS");
     return QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("../worlds");
 }
-void initializeOsakaWorld(const QString& name) {
+QString osakaWorldFolder(const QString& name) {
     const QString clean=QDir::cleanPath(name);
     if (name.isEmpty() || QDir::isAbsolutePath(name) || name.contains('\\')
         || clean==".." || clean.startsWith("../")) {
         throw std::runtime_error("invalid world name: "+name.toStdString());
     }
-    world = loadOsakaWorld(QDir(osakaWorldsRoot()).filePath(clean));
+    return QDir(osakaWorldsRoot()).filePath(clean);
 }
+void initializeOsakaWorldAt(const QString& folder) { world = loadOsakaWorld(folder); }
+void initializeOsakaWorld(const QString& name) { initializeOsakaWorldAt(osakaWorldFolder(name)); }
 const OsakaParametersV1& osakaParameters() { return osakaWorld().parameters; }
 const OsakaWorldDescription& osakaWorld() {
     if (!world) throw std::logic_error("Osaka world was not initialized at startup");
