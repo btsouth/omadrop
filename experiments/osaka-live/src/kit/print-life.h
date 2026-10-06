@@ -10,5 +10,6 @@ struct PrintLifeParametersV1 {
     SwellLinesParametersV1 swell;
     Col color=hex(0x7397a4),accent=hex(0xdcd7ba),ink=hex(0x223249);
 };
+struct SmokePlumeV1 {static constexpr const char* name="smoke-plume-v1";static void paint(Canvas&,const Ctx&,const PrintLifeParametersV1&);};
 struct PrintMomentsV1 {static constexpr const char* name="print-moments-v1";static void paint(Canvas&,const Ctx&,const PrintLifeParametersV1&);};
 }

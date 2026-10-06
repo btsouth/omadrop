@@ -126,3 +126,9 @@ add_test(NAME boat-on-water-contact-deterministic-and-music COMMAND boat-on-wate
 add_executable(print-schedule-tests print_schedule_tests.cpp ../src/score.cpp)
 target_include_directories(print-schedule-tests PRIVATE ../src)
 add_test(NAME print-schedule-bounds-and-sustained-surge COMMAND print-schedule-tests)
+
+add_executable(print-life-tests print_life_tests.cpp ../src/kit/print-life.cpp ../src/kit/swell-lines.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp ../src/schedule.cpp)
+target_include_directories(print-life-tests PRIVATE ../src)
+target_link_libraries(print-life-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
+add_test(NAME print-life-deterministic-and-music COMMAND print-life-tests)

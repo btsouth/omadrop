@@ -85,6 +85,7 @@ constexpr Piece pieces[] = {
     {"FoamFlecks", OsakaOp::FoamFlecks, "foam-flecks-v1"},
     {"GreatWave", OsakaOp::GreatWave, "great-wave-v1"},
     {"BoatOnWater", OsakaOp::BoatOnWater, "boat-on-water-v1"},
+    {"SmokePlume", OsakaOp::SmokePlume, "smoke-plume-v1"},
     {"PrintMoments", OsakaOp::PrintMoments, "print-moments-v1"},
     {"AfterSky", OsakaOp::AfterSky, "after-sky"},
     {"Star", OsakaOp::Star, "osaka-shooting-star-v1"},
@@ -521,7 +522,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 color("texture",water.texture); color("foam",water.foam); color("underprint",water.underprint);
                 color("glint",water.glint); color("hotGlint",water.hotGlint);
                 params=value;
-            } else if (piece->op==OsakaOp::PrintMoments) {
+            } else if (piece->op==OsakaOp::PrintMoments || piece->op==OsakaOp::SmokePlume) {
                 const auto data=r.object(slot["params"],paramsPath,{},
                     {"x","y","width","height","scale","gain","speed","count","seed","band","surgeEnabled","waterInstance","color","accent","ink"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();auto& life=value->life;

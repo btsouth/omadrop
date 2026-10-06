@@ -196,6 +196,13 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
     for (const auto* stage : {&description.backdrop,&description.coast,&description.distantTown,&description.foreground}) {
         for (std::size_t i=0;i<stage->count;++i) {
             const auto& slot=stage->entries[i];
+            if(slot.piece==OsakaOp::SmokePlume || slot.piece==OsakaOp::PrintMoments) {
+                const auto& p=slot.params->life;NodeResult node;node.id=QString::fromStdString(slot.id);node.label=slot.profile;
+                node.piece=slot.profile;node.band=p.band;node.kick=true;node.onset=true;
+                out.nodes.push_back(node);QPainterPath area;
+                area.addRect(slot.piece==OsakaOp::SmokePlume?QRectF(p.x-20,p.y-p.height,p.width+40,p.height+20):QRectF(p.x,p.y,p.width,p.height));
+                regions.emplace_back();fillRegion(regions.back(),screen.map(area));
+            }
             if(slot.piece==OsakaOp::BoatOnWater) {
                 NodeResult node;node.id=QString::fromStdString(slot.id);node.label="boat-on-water-v1";
                 node.piece="boat-on-water";node.movingSurface=true;node.band=slot.params->boat.band;

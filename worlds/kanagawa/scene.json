@@ -58,6 +58,25 @@
           "gate": "Always"
         },
         {
+          "id": "fuji-plume",
+          "piece": "SmokePlume",
+          "profile": "smoke-plume-v1",
+          "gate": "Always",
+          "params": {
+            "x": 1086,
+            "y": 476,
+            "width": 110,
+            "height": 170,
+            "scale": 1,
+            "gain": 1.8,
+            "band": 0,
+            "surgeEnabled": true,
+            "color": "#7397a4",
+            "accent": "#e6c384",
+            "ink": "#c34043"
+          }
+        },
+        {
           "id": "sky-life",
           "piece": "PrintMoments",
           "profile": "print-moments-v1",
