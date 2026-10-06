@@ -531,7 +531,13 @@
       "right-house-3-roof": "right-house-3-roof",
       "right-house-3-eaves": "right-house-3-eaves",
       "near-house-lattice": "near-house-lattice",
-      "izakaya-lattice": "izakaya-lattice"
+      "izakaya-lattice": "izakaya-lattice",
+      "near-house-deck": "near-house-deck",
+      "street-railing": "street-railing",
+      "yatai-frame": "yatai-frame",
+      "izakaya-counter": "izakaya-counter",
+      "laundry-line": "laundry-line",
+      "near-house-lamp-hanger": "near-house-lamp-hanger"
     }
   }
 }

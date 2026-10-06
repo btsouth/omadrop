@@ -1026,7 +1026,13 @@
             "right-house-3-roof",
             "right-house-3-eaves",
             "near-house-lattice",
-            "izakaya-lattice"
+            "izakaya-lattice",
+            "near-house-deck",
+            "street-railing",
+            "yatai-frame",
+            "izakaya-counter",
+            "laundry-line",
+            "near-house-lamp-hanger"
           ],
           "properties": {
             "near-house-shell": {
@@ -1066,6 +1072,30 @@
               "minLength": 1
             },
             "izakaya-lattice": {
+              "type": "string",
+              "minLength": 1
+            },
+            "near-house-deck": {
+              "type": "string",
+              "minLength": 1
+            },
+            "street-railing": {
+              "type": "string",
+              "minLength": 1
+            },
+            "yatai-frame": {
+              "type": "string",
+              "minLength": 1
+            },
+            "izakaya-counter": {
+              "type": "string",
+              "minLength": 1
+            },
+            "laundry-line": {
+              "type": "string",
+              "minLength": 1
+            },
+            "near-house-lamp-hanger": {
               "type": "string",
               "minLength": 1
             }

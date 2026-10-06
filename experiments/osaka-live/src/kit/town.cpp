@@ -25,14 +25,7 @@ void OsakaRightHouse3V1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double x0
 }
 void OsakaDeckV1::draw(Ctx& c, const OsakaState& s, Canvas& f, double ox, Col roomCol, Col wall) {
     c.retain(f, "near-house-deck", [&](Canvas& f) {
-        f.fillRect(214 + ox, 890, 118, 9, roomCol, 0.9);
-        for (double lx : {224.0, 322.0}) f.fillRect(lx + ox, 899, 7, 34, roomCol, 0.9);
-        f.fillRect(214 + ox, 934, 256, 34, roomCol, 0.55);
-        lattice(f, 70 + ox, 640, 134, 328, 3, 6, INK, 1.6);
-        lattice(f, 346 + ox, 640, 124, 328, 3, 6, INK, 1.6);
-        f.fillRect(-80 + ox, 968, 720, 14, INK);
-        f.fillRect(-80 + ox, 982, 640, 98, wall);
-        f.line(-80 + ox, 968, 640 + ox, 968, 1.2, RIM, 0.3);
+        drawWorldArt(f, "near-house-deck", ox);
     }, {s.cam});
 }
 void OsakaStreetV1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double qx) {
@@ -52,24 +45,12 @@ void OsakaRailingV1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double qx, do
             }
             for (int k = 0; k < 3; ++k) cv.line(qx - 30 - k * 120, 936, qx - 30 - k * 120, 900, 9, INK);
         }
-        const double x0 = 575 + ox, x1 = 1262 + ox;
-        for (double xx = x0; xx <= x1 + 1; xx += 62) cv.line(xx, 936, xx, 864, 5, INK);
-        cv.line(x0, 866, x1, 866, 5, INK);
-        cv.line(x0, 896, x1, 896, 3, INK);
-        cv.line(x0, 863, x1, 863, 1.0, MINT, 0.5);
+        drawWorldArt(cv, "street-railing", ox);
     }, {s.cam});
 }
 void OsakaCartFrameV1::draw(Ctx& c, const OsakaState& s, Canvas& p, double yx) {
     c.retain(p, "yatai-frame", [&](Canvas& p) {
-        p.fillRect(yx, 858, 178, 62, INK);
-        for (double wx : {yx + 34, yx + 146}) p.disc(wx, 918, 19, INK);
-        for (double px : {yx + 6, yx + 172}) p.line(px, 860, px, 742, 5, INK);
-        p.color(INK);
-        p.moveTo(yx - 22, 748); p.curveTo(yx + 40, 716, yx + 138, 716, yx + 200, 748); p.lineTo(yx + 200, 757); p.lineTo(yx - 22, 757); p.closePath();
-        p.fill();
-        p.color(MINT, 0.45);
-        p.moveTo(yx - 22, 748); p.curveTo(yx + 40, 716, yx + 138, 716, yx + 200, 748);
-        p.stroke(1.2);
+        drawWorldArt(p, "yatai-frame", yx - 770);
     }, {s.cam});
 }
 void OsakaNearMaskV1::draw(Ctx& c, const OsakaState& s, Canvas& mask, double ox, const NearPane (&U)[4]) {
