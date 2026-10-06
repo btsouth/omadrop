@@ -537,7 +537,14 @@
       "yatai-frame": "yatai-frame",
       "izakaya-counter": "izakaya-counter",
       "laundry-line": "laundry-line",
-      "near-house-lamp-hanger": "near-house-lamp-hanger"
+      "near-house-lamp-hanger": "near-house-lamp-hanger",
+      "sign-glyph-0": "sign-glyph-0",
+      "sign-glyph-1": "sign-glyph-1",
+      "sign-glyph-2": "sign-glyph-2",
+      "sign-glyph-3": "sign-glyph-3",
+      "sign-glyph-4": "sign-glyph-4",
+      "sign-glyph-5": "sign-glyph-5",
+      "sign-glyph-6": "sign-glyph-6"
     }
   }
 }

@@ -1032,7 +1032,14 @@
             "yatai-frame",
             "izakaya-counter",
             "laundry-line",
-            "near-house-lamp-hanger"
+            "near-house-lamp-hanger",
+            "sign-glyph-0",
+            "sign-glyph-1",
+            "sign-glyph-2",
+            "sign-glyph-3",
+            "sign-glyph-4",
+            "sign-glyph-5",
+            "sign-glyph-6"
           ],
           "properties": {
             "near-house-shell": {
@@ -1096,6 +1103,34 @@
               "minLength": 1
             },
             "near-house-lamp-hanger": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sign-glyph-0": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sign-glyph-1": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sign-glyph-2": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sign-glyph-3": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sign-glyph-4": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sign-glyph-5": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sign-glyph-6": {
               "type": "string",
               "minLength": 1
             }
