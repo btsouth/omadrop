@@ -24,8 +24,8 @@ and their named library profiles.
 
 Art paths, shaders and procedural behavior remain in the kit. SVG validation,
 scene art bindings and window label shorthand are available below. No general
-SVG renderer, expressions, hot reload or executable world code is supported
-today.
+SVG renderer, expressions or executable world code is supported today. Preview
+mode (below) reloads a world while you draw.
 
 ## Supported SVG
 
@@ -88,6 +88,27 @@ It prints subset version 1 and each element's ID, label, type and source line as
 JSON. Invalid art prints a diagnostic and exits with status 1. Artwork is bounded
 to 16 MiB, 10,000 source elements, nesting depth 64, 20,000 compiled instances
 and 2 million compiled vertices; extreme coordinates are rejected too.
+
+## Preview while you draw
+
+Open your world in a normal window and it updates every time you save:
+
+```sh
+OMADROP_WORLDS="$PWD/worlds" experiments/osaka-live/build/omadrop-osaka --preview --world examples/lit-windows
+```
+
+The window plays whatever your computer is playing. To use your own music
+instead, add `--fixture FILE` (raw stereo float32, 44100 Hz); it loops. Edit
+`scene.json` or `art.svg` in your editor and save. About a quarter of a second
+later the picture changes, without a restart. Editors that save by writing a
+temporary file and renaming it are fine.
+
+A small note in the corner shows the world name, flashes "reloaded" after a good
+save, and prints the problem in plain words if the files do not load. It names the
+file and the place to fix, like the check command does. Until you save a version
+that works, the last good picture keeps playing. Every reload result is also
+written to the terminal. Press R to reload by hand and Esc to quit. The window
+can be resized and keeps a 16:9 picture.
 
 ## Check your world
 

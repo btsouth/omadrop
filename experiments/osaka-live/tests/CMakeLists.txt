@@ -28,7 +28,7 @@ target_compile_definitions(osaka-world-loader-tests PRIVATE OSAKA_WORLD_FOLDER="
 add_test(NAME world-folder-validation COMMAND osaka-world-loader-tests)
 
 file(GLOB OSAKA_KIT_SOURCES CONFIGURE_DEPENDS ../src/kit/*.cpp)
-list(FILTER OSAKA_KIT_SOURCES EXCLUDE REGEX "/svg-check\\.cpp$")
+list(FILTER OSAKA_KIT_SOURCES EXCLUDE REGEX "/(svg-check|world-reload)\\.cpp$")
 add_executable(osaka-window-shorthand-tests window_shorthand_tests.cpp
     ${OSAKA_KIT_SOURCES}
     ../src/world.cpp ../src/canvas.cpp ../src/gpu.cpp ../src/rig.cpp ../src/osaka.cpp
@@ -76,3 +76,12 @@ add_test(NAME check-harsh-flashing-fails-flashing COMMAND osaka-check-tests ${CH
 add_test(NAME check-unloadable-art-fails-loads COMMAND osaka-check-tests --broken-art ${CHECK_REPO_WORLDS})
 set_tests_properties(check-osaka-jade-ready check-lit-windows-ready check-ignores-music-fails-reacts
     check-harsh-flashing-fails-flashing check-unloadable-art-fails-loads PROPERTIES TIMEOUT 900)
+
+add_executable(osaka-reload-tests world_reload_tests.cpp ../src/kit/world-reload.cpp ../src/kit/world-loader.cpp
+    ../src/kit/window-label.cpp ../src/kit/svg-art.cpp ../src/kit/svg-path.cpp ../src/canvas.cpp ../src/osaka.cpp)
+set_target_properties(osaka-reload-tests PROPERTIES AUTOMOC ON)
+target_include_directories(osaka-reload-tests PRIVATE ../src)
+target_link_libraries(osaka-reload-tests PRIVATE Qt6::Gui Qt6::OpenGL)
+target_compile_definitions(osaka-reload-tests PRIVATE LIT_WINDOWS_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/examples/lit-windows")
+add_test(NAME preview-world-reload COMMAND osaka-reload-tests)
+set_tests_properties(preview-world-reload PROPERTIES TIMEOUT 120)

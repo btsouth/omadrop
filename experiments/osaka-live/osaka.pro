@@ -109,8 +109,8 @@ HEADERS += src/kit/effects_shaders.h
 SOURCES += src/kit/composition.cpp
 HEADERS += src/kit/composition.h
 
-SOURCES += src/kit/world-loader.cpp
-HEADERS += src/kit/world-loader.h
+SOURCES += src/kit/world-loader.cpp src/kit/world-reload.cpp
+HEADERS += src/kit/world-loader.h src/kit/world-reload.h
 
 HEADERS += src/kit/parameters.h
 

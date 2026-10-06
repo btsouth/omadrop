@@ -21,6 +21,12 @@ void World::setGeometryCacheEnabled(bool enabled) {
     cacheGeometry_ = enabled;
     gpu_.setGeometryCacheEnabled(enabled);
 }
+void World::invalidateWorldCaches() {
+    gpu_.clearGeometryCache();
+    staticGeometry_.canvases.clear();
+    staticGeometry_.points.clear();
+    staticGeometry_.layouts.clear();
+}
 void World::render(int w,int h,double t,const Audio& audio,const Score& score,const Schedule& schedule) {
     const auto now=std::chrono::steady_clock::now();
     const double dt=std::chrono::duration<double>(now-sampledAt_).count();

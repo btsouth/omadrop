@@ -1,5 +1,6 @@
 #include "kit/check.h"
 #include "kit/world-loader.h"
+#include "kit/world-reload.h"
 #include "session.h"
 #include "world.h"
 #include "headless.h"
@@ -17,6 +18,7 @@
 #include <QImage>
 #include <QProcess>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <QQuickWindow>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -93,7 +95,8 @@ int main(int argc,char** argv) {
         {"uncapped","Run a bounded throughput benchmark without frame pacing."},
         {"verify-render","Compare optimized drawing with accepted canvas output."},
         {"fidelity","Deterministic offline frame capture (developer tool).","directory"},
-        {"fixture","Stereo float32 44100 Hz music for fidelity capture or --check (built-in music when omitted).","path"},
+        {"fixture","Stereo float32 44100 Hz music for fidelity capture, --check (built-in music when omitted) or --preview (loops; live audio when omitted).","path"},
+        {"preview","Open a window that reloads --world whenever scene.json or art.svg is saved (live audio, or --fixture)."},
         {"check","Check that a world is ready: loads, reacts to music, frame cost, no harsh flashing."},
         {"json","Write the full --check report as JSON.","path"},
         {"reference","Osaka Jade folder to compare --check frame cost with (default: osaka-jade under the worlds folder).","folder"},
@@ -205,7 +208,34 @@ int main(int argc,char** argv) {
         QTextStream(stdout)<<"Captured "<<hops/12<<" deterministic fixture frames; 5 Hz brightness-change series\n";
         return 0;
     }
-    Journey::LiveSession session(seed);
+    std::vector<float> previewMusic;
+    if(parser.isSet("preview") && parser.isSet("fixture")) {
+        QFile file(parser.value("fixture"));
+        if(!file.open(QIODevice::ReadOnly) || file.size()<5880 || file.size()%8 || file.size()>44100LL*8*20*60) {
+            QTextStream(stderr)<<"--fixture must be a readable raw stereo float32 44100 Hz file, up to 20 minutes\n"; return 2;
+        }
+        previewMusic.resize(std::size_t(file.size()/4));
+        if(file.read(reinterpret_cast<char*>(previewMusic.data()),file.size())!=file.size()) return 2;
+    }
+    Journey::LiveSession session(seed,std::move(previewMusic));
+    if(parser.isSet("preview")) {
+        OsakaItem::session=&session;
+        qmlRegisterType<OsakaItem>("Osaka",1,0,"OsakaItem");
+        QQmlApplicationEngine engine;
+        Journey::Kit::WorldReloader reloader(parser.value("world"),Journey::Kit::osakaWorldFolder(parser.value("world")));
+        QObject::connect(&reloader,&Journey::Kit::WorldReloader::finished,[](bool,const QString& message) {
+            QTextStream(stderr)<<message<<'\n';
+        });
+        engine.rootContext()->setContextProperty("worldPreview",&reloader);
+        // A normal window, not the screensaver class the compositor rules match.
+        QGuiApplication::setDesktopFileName("org.omadrop.worldpreview");
+        engine.load(QUrl(QStringLiteral("qrc:/PreviewMain.qml")));
+        if(engine.rootObjects().isEmpty()) return 1;
+        reloader.start();
+        QTextStream(stderr)<<"Preview of "<<parser.value("world")<<": save scene.json or art.svg to reload, R reloads, Esc quits\n";
+        if(parser.isSet("seconds")) QTimer::singleShot(int(seconds*1000),app.get(),&QCoreApplication::quit);
+        return app->exec();
+    }
     if(!headless) {
         OsakaItem::session=&session;
         qmlRegisterType<OsakaItem>("Osaka",1,0,"OsakaItem");

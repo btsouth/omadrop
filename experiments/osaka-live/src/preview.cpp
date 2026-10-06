@@ -1,5 +1,6 @@
 #include "preview.h"
 #include "world.h"
+#include "kit/world-loader.h"
 #include <QOpenGLFramebufferObject>
 #include <QQuickOpenGLUtils>
 #include <QQuickWindow>
@@ -50,6 +51,8 @@ public:
         newContent_=pacer_.tick(clock_.nsecsElapsed()/1e9,world_->fps()) || forceFrame_;
         forceFrame_=false;
         if(newContent_) {
+            // Preview reload: a new world takes effect only here, between frames.
+            if(Journey::Kit::applyQueuedOsakaWorld()) world_->invalidateWorldCaches();
             const auto f=OsakaItem::session->snapshot();sceneSeconds_=f.seconds;
             auto* target=framebufferObject();
             world_->render(target->width(),target->height(),f.seconds,f.audio,f.score,f.schedule);
