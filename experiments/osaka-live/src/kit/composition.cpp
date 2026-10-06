@@ -32,6 +32,11 @@ void moon(Ctx& c, const OsakaState& s, const OsakaDiscPlacementV1& placement) {
     d.ring = hex(p.ringHex >= 0 ? p.ringHex : p.creamHex);
     d.energy = (p.energyBase + p.energyBass * c.a.bass + p.energySurge * c.a.surge + p.energyKick * c.kick(6)) * rise;
     if (p.energyLift != 0) d.energy += p.energyLift * c.lift(0) * rise;
+    if(p.printBreathing>0){
+        const double bass=c.score?clamp01(3*c.score->bandBody[1][0]):0;
+        d.energy=p.energyBase+p.printBreathing*bass;
+        d.col=d.col*float(1+.045*bass);d.col2=d.col2*float(1+.035*bass);
+    }
     d.veil=p.veil; d.tex=p.texture; d.haloA=p.haloA; d.haloB=p.haloBRadius; d.haloC=p.haloC; d.haloD=p.haloD; d.haloFar=p.haloFar; d.restRings=p.restRings;
     drawDisc(c, d, s.cam);
 }

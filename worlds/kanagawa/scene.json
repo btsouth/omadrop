@@ -42,7 +42,9 @@
             "paperTop": "#e8daba",
             "paperBottom": "#a3a49d",
             "printGrade": 0.72,
-            "grain": 0
+            "grain": 0,
+            "energyGrade": 0.75,
+            "cloudBands": true
           }
         },
         {
@@ -415,11 +417,11 @@
       "veil": 0,
       "texture": 0,
       "haloA": 90,
-      "haloBRadius": 50,
-      "haloC": 0.12,
-      "haloD": 0,
+      "haloBRadius": 72,
+      "haloC": 0.1,
+      "haloD": 0.12,
       "haloFar": 0,
-      "restRings": 1.6,
+      "restRings": 0.7,
       "ring0Offset": 34,
       "ring0Energy": 10,
       "ring0Alpha": 0.018,
@@ -431,11 +433,12 @@
       "hitThreshold": 0.35,
       "hitOffset": 24,
       "hitTravel": 300,
-      "hitAlpha": 0.04,
+      "hitAlpha": 0.015,
       "timeOffset": 10,
       "color2Hex": 13533819,
       "ringHex": 15123332,
-      "energyLift": 0.55
+      "energyLift": 0,
+      "printBreathing": 0.9
     },
     "osaka-mountain-v1": {
       "topR": 0.246078431372549,

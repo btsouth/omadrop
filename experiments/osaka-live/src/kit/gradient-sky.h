@@ -7,7 +7,8 @@ struct GradientSkyParametersV1 {
     struct Stop { double y; Col color; };
     std::vector<Stop> stops;
     Col paperTop, paperBottom;
-    double printGrade = 0, grain = 0;
+    double printGrade = 0, grain = 0, energyGrade = 0;
+    bool cloudBands = false;
 };
 struct GradientSkyV1 {
     static constexpr const char* name = "gradient-sky-v1";

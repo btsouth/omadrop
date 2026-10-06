@@ -250,7 +250,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     }
     if (profiles.contains("osaka-disc-v1")) {
         const QString p="$.profiles['osaka-disc-v1']";
-        const auto data=r.object(profiles["osaka-disc-v1"],p,{"creamHex","warmHex","colorGain","haloR","haloG","haloB","energyBase","energyBass","energySurge","energyKick","veil","texture","haloA","haloBRadius","haloC","haloD","haloFar","restRings","ring0Offset","ring0Energy","ring0Alpha","ring1Offset","ring1Energy","ring1Alpha","ringAlphaBase","hitSeconds","hitThreshold","hitOffset","hitTravel","hitAlpha","timeOffset"},{"color2Hex","ringHex","energyLift"});
+        const auto data=r.object(profiles["osaka-disc-v1"],p,{"creamHex","warmHex","colorGain","haloR","haloG","haloB","energyBase","energyBass","energySurge","energyKick","veil","texture","haloA","haloBRadius","haloC","haloD","haloFar","restRings","ring0Offset","ring0Energy","ring0Alpha","ring1Offset","ring1Energy","ring1Alpha","ringAlphaBase","hitSeconds","hitThreshold","hitOffset","hitTravel","hitAlpha","timeOffset"},{"color2Hex","ringHex","energyLift","printBreathing"});
         w.parameters.disc.creamHex=r.integer(data["creamHex"],p+".creamHex",0,16777215);
         w.parameters.disc.warmHex=r.integer(data["warmHex"],p+".warmHex",0,16777215);
         w.parameters.disc.colorGain=r.number(data["colorGain"],p+".colorGain");
@@ -285,6 +285,8 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         w.parameters.disc.timeOffset=r.number(data["timeOffset"],p+".timeOffset");
         if (data.contains("color2Hex")) w.parameters.disc.color2Hex=r.integer(data["color2Hex"],p+".color2Hex",0,16777215);
         if (data.contains("ringHex")) w.parameters.disc.ringHex=r.integer(data["ringHex"],p+".ringHex",0,16777215);
+        if(data.contains("printBreathing")){w.parameters.disc.printBreathing=r.number(data["printBreathing"],p+".printBreathing");
+            if(w.parameters.disc.printBreathing<0 || w.parameters.disc.printBreathing>2)r.fail(p+".printBreathing","number in 0..2");}
         if (data.contains("energyLift")) w.parameters.disc.energyLift=r.number(data["energyLift"],p+".energyLift");
     }
     if (profiles.contains("osaka-mountain-v1")) {
@@ -468,7 +470,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             const QString paramsPath=fieldPath(q,"params");
             if (piece->op==OsakaOp::GradientSky) {
                 if (!slot.contains("params")) r.fail(paramsPath,"required field");
-                const auto data=r.object(slot["params"],paramsPath,{"stops","paperTop","paperBottom","printGrade","grain"});
+                const auto data=r.object(slot["params"],paramsPath,{"stops","paperTop","paperBottom","printGrade","grain"},{"energyGrade","cloudBands"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();
                 auto& sky=value->gradientSky;
                 const auto list=data["stops"].toArray();
@@ -486,6 +488,9 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 sky.paperBottom=r.color(data["paperBottom"],paramsPath+".paperBottom");
                 sky.printGrade=r.number(data["printGrade"],paramsPath+".printGrade");
                 sky.grain=r.number(data["grain"],paramsPath+".grain");
+                if(data.contains("cloudBands"))sky.cloudBands=r.boolean(data["cloudBands"],paramsPath+".cloudBands");
+                if(data.contains("energyGrade")){sky.energyGrade=r.number(data["energyGrade"],paramsPath+".energyGrade");
+                    if(sky.energyGrade<0 || sky.energyGrade>1)r.fail(paramsPath+".energyGrade","number in 0..1");}
                 if (sky.printGrade<0 || sky.printGrade>1) r.fail(paramsPath+".printGrade","number in 0..1");
                 if (sky.grain<0 || sky.grain>0.1) r.fail(paramsPath+".grain","number in 0..0.1");
                 params=value;
