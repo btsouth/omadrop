@@ -1,17 +1,27 @@
 #include "foam-flecks.h"
 #include <cmath>
 namespace Journey::Kit {
+namespace {
+double rowPulse(const std::deque<Event>&events,double t){double sum=0;
+    for(const auto&e:events){double age=t-e.t;if(age>=0 && age<.9)sum+=e.strength*sstep(0,.06,age)*std::exp(-age*5)*(1-sstep(.65,.9,age));}
+    return 1-std::exp(-sum);
+}
+}
+
 void FoamFlecksV1::paint(Canvas& cv,const Ctx& c,const FoamFlecksParametersV1& p) {
     const auto& s=p.swell;
     std::vector<SwellRowV1> fields;for(int row=0;row<s.rows;++row)fields.push_back(SwellLinesV1::field(c,row,s));
-    const double hit=c.hit(4),kick=c.kick(5);
-    const auto* onset=c.score?Score::last(c.score->onsets,c.t):nullptr;
-    const int lit=int(hash2(onset?double(onset->serial):0,s.seed+93)*9);
+    const double kick=c.kick(5);
+
     for(int i=0;i<p.count;++i) {
         const int row=i%s.rows;const auto& f=fields[row];const double depth=std::pow(f.z,s.depthFalloff);
+        const int band=SwellLinesV1::band(row,s.rows);
+        const double bandDrive=clamp01(3.6*(c.score?c.score->bandBody[0][band]:c.band(band)));
+        const double flare=c.score?(p.onsetGain*rowPulse(c.score->onsets,c.t-row*.012)
+            +s.kickGain*rowPulse(c.score->bassHits,c.t-row*.012))*(.35+.65*bandDrive):0;
         const double id=hash2(i,s.seed+71),spanScale=lerp(p.sizeMin,p.sizeMax,id*id);
         const double breath=.84+.16*std::sin(c.t*(.45+.55*hash2(i,s.seed+72))+Tau*hash2(i,s.seed+73));
-        const double size=spanScale*breath*(1+p.responseGain*(c.score?c.score->bandBody[1][0]:c.band(0)))*(1+.20*s.liftGain*c.lift(SwellLinesV1::band(row,s.rows)));
+        const double size=spanScale*breath*(1+p.responseGain*(c.score?c.score->bandBody[1][0]:c.band(0)))*(1+.20*s.liftGain*c.lift(band))*(1+1.5*flare);
         const double span=(18+130*depth)*size,thick=(2+19*depth)*(.7+.5*size);
         const double margin=260,period=s.region.width()+2*margin;
         const double travel=c.t*s.driftSpeed*(7+12*hash2(i,s.seed+32));
@@ -34,8 +44,8 @@ void FoamFlecksV1::paint(Canvas& cv,const Ctx& c,const FoamFlecksParametersV1& p
         const double side=fingers?5:1,above=fingers?8:1;
         const double below=fingers?finger+20:4+2*depth;
         if(!SwellLinesV1::allowed(QRectF(x0-side,lo-above,span+2*side+(fingers?finger*1.2:0),hi-lo+thick*1.9+below+above),s))continue;
-        // Sparse event-selected fragments brighten; most keep their quiet paint.
-        const double flick=i%9==lit ? p.onsetGain*hit+s.kickGain*kick : 0;
+        // Depth rows flare with their frequency band and a small beat travel delay.
+        const double flick=flare;
         const double alpha=std::min(1.0,.61+.28*f.brightness+flick);
         for(int pass=0;pass<2;++pass) {
             const double dy=pass?0:2.5+2*depth;

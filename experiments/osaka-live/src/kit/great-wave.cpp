@@ -36,7 +36,8 @@ void tendril(Canvas& cv,V2 root,double angle,double length,double width,double t
 GreatWavePoseV1 GreatWaveV1::pose(const Ctx& c,const GreatWaveParametersV1& p){
     GreatWavePoseV1 out;out.time=c.t;
     double drive=c.score?p.lowGain*(.65*c.score->bandBody[2][0]+.35*c.score->bandBody[2][1]):0;
-    if(c.schedule){const auto& set=c.schedule->print.wave;
+    if(c.schedule){const auto& clock=c.schedule->print;
+        const auto& set=c.t<clock.wave.start?clock.previousWave:clock.wave;
         out.setStart=set.start;out.setDuration=set.duration;out.setCycle=set.cycle;
         drive=set.energy*(p.lowGain/2.4);
     }else{out.setDuration=32+5*hash2(p.seed,95);out.setCycle=unsigned(std::max(0.,std::floor(c.t/out.setDuration)));
@@ -54,6 +55,14 @@ GreatWavePoseV1 GreatWaveV1::pose(const Ctx& c,const GreatWaveParametersV1& p){
         *(.87+.08*std::sin(c.t*.31+p.seed)+.05*std::sin(c.t*.31*std::sqrt(2.)+1.7));
     if(c.score)out.flick=p.kickGain*pulse(c.score->bassHits,c.t,.09,1.6)+p.onsetGain*pulse(c.score->onsets,c.t,.07,1.3);
     out.flick+=.8*surge;
+    return out;
+}
+WaveTipResponseV1 GreatWaveV1::tip(const Ctx& c,const GreatWaveParametersV1& p,int finger){
+    WaveTipResponseV1 out;out.band=std::clamp(finger*6/std::max(1,p.clawCount),0,5);
+    out.drive=clamp01(3.6*(c.score?c.score->bandBody[0][out.band]:c.band(out.band)));
+    if(c.score)out.flick=p.kickGain*pulse(c.score->bassHits,c.t,.055,1.05)*(1-out.band*.09)
+        +p.onsetGain*pulse(c.score->onsets,c.t,.04,.85)*(.35+.65*out.drive);
+    out.extension=.48+1.45*out.drive+1.1*out.flick;
     return out;
 }
 V2 GreatWaveV1::map(V2 q,const GreatWavePoseV1& s,const GreatWaveParametersV1& p){
@@ -129,10 +138,11 @@ void GreatWaveV1::paint(Canvas& body,Canvas& flow,Canvas& foam,const Ctx& c,cons
         // stay in that cell even at maximum rise and full beat extension.
         const double spacing=(b-a).len()/.008/(p.clawCount*(seg==0?.18:(seg==1?.64:.18)));
         const double requested=(seg==0?58:(seg==1?100:48))*scale*p.clawSize*(.8+.35*hash2(i,p.seed+30));
-        const double length=std::min(requested,spacing*.95/(1+1.1*(p.kickGain+p.onsetGain)))*(1+1.1*s.flick);
+        const auto response=tip(c,p,i);
+        const double length=std::min(requested*response.extension,spacing*1.12)*(1+.12*s.flick);
         const double width=std::min((seg==2?7:12)*scale*p.clawSize,length*.19);
         talons.push_back({mapped(q.at(u)+n*(seg==2?-3:(seg==0?38:68)*(1+.23*fbm1(u*17,seg+p.seed))*.90)),
-            angle+(p.anchorRight?-1:1)*(seg==2?-.58:.45),length,width,(p.anchorRight?-1:1)*(seg==2?.95:1.5)});
+            angle+(p.anchorRight?-1:1)*((seg==2?-.58:.45)+.28*response.flick+.08*response.drive*std::sin(c.t*2.1+i)),length,width,(p.anchorRight?-1:1)*((seg==2?.95:1.5)+.45*response.flick)});
     }
     for(int pass=0;pass<2;++pass)for(const auto& t:talons){
         const Col col=pass?p.foam:p.underprint;const double extra=pass?0:2*scale;
@@ -143,15 +153,30 @@ void GreatWaveV1::paint(Canvas& body,Canvas& flow,Canvas& foam,const Ctx& c,cons
             tendril(foam,root,a,t.length*(fork?.27:.34)+extra,t.width*(fork?.35:.48)+extra*.5,t.turn*.9,col);
         }
     }
-    // Persistent specks breathe and flick in place. No modulo birth/death
-    // clock or full-frame white flash can pop at a particle cycle boundary.
-    for(int i=0;i<48;++i){const double u=.12+.74*hash2(i,p.seed+64);const V2 source=mapped(crown[1].at(u));
-        const double phase=c.t*(.55+.15*hash2(i,p.seed+67))+Tau*hash2(i,p.seed+68);
-        const double fan=p.surgeEnabled && c.schedule?c.schedule->print.surge(c.t):0;
-        const double dist=180*fan*hash2(i,p.seed+70)+12+55*hash2(i,p.seed+69)+12*std::sin(phase)+150*s.flick;
-        const double x=source.x+(p.anchorRight?1:-1)*dist*.72,y=source.y-dist*.65;
-        foam.color(p.foam,.35*fan+.16+.18*(.5+.5*std::sin(phase))+.7*s.flick);
-        foam.ellipse(x,y,(1+1.5*hash2(i,p.seed+65))*scale,(1.2+2*hash2(i,p.seed+66))*scale);foam.fill();
+    // Small droplets detach at event discovery. Their origin is evaluated
+    // at birth, so the travelling crest cannot drag them through the sky.
+    if(c.score){
+        auto spray=[&](const std::deque<Event>& events,int count,int salt){
+            int submitted=0;
+            for(auto it=events.rbegin();it!=events.rend() && submitted<48;++it){
+                const double age=c.t-it->t;if(age<0 || age>=1.7)continue;
+                Ctx born=c;born.t=it->t;const auto sourcePose=pose(born,p);
+                const double fade=sstep(0,.07,age)*(1-sstep(1.05,1.7,age));
+                for(int j=0;j<count && submitted<48;++j,++submitted){
+                    const int id=int(it->serial%100000)*13+j,saltSeed=p.seed+salt;
+                    const double f=.10+.86*hash2(id,saltSeed),u=f<.78?f/.78:(f-.78)/.22;
+                    const V2 root=map(crown[f<.78?1:2].at(u),sourcePose,p);
+                    const auto response=tip(c,p,std::min(p.clawCount-1,int(f*p.clawCount)));
+                    const double power=it->strength*(.25+.75*response.drive);
+                    const double speed=(35+110*hash2(id,saltSeed+1))*(.4+power),wind=35+22*std::sin(born.t*.13);
+                    const double side=p.anchorRight?-1:1;
+                    const V2 at=root+V2(side*(speed+wind)*age,-speed*age+28*age*age);
+                    foam.color(p.foam,fade*(.18+.72*power)*sourcePose.growth);
+                    foam.ellipse(at.x,at.y,(.8+1.1*power)*scale,(1.2+1.7*power)*scale);foam.fill();
+                }
+            }
+        };
+        spray(c.score->onsets,6,65);spray(c.score->bassHits,10,75);
     }
     // The broad fan leaves the outer curling lip, where its flight stays in
     // the sky. Crown-top spray at full height would leave the picture.

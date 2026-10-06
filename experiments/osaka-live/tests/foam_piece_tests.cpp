@@ -23,7 +23,8 @@ int main(int argc,char** argv){
     for(int b=0;b<6;++b){audio={};audio.bands[b]=.8;score={};for(auto& body:score.bandBody)body[b]=.8;
         require(quiet!=capture(14),"depth band did not change foam output");}
     audio={};score={};score.bassHits.push_back({14,1,1});require(quiet!=capture(14),"kick did not surge crests");
-    score={};score.onsets.push_back({14,1,1});require(quiet!=capture(14),"onset did not brighten fragments");
+    score={};score.onsets.push_back({14,1,1});require(quiet==capture(14),"onset pops at discovery");
+    const auto onset=capture(14.18);score={};require(onset!=capture(14.18),"eased onset did not brighten depth rows");
     score={};p.swell.seed++;require(quiet!=capture(14),"seed did not change output");
     p.swell.exclusions={p.swell.region};const auto blank=capture(14);require(blank!=quiet,"exclusion did not hide foam");
     require(SwellLinesV1::band(0,12)==5 && SwellLinesV1::band(11,12)==0,"depth mapping reversed");

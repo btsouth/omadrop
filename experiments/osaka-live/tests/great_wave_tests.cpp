@@ -29,6 +29,14 @@ int main(int argc,char**argv){QCoreApplication app(argc,argv);try{
   lastHeight=s.height;lastX=s.travel;cycle=s.setCycle;
  }
  require(cycle>=4 && maxStep<8,"missing cycles or uneased motion");
+ // Six frequency bands extend their own fingers, with visible kick spray.
+ c.t=14;score={};schedule.print.wave={0,36,0,0};
+ for(int band=0;band<6;++band){score={};score.bandBody[0][band]=.3;
+  for(int i=0;i<p.clawCount;++i){auto tip=GreatWaveV1::tip(c,p,i);
+   require((tip.band==band)==(tip.extension>1),"finger does not map to its own band");}}
+ score={};auto clean=capture();score.bassHits={{13.9,1,1}};
+ require(GreatWaveV1::tip(c,p,0).flick>0 && clean!=capture(),"kick does not extend tips and emit spray");
+ score={};score.onsets={{13.9,1,2}};require(clean!=capture(),"onset does not emit visible spray");
  // Across eight hours the stateless geometry stays bounded and never crashes.
  c.schedule=nullptr;for(int i=0;i<=28800;++i){c.t=i;for(auto& band:score.bandBody)band.fill(i%3?100:0);
   auto s=GreatWaveV1::pose(c,p);require(s.height>=0 && s.height<=p.baseHeight+p.maxRise,"eight-hour bound");}

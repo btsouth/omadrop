@@ -316,7 +316,10 @@ active set to its tallest size. Independent slow phases sway and undulate the
 body, curl the lip and ripple the crest; material streaks flow up its face. `swellGain` (0..1, default 0.35) adds measured
 swell pulses with a 0.75 second eased attack. `kickGain` and `onsetGain`
 (0..0.5, defaults 0.22/0.18) flick the claws and spray through continuous
-attack/release pulses. They never move the wave body. The check tool measures
+attack/release pulses. Each finger maps to one of the six frequency bands, ordered from the curl's
+base to its tip, and extends with that band's fast envelope. Event-born spray
+detaches from the crest and drifts in the wind. Sea whitecaps flare by depth row.
+They never move the wave body. The check tool measures
 the wave's declared response region against silence, with band, kick and onset
 binding tokens. All geometry remains deterministic for identical music/seed.
 

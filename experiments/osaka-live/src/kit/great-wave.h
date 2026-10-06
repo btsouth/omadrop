@@ -17,9 +17,11 @@ struct GreatWavePoseV1 {
     double time=0,phase=0,growth=0,travel=0,energy=0,setStart=0,setDuration=36;
     unsigned setCycle=0;
 };
+struct WaveTipResponseV1 { int band=0; double drive=0,extension=1,flick=0; };
 struct GreatWaveV1 {
     static constexpr const char* name="great-wave-v1";
     static GreatWavePoseV1 pose(const Ctx&,const GreatWaveParametersV1&);
+    static WaveTipResponseV1 tip(const Ctx&,const GreatWaveParametersV1&,int finger);
     static V2 map(V2,const GreatWavePoseV1&,const GreatWaveParametersV1&);
     static QRectF responseArea(const GreatWaveParametersV1&);
     static void paint(Canvas& body,Canvas& flow,Canvas& foam,const Ctx&,const GreatWaveParametersV1&);
