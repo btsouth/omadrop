@@ -416,6 +416,25 @@ bool SvgArt::draw(Canvas& target,const QString& id) const {
 bool SvgArt::replay(Canvas& target,const QString& id,const Col* tint,double alpha) const {
     for(const auto& e:elements_)if(e.id==id&&!id.isEmpty()&&e.replay) {e.replay(target,tint,alpha);return true;}return false;
 }
+bool SvgArt::fillGradient(Canvas& target,const QString& id,const Col& top,const Col& bottom,
+                          double alpha) const {
+    for(const auto& e:elements_) {
+        if(e.id!=id || id.isEmpty() || e.geometry.isEmpty())continue;
+        target.save();
+        target.transform(e.transform.m11(),e.transform.m12(),e.transform.m21(),
+                         e.transform.m22(),e.transform.dx(),e.transform.dy());
+        const auto box=e.geometry.boundingRect();
+        if(box.height()>0)
+            target.linear(box.top(),box.bottom(),{{0,top,float(alpha)},{1,bottom,float(alpha)}});
+        else
+            target.color(top,alpha);
+        replay(target,e.geometry);
+        target.fill();
+        target.restore();
+        return true;
+    }
+    return false;
+}
 SvgImport compileSvg(const QByteArray& data,const QString& filename,double pixelScale) {return SvgCompiler(filename,pixelScale).run(data);}
 SvgImport importSvg(const QString& filename,double pixelScale) {
     QFile file(filename);if(!file.open(QIODevice::ReadOnly))return {{},filename+": cannot open SVG: "+file.errorString()};

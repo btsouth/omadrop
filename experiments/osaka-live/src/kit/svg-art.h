@@ -27,6 +27,8 @@ public:
     // Replay into an existing retained span at its original insertion point.
     // Optional tint serves reusable outlined glyphs; parsing happens at import.
     bool replay(Canvas&, const QString& id, const Col* tint = nullptr, double alpha = 1) const;
+    bool fillGradient(Canvas&, const QString& id, const Col& top, const Col& bottom,
+                      double alpha) const;
     void draw(Canvas& target) const { target.appendOwned(root_); }
 private:
     friend class SvgCompiler;

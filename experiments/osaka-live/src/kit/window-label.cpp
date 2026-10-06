@@ -1,5 +1,6 @@
 #include "window-label.h"
 
+#include <QStringList>
 #include <stdexcept>
 
 namespace Journey::Kit {
