@@ -28,8 +28,10 @@ void moon(Ctx& c, const OsakaState& s, const OsakaDiscPlacementV1& placement) {
     const double rise = 1;
     d.col = d.col2 = mix(hex(p.creamHex), hex(p.warmHex), s.moonWarm) * float(p.colorGain * rise);
     d.halo = Col(float(p.haloR), float(p.haloG), float(p.haloB)) * float(rise);
-    d.ring = hex(p.creamHex);
+    if (p.color2Hex >= 0) d.col2 = hex(p.color2Hex) * float(p.colorGain * rise);
+    d.ring = hex(p.ringHex >= 0 ? p.ringHex : p.creamHex);
     d.energy = (p.energyBase + p.energyBass * c.a.bass + p.energySurge * c.a.surge + p.energyKick * c.kick(6)) * rise;
+    if (p.energyLift != 0) d.energy += p.energyLift * c.lift(0) * rise;
     d.veil=p.veil; d.tex=p.texture; d.haloA=p.haloA; d.haloB=p.haloBRadius; d.haloC=p.haloC; d.haloD=p.haloD; d.haloFar=p.haloFar; d.restRings=p.restRings;
     drawDisc(c, d, s.cam);
 }

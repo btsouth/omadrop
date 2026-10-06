@@ -240,7 +240,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     }
     if (profiles.contains("osaka-disc-v1")) {
         const QString p="$.profiles['osaka-disc-v1']";
-        const auto data=r.object(profiles["osaka-disc-v1"],p,{"creamHex","warmHex","colorGain","haloR","haloG","haloB","energyBase","energyBass","energySurge","energyKick","veil","texture","haloA","haloBRadius","haloC","haloD","haloFar","restRings","ring0Offset","ring0Energy","ring0Alpha","ring1Offset","ring1Energy","ring1Alpha","ringAlphaBase","hitSeconds","hitThreshold","hitOffset","hitTravel","hitAlpha","timeOffset"});
+        const auto data=r.object(profiles["osaka-disc-v1"],p,{"creamHex","warmHex","colorGain","haloR","haloG","haloB","energyBase","energyBass","energySurge","energyKick","veil","texture","haloA","haloBRadius","haloC","haloD","haloFar","restRings","ring0Offset","ring0Energy","ring0Alpha","ring1Offset","ring1Energy","ring1Alpha","ringAlphaBase","hitSeconds","hitThreshold","hitOffset","hitTravel","hitAlpha","timeOffset"},{"color2Hex","ringHex","energyLift"});
         w.parameters.disc.creamHex=r.integer(data["creamHex"],p+".creamHex",0,16777215);
         w.parameters.disc.warmHex=r.integer(data["warmHex"],p+".warmHex",0,16777215);
         w.parameters.disc.colorGain=r.number(data["colorGain"],p+".colorGain");
@@ -273,6 +273,9 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         w.parameters.disc.hitTravel=r.number(data["hitTravel"],p+".hitTravel");
         w.parameters.disc.hitAlpha=r.number(data["hitAlpha"],p+".hitAlpha");
         w.parameters.disc.timeOffset=r.number(data["timeOffset"],p+".timeOffset");
+        if (data.contains("color2Hex")) w.parameters.disc.color2Hex=r.integer(data["color2Hex"],p+".color2Hex",0,16777215);
+        if (data.contains("ringHex")) w.parameters.disc.ringHex=r.integer(data["ringHex"],p+".ringHex",0,16777215);
+        if (data.contains("energyLift")) w.parameters.disc.energyLift=r.number(data["energyLift"],p+".energyLift");
     }
     if (profiles.contains("osaka-mountain-v1")) {
         const QString p="$.profiles['osaka-mountain-v1']";

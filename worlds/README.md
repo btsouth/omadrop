@@ -262,3 +262,8 @@ hash and SIL OFL provenance in the SVG; the bundled OFL notice remains required.
 entries, strictly increasing in 0..1080), `paperTop`, `paperBottom`,
 `printGrade` (0..1 paper wash) and `grain` (0..0.1 static paper grain).
 The ramp and wash come from the Journey prototype; there is no chapter clock.
+
+The existing Disc profile optionally accepts `color2Hex` and `ringHex` (24-bit
+integer paints) and `energyLift` (band-0 lift gain). Leave them out for the
+original moon. These expose the prototype sunset disc without a separate sun
+renderer; the usual halo, texture, veil and ring controls still apply.
