@@ -157,7 +157,10 @@ else
   (($? == 7)) || fail "world check did not pass through the renderer status"
 fi
 grep -qx "worlds=$world_parent" "$OMADROP_TEST_BACKEND_LOG" || fail "world check set the wrong OMADROP_WORLDS"
-grep -qx "args=--check --world demo --fixture $fixture --json $report" "$OMADROP_TEST_BACKEND_LOG" \
+check_args=$(grep '^args=' "$OMADROP_TEST_BACKEND_LOG" | tail -n1)
+# The installed Osaka Jade is the frame budget reference when it exists.
+check_args=${check_args/ --reference *\/osaka-jade / }
+[[ $check_args == "args=--check --world demo --fixture $fixture --json $report" ]] \
   || fail "world check forwarded the wrong arguments"
 
 # Omarchy uses a world named after the current theme when one is installed.
