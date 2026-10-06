@@ -143,9 +143,9 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             for (const auto& item:gates) if (gateName==item.name) { gate=&item; break; }
             if (!gate) r.fail(q+".gate","known Osaka gate");
             if ((piece->op==OsakaOp::FarNetwork || piece->op==OsakaOp::NearNetwork || piece->op==OsakaOp::Birds) && events!="LifeAndFlock") r.fail(p+".events","LifeAndFlock for network or birds");
-            entries.push_back({piece->op,gate->gate,piece->profile});
+            entries.push_back({piece->op,gate->gate,piece->profile,slot["id"].toString().toStdString()});
         }
-        *targets[i]={entries.data(),entries.size(),events=="Life" ? OsakaEventRef::Life : OsakaEventRef::LifeAndFlock};
+        *targets[i]={entries.data(),entries.size(),events=="Life" ? OsakaEventRef::Life : OsakaEventRef::LifeAndFlock,stage["id"].toString().toStdString()};
     }
     return loaded;
 }

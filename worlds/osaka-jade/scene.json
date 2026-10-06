@@ -1,0 +1,305 @@
+{
+  "schema": 1,
+  "world": "osaka-jade",
+  "profile": "osaka-world-v1",
+  "stages": [
+    {
+      "id": "backdrop",
+      "phase": "Backdrop",
+      "events": "Life",
+      "slots": [
+        {
+          "id": "backdrop-Sky",
+          "piece": "Sky",
+          "gate": "Always",
+          "profile": "osaka-sky-v1"
+        },
+        {
+          "id": "backdrop-AfterSky",
+          "piece": "AfterSky",
+          "gate": "Always",
+          "profile": "after-sky"
+        },
+        {
+          "id": "backdrop-Star",
+          "piece": "Star",
+          "gate": "Chapter",
+          "profile": "osaka-shooting-star-v1"
+        },
+        {
+          "id": "backdrop-DiscHook",
+          "piece": "DiscHook",
+          "gate": "Always",
+          "profile": "disc-port"
+        },
+        {
+          "id": "backdrop-Disc",
+          "piece": "Disc",
+          "gate": "DiscEnabled",
+          "profile": "osaka-disc-v1"
+        },
+        {
+          "id": "backdrop-MountainHook",
+          "piece": "MountainHook",
+          "gate": "Always",
+          "profile": "mountain-port"
+        },
+        {
+          "id": "backdrop-Mountain",
+          "piece": "Mountain",
+          "gate": "MountainEnabled",
+          "profile": "osaka-mountain-v1"
+        },
+        {
+          "id": "backdrop-BeforeCoast",
+          "piece": "BeforeCoast",
+          "gate": "Always",
+          "profile": "before-coast"
+        },
+        {
+          "id": "backdrop-CoastHook",
+          "piece": "CoastHook",
+          "gate": "Always",
+          "profile": "coast-port"
+        },
+        {
+          "id": "backdrop-Ridges",
+          "piece": "Ridges",
+          "gate": "DefaultCoastLand",
+          "profile": "osaka-ridges-v1"
+        },
+        {
+          "id": "backdrop-City",
+          "piece": "City",
+          "gate": "DefaultCoastLand",
+          "profile": "osaka-valley-city-v1"
+        },
+        {
+          "id": "backdrop-Firework",
+          "piece": "Firework",
+          "gate": "DefaultCoastChapter",
+          "profile": "osaka-firework-v1"
+        },
+        {
+          "id": "backdrop-AfterValley",
+          "piece": "AfterValley",
+          "gate": "DefaultCoastLand",
+          "profile": "after-valley"
+        },
+        {
+          "id": "backdrop-NearRidge",
+          "piece": "NearRidge",
+          "gate": "DefaultCoastLand",
+          "profile": "osaka-near-ridge-v1"
+        },
+        {
+          "id": "backdrop-Train",
+          "piece": "Train",
+          "gate": "DefaultCoastLand",
+          "profile": "osaka-train-v1"
+        },
+        {
+          "id": "backdrop-SkyLanterns",
+          "piece": "SkyLanterns",
+          "gate": "Always",
+          "profile": "osaka-sky-lanterns-v1"
+        }
+      ]
+    },
+    {
+      "id": "coast",
+      "phase": "Coast",
+      "events": "Life",
+      "slots": [
+        {
+          "id": "coast-Ridges",
+          "piece": "Ridges",
+          "gate": "Always",
+          "profile": "osaka-ridges-v1"
+        },
+        {
+          "id": "coast-City",
+          "piece": "City",
+          "gate": "Always",
+          "profile": "osaka-valley-city-v1"
+        },
+        {
+          "id": "coast-Firework",
+          "piece": "Firework",
+          "gate": "Chapter",
+          "profile": "osaka-firework-v1"
+        },
+        {
+          "id": "coast-AfterValley",
+          "piece": "AfterValley",
+          "gate": "Always",
+          "profile": "after-valley"
+        },
+        {
+          "id": "coast-NearRidge",
+          "piece": "NearRidge",
+          "gate": "Always",
+          "profile": "osaka-near-ridge-v1"
+        },
+        {
+          "id": "coast-Train",
+          "piece": "Train",
+          "gate": "Always",
+          "profile": "osaka-train-v1"
+        }
+      ]
+    },
+    {
+      "id": "distantTown",
+      "phase": "DistantTown",
+      "events": "LifeAndFlock",
+      "slots": [
+        {
+          "id": "distantTown-Downhill",
+          "piece": "Downhill",
+          "gate": "Land",
+          "profile": "osaka-downhill-rows-v1"
+        },
+        {
+          "id": "distantTown-FarNetwork",
+          "piece": "FarNetwork",
+          "gate": "Land",
+          "profile": "osaka-network-group-v1"
+        }
+      ]
+    },
+    {
+      "id": "foreground",
+      "phase": "Foreground",
+      "events": "LifeAndFlock",
+      "slots": [
+        {
+          "id": "foreground-TownHook",
+          "piece": "TownHook",
+          "gate": "Always",
+          "profile": "town-port"
+        },
+        {
+          "id": "foreground-Downhill",
+          "piece": "Downhill",
+          "gate": "DefaultTownLand",
+          "profile": "osaka-downhill-rows-v1"
+        },
+        {
+          "id": "foreground-FarNetwork",
+          "piece": "FarNetwork",
+          "gate": "DefaultTownLand",
+          "profile": "osaka-network-group-v1"
+        },
+        {
+          "id": "foreground-AfterTown",
+          "piece": "AfterTown",
+          "gate": "Always",
+          "profile": "after-town"
+        },
+        {
+          "id": "foreground-RightTown",
+          "piece": "RightTown",
+          "gate": "Always",
+          "profile": "osaka-right-town-v1"
+        },
+        {
+          "id": "foreground-StreetSurface",
+          "piece": "StreetSurface",
+          "gate": "Always",
+          "profile": "osaka-street-surface-group-v1"
+        },
+        {
+          "id": "foreground-Cart",
+          "piece": "Cart",
+          "gate": "Always",
+          "profile": "osaka-cart-group-v1"
+        },
+        {
+          "id": "foreground-AfterCart",
+          "piece": "AfterCart",
+          "gate": "Always",
+          "profile": "after-cart"
+        },
+        {
+          "id": "foreground-Festoon",
+          "piece": "Festoon",
+          "gate": "Always",
+          "profile": "osaka-festoon-v1"
+        },
+        {
+          "id": "foreground-NearNetwork",
+          "piece": "NearNetwork",
+          "gate": "Always",
+          "profile": "osaka-network-group-v1"
+        },
+        {
+          "id": "foreground-Moths",
+          "piece": "Moths",
+          "gate": "Always",
+          "profile": "osaka-moths-v1"
+        },
+        {
+          "id": "foreground-AfterWires",
+          "piece": "AfterWires",
+          "gate": "Always",
+          "profile": "after-wires"
+        },
+        {
+          "id": "foreground-ReflectionCapture",
+          "piece": "ReflectionCapture",
+          "gate": "Always",
+          "profile": "osaka-reflection-v1"
+        },
+        {
+          "id": "foreground-AfterReflections",
+          "piece": "AfterReflections",
+          "gate": "Always",
+          "profile": "after-reflections"
+        },
+        {
+          "id": "foreground-StreetActors",
+          "piece": "StreetActors",
+          "gate": "Always",
+          "profile": "osaka-street-actors-v1"
+        },
+        {
+          "id": "foreground-Birds",
+          "piece": "Birds",
+          "gate": "Always",
+          "profile": "osaka-flock-v1"
+        },
+        {
+          "id": "foreground-NearHouse",
+          "piece": "NearHouse",
+          "gate": "Always",
+          "profile": "osaka-near-group-v1"
+        },
+        {
+          "id": "foreground-Wisteria",
+          "piece": "Wisteria",
+          "gate": "Always",
+          "profile": "osaka-wisteria-v1"
+        }
+      ]
+    }
+  ],
+  "finish": {
+    "profile": "osaka-finish-v1"
+  },
+  "disc": {
+    "profile": "osaka-disc-v1",
+    "x": 1190,
+    "y": 286,
+    "parallax": 0.015,
+    "radius": 108
+  },
+  "mountain": {
+    "profile": "osaka-mountain-v1",
+    "x": 1040,
+    "parallax": 0.04,
+    "peak": 396,
+    "base": 632,
+    "width": 330
+  }
+}

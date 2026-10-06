@@ -17,6 +17,8 @@ private:
     OsakaWorldDescription world_{};
     friend std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString&);
 };
+QString osakaWorldsRoot();
+void initializeOsakaWorld();
 // Throws std::runtime_error with file, JSON path and expectation.
 std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder);
 }

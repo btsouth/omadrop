@@ -17,11 +17,13 @@ struct OsakaRenderSlot {
     OsakaOp piece;
     OsakaGate gate;
     const char* profile;
+    std::string id;
 };
 struct OsakaRenderStage {
     const OsakaRenderSlot* entries;
     std::size_t count;
     OsakaEventRef events;
+    std::string id;
 };
 struct OsakaFinishV1 {
     static constexpr const char* name = "osaka-finish-v1";

@@ -1,3 +1,4 @@
+#include "kit/world-loader.h"
 #include "session.h"
 #include "world.h"
 #include "headless.h"
@@ -99,6 +100,8 @@ int main(int argc,char** argv) {
         {"seed","Schedule seed (live default random; headless default 1).","number"},
         {"stats","Per-frame response and timing CSV.","path"}});
     parser.process(*app);
+    try { Journey::Kit::initializeOsakaWorld(); }
+    catch (const std::exception& e) { QTextStream(stderr)<<e.what()<<'\n'; return 2; }
     bool ok=false;
     const double seconds=parser.value("seconds").toDouble(&ok);
     if(!ok || !std::isfinite(seconds) || seconds<=0 || seconds>600) return 2;
