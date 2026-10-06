@@ -13,5 +13,6 @@ struct PrintLifeParametersV1 {
 struct SmokePlumeV1 {static constexpr const char* name="smoke-plume-v1";static void paint(Canvas&,const Ctx&,const PrintLifeParametersV1&);};
 struct PrintBirdPoseV1 {double x,y,size,flap,direction,alpha;};
 struct BirdFlockV1 {static constexpr const char* name="bird-flock-v1";static std::vector<PrintBirdPoseV1> poses(const Ctx&,const PrintLifeParametersV1&);static void paint(Canvas&,const Ctx&,const PrintLifeParametersV1&);};
+struct SeaCreatureV1 {static constexpr const char* name="sea-creature-v1";static void paint(Canvas&,const Ctx&,const PrintLifeParametersV1&);};
 struct PrintMomentsV1 {static constexpr const char* name="print-moments-v1";static void paint(Canvas&,const Ctx&,const PrintLifeParametersV1&);};
 }

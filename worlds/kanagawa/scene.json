@@ -176,6 +176,24 @@
           }
         },
         {
+          "id": "ryujin",
+          "piece": "SeaCreature",
+          "profile": "sea-creature-v1",
+          "gate": "Always",
+          "params": {
+            "waterInstance": "swells",
+            "x": 1515,
+            "y": 820,
+            "width": 230,
+            "height": 95,
+            "scale": 0.85,
+            "gain": 1,
+            "color": "#285579",
+            "accent": "#dcd7ba",
+            "ink": "#102955"
+          }
+        },
+        {
           "id": "foam",
           "piece": "FoamFlecks",
           "profile": "foam-flecks-v1",

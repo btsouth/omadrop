@@ -19,6 +19,9 @@ int main(int argc,char**argv){QCoreApplication app(argc,argv);try{
  score.onsets={{13.9,1,1}};need(BirdFlockV1::poses(c,p)[0].flap!=original.flap,"onset ignores flap");
  schedule.print.surgeStart=12;need(BirdFlockV1::poses(c,p)[0].y<original.y,"surge ignores scatter");
  schedule.print.surgeStart=-1000;c.t=25;need(BirdFlockV1::poses(c,p).empty(),"birds fail to exit");
+ c.t=240;schedule.print.dragon.start=234;schedule.print.dragon.duration=18;
+ p.x=1515;p.width=230;p.height=95;p.scale=.85;Canvas creature;SeaCreatureV1::paint(creature,c,p);need(!creature.empty(),"dragon breach missing");
+ c.t=260;Canvas submerged;SeaCreatureV1::paint(submerged,c,p);need(submerged.empty(),"dragon fails to submerge");
  for(const auto&v:canvases)for(const auto&p:v->vertices())need(std::isfinite(p.x)&&std::isfinite(p.y),"nonfinite geometry");
  std::cout<<"PASS print smoke exact RGB, bass thickening, vent and surge embers\n";
 }catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}}

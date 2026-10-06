@@ -54,3 +54,29 @@ std::vector<PrintBirdPoseV1> BirdFlockV1::poses(const Ctx&c,const PrintLifeParam
 }
 void BirdFlockV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){for(const auto&b:poses(c,p))printBird(cv,b,p);}
 }
+namespace Journey::Kit {
+void SeaCreatureV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
+    if(!c.schedule)return;const auto&v=c.schedule->print.dragon;
+    const double age=c.t-v.start,u=age/v.duration;if(u<=0 || u>=1)return;
+    const double emerge=sstep(0,.25,u)*(1-sstep(.65,1,u));
+    const double bass=c.score?c.score->bandBody[1][p.band]:c.band(p.band);
+    const double travel=(u-.5)*p.width*.25*v.direction;
+    auto water=[&](double x){return SwellLinesV1::field(c,6,p.swell).y(x);};
+    std::vector<V2> coil;
+    for(int i=0;i<=96;++i){const double f=i/96.,x=p.x+(f-.5)*p.width+travel;
+        const double y=water(x)+18-(p.height*(.75+.35*bass)*emerge)*std::pow(.5+.5*std::sin(f*Tau*3-u*3),1.25);
+        if(y>water(x)-1){if(coil.size()>1){cv.polyline(coil,18*p.scale,p.ink);cv.polyline(coil,13*p.scale,p.color);cv.polyline(coil,3*p.scale,p.accent,.6);}coil.clear();}else coil.push_back({x,y});
+        if(i%3==0 && y<water(x)-5){cv.line(x-3,y-4,x+3,y+3,1.3*p.scale,p.accent,.65);}}
+    if(coil.size()>1){cv.polyline(coil,18*p.scale,p.ink);cv.polyline(coil,13*p.scale,p.color);cv.polyline(coil,3*p.scale,p.accent,.6);}
+    const double x=p.x+p.width*.42+travel,y=water(x)+15-p.height*emerge;
+    if(y<water(x)-5){const double alpha=sstep(5,20,water(x)-y);
+        cv.save();cv.translate(x,y);cv.scale(p.scale,p.scale);
+        cv.color(p.ink,alpha);cv.moveTo(-20,8);cv.curveTo(-22,-20,-2,-24,10,-10);cv.lineTo(26,-4);cv.curveTo(25,8,10,12,3,14);cv.lineTo(-20,8);cv.closePath();cv.fill();
+        cv.color(p.color,alpha);cv.moveTo(-17,6);cv.curveTo(-18,-15,-1,-19,8,-8);cv.lineTo(23,-2);cv.lineTo(6,10);cv.closePath();cv.fill();
+        cv.disc(8,-7,2.1,p.accent,alpha);cv.disc(8.5,-7,1,p.ink,alpha);
+        for(int i=0;i<2;++i){double x=-12+i*12;cv.poly({{x,-11},{x-5,-29},{x+2,-22},{x+5,-32}},2,p.accent,alpha);}
+        cv.color(p.accent,alpha);cv.moveTo(19,4);cv.curveTo(44,1,35,-18,51,-13);cv.stroke(1.4);
+        cv.moveTo(17,8);cv.curveTo(37,22,46,11,49,16);cv.stroke(1.1);cv.restore();}
+    for(int i=0;i<8;++i){double x=p.x+(i/7.-.5)*p.width+travel;cv.color(p.accent,.36*emerge);cv.ellipse(x,water(x)+3,12+8*emerge,2);cv.stroke(1);}
+}
+}

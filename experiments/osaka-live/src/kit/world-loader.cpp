@@ -87,6 +87,7 @@ constexpr Piece pieces[] = {
     {"BoatOnWater", OsakaOp::BoatOnWater, "boat-on-water-v1"},
     {"SmokePlume", OsakaOp::SmokePlume, "smoke-plume-v1"},
     {"BirdFlock", OsakaOp::BirdFlock, "bird-flock-v1"},
+    {"SeaCreature", OsakaOp::SeaCreature, "sea-creature-v1"},
     {"PrintMoments", OsakaOp::PrintMoments, "print-moments-v1"},
     {"AfterSky", OsakaOp::AfterSky, "after-sky"},
     {"Star", OsakaOp::Star, "osaka-shooting-star-v1"},
@@ -523,7 +524,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 color("texture",water.texture); color("foam",water.foam); color("underprint",water.underprint);
                 color("glint",water.glint); color("hotGlint",water.hotGlint);
                 params=value;
-            } else if (piece->op==OsakaOp::PrintMoments || piece->op==OsakaOp::SmokePlume || piece->op==OsakaOp::BirdFlock) {
+            } else if (piece->op==OsakaOp::SeaCreature || piece->op==OsakaOp::PrintMoments || piece->op==OsakaOp::SmokePlume || piece->op==OsakaOp::BirdFlock) {
                 const auto data=r.object(slot["params"],paramsPath,{},
                     {"x","y","width","height","scale","gain","speed","count","seed","band","surgeEnabled","waterInstance","color","accent","ink"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();auto& life=value->life;
@@ -686,6 +687,14 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             r.fail(path+".row","row and driftRows within the named surface");
         slot.params=value;
     }
+    for(auto& stage:loaded->entries_)for(auto& slot:stage)
+        if(slot.params && !slot.params->life.waterInstance.empty()) {
+            const OsakaRenderSlot* surface=nullptr;
+            for(const auto& candidateStage:loaded->entries_)for(const auto& candidate:candidateStage)
+                if(candidate.id==slot.params->life.waterInstance)surface=&candidate;
+            if(!surface || surface->piece!=OsakaOp::SwellLines)r.fail("$.stages","print waterInstance must name SwellLines");
+            auto value=std::make_shared<OsakaSlotParamsV1>(*slot.params);value->life.swell=surface->params->swell;slot.params=value;
+        }
     if (usesDisc && !hasDisc) r.fail("$.disc","required field");
     if (usesMountain && !hasMountain) r.fail("$.mountain","required field");
     return loaded;
