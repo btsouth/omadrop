@@ -2,7 +2,6 @@
 #include "window-label.h"
 #include <QDir>
 #include <QFile>
-#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -133,8 +132,6 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                              {"schema","world","profile","stages","finish","disc","mountain","profiles","art","nodes"});
     if (r.number(root["schema"],"$.schema")!=1) r.fail("$.schema","schema version 1");
     const auto worldName=r.string(root["world"],"$.world");
-    const auto folderName=QFileInfo(folder).fileName();
-    if (worldName!=folderName) r.fail("$.world",QString("'%1'").arg(folderName));
     r.literal(root["profile"],"$.profile","osaka-world-v1");
     auto loaded=std::unique_ptr<LoadedOsakaWorld>(new LoadedOsakaWorld);
     auto& w=loaded->world_;

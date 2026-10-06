@@ -89,7 +89,7 @@ static void rejections() {
     rejected("<path id='bad' d='M0 0L'/>","path","invalid path at offset 5",false);
     rejected("<use id='bad' href='#missing'/>","use","missing reference '#missing'",false);
     rejected("<g id='bad'><use href='#bad'/></g>","g","cyclic use reference",false);
-    rejected("<path id='bad'/><path id='bad'/>","path","duplicate id 'bad'",false);
+    rejected("<path id='bad'/><path id='bad'/>","path","label='': duplicate id 'bad'",false);
     rejected("<rect id='bad' width='-1'/>","rect","invalid rectangle dimensions",false);
     rejected("<rect id='bad' width='nan'/>","rect","invalid width",false);
     rejected("<linearGradient id='bad' spreadMethod='repeat'/>","linearGradient","spreadMethod 'repeat'");

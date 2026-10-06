@@ -86,7 +86,7 @@ public:
         }
         n->id=n->a.value("id");if(n->label.isEmpty())n->label=n->a.value("data-name");
         if(!n->id.isEmpty()) {
-            if(ids.contains(n->id))throw Failure{QString("%1:%2: element <%3> id='%4' label='%5': duplicate id '%4'")
+            if(ids.contains(n->id))throw Failure{QString("%1:%2: element <%3> id='%4': label='%5': duplicate id '%4'")
                 .arg(filename).arg(n->line).arg(n->tag,n->id,n->label)};
             ids[n->id]=n;
         }

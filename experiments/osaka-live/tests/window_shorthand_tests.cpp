@@ -100,7 +100,7 @@ void grammar() {
         "art.svg");
     require(!duplicate, "duplicate SVG id was accepted");
     require(duplicate.diagnostic
-                == "art.svg:1: element <rect> id='dup' label='window.band1': duplicate id 'dup'",
+                == "art.svg:1: element <rect> id='dup': label='window.band1': duplicate id 'dup'",
             duplicate.diagnostic.toUtf8().constData());
     std::cout << "PASS: grammar errors include file, element id, label, and reason\n";
 }
