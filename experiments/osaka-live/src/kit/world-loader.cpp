@@ -279,7 +279,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     }
     if (profiles.contains("osaka-mountain-v1")) {
         const QString p="$.profiles['osaka-mountain-v1']";
-        const auto data=r.object(profiles["osaka-mountain-v1"],p,{"topR","topG","topB","bottomR","bottomG","bottomB","foot","samples","span","shapePower","rippleGain","ripplePeriod","summitWidth","summitOffset","summitCurve","summitHeight","gradientStop","gradientMix"});
+        const auto data=r.object(profiles["osaka-mountain-v1"],p,{"topR","topG","topB","bottomR","bottomG","bottomB","foot","samples","span","shapePower","rippleGain","ripplePeriod","summitWidth","summitOffset","summitCurve","summitHeight","gradientStop","gradientMix"},{"snow","snowScale","snowR","snowG","snowB"});
         w.parameters.mountain.topR=r.number(data["topR"],p+".topR");
         w.parameters.mountain.topG=r.number(data["topG"],p+".topG");
         w.parameters.mountain.topB=r.number(data["topB"],p+".topB");
@@ -302,6 +302,14 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         if (w.parameters.mountain.summitHeight<=0) r.fail(p+".summitHeight","positive number");
         w.parameters.mountain.gradientStop=r.number(data["gradientStop"],p+".gradientStop");
         w.parameters.mountain.gradientMix=r.number(data["gradientMix"],p+".gradientMix");
+        auto& m=w.parameters.mountain;
+        if (data.contains("snow")) m.snow=r.number(data["snow"],p+".snow");
+        if (data.contains("snowScale")) m.snowScale=r.number(data["snowScale"],p+".snowScale");
+        if (data.contains("snowR")) m.snowR=r.number(data["snowR"],p+".snowR");
+        if (data.contains("snowG")) m.snowG=r.number(data["snowG"],p+".snowG");
+        if (data.contains("snowB")) m.snowB=r.number(data["snowB"],p+".snowB");
+        if (m.snow<0 || m.snow>1) r.fail(p+".snow","number in 0..1");
+        if (m.snowScale<=0) r.fail(p+".snowScale","positive number");
     }
     if (profiles.contains("osaka-haze-v1")) {
         const QString p="$.profiles['osaka-haze-v1']";

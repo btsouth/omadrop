@@ -40,7 +40,8 @@ void mountainLook(Ctx& c, const OsakaState& s, const OsakaMountainPlacementV1& p
     MountainLook m;
     m.px = placement.x - s.cam * placement.parallax; m.peak = placement.peak; m.base = placement.base; m.width = placement.width;
     m.top = Col(float(p.topR), float(p.topG), float(p.topB)); m.bot = Col(float(p.bottomR), float(p.bottomG), float(p.bottomB));
-    m.foot=p.foot;
+    m.foot=p.foot; m.snow=p.snow; m.snowScale=p.snowScale;
+    m.snowCol=Col(float(p.snowR),float(p.snowG),float(p.snowB));
     drawMountain(c, m);
 }
 }

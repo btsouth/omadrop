@@ -58,6 +58,8 @@ struct OsakaMountainParametersV1 {
     double summitHeight = 236;
     double gradientStop = 0.62;
     double gradientMix = 0.22;
+    double snow = 0, snowScale = 1;
+    double snowR = 0, snowG = 0, snowB = 0;
 };
 struct OsakaHazeParametersV1 {
     static constexpr const char* name = "osaka-haze-v1";

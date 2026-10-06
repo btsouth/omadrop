@@ -267,3 +267,7 @@ The existing Disc profile optionally accepts `color2Hex` and `ringHex` (24-bit
 integer paints) and `energyLift` (band-0 lift gain). Leave them out for the
 original moon. These expose the prototype sunset disc without a separate sun
 renderer; the usual halo, texture, veil and ring controls still apply.
+
+The existing Mountain profile optionally accepts `snow` (0..1), `snowScale`
+(positive) and `snowR`, `snowG`, `snowB`. These expose the original MountainLook
+snow cap; omitted fields keep Osaka's snow-free silhouette and geometry.
