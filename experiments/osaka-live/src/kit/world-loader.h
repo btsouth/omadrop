@@ -25,6 +25,12 @@ void initializeOsakaWorld(const QString& world = QStringLiteral("osaka-jade"));
 QString osakaWorldFolder(const QString& name);
 // Loads the world in a folder as the current world. Throws like loadOsakaWorld.
 void initializeOsakaWorldAt(const QString& folder);
+// Preview reload. Any thread hands a fully loaded world to queueOsakaWorld; the
+// render thread calls applyQueuedOsakaWorld between frames and, when it returns
+// true, must drop every cache built from the old world. The newest queued world
+// wins. Nothing else may change the current world while frames are drawing.
+void queueOsakaWorld(std::unique_ptr<const LoadedOsakaWorld> next);
+bool applyQueuedOsakaWorld();
 // Throws std::runtime_error with file, JSON path and expectation.
 std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder);
 }

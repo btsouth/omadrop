@@ -99,6 +99,9 @@ public:
     void render(int width,int height,double time,const Audio&,const Score&,const Schedule&);
     Gpu& gpu() { return gpu_; }
     void setGeometryCacheEnabled(bool enabled);
+    // After the current world changes: retained geometry, layouts and raster caches
+    // were built from the old one.
+    void invalidateWorldCaches();
     std::uint64_t staticBuilds() const { return staticGeometry_.builds; }
     std::size_t staticSpanCount() const { return staticGeometry_.canvases.size(); }
 private:

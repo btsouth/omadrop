@@ -1,1 +1,1 @@
-<RCC><qresource prefix="/"><file>Main.qml</file></qresource></RCC>
+<RCC><qresource prefix="/"><file>Main.qml</file><file>PreviewMain.qml</file></qresource></RCC>
