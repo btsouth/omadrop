@@ -14,6 +14,7 @@
 #include <iostream>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 using namespace Journey;
 using namespace Journey::Kit;
 static int checks=0;
@@ -178,6 +179,27 @@ static void images() {
     }
     std::cout<<"PASS committed SVG goldens ("<<(update?"updated":exact?"exact":"tolerant")<<")\n";
 }
+
+static void nativeReplay() {
+    const auto art=good("<g id='native' transform='translate(10 20)' fill='rgb(1.2%,3%,2.4%)'><path d='M0 0 Q15 30 40 5 C60 0 80 50 90 10 L0 0 Z M20 10 L25 10 L25 15 Z'/><path d='M0 40 L40 40 L50 60 Z' fill='none' stroke='rgb(36%,72%,56%)' stroke-width='1.6' stroke-opacity='.45' stroke-linecap='round' stroke-linejoin='round'/><rect x='2' y='3' width='4' height='5'/><circle cx='20' cy='30' r='19'/></g>");
+    Canvas actual,expected;
+    actual.translate(-4.25,0);expected.translate(-4.25,0);
+    check(art->replay(actual,"native"),"native retained-span replay");
+    expected.save();expected.translate(10,20);expected.color(Col(.012f,.030f,.024f));
+    expected.moveTo(0,0);expected.quadTo(15,30,40,5);expected.curveTo(60,0,80,50,90,10);expected.lineTo(0,0);expected.closePath();
+    expected.moveTo(20,10);expected.lineTo(25,10);expected.lineTo(25,15);expected.closePath();expected.fill();
+    expected.color(Col(.36f,.72f,.56f),.45);expected.moveTo(0,40);expected.lineTo(40,40);expected.lineTo(50,60);expected.closePath();expected.stroke(1.6);
+    expected.fillRect(2,3,4,5,Col(.012f,.030f,.024f));expected.disc(20,30,19,Col(.012f,.030f,.024f));expected.restore();
+    check(actual.vertices().size()==expected.vertices().size()&&std::memcmp(actual.vertices().data(),expected.vertices().data(),actual.vertices().size()*sizeof(Vertex))==0,"raw Q/C/close, native round strokes, rect/circle and decimal float paint retain every vertex");
+    check(actual.commands().size()==expected.commands().size(),"native command count");
+    for(std::size_t i=0;i<actual.commands().size();++i) {const auto a=actual.commands()[i],b=expected.commands()[i];check(a.kind==b.kind&&a.first==b.first&&a.count==b.count&&a.coverFirst==b.coverFirst&&a.coverCount==b.coverCount,"native command order");}
+    auto paint=good("<defs><linearGradient id='grad' gradientUnits='userSpaceOnUse' x1='0' y1='132' x2='0' y2='273'><stop offset='0' stop-color='rgb(4%,17%,12.7%)'/><stop offset='1' stop-color='rgb(1.3%,5%,3.9%)'/></linearGradient></defs><rect id='gradient' x='0' y='132' width='100' height='141' fill='url(#grad)'/>");
+    Canvas a,b;paint->replay(a,"gradient");b.linear(0,132,0,273,{{0,Col(.04f,.17f,.127f),1},{1,Col(.013f,.05f,.039f),1}});b.rect(0,132,100,141);b.fill();
+    check(a.gradients()[0].data==b.gradients()[0].data,"native gradient equation and exact float stops");
+    auto use=good("<defs><rect id='r' width='10' height='10'/></defs><use id='u' href='#r'/><g id='opacity' opacity='.5'><rect width='10' height='10'/></g>");
+    check(!use->replay(a,"u")&&!use->replay(a,"opacity"),"replay rejects instances and composited opacity instead of silently changing semantics");
+    std::cout<<"PASS exact native SVG replay\n";
+}
 static void diagnosticTool() {
     QProcess process;process.start(SVG_CHECK_TOOL,{"--import-svg",QString(SVG_FIXTURES)+"/shapes.svg"});
     check(process.waitForFinished(15000)&&process.exitCode()==0,"diagnostic tool valid exit");
@@ -191,4 +213,4 @@ static void diagnosticTool() {
     process.start(SVG_CHECK_TOOL,QStringList{});check(process.waitForFinished(15000)&&process.exitCode()==2,"diagnostic tool missing argument exit");
     std::cout<<"PASS headless SVG diagnostic CLI\n";
 }
-int main(int argc,char** argv) {QCoreApplication app(argc,argv);parsing();rejections();diagnosticTool();images();std::cout<<"PASS "<<checks<<" SVG checks\n";}
+int main(int argc,char** argv) {QCoreApplication app(argc,argv);parsing();rejections();nativeReplay();diagnosticTool();images();std::cout<<"PASS "<<checks<<" SVG checks\n";}

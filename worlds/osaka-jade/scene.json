@@ -518,5 +518,11 @@
       "addGain": 0.35,
       "addBlur": 8
     }
+  },
+  "art": {
+    "file": "art.svg",
+    "elements": {
+      "near-house-shell": "near-house-shell"
+    }
   }
 }

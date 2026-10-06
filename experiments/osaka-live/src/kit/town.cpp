@@ -1,10 +1,11 @@
 #include "town.h"
 #include "primitives.h"
+#include "world-art.h"
 
 namespace Journey::Kit {
 void OsakaNearHouseV1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double x0, double x1, Col wall, Col rf, Col rf2) {
     c.retain(cv, "near-house", [&](Canvas& cv) {
-        cv.fillRect(x0, 250, x1 - x0, 830, wall);
+        drawWorldArt(cv, "near-house-shell", x0 + 80);
         roof(cv, x0, x1, 262, 132, 64, rf, rf2, RIM, 11);
         cv.color(rf);
         cv.moveTo(x0, 556); cv.lineTo(x1 + 96, 580); cv.lineTo(x1 + 100, 596); cv.lineTo(x0, 596); cv.closePath();

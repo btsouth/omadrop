@@ -543,3 +543,20 @@ void Canvas::capsule(V2 a, V2 b, double ra, double rb, Col c, double alpha) {
     fill();
 }
 }
+
+namespace Journey {
+void Canvas::transform(double a,double b,double c,double d,double e,double f) {
+    const auto m=states_.back().m;
+    states_.back().m={m.a*a+m.c*b,m.b*a+m.d*b,m.a*c+m.c*d,m.b*c+m.d*d,m.a*e+m.c*f+m.e,m.b*e+m.d*f+m.f};
+}
+void Canvas::gradientUserSpace(GradientRow row,bool translucent) {
+    const auto m=states_.back().m;
+    const double det=m.a*m.d-m.b*m.c;if(std::abs(det)<1e-12)return;
+    const double a=m.d/det,b=-m.b/det,c=-m.c/det,d=m.a/det,e=(m.c*m.f-m.d*m.e)/det,f=(m.b*m.e-m.a*m.f)/det;
+    const auto r=row.data;
+    row.data[4]=r[4]*a+r[6]*b;row.data[5]=r[5]*a+r[7]*b;
+    row.data[6]=r[4]*c+r[6]*d;row.data[7]=r[5]*c+r[7]*d;
+    row.data[8]=r[4]*e+r[6]*f+r[8];row.data[9]=r[5]*e+r[7]*f+r[9];
+    pushRow(row,translucent);
+}
+}

@@ -2,6 +2,8 @@
 #include "../parts.h"
 #include "events.h"
 #include "parameters.h"
+#include "svg-art.h"
+#include <map>
 namespace Journey::Kit {
 enum class OsakaPhase { Backdrop, Coast, DistantTown, Foreground };
 enum class OsakaOp {
@@ -43,6 +45,8 @@ struct OsakaWorldDescription {
     OsakaDiscPlacementV1 disc;
     OsakaMountainPlacementV1 mountain;
     OsakaParametersV1 parameters;
+    std::shared_ptr<const SvgArt> art;
+    std::map<std::string,QString> artwork;
 };
 // World supplies ordered typed instances, never drawing callbacks.
 const OsakaWorldDescription& osakaWorld();

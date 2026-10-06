@@ -113,3 +113,6 @@ SOURCES += src/kit/world-loader.cpp
 HEADERS += src/kit/world-loader.h
 
 HEADERS += src/kit/parameters.h
+
+SOURCES += src/kit/svg-art.cpp src/kit/svg-path.cpp
+HEADERS += src/kit/svg-art.h src/kit/world-art.h

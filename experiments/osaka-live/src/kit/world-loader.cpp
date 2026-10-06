@@ -124,12 +124,26 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     if (error.error!=QJsonParseError::NoError)
         r.fail("$", "valid JSON (byte "+QString::number(error.offset)+": "+error.errorString()+")");
     const auto root=r.object(doc.isObject() ? QJsonValue(doc.object()) : QJsonValue(doc.array()), "$",
-                             {"schema","world","profile","stages","finish","disc","mountain","profiles"});
+                             {"schema","world","profile","stages","finish","disc","mountain","profiles","art"});
     if (r.number(root["schema"],"$.schema")!=1) r.fail("$.schema","schema version 1");
     r.literal(root["world"],"$.world","osaka-jade");
     r.literal(root["profile"],"$.profile","osaka-world-v1");
     auto loaded=std::unique_ptr<LoadedOsakaWorld>(new LoadedOsakaWorld);
     auto& w=loaded->world_;
+    const auto art=r.object(root["art"],"$.art",{"file","elements"});
+    const auto file=r.string(art["file"],"$.art.file");
+    if(file!="art.svg")r.fail("$.art.file","art.svg in the world folder");
+    const auto imported=importSvg(QDir(folder).filePath(file));
+    if(!imported)r.fail("$.art.file",imported.diagnostic);
+    w.art=imported.art;
+    if(!art["elements"].isObject())r.fail("$.art.elements","element binding object");
+    const auto bindings=r.object(art["elements"],"$.art.elements",{"near-house-shell"});
+    for(auto it=bindings.begin();it!=bindings.end();++it) {
+        const auto id=r.string(it.value(),fieldPath("$.art.elements",it.key()));
+        bool found=false;for(const auto& e:w.art->elements())if(e.id==id)found=bool(e.replay)&&(e.tag=="g"||e.tag=="path"||e.tag=="rect"||e.tag=="circle");
+        if(!found)r.fail(fieldPath("$.art.elements",it.key()),"SVG element ID compatible with Canvas replay");
+        w.artwork.emplace(it.key().toStdString(),id);
+    }
     const auto finish=r.object(root["finish"],"$.finish",{"profile"});
     r.literal(finish["profile"],"$.finish.profile","osaka-finish-v1");
     const auto disc=r.object(root["disc"],"$.disc",{"profile","x","y","parallax","radius"});

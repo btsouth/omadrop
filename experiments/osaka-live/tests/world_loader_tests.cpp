@@ -200,6 +200,7 @@ int main(int argc, char** argv) {
         QFile source(QDir(folder).filePath("scene.json")); require(source.open(QIODevice::ReadOnly),"fixture missing");
         const auto original=QJsonDocument::fromJson(source.readAll()).object();
         QTemporaryDir tmp; require(tmp.isValid(),"temporary folder failed");
+        require(QFile::copy(folder+"/art.svg",tmp.path()+"/art.svg"),"art fixture copy failed");
         const QString file=QDir(tmp.path()).filePath("scene.json");
         auto invalid=[&](QJsonObject root, const QString& expected) {
             QFile output(file); require(output.open(QIODevice::WriteOnly),"write fixture failed");
@@ -207,6 +208,10 @@ int main(int argc, char** argv) {
             try { loadOsakaWorld(tmp.path()); throw std::runtime_error("invalid fixture accepted"); }
             catch (const std::runtime_error& e) { require(QString::fromUtf8(e.what())==file+": "+expected,e.what()); }
         };
+        auto badArt=original;auto art=badArt["art"].toObject();auto elements=art["elements"].toObject();elements["near-house-shell"]="absent";art["elements"]=elements;badArt["art"]=art;
+        invalid(badArt,"$.art.elements['near-house-shell']: expected SVG element ID compatible with Canvas replay");
+        badArt=original;art=badArt["art"].toObject();elements=art["elements"].toObject();elements.remove("near-house-shell");art["elements"]=elements;badArt["art"]=art;
+        invalid(badArt,"$.art.elements['near-house-shell']: expected required field");
         auto root=original; root["surprise"]=1;
         invalid(root,"$.surprise: expected known field (unknown field)");
         root=original; root["schema"]=2; invalid(root,"$.schema: expected schema version 1");

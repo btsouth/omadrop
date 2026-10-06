@@ -9,7 +9,8 @@
     "finish",
     "disc",
     "mountain",
-    "profiles"
+    "profiles",
+    "art"
   ],
   "properties": {
     "schema": {
@@ -997,6 +998,26 @@
             "addBlur": {
               "type": "number"
             }
+          }
+        }
+      }
+    },
+    "art": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "elements"
+      ],
+      "properties": {
+        "file": {
+          "const": "art.svg"
+        },
+        "elements": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
           }
         }
       }
