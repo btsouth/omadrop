@@ -208,3 +208,8 @@ The loader accepts a world that lists only the stages it draws and leaves out
 defaults apply). `Haze` is a new slot piece that calls the existing haze band,
 and `Ridges` can take its own ridge list through `params`. Osaka's slots carry
 no `params`, so its drawing is unchanged.
+
+## Generic landscape pieces
+
+`gradient-sky.*` ports the Journey sunset ramp and paper wash as palette-controlled
+`gradient-sky-v1` slot parameters. It has no Journey timing or Osaka sky dependency.

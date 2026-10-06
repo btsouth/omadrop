@@ -254,3 +254,11 @@ migration aid reading historical `bfc79ff`, not a build input. It records the
 original commands and arithmetic, not flattened points. Do not regenerate over
 artist edits. The seven sign outlines preserve the Noto Sans CJK JP Bold font
 hash and SIL OFL provenance in the SVG; the bundled OFL notice remains required.
+
+## Gradient sky
+
+`GradientSky` uses `gradient-sky-v1` without changing `osaka-sky-v1`. Its slot
+`params` contains `stops` (2..8 `{ "y": designPixel, "color": "#rrggbb" }`
+entries, strictly increasing in 0..1080), `paperTop`, `paperBottom`,
+`printGrade` (0..1 paper wash) and `grain` (0..0.1 static paper grain).
+The ramp and wash come from the Journey prototype; there is no chapter clock.

@@ -79,6 +79,7 @@ struct Piece { const char* name; OsakaOp op; const char* profile; };
 constexpr Piece pieces[] = {
     {"Haze", OsakaOp::Haze, "osaka-haze-v1"},
     {"Sky", OsakaOp::Sky, "osaka-sky-v1"},
+    {"GradientSky", OsakaOp::GradientSky, "gradient-sky-v1"},
     {"AfterSky", OsakaOp::AfterSky, "after-sky"},
     {"Star", OsakaOp::Star, "osaka-shooting-star-v1"},
     {"DiscHook", OsakaOp::DiscHook, "disc-port"},
@@ -444,7 +445,30 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             usesMountain|=piece->op==OsakaOp::Mountain;
             std::shared_ptr<const OsakaSlotParamsV1> params;
             const QString paramsPath=fieldPath(q,"params");
-            if (piece->op==OsakaOp::Haze) {
+            if (piece->op==OsakaOp::GradientSky) {
+                if (!slot.contains("params")) r.fail(paramsPath,"required field");
+                const auto data=r.object(slot["params"],paramsPath,{"stops","paperTop","paperBottom","printGrade","grain"});
+                auto value=std::make_shared<OsakaSlotParamsV1>();
+                auto& sky=value->gradientSky;
+                const auto list=data["stops"].toArray();
+                if (!data["stops"].isArray() || list.size()<2 || list.size()>8)
+                    r.fail(paramsPath+".stops","array of 2..8 ordered color stops");
+                for (int k=0;k<list.size();++k) {
+                    const QString q=paramsPath+".stops["+QString::number(k)+"]";
+                    const auto item=r.object(list[k],q,{"y","color"});
+                    const double y=r.number(item["y"],q+".y");
+                    if (y<0 || y>1080 || (!sky.stops.empty() && y<=sky.stops.back().y))
+                        r.fail(q+".y","strictly increasing position in 0..1080");
+                    sky.stops.push_back({y,r.color(item["color"],q+".color")});
+                }
+                sky.paperTop=r.color(data["paperTop"],paramsPath+".paperTop");
+                sky.paperBottom=r.color(data["paperBottom"],paramsPath+".paperBottom");
+                sky.printGrade=r.number(data["printGrade"],paramsPath+".printGrade");
+                sky.grain=r.number(data["grain"],paramsPath+".grain");
+                if (sky.printGrade<0 || sky.printGrade>1) r.fail(paramsPath+".printGrade","number in 0..1");
+                if (sky.grain<0 || sky.grain>0.1) r.fail(paramsPath+".grain","number in 0..0.1");
+                params=value;
+            } else if (piece->op==OsakaOp::Haze) {
                 if (!slot.contains("params")) r.fail(paramsPath,"required field");
                 const auto data=r.object(slot["params"],paramsPath,{"y","sigma","lo","hi","color","gain"},{"shift","drift","seed"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();

@@ -128,3 +128,6 @@ HEADERS += src/kit/generic-window.h
 
 SOURCES += src/kit/check-analysis.cpp src/kit/check-signal.cpp src/kit/check.cpp
 HEADERS += src/kit/check-analysis.h src/kit/check-signal.h src/kit/check.h
+
+SOURCES += src/kit/gradient-sky.cpp
+HEADERS += src/kit/gradient-sky.h

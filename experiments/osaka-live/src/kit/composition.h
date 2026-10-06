@@ -4,6 +4,7 @@
 #include "parameters.h"
 #include "piece-label.h"
 #include "ridges.h"
+#include "gradient-sky.h"
 #include "svg-art.h"
 #include "window-label.h"
 #include <map>
@@ -14,7 +15,7 @@ enum class OsakaOp {
     CoastHook, Ridges, City, Firework, AfterValley, NearRidge, Train, SkyLanterns,
     TownHook, Downhill, FarNetwork, AfterTown, RightTown, StreetSurface, Cart,
     AfterCart, Festoon, NearNetwork, Moths, AfterWires, ReflectionCapture,
-    AfterReflections, StreetActors, Birds, NearHouse, Wisteria, Haze
+    AfterReflections, StreetActors, Birds, NearHouse, Wisteria, Haze, GradientSky
 };
 enum class OsakaGate { Always, Chapter, DiscEnabled, MountainEnabled, Land,
                        DefaultCoastLand, DefaultCoastChapter, DefaultTownLand };
@@ -27,6 +28,7 @@ struct OsakaHazeSlotV1 {
 // Settings a slot carries in scene.json. Osaka's slots carry none.
 struct OsakaSlotParamsV1 {
     OsakaHazeSlotV1 haze;
+    GradientSkyParametersV1 gradientSky;
     std::vector<OsakaRidgeSpecV1> ridges;
 };
 struct OsakaRenderSlot {
