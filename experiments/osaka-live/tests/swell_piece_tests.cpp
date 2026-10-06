@@ -39,6 +39,11 @@ int main(int argc,char** argv){
             }
         }
         require(maxLift==1.6,"maximum lift missing");
+        // Maximum drive must retain curved shoulders inside the same bounds.
+        // A saturated tanh used to turn most of the contour into ruled shelves.
+        const auto curved=SwellLinesV1::field(c,7,p);int flat=0,samples=0;
+        for(int x=0;x<1920;x+=10){++samples;if(std::abs(curved.y(x+10)-curved.y(x))<.02)++flat;}
+        require(flat<samples/4,"maximum drive flattens the swell into shelves");
         // Soft response remains larger under loud drive instead of clipping.
         p=SwellLinesParametersV1{};c.t=14;score={};audio={};c.a=audio;
         const double quiet=SwellLinesV1::field(c,7,p).y(900);
