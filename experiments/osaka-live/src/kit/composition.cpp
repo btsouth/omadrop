@@ -87,8 +87,10 @@ void OsakaCompositionV1::render(Ctx& c, const OsakaState& s, const OsakaWorldDes
         const auto& slot = stage.entries[i];
         if (!enabled(slot.gate)) continue;
         const double oldY=c.cameraY;
-        // Less than three design pixels, slow and independent of musical hits.
-        c.cameraY=oldY+slot.parallaxDepth*(2.2*std::sin(c.t*.32)+.65*std::sin(c.t*.19));
+        // A slow swell sway that grows with the music, plus a short dip on
+        // each kick, so the parallax layers ride the sea like a boat.
+        const double level=c.score?clamp01(2.2*(c.score->bandBody[1][0]+c.score->bandBody[1][1])):0;
+        c.cameraY=oldY+slot.parallaxDepth*((2.2+9*level)*std::sin(c.t*.32)+(.65+3*level)*std::sin(c.t*.19)+5*c.kick(4));
         switch (slot.piece) {
         case OsakaOp::Sky: OsakaSkyV1::draw(c, s); break;
         case OsakaOp::WaterSurface: WaterSurfaceV1::draw(c, slot.params->water); break;

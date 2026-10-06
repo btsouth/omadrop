@@ -94,7 +94,7 @@ void WaterSurfaceV1::draw(Ctx& c,const WaterSurfaceParametersV1& p) {
             const double id=hash2(k,row+71+p.seed);
             if(id<1-p.capDensity || middle<p.x0-200 || middle>p.x1+200)continue;
             const double breath=.5+.5*std::sin(c.t*(.45+.55*hash2(k,row+72+p.seed))+Tau*hash2(k,row+73+p.seed));
-            const double size=p.capScale*(.45+.95*hash2(k,row+38+p.seed))*(.38+.62*breath)*(1+p.liftGain*lift);
+            const double size=p.capScale*(.45+.95*hash2(k,row+38+p.seed))*(.38+.62*breath)*(1+p.liftGain*lift)*(1+1.6*kick);
             const double span=(40+170*z)*size;
             if(span<10)continue;
             const double x0=middle-span*(.30+.22*hash2(k,row+74+p.seed));

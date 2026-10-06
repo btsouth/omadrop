@@ -107,7 +107,7 @@
             "nearY": 1112,
             "rows": 12,
             "textureRows": 0,
-            "glints": 0,
+            "glints": 70,
             "sampleStep": 16,
             "amplitude": 0.52,
             "wavelength": 1,
@@ -119,7 +119,7 @@
             "foam": "#dcd7ba",
             "underprint": "#223249",
             "glint": "#e6c384",
-            "hotGlint": "#c34043",
+            "hotGlint": "#e6c384",
             "capScale": 0.72,
             "bandGain": 1.15,
             "liftGain": 0.5,
@@ -264,7 +264,7 @@
             "underprint": "#1d4673",
             "foam": "#dcd7ba",
             "lines": "#7397a4",
-            "travelScale": 0.2
+            "travelScale": 1.0
           },
           "parallaxDepth": 0.75
         },

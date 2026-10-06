@@ -27,7 +27,7 @@ void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds
     stage_.advance(std::max(5*sstep(.25,.95,energy),params.surgeEnabled?5*sstep(0,.65,a.surge):0),.8*beat,dt);
     speed_.advance(14+6*beat+4*clamp01(count/16.),.65*beat,dt);
     const double mid=std::max(0.,(a.bands[2]+a.bands[3])*.5);
-    throw_.advance(62*mid/(.18+mid),2.25*beat,dt);
+    throw_.advance(62*mid/(.18+mid)+48*Score::envelope(score.bassHits,seconds,5),2.25*beat,dt);
     lean_.advance(.075*mid/(.18+mid),1.6*beat,dt);
     // Exact underdamped spring at analyzer hops. Lip lag and overshoot are
     // separate from body stage, with a bounded material displacement.
@@ -531,7 +531,7 @@ void WaveTrainFoamMotionV2::advance(const Audio& a,const Score& score,WaveTrainP
     const Event* kick=Score::last(score.bassHits,seconds);const bool kicked=kick && kick->serial!=lastKick_;
     if(kicked)lastKick_=kick->serial;
     bool triggered=false;for(bool b:onset)triggered=triggered||b;
-    // Bounded at 12 particles per event and 10 event groups/second. Work cannot
+    // Bounded at 28 particles per event and 10 event groups/second. Work cannot
     // scale with amplitude or arbitrary event queue lengths.
     sprayClock_=std::max(0.,sprayClock_-dt);
     const auto shape=WaveTrainV2::profile(pose_,params);
@@ -539,7 +539,7 @@ void WaveTrainFoamMotionV2::advance(const Audio& a,const Score& score,WaveTrainP
     auto random=[&](){rng_^=rng_<<13;rng_^=rng_>>17;rng_^=rng_<<5;return (rng_&0xffffff)/double(0x1000000);};
     if((triggered||kicked) && sprayClock_<=0 && hero.stage>1.15) {
         sprayClock_=.10;
-        for(int j=0;j<12;++j) {
+        for(int j=0;j<(kicked?28:12);++j) {
             const int i=std::min(WaveTrainFingerCountV2-1,int(random()*WaveTrainFingerCountV2));
             if(!kicked && !onset[hero.fingers[i].band])continue;
             auto slot=std::find_if(pose_.droplets.begin(),pose_.droplets.end(),[](const auto& d){return d.life==0||d.age>=d.life;});
@@ -549,7 +549,7 @@ void WaveTrainFoamMotionV2::advance(const Audio& a,const Score& score,WaveTrainP
             const V2 tangent=unit(f.tip-f.centre[f.centre.size()-3]);
             const bool crestFleck=j%4==0;
             *slot={crestFleck?f.root:f.tip,drift+tangent*(40+65*random())+V2(12+22*random(),-24-32*random()),
-                0,1.4+1.3*random(),1.2+3.0*random(),++serial_};
+                0,1.4+1.3*random(),2.0+4.2*random(),++serial_};
         }
     }
     for(int i=0;i<WaveTrainFingerCountV2;++i)previousTip_[i]=hero.fingers[i].tip;

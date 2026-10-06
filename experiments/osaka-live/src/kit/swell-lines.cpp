@@ -30,10 +30,13 @@ SwellRowV1 SwellLinesV1::field(const Ctx& c,int row,const SwellLinesParametersV1
     double spacing=1e9;
     if(row>0)spacing=std::min(spacing,baseAt(row)-baseAt(row-1));
     if(row+1<p.rows)spacing=std::min(spacing,baseAt(row+1)-baseAt(row));
-    return {z,baseAt(row),
+    // Every kick dips the whole sea and lets it rebound, nearer rows more.
+    // Neighbours move almost together, so row order is preserved.
+    const double heave=(3+15*depth)*kick*(p.surgeEnabled?1:0);
+    return {z,baseAt(row)+heave,
         (7+83*std::pow(depth,1.15))*p.amplitude*(1+.22*e+.16*p.liftGain*lift+p.amplitudeGain*(c.score?c.score->bandBody[1][0]:c.band(0))+(p.surgeEnabled && c.schedule?.65*c.schedule->print.surge(c.t):0)),
         (55+115*depth)*(.86+.28*id),
-        c.t*p.driftSpeed*(.81+.37*id)+flow-depth*6+Tau*hash2(row,p.seed+19),
+        c.t*p.driftSpeed*(.81+.37*id)+(p.surgeEnabled?1.9:1)*flow-depth*6+Tau*hash2(row,p.seed+19),
         row*.82-c.t*(.17+.11*hash2(row,p.seed+23)),
         std::min(.85,p.opacity+p.bandGain*e+p.liftGain*.35*lift+p.kickGain*kick),
         (8+8*depth)*p.bandGain*c.band(b)+(10+10*depth)*p.liftGain*lift+(2+8*depth)*p.kickGain*kick,
