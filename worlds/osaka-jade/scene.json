@@ -524,7 +524,14 @@
     "elements": {
       "near-house-shell": "near-house-shell",
       "right-house-2-shell": "right-house-2-shell",
-      "right-house-3-shell": "right-house-3-shell"
+      "right-house-3-shell": "right-house-3-shell",
+      "near-house-roof": "near-house-roof",
+      "near-house-eaves": "near-house-eaves",
+      "right-house-2-roof": "right-house-2-roof",
+      "right-house-3-roof": "right-house-3-roof",
+      "right-house-3-eaves": "right-house-3-eaves",
+      "near-house-lattice": "near-house-lattice",
+      "izakaya-lattice": "izakaya-lattice"
     }
   }
 }

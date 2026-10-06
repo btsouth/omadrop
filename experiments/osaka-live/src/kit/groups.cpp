@@ -1,5 +1,6 @@
 #include "parameters.h"
 #include "groups.h"
+#include "world-art.h"
 #include "effects_shaders.h"
 #include "../parts.h"
 #include "actors.h"
@@ -206,7 +207,7 @@ void OsakaRightTownV1::draw(Ctx& c, const OsakaState& s, const Life& L) {
     OsakaShamisenV1::draw(c, s, L, t, x0, shamisenPane);
     Canvas& f = c.canvas();
     c.retain(f, "izakaya-lattice", [&](Canvas& f) {
-        for (int i = 0; i < 4; ++i) lattice(f, x0 + ups[i].wx, 640, ups[i].ww, 96, ups[i].ww > 70 ? 3 : 2, 3, INK, 1.3);
+        drawWorldArt(f, "izakaya-lattice", ox);
     }, {s.cam});
     const double wind = L.wind;
     OsakaIzakayaClothV1::draw(L, f, t, x0);
@@ -347,7 +348,7 @@ void main() { o = texture(u_tex, v_uv) * texture(u_mask, v_uv).a * u_opacity; }
     }
     Canvas& f = c.canvas();
     c.retain(f, "near-house-lattice", [&](Canvas& f) {
-        for (const P& q : U) lattice(f, q.x + ox, q.y, q.w, q.h, q.cols, q.rows, INK, 1.6);
+        drawWorldArt(f, "near-house-lattice", ox);
     }, {s.cam});
     const Col roomCol = mix(WARM_T, INK, 0.62);
     c.retain(f, "near-house-lamp-hanger", [&](Canvas& f) {

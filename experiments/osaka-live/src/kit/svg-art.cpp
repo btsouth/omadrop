@@ -242,12 +242,17 @@ public:
             return [c,a](Canvas& target,const Col* tint,double alpha) {target.color(tint?*tint:c,a*alpha);};
         }
         Canvas sample(scale);paint(sample,n,text,opacity,s,world,box);
-        if(sample.gradients().empty())return [](Canvas& c,const Col*,double){c.color(Col(0,0,0),0);};
+        const auto key=text.mid(text.indexOf('#')+1);const auto id=key.left(key.indexOf(')')).trimmed();
+        const auto g=gradient(*ids[id]);
+        if(sample.gradients().empty()) {
+            if(g.children.empty())return [](Canvas& c,const Col*,double){c.color(Col(0,0,0),0);};
+            const auto& last=*g.children.back();const auto col=preciseColor(last,last.a.value("stop-color","black"),s.color);
+            const auto a=alpha(last,"stop-opacity")*opacity*color(last,last.a.value("stop-color","black"),s.color).alphaF();
+            return [col,a](Canvas& c,const Col* tint,double alpha){c.color(tint?*tint:col,a*alpha);};
+        }
         auto row=sample.gradients().back();bool translucent=false;
         // Use the native linear equation, and preserve float channels before
         // QColor's 16-bit conversion. Both are generic SVG paint operations.
-        const auto key=text.mid(text.indexOf('#')+1);const auto id=key.left(key.indexOf(')')).trimmed();
-        const auto g=gradient(*ids[id]);
         const bool nativeLinear=g.tag=="linearGradient"&&g.children.size()<=8;
         if(nativeLinear)row.data[0]=1;
         for(std::size_t i=0;i<g.children.size();++i) {
@@ -288,7 +293,10 @@ public:
         Replay fill,stroke;
         if(s.fill!="none")fill=sourceReplay(n,s.fill,s.fillAlpha,s,{},path.boundingRect());
         if(s.stroke!="none"&&s.width>0)stroke=sourceReplay(n,s.stroke,s.strokeAlpha,s,{},path.boundingRect());
-        const bool round=s.cap==Qt::RoundCap&&s.join==Qt::RoundJoin;
+        const double dot=world.m11()*world.m21()+world.m12()*world.m22();
+        const double x2=world.m11()*world.m11()+world.m12()*world.m12(),y2=world.m21()*world.m21()+world.m22()*world.m22();
+        const bool similarity=std::abs(dot)<1e-12&&std::abs(x2-y2)<1e-12;
+        const bool round=s.cap==Qt::RoundCap&&s.join==Qt::RoundJoin&&similarity;
         QPainterPath outline;
         if(stroke&&!round) {QPainterPathStroker stroker;stroker.setWidth(s.width);stroker.setCapStyle(s.cap);stroker.setJoinStyle(s.join);stroker.setMiterLimit(s.miter/2.);stroker.setCurveThreshold(.01);outline=stroker.createStroke(path);}
         return [geometry,fill,stroke,world,s,round,outline,path,clip](Canvas& c,const Col* tint,double alpha) {

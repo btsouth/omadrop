@@ -1019,7 +1019,14 @@
           "required": [
             "near-house-shell",
             "right-house-2-shell",
-            "right-house-3-shell"
+            "right-house-3-shell",
+            "near-house-roof",
+            "near-house-eaves",
+            "right-house-2-roof",
+            "right-house-3-roof",
+            "right-house-3-eaves",
+            "near-house-lattice",
+            "izakaya-lattice"
           ],
           "properties": {
             "near-house-shell": {
@@ -1031,6 +1038,34 @@
               "minLength": 1
             },
             "right-house-3-shell": {
+              "type": "string",
+              "minLength": 1
+            },
+            "near-house-roof": {
+              "type": "string",
+              "minLength": 1
+            },
+            "near-house-eaves": {
+              "type": "string",
+              "minLength": 1
+            },
+            "right-house-2-roof": {
+              "type": "string",
+              "minLength": 1
+            },
+            "right-house-3-roof": {
+              "type": "string",
+              "minLength": 1
+            },
+            "right-house-3-eaves": {
+              "type": "string",
+              "minLength": 1
+            },
+            "near-house-lattice": {
+              "type": "string",
+              "minLength": 1
+            },
+            "izakaya-lattice": {
               "type": "string",
               "minLength": 1
             }
