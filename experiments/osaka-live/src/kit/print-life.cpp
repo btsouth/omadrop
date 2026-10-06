@@ -16,7 +16,15 @@ void SmokePlumeV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
     for(int i=0;i<std::min(p.count,5);++i){std::vector<V2> points;
         for(int k=0;k<=24;++k){double u=k/24.,y=p.y-u*p.height*(.55+.09*i+.25*bass),x=p.x+u*p.width*(.35+.7*bass)+std::sin(u*7-drift+i*.3)*u*(8+18*bass);
             points.push_back({x,y});}
-        for(int k=1;k<int(points.size());++k){double u=k/24.;auto a=points[k-1],b=points[k];cv.line(a.x,a.y,b.x,b.y,(2+5*u+10*bass)*p.scale,p.color,(.10+.16*bass)*(1-u));}}
+        // One flat tapered ribbon per plume strand: crisp edges, fading only
+        // by width toward its tail, never stacked soft strokes.
+        std::vector<V2> l,r;
+        for(int k=0;k<=24;++k){const double u=k/24.;const V2 t=points[std::min(k+1,24)]-points[std::max(k-1,0)];
+            const double len=std::max(1e-6,std::hypot(t.x,t.y));const V2 n{-t.y/len,t.x/len};
+            const double w=(1.2+5.5*std::sin(Pi*std::min(1.,u*1.25))+4*bass)*p.scale*(1-.75*u);
+            l.push_back(points[k]+n*w);r.push_back(points[k]-n*w);}
+        const Col smoke=mix(p.color,hex(0x54546d),.25);const double alpha=(.50+.25*bass)*(1-.25*i);
+        for(int k=0;k<24;++k){cv.tri(l[k],l[k+1],r[k+1],smoke,alpha);cv.tri(l[k],r[k+1],r[k],smoke,alpha);}}
     const double beat=c.kick(5);cv.color(p.ink,.25+.55*beat);cv.ellipse(p.x,p.y+1,(2+3*beat)*p.scale,1.8*p.scale);cv.fill();
     if(surge>0){const double age=c.t-c.schedule->print.surgeStart;
         for(int i=0;i<18;++i){double delay=hash2(i,p.seed)*2,life=(age-delay)/6;
@@ -96,9 +104,11 @@ void LeapingFishV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
         const double y=water-p.height*std::sin(Pi*u)*(1+.5*c.band(p.band));
         const double alpha=sstep(0,.05,u)*(1-sstep(.94,1,u));
         cv.save();cv.translate(x,y);cv.rotate(v.direction*(u-.5)*1.9);cv.scale(p.scale,p.scale);
-        cv.color(p.color,alpha);cv.ellipse(0,0,13,4);cv.fill();cv.tri({-11,0},{-20,-7},{-20,7},p.accent,alpha);
-        cv.line(-8,-1,9,-1,1,p.accent,alpha);cv.disc(8,0,1.2,p.ink,alpha);cv.restore();
-        cv.color(p.accent,.45*alpha);cv.ellipse(x,water+1,8+25*u,2+3*u);cv.stroke(1);
+        // Silver print fish with a key outline, readable against the swells.
+        cv.color(p.ink,alpha);cv.ellipse(0,0,14.5,5.2);cv.fill();cv.tri({-11,0},{-22,-8.5},{-22,8.5},p.ink,alpha);
+        cv.color(mix(p.accent,hex(0x7397a4),.35),alpha);cv.ellipse(0,0,13,4);cv.fill();cv.tri({-11,0},{-20,-7},{-20,7},p.accent,alpha);
+        cv.line(-8,-1,9,-1,1,p.color,alpha);cv.disc(8,0,1.2,p.ink,alpha);cv.restore();
+        cv.color(p.accent,.6*alpha);cv.moveTo(x-10-14*u,water+2);cv.curveTo(x-4,water-3-3*u,x+4,water-3-3*u,x+10+14*u,water+2);cv.stroke(1.6);
         for(int j=0;j<3;++j)cv.disc(x-15+j*9,water-12*std::sin(Pi*u)*(j+1),1,p.accent,.5*alpha);
     }
 }
@@ -114,15 +124,24 @@ void PrintMomentsV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
             cv.line(x-90,y-32,x,y,1.8*p.scale,p.accent,.6*sa);cv.disc(x,y,2.4*p.scale,p.accent,sa);}
         auto [qu,qa]=active(PrintMoment::Squall);if(qa>0){const auto&v=clock.events[int(PrintMoment::Squall)];
             const double close=p.nearEvents && v.cycle%2?1.65:1.;
-            double x=p.x+(p.width+400)*(v.direction>0?qu:1-qu)-200,y=p.y+p.height-20-65*(close-1);
+            double x=p.x+(p.width+400)*(v.direction>0?qu:1-qu)-200,y=p.y+p.height-110-65*(close-1);
             const double music=clamp01(3*(c.score?c.score->bandBody[1][p.band]:c.band(p.band)));
-            for(int i=0;i<6;++i){cv.color(p.ink,.17*qa);cv.ellipse(x+(i-2)*40*close,y-i%2*9,80*close,(9+i%3*3)*close);cv.fill();}
+            // One lobed printed rain cloud in the theme's muted ink, a single
+            // outline so its tiers never darken where they overlap.
+            {const double w=430*close,h=20*close;cv.color(mix(hex(0x54546d),hex(0xc9b2a0),.42),.55*qa);
+             cv.moveTo(x-w/2,y+h/2);
+             for(int k=0;k<=40;++k){const double f=k/40.,xx=x-w/2+w*f;
+                const double tier=.45*h*sstep(.18,.30,f)*(1-sstep(.62,.74,f));
+                const double bump=.24*h*std::pow(std::abs(std::sin(Pi*f*7+v.cycle)),1.4)*std::pow(std::sin(Pi*f),.5);
+                cv.lineTo(xx,y-h/2-tier-bump);}
+             cv.curveTo(x+w/2+h*.6,y-h/2,x+w/2+h*.6,y+h/2,x+w/2,y+h/2);
+             cv.curveTo(x-w/2-h*.6,y+h/2,x-w/2-h*.6,y+h/2,x-w/2,y+h/2);cv.closePath();cv.fill();}
             for(int i=0;i<(p.nearEvents?38:18);++i){
                 const double phase=c.t*(.38+.12*hash2(i,p.seed+4))+hash2(i,p.seed+5),f=phase-std::floor(phase);
                 double xx=x+(hash2(i,p.seed)-.5)*320*close-f*24,yy=y+22+f*120*close;
                 const double fade=sstep(0,.08,f)*(1-sstep(.8,1,f));
                 cv.line(xx,yy,xx-12*close,yy+(18+30*hash2(i,p.seed+1))*close,
-                    .65+music*.95,p.color,(.20+.15*music)*qa*fade);}}
+                    .7+music*.8,hex(0x54546d),(.32+.2*music)*qa*fade);}}
         for(int i=0;i<8;++i){double y=p.y+30+i*17,x=p.x+p.width*(.5+.5*std::sin(c.t*.23+i*.53));
             cv.color(p.accent,.20*surge);cv.moveTo(x-170,y);cv.curveTo(x-70,y-12,x+70,y+9,x+180,y-4);cv.stroke(1.2*p.scale);}
     }else if(p.domain==1){
@@ -162,14 +181,27 @@ void PrintMomentsV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
         if(u<=0 || u>=1)return;
         const double envelope=sstep(0,.24,u)*(1-sstep(.70,1,u));
         const double bass=clamp01(3*(c.score?c.score->bandBody[1][0]:c.band(0)));
-        auto crest=[&](double x){return 1122-envelope*(82+13*bass)+17*std::sin(x*.003-c.t*.31*v.direction);};
-        cv.color(p.ink);cv.moveTo(-40,1140);
-        for(int i=0;i<=80;++i){const double x=-40+i*25;cv.lineTo(x,crest(x));}cv.lineTo(1960,1140);cv.closePath();cv.fill();
-        for(int line=0;line<3;++line){std::vector<V2> points;
-            for(int i=0;i<=80;++i){double x=-40+i*25;points.push_back({x,crest(x)+5+line*12+2*std::sin(x*.012+line)});}
-            cv.polyline(points,line?1.3:3.2,line?p.color:p.accent,line?.45:.72*envelope);}
-        for(int i=0;i<24;++i){double x=80+i*79+14*std::sin(c.t*.23+i);
-            cv.color(p.accent,.65*envelope);cv.moveTo(x-10,crest(x)+3);cv.curveTo(x-2,crest(x)-7,x+5,crest(x)-5,x+17,crest(x)+2);cv.stroke(1.6);}
+        auto crest=[&](double x){return 1122-envelope*(82+13*bass)+30*std::sin(x*.0036-c.t*.31*v.direction)
+            +12*std::sin(x*.0081+1.3-c.t*.19*v.direction);};
+        // A printed foreground wave: bokashi body, key line, broken cream crest
+        // and a few irregular claws, matching the hero's language.
+        std::vector<V2> edge;double hi=1e9;
+        for(int i=0;i<=80;++i){const double x=-40+i*25;edge.push_back({x,crest(x)});hi=std::min(hi,crest(x));}
+        cv.linear(0,hi,0,hi+120,{{0,mix(p.color,p.ink,.35),1},{.5f,p.ink,1},{1,p.ink,1}});
+        cv.moveTo(-40,1140);for(V2 q:edge)cv.lineTo(q.x,q.y);cv.lineTo(1960,1140);cv.closePath();cv.fill();
+        cv.polyline(edge,2.4,hex(0x0e2140),.85*envelope);
+        {std::vector<V2> l,r;for(std::size_t i=0;i<edge.size();++i){const double w=(2+6*std::pow(.5+.5*noise1(i*.35+c.t*.1,61),2))*envelope;
+            l.push_back(edge[i]+V2(0,-1));r.push_back(edge[i]+V2(0,w));}
+         for(std::size_t j=0;j+1<l.size();++j){cv.tri(l[j],l[j+1],r[j+1],p.accent,.92*envelope);cv.tri(l[j],r[j+1],r[j],p.accent,.92*envelope);}}
+        // Claws gather only at the crest's peaks, leaning the way it travels.
+        for(std::size_t i=2;i+2<edge.size();++i){
+            if(!(edge[i].y<edge[i-1].y && edge[i].y<=edge[i+1].y))continue;
+            for(int k=0;k<4;++k){const double size=(1.05-.18*k)*(.7+.3*hash2(k,i+p.seed));
+                const double xx=edge[i].x+v.direction*(k*15-8),y=crest(xx)+1,d=v.direction;
+                cv.color(hex(0x0e2140),.8*envelope);cv.moveTo(xx-2*d,y);cv.curveTo(xx+8*size*d,y-10*size,xx+22*size*d,y-5*size,xx+23*size*d,y+10*size);
+                cv.curveTo(xx+15*size*d,y+2*size,xx+6*size*d,y+1,xx-2*d,y);cv.closePath();cv.fill();
+                cv.color(p.accent,envelope);cv.moveTo(xx,y);cv.curveTo(xx+8*size*d,y-8*size,xx+20*size*d,y-4*size,xx+21*size*d,y+8*size);
+                cv.curveTo(xx+14*size*d,y+1.5*size,xx+6*size*d,y+1,xx,y);cv.closePath();cv.fill();}}
         const double hit=c.kick(5)+c.hit(5);
         for(int i=0;i<18;++i){const double phase=c.t*.36+hash2(i,p.seed),f=phase-std::floor(phase),x=90+i*102+f*14;
             const double alpha=envelope*sstep(0,.10,f)*(1-sstep(.5,1,f))*(.20+.45*hit);

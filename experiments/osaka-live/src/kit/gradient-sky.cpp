@@ -41,19 +41,37 @@ void GradientSkyV1::draw(Ctx& c, const GradientSkyParametersV1& p) {
     });
     if(p.cloudBands){
         Canvas& cv=c.canvas();
-        // Layered bokashi bands: tapered ink silhouettes with a fine paper rim.
-        // Both depths drift continuously; the long bands cover their whole lane.
-        for(int depth=0;depth<2;++depth)for(int i=0;i<3;++i){
-            const double clock=c.t*(depth?.013:.006)+i*1.8;
-            const double x=320+i*580+70*std::sin(clock),y=160+i*94+depth*37;
-            const double w=depth?430:560,h=depth?20:12;
-            const Col ink=mix(p.paperBottom,hex(0x725b69),depth?.56:.42);
-            cv.color(ink,depth?.25:.20);cv.moveTo(x-w,y);
-            cv.curveTo(x-w*.66,y-h,x-w*.20,y-h*.3,x,y-h*.6);
-            cv.curveTo(x+w*.35,y-h*1.2,x+w*.7,y-h*.7,x+w,y);
-            cv.curveTo(x+w*.45,y+h*.35,x-w*.50,y+h*.60,x-w,y);cv.closePath();cv.fill();
-            cv.color(p.paperTop,depth?.18:.12);cv.moveTo(x-w*.80,y+h*.08);
-            cv.curveTo(x-w*.25,y-h*.3,x+w*.30,y-h*.2,x+w*.77,y-h*.15);cv.stroke(depth?1.8:1.1);
+        // Kasumi: flat printed mist bands with stepped, rounded ends, a little
+        // lighter than the sky behind them. Each is a stack of capsules in one
+        // opaque tone, so overlaps never darken. They drift very slowly.
+        auto skyAt=[&](double y) {
+            Col col=p.stops.front().color;
+            for(std::size_t i=1;i<p.stops.size();++i)
+                col=mix(col,p.stops[i].color,clamp01((y-p.stops[i-1].y)/(p.stops[i].y-p.stops[i-1].y)));
+            return mix(col,mix(p.paperTop,p.paperBottom,sstep(190,640,y)),p.printGrade);
+        };
+        struct Band {double x,y,w,h,step;int tiers;};
+        static const Band bands[]={{360,128,760,30,.62,3},{1500,212,620,24,.55,2},{560,330,520,20,.6,2},{1640,402,380,16,.5,2}};
+        for(std::size_t i=0;i<std::size(bands);++i) {
+            const auto& b=bands[i];
+            const double x=b.x+46*std::sin(c.t*(.010+.004*i)+i*1.7);
+            const Col tone=mix(skyAt(b.y),hex(0xf7f0e1),.62);
+            for(int t=0;t<b.tiers;++t) {
+                const double w=b.w*std::pow(b.step,t),h=b.h*(1-.18*t),y=b.y-t*b.h*.62;
+                const double cx=x+(t%2?-1:1)*b.w*.08*t;
+                // Gently lobed top edge, flat underside, rounded ends.
+                cv.color(tone);
+                const int lobes=2+int(3*hash2(i,t+3));
+                cv.moveTo(cx-w/2,y+h/2);
+                cv.curveTo(cx-w/2-h*.6,y+h/2,cx-w/2-h*.6,y-h/2,cx-w/2,y-h/2);
+                for(int k=1;k<=24;++k) {
+                    const double u=k/24.,x=cx-w/2+w*u;
+                    const double bump=.30*h*std::pow(std::abs(std::sin(Pi*u*lobes+hash2(i,t)*2.5)),1.6)*std::sin(Pi*u);
+                    cv.lineTo(x,y-h/2-bump);
+                }
+                cv.curveTo(cx+w/2+h*.6,y-h/2,cx+w/2+h*.6,y+h/2,cx+w/2,y+h/2);
+                cv.closePath();cv.fill();
+            }
         }
         c.gpu.over(cv);
     }

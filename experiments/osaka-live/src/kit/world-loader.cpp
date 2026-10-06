@@ -501,7 +501,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                     {"horizon","nearY","x0","x1","rows","textureRows","glints","seed","sampleStep",
                      "amplitude","wavelength","drift","phase","top","bottom","crest","texture","foam",
                      "underprint","glint","hotGlint","opacity","bandGain","liftGain","kickGain",
-                     "capDensity","capScale","glintX","glintDepth","innerLines","crestOpacity","swellSeed","amplitudeGain","surgeEnabled"});
+                     "capDensity","capScale","glintX","glintDepth","innerLines","crestOpacity","swellSeed","amplitudeGain","surgeEnabled","shade","shadeLight"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();
                 auto& water=value->water;
                 if(data.contains("surgeEnabled"))water.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
@@ -518,7 +518,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 scalar("bandGain",water.bandGain,0,3); scalar("liftGain",water.liftGain,0,1);
                 scalar("kickGain",water.kickGain,0,.5); scalar("capDensity",water.capDensity,0,1);
                 scalar("capScale",water.capScale,0,1.5); scalar("glintX",water.glintX,-2000,3840);
-                scalar("glintDepth",water.glintDepth,1,1080);scalar("crestOpacity",water.crestOpacity,0,1);
+                scalar("glintDepth",water.glintDepth,1,1080);scalar("crestOpacity",water.crestOpacity,0,1);scalar("shade",water.shade,0,1);
                 if (water.nearY<=water.horizon+2) r.fail(paramsPath+".nearY","position below horizon + 2");
                 if (water.x1<=water.x0) r.fail(paramsPath+".x1","position right of x0");
                 auto integer=[&](const char* name,int& target,int lo,int hi) {
@@ -527,7 +527,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 integer("rows",water.rows,3,24);integer("swellSeed",water.swellSeed,0,1000000);integer("innerLines",water.innerLines,0,3); integer("textureRows",water.textureRows,0,65);
                 integer("glints",water.glints,0,115); integer("seed",water.seed,0,1000000);
                 auto color=[&](const char* name,Col& target) { if (data.contains(name)) target=r.color(data[name],paramsPath+"."+name); };
-                color("top",water.top); color("bottom",water.bottom); color("crest",water.crest);
+                color("top",water.top); color("bottom",water.bottom); color("crest",water.crest); color("shadeLight",water.shadeLight);
                 color("texture",water.texture); color("foam",water.foam); color("underprint",water.underprint);
                 color("glint",water.glint); color("hotGlint",water.hotGlint);
                 params=value;

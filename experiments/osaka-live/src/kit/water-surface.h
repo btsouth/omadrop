@@ -14,6 +14,8 @@ struct WaterSurfaceParametersV1 {
     Col texture=hex(0x7397a4), foam=hex(0xe6ddbf), underprint=hex(0x0e2347);
     Col glint=hex(0xe3b87a), hotGlint=hex(0xc94a45);
     double crestOpacity=.9;
+    // Woodblock bokashi per swell: light crest falling to a dark trough.
+    double shade=0;Col shadeLight=hex(0x7fb4ca);
     double opacity=1, bandGain=.7, liftGain=.35, kickGain=.18;
     double capDensity=.66, capScale=.7, glintX=1310, glintDepth=350;
 };

@@ -16,19 +16,19 @@
             "stops": [
               {
                 "y": 0,
-                "color": "#12121a"
+                "color": "#8a7f8c"
               },
               {
                 "y": 190,
-                "color": "#1c2033"
+                "color": "#a99a9c"
               },
               {
                 "y": 380,
-                "color": "#33375a"
+                "color": "#c4a8a0"
               },
               {
                 "y": 500,
-                "color": "#7a5a78"
+                "color": "#d39a86"
               },
               {
                 "y": 570,
@@ -39,8 +39,8 @@
                 "color": "#e6c384"
               }
             ],
-            "paperTop": "#e8daba",
-            "paperBottom": "#a3a49d",
+            "paperTop": "#eedcbc",
+            "paperBottom": "#e4b892",
             "printGrade": 0.72,
             "grain": 0,
             "energyGrade": 0.75,
@@ -124,9 +124,11 @@
             "bandGain": 1.15,
             "liftGain": 0.5,
             "kickGain": 0.35,
-            "capDensity": 0,
+            "capDensity": 0.34,
             "innerLines": 0,
-            "crestOpacity": 0.28,
+            "crestOpacity": 0.5,
+            "shade": 0.85,
+            "shadeLight": "#7fb4ca",
             "swellSeed": 71,
             "amplitudeGain": 3.5,
             "surgeEnabled": true
@@ -173,12 +175,12 @@
             "bandGain": 1.15,
             "liftGain": 0.5,
             "kickGain": 0.35,
-            "opacity": 0.16,
-            "count": 180,
-            "widthMin": 0.55,
-            "widthMax": 1.25,
-            "lengthMin": 60,
-            "lengthMax": 340,
+            "opacity": 0.24,
+            "count": 300,
+            "widthMin": 0.6,
+            "widthMax": 1.35,
+            "lengthMin": 110,
+            "lengthMax": 480,
             "color": "#7397a4",
             "highlight": "#dcd7ba",
             "amplitudeGain": 3.5,
@@ -288,13 +290,13 @@
             "kickGain": 0.35,
             "opacity": 0.22,
             "count": 240,
-            "sizeMin": 0.35,
-            "sizeMax": 1.0,
+            "sizeMin": 0.4,
+            "sizeMax": 1.3,
             "onsetGain": 0.5,
             "color": "#dcd7ba",
             "underprint": "#223249",
             "amplitudeGain": 3.5,
-            "responseGain": 1.2,
+            "responseGain": 1.55,
             "surgeEnabled": true,
             "waveInstance": "great-wave"
           },
@@ -432,8 +434,8 @@
   },
   "profiles": {
     "osaka-disc-v1": {
-      "creamHex": 13205376,
-      "warmHex": 13205376,
+      "creamHex": 12796995,
+      "warmHex": 12796995,
       "colorGain": 1,
       "haloR": 0.7568627450980392,
       "haloG": 0.44313725490196076,
@@ -446,8 +448,8 @@
       "texture": 0,
       "haloA": 90,
       "haloBRadius": 72,
-      "haloC": 0.1,
-      "haloD": 0.12,
+      "haloC": 0,
+      "haloD": 0,
       "haloFar": 0,
       "restRings": 0.7,
       "ring0Offset": 34,
@@ -463,18 +465,18 @@
       "hitTravel": 300,
       "hitAlpha": 0.015,
       "timeOffset": 10,
-      "color2Hex": 13533819,
+      "color2Hex": 13130309,
       "ringHex": 15123332,
       "energyLift": 0,
       "printBreathing": 0.9
     },
     "osaka-mountain-v1": {
-      "topR": 0.246078431372549,
-      "topG": 0.27156862745098037,
-      "topB": 0.39509803921568626,
-      "bottomR": 0.246078431372549,
-      "bottomG": 0.27156862745098037,
-      "bottomB": 0.39509803921568626,
+      "topR": 0.19,
+      "topG": 0.21,
+      "topB": 0.33,
+      "bottomR": 0.42,
+      "bottomG": 0.42,
+      "bottomB": 0.53,
       "foot": 0,
       "samples": 160,
       "span": 3.2,
@@ -486,7 +488,7 @@
       "summitCurve": 6,
       "summitHeight": 236,
       "gradientStop": 0.62,
-      "gradientMix": 0.22,
+      "gradientMix": 1,
       "snow": 1,
       "snowScale": 1,
       "snowR": 0.8627450980392157,
@@ -494,7 +496,7 @@
       "snowB": 0.7294117647058823
     },
     "osaka-finish-v1": {
-      "bloom": 0.28,
+      "bloom": 0,
       "threshold": 0.62,
       "vignette": 0.25,
       "grain": 0.008,

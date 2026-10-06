@@ -452,7 +452,13 @@ void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPo
         q.y-=humpHeight*bump;if(bump>.18)lip.push_back(q);
     }
     auto body=surface;body.push_back({p.x1,p.waterline+p.depth});body.push_back({p.x0,p.waterline+p.depth});
-    cv.linear(0,p.waterline,0,1290,{{0,p.body,1},{1,p.bottom,1}});fill(cv,body);
+    {
+        // Printed like the swells behind it: light at the surface, dark below.
+        double hi=1e9;for(auto q:surface)hi=std::min(hi,q.y);
+        const Col light=mix(p.body,hex(0x7fb4ca),.42);
+        cv.linear(0,hi,0,hi+260,{{0,light,1},{.4f,mix(light,p.bottom,.5),1},{1,p.bottom,1}});fill(cv,body);
+        stripe(cv,surface,1.6,hex(0x143154),.6);
+    }
     for(int row=0;row<6;++row) {
         std::vector<V2> line;for(auto v:surface)line.push_back(v+V2(0,35+row*35));stripe(cv,line,1.1,p.lines,.24);
     }

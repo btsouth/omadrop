@@ -54,7 +54,15 @@ void WaterSurfaceV1::draw(Ctx& c,const WaterSurfaceParametersV1& p) {
         std::vector<V2> crest;
         for(double x=p.x0;x<p.x1;x+=p.sampleStep)crest.push_back({x,top(x)});
         crest.push_back({p.x1,top(p.x1)});
-        cv.color(mix(p.top,p.bottom,z*.9));
+        const Col base=mix(p.top,p.bottom,z*.9);
+        if(p.shade>0) {
+            // Each swell is printed light at its crest and darkens into the
+            // trough before the next, nearer crest covers it.
+            double hi=1e9,lo=-1e9;for(V2 q:crest){hi=std::min(hi,q.y);lo=std::max(lo,q.y);}
+            const double depth=std::max(6.,(row+1<p.rows?rowY(row+1,p):1080)-hi+(lo-hi)*.4);
+            const Col light=mix(base,p.shadeLight,p.shade*(.62-.30*z)),dark=mix(base,p.bottom,.35+.25*z);
+            cv.linear(0,hi,0,hi+depth,{{0,light,1},{.45f,mix(light,dark,.55),1},{1,dark,1}});
+        } else cv.color(base);
         if(p.swellSeed>=0 && row+1<p.rows) {
             // Nearer planes will cover everything below their own edge. Fill
             // only the interval to that edge, avoiding twelve full-height
