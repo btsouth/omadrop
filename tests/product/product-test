@@ -30,6 +30,7 @@ export OMADROP_MILKDROP_LIVE=$scratch/fake-live
 install_root=$scratch/root
 mkdir -p "$install_root/bin" "$HOME/.local/bin"
 cp "$product/bin/omadrop" "$install_root/bin/omadrop"
+cp -a "$product/worlds" "$install_root/worlds"
 install -m755 "$here/fixtures/fake-backend" "$install_root/bin/omadrop-milkdrop"
 install -m755 "$here/fixtures/fake-backend" "$install_root/bin/omadrop-osaka"
 
@@ -119,6 +120,77 @@ grep -q '^args=calibrate --dry-run$' "$OMADROP_TEST_BACKEND_LOG" || fail "calibr
 "$launcher" pack list
 grep -q '^args=pack list$' "$OMADROP_TEST_BACKEND_LOG" || fail "pack was not forwarded"
 if "$launcher" --bogus; then fail "unknown option succeeded"; else (($? == 2)) || fail "unknown option wrong status"; fi
+
+# World kit commands create, preview and check a world through the renderer.
+world_help=$("$launcher" --help)
+grep -q 'omadrop world new NAME \[DIR\]' <<<"$world_help" || fail "world commands are missing from --help"
+world_parent=$scratch/worlds
+mkdir -p "$world_parent"
+if "$launcher" world new Bad_Name "$world_parent" 2>/dev/null; then
+  fail "an invalid world name succeeded"
+else
+  (($? == 2)) || fail "an invalid world name used the wrong status"
+fi
+"$launcher" world new demo "$world_parent" >/dev/null
+[[ -f $world_parent/demo/art.svg ]] || fail "world new did not copy art.svg"
+[[ $(jq -r .world "$world_parent/demo/scene.json") == demo ]] || fail "world new did not set the world name"
+if "$launcher" world new demo "$world_parent" 2>/dev/null; then
+  fail "world new overwrote an existing folder"
+else
+  (($? == 2)) || fail "world new overwrite used the wrong status"
+fi
+
+fixture=$scratch/fixture.raw
+: >"$fixture"
+reset_logs
+"$launcher" world preview "$world_parent/demo" --fixture "$fixture"
+grep -qx "worlds=$world_parent" "$OMADROP_TEST_BACKEND_LOG" || fail "world preview set the wrong OMADROP_WORLDS"
+grep -qx "args=--preview --world demo --fixture $fixture" "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "world preview forwarded the wrong arguments"
+
+report=$scratch/check.json
+reset_logs
+if OMADROP_TEST_BACKEND_STATUS=7 "$launcher" world check "$world_parent/demo" \
+    --fixture "$fixture" --json "$report"; then
+  fail "world check hid a failing renderer status"
+else
+  (($? == 7)) || fail "world check did not pass through the renderer status"
+fi
+grep -qx "worlds=$world_parent" "$OMADROP_TEST_BACKEND_LOG" || fail "world check set the wrong OMADROP_WORLDS"
+check_args=$(grep '^args=' "$OMADROP_TEST_BACKEND_LOG" | tail -n1)
+# The installed Osaka Jade is the frame budget reference when it exists.
+check_args=${check_args/ --reference *\/osaka-jade / }
+[[ $check_args == "args=--check --world demo --fixture $fixture --json $report" ]] \
+  || fail "world check forwarded the wrong arguments"
+
+# Omarchy uses a world named after the current theme when one is installed.
+theme_link=$HOME/.config/omarchy/current/theme
+mkdir -p "$(dirname "$theme_link")"
+rm -f "$theme_link"
+reset_logs
+printf 'mode=omarchy\n' >"$mode_file"
+"$launcher" --single
+grep -qx 'args=--single' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "a missing theme symlink did not use Osaka Jade"
+
+plain_theme=$scratch/themes/plain-theme
+mkdir -p "$plain_theme"
+ln -s "$plain_theme" "$theme_link"
+reset_logs
+"$launcher" --single
+grep -qx 'args=--single' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "a theme without a matching world did not use Osaka Jade"
+
+matched_theme=$scratch/themes/rose-pine
+mkdir -p "$matched_theme"
+cp -a "$install_root/worlds/template" "$install_root/worlds/rose-pine"
+rm -f "$theme_link"
+ln -s "$matched_theme" "$theme_link"
+reset_logs
+"$launcher" --single
+grep -qx 'args=--world rose-pine --single' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "a matching theme world was not selected"
+rm -f "$theme_link"
 
 # Display flags follow the remembered mode.
 reset_logs

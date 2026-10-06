@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <!-- Ground -->
+  <rect id="ground" data-name="ground" x="0" y="900" width="1920" height="180" fill="#06130f"/>
+  <rect id="ground-edge" data-name="ground-edge" x="0" y="896" width="1920" height="6" fill="#17372d"/>
+
+  <!-- One small building -->
+  <rect id="building-body" data-name="building-body" x="680" y="390" width="560" height="510" rx="8" fill="#081a15"/>
+  <path id="building-roof" data-name="building-roof" d="M648 390 L760 294 L1160 294 L1272 390 Z" fill="#040f0c"/>
+  <rect id="building-door" data-name="building-door" x="910" y="742" width="100" height="158" rx="5" fill="#030b09" stroke="#1f4638" stroke-width="6"/>
+
+  <!-- Three windows, each following a different band -->
+  <rect id="window-left" data-name="window.band1.always" x="750" y="480" width="112" height="132" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="7"/>
+  <rect id="window-center" data-name="window.band3.kick" x="904" y="480" width="112" height="132" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="7"/>
+  <rect id="window-right" data-name="window.band5.onset" x="1058" y="480" width="112" height="132" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="7"/>
+
+  <!-- One lantern -->
+  <path id="lantern-hook" data-name="lantern-hook" d="M650 470 H704" fill="none" stroke="#030b09" stroke-width="5"/>
+  <ellipse id="lantern" data-name="lantern.band2.kick.sway" cx="704" cy="520" rx="25" ry="33" fill="#e8a24f"/>
+
+  <!-- One wire with travelling pulses -->
+  <path id="wire" data-name="wire.band4.pulse" d="M560 340 C 720 430 850 500 1240 380" fill="none" stroke="#030b09" stroke-width="2"/>
+</svg>

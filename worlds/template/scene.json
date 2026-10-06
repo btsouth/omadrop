@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "world": "template",
+  "profile": "osaka-world-v1",
+  "stages": [
+    {
+      "id": "backdrop",
+      "phase": "Backdrop",
+      "slots": [
+        {"id": "template-sky", "piece": "Sky", "gate": "Always", "profile": "osaka-sky-v1"},
+        {"id": "template-moon", "piece": "Disc", "gate": "DiscEnabled", "profile": "osaka-disc-v1"}
+      ]
+    },
+    {
+      "id": "foreground",
+      "phase": "Foreground",
+      "slots": []
+    }
+  ],
+  "disc": {"profile": "osaka-disc-v1", "x": 1480, "y": 210, "parallax": 0, "radius": 86},
+  "art": {"file": "art.svg"}
+}
