@@ -311,6 +311,18 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
             crest.falling.push_back(strand(at,Pi*.5+.9*(hash2(k,76)-.5)+.5*std::sin(phase*4+k),(10+14*hash2(k,77))*tipGate*(.6+.6*highs),
                 (1.6+2*hash2(k,78))*tipGate,(k%2?1:-1)*1.8,1.2,8,sstep(0.,.10,phase)*(1-sstep(.65,1.,phase))));
         }
+        // Foam snow: dots shed from the front claws drift down and forward in
+        // front of the curl on the flow clock, more of them when loud.
+        for(int k=0;k<36;++k) {
+            const double phase=wrap(s.flow*1.6+hash2(k,81),1.);
+            const int slot=26+int(hash2(k,82)*11.99);
+            const auto& claw=crest.fingers[slot];
+            if(claw.length<4)continue;
+            const double show=sstep(0.,.08,phase)*(1-sstep(.7,1.,phase))*sstep(.25,.75,highs+.3*hash2(k,83))*tipGate;
+            if(show<=0)continue;
+            const V2 drift=V2(55+70*hash2(k,84),-14-30*hash2(k,85))*phase+V2(0,150*phase*phase);
+            crest.snow.push_back(claw.tip+drift*g);crest.snowSize.push_back((1.2+2.2*hash2(k,86))*show*g);
+        }
         // Material lines advect from the lower face into the barrel. Wrapping
         // ribbons enter/leave invisibly at endpoints instead of phase popping.
         for(int row=0;row<16;++row) {
@@ -416,6 +428,10 @@ void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPo
             for(const auto& twig:f.twigs)print(twig,f.opacity);
         }
         for(const auto& st:crest.tangle)print(st,st.alpha);
+        for(size_t k=0;k<crest.snow.size();++k) {
+            const V2 q=crest.snow[k];const double r=crest.snowSize[k];
+            cv.disc(q.x,q.y,r,p.foam,.95);
+        }
         for(const auto& st:crest.falling)print(st,st.alpha);
     }
     // The near water passes in front of every crest, so the wave rises out of

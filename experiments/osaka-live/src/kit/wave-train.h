@@ -75,6 +75,7 @@ struct WaveTrainProfileV2 {
         std::array<double,16> contourAlpha{};
         std::vector<Finger> fingers;
         std::vector<Strand> lace,tangle,falling;
+        std::vector<V2> snow;std::vector<double> snowSize; // drifting foam dots
         std::vector<Whitecap> whitecaps;
         std::vector<Clump> clumps;double foamThickness=0,gapFraction=1;
     };
