@@ -13,11 +13,12 @@ struct BoatOnWaterParametersV1 {
     double x=1400, row=7, length=300, scale=.6;
     double driftX=55, driftRows=.15, driftSpeed=.012;
     int crewCount=5, oarCount=5, seed=101, band=0;
-    double rowingTempo=.34, tempoGain=.22, splashGain=.28, kickGain=.18;
+    double rowingTempo=.34, tempoGain=.22, splashGain=.28, kickGain=.18, pitchGain=1;
     Col hull=hex(0xc0a36e), trim=hex(0xe6c384), ink=hex(0x14141c), foam=hex(0xdcd7ba);
 };
 struct BoatOnWaterPoseV1 {
     V2 at; double row=0, tilt=0, waterline=0, stroke=0, splash=0, spray=0, brace=0;
+    double effort=0, urgency=0, rate=0; // loudness pull, escape haste, strokes per second
 };
 struct BoatGullPoseV1 {V2 at;double flap=0,alpha=0;bool landed=false;};
 struct BoatOnWaterV1 {

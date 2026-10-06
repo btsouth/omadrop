@@ -43,7 +43,8 @@ void GradientSkyV1::draw(Ctx& c, const GradientSkyParametersV1& p) {
         Canvas& cv=c.canvas();
         // Kasumi: flat printed mist bands with stepped, rounded ends, a little
         // lighter than the sky behind them. Each is a stack of capsules in one
-        // opaque tone, so overlaps never darken. They drift very slowly.
+        // opaque tone, so overlaps never darken. They drift slowly downwind,
+        // a little faster while the music is loud, and wrap fully offscreen.
         auto skyAt=[&](double y) {
             Col col=p.stops.front().color;
             for(std::size_t i=1;i<p.stops.size();++i)
@@ -54,7 +55,9 @@ void GradientSkyV1::draw(Ctx& c, const GradientSkyParametersV1& p) {
         static const Band bands[]={{360,128,760,30,.62,3},{1500,212,620,24,.55,2},{560,330,520,20,.6,2},{1640,402,380,16,.5,2}};
         for(std::size_t i=0;i<std::size(bands);++i) {
             const auto& b=bands[i];
-            const double x=b.x+46*std::sin(c.t*(.010+.004*i)+i*1.7);
+            const double loud=c.score?c.score->bandIntegrals[1]+c.score->bandIntegrals[2]:0;
+            const double reach=b.w*.75+120,span=1920+2*reach;
+            double x=std::fmod(b.x+reach+(5+1.6*i)*c.t+10*loud,span);if(x<0)x+=span;x-=reach;
             const Col tone=mix(skyAt(b.y),hex(0xf7f0e1),.62);
             for(int t=0;t<b.tiers;++t) {
                 const double w=b.w*std::pow(b.step,t),h=b.h*(1-.18*t),y=b.y-t*b.h*.62;

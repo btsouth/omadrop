@@ -213,6 +213,8 @@ no `params`, so its drawing is unchanged.
 
 `gradient-sky.*` ports the Journey sunset ramp and paper wash as palette-controlled
 `gradient-sky-v1` slot parameters. It has no Journey timing or Osaka sky dependency.
+With `cloudBands`, four flat kasumi bands drift downwind at 5 to 10 px/s, faster
+by the mid-band integrals while the music is loud, and wrap fully offscreen.
 
 `water-surface.*` ports `printSea`, `calmSea` texture and `sea` reflections from
 the Journey prototype. Geometry and controls are evaluated live; band integrals
@@ -274,6 +276,14 @@ both ends of the same field. No independently phased bob is added.
 `splashGain` (0 to .5) and `kickGain` (0 to .35) control art/music. Rowing phase is
 base tempo plus the selected causal band integral, so changing music does not
 jump a pose. Band energy/kick lightly brighten oar rings; kick adds bow spray.
+With a schedule, the stroke instead follows `MomentScheduleV1`'s shared row
+clock: one catch per detected beat, or half time above 112 bpm, pulled into phase
+by easing its rate so crews never rewind. Each catch throws a cream crown and
+droplets. Loudness lengthens the reach and lean; escaping a set adds urgency
+(bigger wake, splash and spray); a towering crest close behind makes the crew
+lean back with blades raised. An oar that cannot reach a trough stays dry.
+`pitchGain` (1 to 2.5) exaggerates pitch on a wave-riding hull; the keel fit
+keeps the hull above its support.
 The check tool measures each boat's current music/silence hull-and-oar footprint.
 
 ## Printed wildlife and recurring moments
@@ -284,7 +294,11 @@ Canvas. Shared parameters are x, y, width, height, scale, gain, speed, count,
 seed, band, color, accent and ink. Fish and creatures resolve waterInstance to
 an existing SwellLines slot and use its fractional row; the loader checks both.
 Smoke reads a causal band body, birds read treble integral and onset flaps,
-and fish and creatures vary their excursion with the selected band.
+and fish and creatures vary their excursion with the selected band. Strong bass
+hits push a flat lobed puff up the plume and throw a few embers; a surge
+erupts a column of larger puffs. A `BirdFlock` with `resident` keeps a wheeling
+flock in its sky band most of the time; strong kicks throw it upward and apart
+as smooth impulses and it regroups within two seconds.
 
 `PrintMoments` domain 0 places sky passes, squalls and surge wind; domain 1 uses
 the named water field for passing fishing/lantern boats and gusts; domain 2
@@ -292,6 +306,11 @@ places a moving, music-brightened snow glint. World folders choose the placement
 and palette. `MomentScheduleV1` uses a seeded permutation of nine events with
 five to ten seconds between starts, plus independent flock and creature clocks.
 The first occurrence of a moment uses its original speed; later speeds vary.
+Music also cues moments that are not already on screen: strong kicks throw fish
+(7 s cooldown), a measured rise or surge sends cranes and a gust (20 s), and a
+held loud passage brings a working boat across (30 s). Working boats and cranes
+enter and leave beyond the frame edge. The creature returns every 70 to 120 s,
+and the foreground swell rolls for 13 s every 16 to 24 s, heaving with the bass.
 
 `surgeEnabled` opts wave, water, foam, boats, smoke and birds into the independent
 sustained-bass surge. Its body envelope eases in over 1.8 seconds and settles by

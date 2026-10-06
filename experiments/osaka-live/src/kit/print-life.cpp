@@ -11,20 +11,48 @@ void SmokePlumeV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
     const double bass=p.gain*(c.score?c.score->bandBody[1][p.band]:c.band(p.band));
     const double surge=p.surgeEnabled && c.schedule?c.schedule->print.surge(c.t):0;
     const double drift=c.t*.25*p.speed+(c.score?c.score->bandIntegrals[p.band]*.35:0);
+    const double pulse=c.kick(2.5);
     // Long tapered ribbons begin at the vent. Their drift is continuous and
     // their far ends dissolve into the printed sky instead of puff cycling.
     for(int i=0;i<std::min(p.count,5);++i){std::vector<V2> points;
-        for(int k=0;k<=24;++k){double u=k/24.,y=p.y-u*p.height*(.55+.09*i+.25*bass),x=p.x+u*p.width*(.35+.7*bass)+std::sin(u*7-drift+i*.3)*u*(8+18*bass);
+        for(int k=0;k<=24;++k){double u=k/24.,y=p.y-u*p.height*(.55+.09*i+.25*bass+.12*pulse),x=p.x+u*p.width*(.35+.7*bass)+std::sin(u*7-drift+i*.3)*u*(8+18*bass);
             points.push_back({x,y});}
         // One flat tapered ribbon per plume strand: crisp edges, fading only
         // by width toward its tail, never stacked soft strokes.
         std::vector<V2> l,r;
         for(int k=0;k<=24;++k){const double u=k/24.;const V2 t=points[std::min(k+1,24)]-points[std::max(k-1,0)];
             const double len=std::max(1e-6,std::hypot(t.x,t.y));const V2 n{-t.y/len,t.x/len};
-            const double w=(1.2+5.5*std::sin(Pi*std::min(1.,u*1.25))+4*bass)*p.scale*(1-.75*u);
+            const double w=(1.2+5.5*std::sin(Pi*std::min(1.,u*1.25))+4*bass+4.5*pulse*(1-u))*p.scale*(1-.75*u);
             l.push_back(points[k]+n*w);r.push_back(points[k]-n*w);}
         const Col smoke=mix(p.color,hex(0x54546d),.25);const double alpha=(.50+.25*bass)*(1-.25*i);
         for(int k=0;k<24;++k){cv.tri(l[k],l[k+1],r[k+1],smoke,alpha);cv.tri(l[k],r[k+1],r[k],smoke,alpha);}}
+    // Strong bass hits push a flat lobed puff up the plume and throw a few
+    // embers from the vent; a surge erupts a column of larger puffs. Puffs
+    // shrink away at the top instead of blurring.
+    const Col puffTone=mix(p.color,hex(0xdcd7ba),.35);
+    auto puff=[&](double x,double y,double r,double id){if(r<.5)return;cv.color(puffTone,.78);
+        for(int k=0;k<=20;++k){const double a=Tau*k/20.,q=r*(1+.16*std::sin(3*a+id*6)+.07*std::sin(5*a+id*9));
+            const V2 at{x+q*std::cos(a),y+.72*q*std::sin(a)};if(k)cv.lineTo(at.x,at.y);else cv.moveTo(at.x,at.y);}
+        cv.closePath();cv.fill();};
+    auto ember=[&](double x,double y,double size,bool hot){cv.color(hot?p.ink:p.accent,.9);cv.ellipse(x,y,.9*size*p.scale,1.9*size*p.scale);cv.fill();};
+    if(c.score){
+        // Newest last, so a fresh puff sits over the older ones it pushes up.
+        std::array<const Event*,3> hits{};int shown=0;
+        for(auto it=c.score->bassHits.rbegin();it!=c.score->bassHits.rend() && shown<3;++it){
+            const double age=c.t-it->t;if(age<0)continue;if(age>3.6)break;if(it->strength>=.55)hits[shown++]=&*it;}
+        for(int pass=0;pass<2;++pass)for(int h=shown-1;h>=0;--h){const auto& e=*hits[h];
+            const double age=c.t-e.t,s=e.strength,life=age/3.6,id=hash2(double(e.serial%997),p.seed+3);
+            if(pass==0){const double rise=1-(1-life)*(1-life),along=rise*p.height*.7;
+                puff(p.x+along*(.35+.5*life)*p.width/p.height+6*std::sin(age*1.7+id*5)*p.scale,p.y-8-along,
+                    (4+7*s)*p.scale*std::pow(std::sin(Pi*std::min(1.,.10+life)),.6),id);}
+            else if(age<1.4)for(int j=0;j<5;++j){const double a=hash2(j,id*97+p.seed),b=hash2(j+5,id*97+p.seed);
+                const double side=(j%2?1:-1)*(.45+.55*a),x=p.x+side*(70+40*b)*age*p.scale,y=p.y-3-(70+60*b)*age*p.scale+80*age*age*p.scale;
+                if(y<p.y-2)ember(x,y,1.2*(1-sstep(.8,1.4,age)),j%2==0);}
+        }}
+    if(surge>0){const double age=c.t-c.schedule->print.surgeStart;
+        for(int i=0;i<6;++i){const double life=(age-.45*i)/7;if(life<=0 || life>=1)continue;
+            puff(p.x+(20+90*life)*life*p.scale+(i%2?-1:1)*12*p.scale,p.y-10-(110+30*i)*(1-(1-life)*(1-life))*p.scale,
+                (16+5*i)*p.scale*std::pow(std::sin(Pi*std::min(1.,.06+life)),.6),hash2(i,p.seed+9));}}
     const double beat=c.kick(5);cv.color(p.ink,.25+.55*beat);cv.ellipse(p.x,p.y+1,(2+3*beat)*p.scale,1.8*p.scale);cv.fill();
     if(surge>0){const double age=c.t-c.schedule->print.surgeStart;
         for(int i=0;i<18;++i){double delay=hash2(i,p.seed)*2,life=(age-delay)/6;
@@ -45,8 +73,40 @@ void printBird(Canvas&cv,const PrintBirdPoseV1&b,const PrintLifeParametersV1&p,b
     cv.restore();
 }
 }
+namespace {
+// A resident flock wheels slowly over the sea and stays in the frame most of
+// the time. Strong kicks throw it upward and apart; it regroups within two
+// seconds. Each kick is a smooth impulse, so frequent hits never snap birds.
+void residentFlock(const Ctx&c,const PrintLifeParametersV1&p,std::vector<PrintBirdPoseV1>&out){
+    double scatter=0;
+    if(c.score)for(auto it=c.score->bassHits.rbegin();it!=c.score->bassHits.rend();++it){
+        const double age=c.t-it->t;if(age<0)continue;if(age>3)break;
+        scatter+=sstep(.45,.85,it->strength)*(age/.3)*std::exp(1-age/.3);}
+    scatter=std::tanh(scatter)+(p.surgeEnabled && c.schedule?.7*c.schedule->print.surge(c.t):0);
+    double level=0;if(c.score){for(double b:c.score->bandBody[0])level+=b*b;level=clamp01(3.2*std::sqrt(level/6));}
+    const double phase=Tau*hash2(p.seed,5),t=c.t;
+    const double cx=p.x+p.width*(.5+.44*std::sin(t*.019+phase)+.08*std::sin(t*.051+phase*1.7));
+    const double cvx=p.width*(.44*.019*std::cos(t*.019+phase)+.08*.051*std::cos(t*.051+phase*1.7));
+    const double cy=p.y+p.height*(.42+.22*std::sin(t*.031+phase*.6));
+    const double integral=c.score?c.score->bandIntegrals[p.band]:0;
+    for(int i=0;i<p.count;++i){
+        const double id=hash2(i,p.seed+11),id2=hash2(i,p.seed+13),depth=hash2(i,p.seed+17);
+        const double radius=(40+130*id)*(1+.35*scatter),omega=(.26+.22*id2)*(i%4?1:-1),angle=omega*t+Tau*hash2(i,p.seed+19);
+        const double x=cx+radius*std::cos(angle)+(id-.5)*320*scatter;
+        const double y=cy+.36*radius*std::sin(angle)-(50+120*id2)*scatter;
+        const double vx=cvx-radius*omega*std::sin(angle);
+        // Glide, then a burst of wing beats; loud passages and hits flap more.
+        const double glide=sstep(-.3,.5,std::sin(t*(.45+.3*id)+i*2.1));
+        const double beat=std::sin(t*(5.2+2.2*id)+integral*3+i*1.3);
+        const double flap=lerp(.35,beat,clamp01(glide+.5*level))*(1+.6*c.hit(7)+.8*scatter);
+        const double perspective=p.nearEvents?lerp(1.,.28,sstep(280,612,y)):1.;
+        const double heading=std::tanh(vx/18);
+        out.push_back({x,y,p.scale*(.5+.55*depth)*perspective,flap,(heading<0?-1:1)*(.45+.55*std::abs(heading)),1});
+    }
+}
+}
 std::vector<PrintBirdPoseV1> BirdFlockV1::poses(const Ctx&c,const PrintLifeParametersV1&p){
-    std::vector<PrintBirdPoseV1> out;if(!c.schedule)return out;const auto&clock=c.schedule->print;
+    std::vector<PrintBirdPoseV1> out;if(p.resident)residentFlock(c,p,out);if(!c.schedule)return out;const auto&clock=c.schedule->print;
     const double sinceSurge=c.t-clock.surgeStart,scatter=p.surgeEnabled?clock.surge(c.t):0;
     const bool scattering=p.surgeEnabled && sinceSurge>=0 && sinceSurge<10;
     auto event=clock.flock;if(scattering){event.start=clock.surgeStart;event.duration=10;event.count=p.count;event.height=.55;}
@@ -118,8 +178,10 @@ void PrintMomentsV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
     auto active=[&](PrintMoment m){const auto&v=clock.events[int(m)];double u=(c.t-v.start)/v.duration;return std::pair<double,double>{u,sstep(0,.10,u)*(1-sstep(.80,1,u))};};
     if(p.domain==0){
         auto [u,alpha]=active(PrintMoment::Cranes);const auto&v=clock.events[int(PrintMoment::Cranes)];
-        if(alpha>0 && (!p.nearEvents || v.cycle%2==0))for(int i=0;i<(p.nearEvents?1:2);++i){double x=p.x+(v.direction>0?u:1-u)*(p.width+160)-80-i*65*v.direction,y=p.y+60+p.height*v.height*.45+i*23;
-            printBird(cv,{x,y,(p.nearEvents?.65:1.35)*p.scale,std::sin(c.t*3.4+i*.5+(c.score?c.score->bandIntegrals[p.band]:0))*(1+.5*c.hit(6)),v.direction,alpha},p,true);}
+        // A skein of cranes in echelon, slow deep wing beats lifted by hits.
+        // They enter and leave beyond the frame edge instead of fading out.
+        if(u>0 && u<1)for(int i=0;i<(p.nearEvents?3:2);++i){double x=p.x+(v.direction>0?u:1-u)*(p.width+480)-240-i*70*v.direction,y=p.y+20+p.height*v.height*.35+i*20;
+            printBird(cv,{x,y,(p.nearEvents?1.55:1.35)*p.scale*(1-.1*i),std::sin(c.t*2.6+i*.7+(c.score?c.score->bandIntegrals[p.band]:0))*(1+.5*c.hit(6)),v.direction,1},p,true);}
         auto [su,sa]=active(PrintMoment::Star);if(sa>0){const auto&v=clock.events[int(PrintMoment::Star)];double x=p.x+p.width*(.30+.35*v.height)+su*330,y=p.y-130+su*115;
             cv.line(x-90,y-32,x,y,1.8*p.scale,p.accent,.6*sa);cv.disc(x,y,2.4*p.scale,p.accent,sa);}
         auto [qu,qa]=active(PrintMoment::Squall);if(qa>0){const auto&v=clock.events[int(PrintMoment::Squall)];
@@ -145,12 +207,13 @@ void PrintMomentsV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
         for(int i=0;i<8;++i){double y=p.y+30+i*17,x=p.x+p.width*(.5+.5*std::sin(c.t*.23+i*.53));
             cv.color(p.accent,.20*surge);cv.moveTo(x-170,y);cv.curveTo(x-70,y-12,x+70,y+9,x+180,y-4);cv.stroke(1.2*p.scale);}
     }else if(p.domain==1){
-        for(auto type:{PrintMoment::FishingBoat,PrintMoment::LanternBoat}){auto [u,alpha]=active(type);if(alpha<=0)continue;const auto&v=clock.events[int(type)];
-            const double x=p.x+(v.direction>0?u:1-u)*(p.width+160)-80;
+        // Working boats sail in and out past the frame edge, never fading.
+        for(auto type:{PrintMoment::FishingBoat,PrintMoment::LanternBoat}){auto [u,fade]=active(type);if(u<=0 || u>=1)continue;const auto&v=clock.events[int(type)];
+            const double alpha=1,x=p.x+(v.direction>0?u:1-u)*(p.width+360)-180;(void)fade;
             const double y=printWater(c,p,x);
             // The occasional fishing and lantern hulls get the same crisp
             // contact language as the rowboats, scaled by their crossing speed.
-            const double pace=std::min(1.,(p.width+160)/v.duration/240.);
+            const double pace=std::min(1.,(p.width+360)/v.duration/240.);
             const double tail=x-v.direction*60*p.scale,wake=(16+22*pace)*p.scale;
             cv.color(p.accent,.5*alpha);cv.moveTo(tail,printWater(c,p,tail)+9*p.scale);
             cv.curveTo(tail-v.direction*wake*.35,printWater(c,p,tail)+10*p.scale,
@@ -181,8 +244,12 @@ void PrintMomentsV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
         if(u<=0 || u>=1)return;
         const double envelope=sstep(0,.24,u)*(1-sstep(.70,1,u));
         const double bass=clamp01(3*(c.score?c.score->bandBody[1][0]:c.band(0)));
-        auto crest=[&](double x){return 1122-envelope*(82+13*bass)+30*std::sin(x*.0036-c.t*.31*v.direction)
-            +12*std::sin(x*.0081+1.3-c.t*.19*v.direction);};
+        // The swell rolls faster and heaves while the bass is loud, and each
+        // strong kick lifts its crest and flicks its claws.
+        const double integral=c.score?c.score->bandIntegrals[0]:0,kick=c.kick(4);
+        const double roll=c.t*.31+1.1*integral,heave=envelope*(12*std::sin(.9*c.t+2.2*integral)+16*kick);
+        auto crest=[&](double x){return 1122-envelope*(82+13*bass)-heave+30*std::sin(x*.0036-roll*v.direction)
+            +12*std::sin(x*.0081+1.3-(c.t*.19+.6*integral)*v.direction);};
         // A printed foreground wave: bokashi body, key line, broken cream crest
         // and a few irregular claws, matching the hero's language.
         std::vector<V2> edge;double hi=1e9;
@@ -196,7 +263,7 @@ void PrintMomentsV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
         // Claws gather only at the crest's peaks, leaning the way it travels.
         for(std::size_t i=2;i+2<edge.size();++i){
             if(!(edge[i].y<edge[i-1].y && edge[i].y<=edge[i+1].y))continue;
-            for(int k=0;k<4;++k){const double size=(1.05-.18*k)*(.7+.3*hash2(k,i+p.seed));
+            for(int k=0;k<4;++k){const double size=(1.05-.18*k)*(.7+.3*hash2(k,i+p.seed))*(1+.35*kick);
                 const double xx=edge[i].x+v.direction*(k*15-8),y=crest(xx)+1,d=v.direction;
                 cv.color(hex(0x0e2140),.8*envelope);cv.moveTo(xx-2*d,y);cv.curveTo(xx+8*size*d,y-10*size,xx+22*size*d,y-5*size,xx+23*size*d,y+10*size);
                 cv.curveTo(xx+15*size*d,y+2*size,xx+6*size*d,y+1,xx-2*d,y);cv.closePath();cv.fill();
@@ -205,7 +272,7 @@ void PrintMomentsV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
         const double hit=c.kick(5)+c.hit(5);
         for(int i=0;i<18;++i){const double phase=c.t*.36+hash2(i,p.seed),f=phase-std::floor(phase),x=90+i*102+f*14;
             const double alpha=envelope*sstep(0,.10,f)*(1-sstep(.5,1,f))*(.20+.45*hit);
-            cv.disc(x,crest(x)-25*std::sin(Pi*f)*(1+.25*bass),1.2,p.accent,alpha);}
+            cv.disc(x,crest(x)-25*std::sin(Pi*f)*(1+.25*bass+.8*hit),1.2+1.4*hit,p.accent,alpha);}
     }else{
         auto [u,alpha]=active(PrintMoment::SnowGlint);if(alpha>0){const double x=p.x-14+u*26,y=p.y+9+7*std::sin(u*Pi);
             alpha*=.1+.9*clamp01(2*c.band(p.band)*p.gain+.7*c.hit(5)+c.kick(5));

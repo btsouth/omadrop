@@ -24,6 +24,14 @@ int main(int argc,char** argv){QCoreApplication app(argc,argv);try{
  score={};p=BoatOnWaterParametersV1{};const auto seeded=capture();p.seed++;
  require(seeded!=capture(),"boat seed ignored");p=BoatOnWaterParametersV1{};c.t=194;
  require(capture()!=quiet,"boat visibly repeats after three minutes");
+ // With a schedule, catches follow the shared beat clock and loud music
+ // lengthens the pull.
+ {Schedule clock(1);c.schedule=&clock;c.t=14;score={};c.a={};p=BoatOnWaterParametersV1{};
+  clock.print.rowPhase=3;require(std::abs(BoatOnWaterV1::pose(c,p).stroke-3)<.05,"crew ignores the beat clock");
+  const auto caught=capture();clock.print.rowPhase=3.5;require(capture()!=caught,"beat clock does not move the crew");
+  clock.print.rowPhase=3.02;const auto quietCatch=capture();for(auto&body:score.bandBody)body.fill(.6);
+  require(BoatOnWaterV1::pose(c,p).effort>.8 && capture()!=quietCatch,"loud music does not lengthen the pull");
+  c.schedule=nullptr;score={};p=BoatOnWaterParametersV1{};}
  // Eight hours, music/silence, fractional depths and continuous seeded lanes.
  double maxContact=0,maxPitchError=0;BoatOnWaterPoseV1 previous;bool first=true;
  for(int i=0;i<=28800;++i){c.t=i;c.a.bands.fill(i%3?.8:0);for(auto& body:score.bandBody)body.fill(i%3?.8:0);
