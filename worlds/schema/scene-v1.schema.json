@@ -17,7 +17,8 @@
       "const": 1
     },
     "world": {
-      "const": "osaka-jade"
+      "type": "string",
+      "minLength": 1
     },
     "profile": {
       "const": "osaka-world-v1"
@@ -1015,135 +1016,52 @@
         },
         "elements": {
           "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "near-house-shell",
-            "right-house-2-shell",
-            "right-house-3-shell",
-            "near-house-roof",
-            "near-house-eaves",
-            "right-house-2-roof",
-            "right-house-3-roof",
-            "right-house-3-eaves",
-            "near-house-lattice",
-            "izakaya-lattice",
-            "near-house-deck",
-            "street-railing",
-            "yatai-frame",
-            "izakaya-counter",
-            "laundry-line",
-            "near-house-lamp-hanger",
-            "sign-glyph-0",
-            "sign-glyph-1",
-            "sign-glyph-2",
-            "sign-glyph-3",
-            "sign-glyph-4",
-            "sign-glyph-5",
-            "sign-glyph-6",
-            "near-house-mask",
-            "shamisen-mask"
-          ],
-          "properties": {
-            "near-house-shell": {
-              "type": "string",
-              "minLength": 1
-            },
-            "right-house-2-shell": {
-              "type": "string",
-              "minLength": 1
-            },
-            "right-house-3-shell": {
-              "type": "string",
-              "minLength": 1
-            },
-            "near-house-roof": {
-              "type": "string",
-              "minLength": 1
-            },
-            "near-house-eaves": {
-              "type": "string",
-              "minLength": 1
-            },
-            "right-house-2-roof": {
-              "type": "string",
-              "minLength": 1
-            },
-            "right-house-3-roof": {
-              "type": "string",
-              "minLength": 1
-            },
-            "right-house-3-eaves": {
-              "type": "string",
-              "minLength": 1
-            },
-            "near-house-lattice": {
-              "type": "string",
-              "minLength": 1
-            },
-            "izakaya-lattice": {
-              "type": "string",
-              "minLength": 1
-            },
-            "near-house-deck": {
-              "type": "string",
-              "minLength": 1
-            },
-            "street-railing": {
-              "type": "string",
-              "minLength": 1
-            },
-            "yatai-frame": {
-              "type": "string",
-              "minLength": 1
-            },
-            "izakaya-counter": {
-              "type": "string",
-              "minLength": 1
-            },
-            "laundry-line": {
-              "type": "string",
-              "minLength": 1
-            },
-            "near-house-lamp-hanger": {
-              "type": "string",
-              "minLength": 1
-            },
-            "sign-glyph-0": {
-              "type": "string",
-              "minLength": 1
-            },
-            "sign-glyph-1": {
-              "type": "string",
-              "minLength": 1
-            },
-            "sign-glyph-2": {
-              "type": "string",
-              "minLength": 1
-            },
-            "sign-glyph-3": {
-              "type": "string",
-              "minLength": 1
-            },
-            "sign-glyph-4": {
-              "type": "string",
-              "minLength": 1
-            },
-            "sign-glyph-5": {
-              "type": "string",
-              "minLength": 1
-            },
-            "sign-glyph-6": {
-              "type": "string",
-              "minLength": 1
-            },
-            "near-house-mask": {
-              "type": "string",
-              "minLength": 1
-            },
-            "shamisen-mask": {
-              "type": "string",
-              "minLength": 1
-            }
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "piece",
+          "profile",
+          "band",
+          "kick",
+          "onset",
+          "always"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "piece": {
+            "const": "window"
+          },
+          "profile": {
+            "const": "generic-window-v1"
+          },
+          "band": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5
+          },
+          "kick": {
+            "type": "boolean"
+          },
+          "onset": {
+            "type": "boolean"
+          },
+          "always": {
+            "type": "boolean"
           }
         }
       }
@@ -1151,7 +1069,7 @@
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://omadrop.org/worlds/scene-v1.schema.json",
-  "title": "Omadrop scene v1 (Osaka Jade round A)",
+  "title": "Omadrop scene v1",
   "$defs": {
     "renderSlot": {
       "type": "object",

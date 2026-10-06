@@ -26,7 +26,7 @@ struct Style {
     Qt::PenCapStyle cap=Qt::FlatCap;
     Qt::PenJoinStyle join=Qt::SvgMiterJoin;
 };
-void replay(Canvas& canvas,const QPainterPath& path) {
+void appendPath(Canvas& canvas,const QPainterPath& path) {
     // Sign-outline style replay, after SVG normalization. QPainterPath stores
     // quadratics as cubics. It preserves explicit close by returning to start.
     for(int i=0;i<path.elementCount();++i) {
@@ -287,7 +287,7 @@ public:
             if(tag=="rect"&&shape[4]==0&&shape[5]==0) {c.rect(shape[0],shape[1],shape[2],shape[3]);return;}
             if(tag=="circle"||tag=="ellipse") {c.ellipse(shape[0],shape[1],shape[2],shape[3]);return;}
             if(tag=="line") {c.moveTo(shape[0],shape[1]);c.lineTo(shape[2],shape[3]);return;}
-            if(ops.empty()) {replay(c,path);return;}
+            if(ops.empty()) {appendPath(c,path);return;}
             for(const auto& op:ops) {const auto& v=op.v;switch(op.code) {
                 case 'M':c.moveTo(v[0],v[1]);break;case 'L':c.lineTo(v[0],v[1]);break;
                 case 'Q':c.quadTo(v[0],v[1],v[2],v[3]);break;
@@ -306,7 +306,7 @@ public:
         return [geometry,fill,stroke,world,s,round,outline,path,clip](Canvas& c,const Col* tint,double alpha) {
             c.save();c.transform(world.m11(),world.m12(),world.m21(),world.m22(),world.dx(),world.dy());
             if(fill) {fill(c,tint,alpha);geometry(c);c.fill(s.rule==Qt::OddEvenFill);}
-            if(stroke) {stroke(c,tint,alpha);if(round){geometry(c);c.stroke(s.width);}else{replay(c,outline);c.fill(outline.fillRule()==Qt::OddEvenFill);}}
+            if(stroke) {stroke(c,tint,alpha);if(round){geometry(c);c.stroke(s.width);}else{appendPath(c,outline);c.fill(outline.fillRule()==Qt::OddEvenFill);}}
             c.restore();
         };
     }
@@ -359,11 +359,11 @@ public:
             const auto extent=transformed.boundingRect();
             for(const double v:{extent.left(),extent.top(),extent.right(),extent.bottom(),s.width*std::max(std::abs(world.m11())+std::abs(world.m21()),std::abs(world.m12())+std::abs(world.m22()))})
                 if(!std::isfinite(v)||std::abs(v)>1e7)fail(*n,"geometry exceeds coordinate limit",false);
-            if(s.fill!="none") {paint(*canvas,*n,s.fill,s.fillAlpha,s,world,path.boundingRect());replay(*canvas,transformed);canvas->fill(transformed.fillRule()==Qt::OddEvenFill);}
+            if(s.fill!="none") {paint(*canvas,*n,s.fill,s.fillAlpha,s,world,path.boundingRect());appendPath(*canvas,transformed);canvas->fill(transformed.fillRule()==Qt::OddEvenFill);}
             if(s.stroke!="none"&&s.width>0) {
                 QPainterPathStroker stroker;stroker.setWidth(s.width);stroker.setCapStyle(s.cap);stroker.setJoinStyle(s.join);stroker.setMiterLimit(s.miter/2.);stroker.setCurveThreshold(.01);
                 const auto outline=world.map(stroker.createStroke(path));const auto bounded=clip?outline.intersected(*clip):outline;
-                paint(*canvas,*n,s.stroke,s.strokeAlpha,s,world,path.boundingRect());replay(*canvas,bounded);canvas->fill(bounded.fillRule()==Qt::OddEvenFill);
+                paint(*canvas,*n,s.stroke,s.strokeAlpha,s,world,path.boundingRect());appendPath(*canvas,bounded);canvas->fill(bounded.fillRule()==Qt::OddEvenFill);
             }
         }
         const bool container=n->tag=="svg"||n->tag=="g"||n->tag=="defs"||n->tag=="symbol";
@@ -425,10 +425,10 @@ bool SvgArt::fillGradient(Canvas& target,const QString& id,const Col& top,const 
                          e.transform.m22(),e.transform.dx(),e.transform.dy());
         const auto box=e.geometry.boundingRect();
         if(box.height()>0)
-            target.linear(box.top(),box.bottom(),{{0,top,float(alpha)},{1,bottom,float(alpha)}});
+            target.linear(0,box.top(),0,box.bottom(),{{0,top,float(alpha)},{1,bottom,float(alpha)}});
         else
             target.color(top,alpha);
-        replay(target,e.geometry);
+        appendPath(target,e.geometry);
         target.fill();
         target.restore();
         return true;

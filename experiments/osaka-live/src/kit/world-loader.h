@@ -20,7 +20,7 @@ private:
     friend std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString&);
 };
 QString osakaWorldsRoot();
-void initializeOsakaWorld();
+void initializeOsakaWorld(const QString& world = QStringLiteral("osaka-jade"));
 // Throws std::runtime_error with file, JSON path and expectation.
 std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder);
 }

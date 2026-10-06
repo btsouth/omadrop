@@ -176,7 +176,9 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         w.windows.push_back(parseWindowLabel(file,element.id,element.label));
     }
     if(!art["elements"].isObject())r.fail("$.art.elements","element binding object");
-    const auto bindings=r.object(art["elements"],"$.art.elements",{"near-house-shell","right-house-2-shell","right-house-3-shell","near-house-roof","near-house-eaves","right-house-2-roof","right-house-3-roof","right-house-3-eaves","near-house-lattice","izakaya-lattice","near-house-deck","street-railing","yatai-frame","izakaya-counter","laundry-line","near-house-lamp-hanger","sign-glyph-0","sign-glyph-1","sign-glyph-2","sign-glyph-3","sign-glyph-4","sign-glyph-5","sign-glyph-6","near-house-mask","shamisen-mask"});
+    const auto bindings=worldName=="osaka-jade"
+        ? r.object(art["elements"],"$.art.elements",{"near-house-shell","right-house-2-shell","right-house-3-shell","near-house-roof","near-house-eaves","right-house-2-roof","right-house-3-roof","right-house-3-eaves","near-house-lattice","izakaya-lattice","near-house-deck","street-railing","yatai-frame","izakaya-counter","laundry-line","near-house-lamp-hanger","sign-glyph-0","sign-glyph-1","sign-glyph-2","sign-glyph-3","sign-glyph-4","sign-glyph-5","sign-glyph-6","near-house-mask","shamisen-mask"})
+        : art["elements"].toObject();
     for(auto it=bindings.begin();it!=bindings.end();++it) {
         const auto id=r.string(it.value(),fieldPath("$.art.elements",it.key()));
         bool found=false;for(const auto& e:w.art->elements())if(e.id==id)found=bool(e.replay)&&(e.tag=="g"||e.tag=="path"||e.tag=="rect"||e.tag=="circle");

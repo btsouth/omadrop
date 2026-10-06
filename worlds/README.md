@@ -8,10 +8,12 @@ loader also checks unique IDs and profile/piece and event dependencies.
 The renderer validates and loads the folder once at startup. Missing or invalid
 files are errors, with a filename, JSON path and expected value. There is no
 compiled fallback. Installed worlds live in `/usr/lib/omadrop/worlds/`, beside
-`bin/`. For a source build, set `OMADROP_WORLDS` to this directory:
+`bin/`. For a source build, set `OMADROP_WORLDS` to this directory. The default
+world is `osaka-jade`; pass `--world` to load another folder:
 
 ```sh
 OMADROP_WORLDS="$PWD/worlds" experiments/osaka-live/build/omadrop-osaka
+OMADROP_WORLDS="$PWD/worlds" experiments/osaka-live/build/omadrop-osaka --world examples/lit-windows
 ```
 
 Numbers use exact decimal doubles; existing float conversions happen at the
