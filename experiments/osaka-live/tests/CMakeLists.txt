@@ -149,3 +149,24 @@ add_test(NAME boat-hull-below-crest-and-outside-curl COMMAND boat-wave-clearance
 add_test(NAME foreground-swell-bounded-and-music COMMAND print-life-tests swell)
 
 add_test(NAME boat-gull-landing-and-hit-takeoff COMMAND boat-wave-clearance-tests --gull)
+
+
+# W1 lab is deliberately separate from the world loader and production app.
+add_executable(wave-train-tests wave_train_tests.cpp ../src/kit/wave-train.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/score.cpp ../src/audio.cpp)
+target_include_directories(wave-train-tests PRIVATE ../src)
+target_link_libraries(wave-train-tests PRIVATE Qt6::Gui Qt6::OpenGL PkgConfig::FFTW)
+add_test(NAME wave-train-simple-silhouette COMMAND wave-train-tests profile)
+add_test(NAME wave-train-deterministic COMMAND wave-train-tests deterministic)
+add_test(NAME wave-train-no-crash COMMAND wave-train-tests no-crash)
+add_test(NAME wave-train-continuous-response COMMAND wave-train-tests continuous)
+set(WAVE_TRAIN_FIXTURE "" CACHE FILEPATH "Optional real stereo f32 fixture for W1")
+if(WAVE_TRAIN_FIXTURE)
+    add_test(NAME wave-train-fixture-continuity COMMAND wave-train-tests fixture ${WAVE_TRAIN_FIXTURE})
+endif()
+add_executable(omadrop-wave-lab ../tools/wave-lab.cpp ../src/kit/wave-train.cpp
+    ../src/kit/gradient-sky.cpp ../src/kit/water-surface.cpp ../src/kit/swell-lines.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp ../src/audio.cpp)
+target_include_directories(omadrop-wave-lab PRIVATE ../src)
+target_link_libraries(omadrop-wave-lab PRIVATE Qt6::Gui Qt6::OpenGL EGL PkgConfig::FFTW)
+target_compile_definitions(omadrop-wave-lab PRIVATE KANAGAWA_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/kanagawa")
