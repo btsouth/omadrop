@@ -36,3 +36,9 @@ option(SVG_UPDATE_GOLDENS "Regenerate SVG reference PNGs on the named reference 
 if(SVG_UPDATE_GOLDENS)
     set_tests_properties(supported-svg-import PROPERTIES ENVIRONMENT "SVG_UPDATE_GOLDENS=1")
 endif()
+
+add_executable(omadrop-svg-import ../src/kit/svg-check.cpp ../src/kit/svg-art.cpp ../src/kit/svg-path.cpp ../src/canvas.cpp)
+target_include_directories(omadrop-svg-import PRIVATE ../src)
+target_link_libraries(omadrop-svg-import PRIVATE Qt6::Gui)
+target_compile_definitions(osaka-svg-tests PRIVATE SVG_CHECK_TOOL="$<TARGET_FILE:omadrop-svg-import>")
+add_dependencies(osaka-svg-tests omadrop-svg-import)

@@ -6,6 +6,9 @@
 #include <QDir>
 #include <QProcess>
 #include <QStandardPaths>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 #include <iostream>
 #include <cmath>
 #include <cstdlib>
@@ -145,4 +148,17 @@ static void images() {
     }
     std::cout<<"PASS exact committed SVG goldens\n";
 }
-int main(int argc,char** argv) {QCoreApplication app(argc,argv);parsing();rejections();images();std::cout<<"PASS "<<checks<<" SVG checks\n";}
+static void diagnosticTool() {
+    QProcess process;process.start(SVG_CHECK_TOOL,{"--import-svg",QString(SVG_FIXTURES)+"/shapes.svg"});
+    check(process.waitForFinished(15000)&&process.exitCode()==0,"diagnostic tool valid exit");
+    const auto json=QJsonDocument::fromJson(process.readAllStandardOutput()).object();
+    check(json["subset"].toInt()==1&&json["elements"].toArray().size()==9,"diagnostic tool JSON element list");
+    const auto elements=json["elements"].toArray();check(elements[1].toObject()["id"].toString()=="box"&&elements[1].toObject().contains("label"),"diagnostic tool IDs/labels");
+    process.start(SVG_CHECK_TOOL,{"--import-svg",QString(SVG_FIXTURES)+"/unsupported-text.svg"});
+    check(process.waitForFinished(15000)&&process.exitCode()==1,"diagnostic tool rejection exit");
+    const auto expected=QString(SVG_FIXTURES)+"/unsupported-text.svg:2: element <text> id='caption': unsupported feature 'text (outline text before export)'\n";
+    check(QString::fromUtf8(process.readAllStandardError())==expected,"diagnostic tool exact file/id/line error");
+    process.start(SVG_CHECK_TOOL,QStringList{});check(process.waitForFinished(15000)&&process.exitCode()==2,"diagnostic tool missing argument exit");
+    std::cout<<"PASS headless SVG diagnostic CLI\n";
+}
+int main(int argc,char** argv) {QCoreApplication app(argc,argv);parsing();rejections();diagnosticTool();images();std::cout<<"PASS "<<checks<<" SVG checks\n";}
