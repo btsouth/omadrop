@@ -104,3 +104,9 @@ add_executable(swell-piece-tests swell_piece_tests.cpp ../src/kit/swell-lines.cp
 target_include_directories(swell-piece-tests PRIVATE ../src)
 target_link_libraries(swell-piece-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
 add_test(NAME swell-lines-deterministic-and-music COMMAND swell-piece-tests)
+
+add_executable(foam-piece-tests foam_piece_tests.cpp ../src/kit/foam-flecks.cpp ../src/kit/swell-lines.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp)
+target_include_directories(foam-piece-tests PRIVATE ../src)
+target_link_libraries(foam-piece-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
+add_test(NAME foam-flecks-deterministic-and-music COMMAND foam-piece-tests)

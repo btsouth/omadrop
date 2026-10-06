@@ -242,3 +242,10 @@ length ranges, seed, driftSpeed, amplitude, color, opacity and band/lift/kick
 gains. Perspective rows map treble at the horizon to bass near the viewer.
 Individual offscreen wraps and incommensurate contour clocks avoid a short
 shared loop. Foam and hull support can sample `SwellLinesV1::field`.
+
+`foam-flecks-v1` samples the same swell field. It ports printSea's lobed
+cream/Prussian caps and curled fingers, with varied sizes and individual
+drift/breathing clocks. It accepts the swell field settings plus count,
+sizeMin/sizeMax, color, underprint and onsetGain. A small event-selected subset
+brightens on onsets/kicks; exclusions cull complete silhouettes. Match region,
+rows, depthFalloff, seed, driftSpeed and amplitude to the swell instance.

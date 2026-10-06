@@ -137,3 +137,6 @@ HEADERS += src/kit/water-surface.h
 
 SOURCES += src/kit/swell-lines.cpp
 HEADERS += src/kit/swell-lines.h
+
+SOURCES += src/kit/foam-flecks.cpp
+HEADERS += src/kit/foam-flecks.h

@@ -82,6 +82,7 @@ constexpr Piece pieces[] = {
     {"GradientSky", OsakaOp::GradientSky, "gradient-sky-v1"},
     {"WaterSurface", OsakaOp::WaterSurface, "water-surface-v1"},
     {"SwellLines", OsakaOp::SwellLines, "swell-lines-v1"},
+    {"FoamFlecks", OsakaOp::FoamFlecks, "foam-flecks-v1"},
     {"AfterSky", OsakaOp::AfterSky, "after-sky"},
     {"Star", OsakaOp::Star, "osaka-shooting-star-v1"},
     {"DiscHook", OsakaOp::DiscHook, "disc-port"},
@@ -516,12 +517,14 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 color("texture",water.texture); color("foam",water.foam); color("underprint",water.underprint);
                 color("glint",water.glint); color("hotGlint",water.hotGlint);
                 params=value;
-            } else if (piece->op==OsakaOp::SwellLines) {
+            } else if (piece->op==OsakaOp::SwellLines || piece->op==OsakaOp::FoamFlecks) {
                 if (!slot.contains("params")) r.fail(paramsPath,"required field");
-                const auto data=r.object(slot["params"],paramsPath,{},
-                    {"region","exclusions","count","rows","seed","depthFalloff","widthMin","widthMax",
-                     "lengthMin","lengthMax","driftSpeed","amplitude","opacity","bandGain","liftGain","kickGain","color"});
-                auto value=std::make_shared<OsakaSlotParamsV1>(); auto& swell=value->swell;
+                QStringList keys={"region","exclusions","count","rows","seed","depthFalloff","widthMin","widthMax",
+                     "lengthMin","lengthMax","driftSpeed","amplitude","opacity","bandGain","liftGain","kickGain","color"};
+                const bool foam=piece->op==OsakaOp::FoamFlecks;
+                if(foam)keys.append({"sizeMin","sizeMax","onsetGain","underprint"});
+                const auto data=r.object(slot["params"],paramsPath,{},keys);
+                auto value=std::make_shared<OsakaSlotParamsV1>(); auto& swell=foam?value->foam.swell:value->swell;
                 auto box=[&](const QJsonValue& item,const QString& path) {
                     const auto v=r.object(item,path,{"x","y","width","height"});
                     const double x=r.number(v["x"],path+".x"),y=r.number(v["y"],path+".y");
@@ -541,13 +544,19 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                     if(target<lo || target>hi)r.fail(paramsPath+"."+name,"number in "+QString::number(lo)+".."+QString::number(hi));
                 };
                 auto integer=[&](const char* name,int& target,int lo,int hi) {if(data.contains(name))target=r.integer(data[name],paramsPath+"."+name,lo,hi);};
-                integer("count",swell.count,0,600);integer("rows",swell.rows,6,24);integer("seed",swell.seed,0,1000000);
+                integer("count",foam?value->foam.count:swell.count,0,foam?300:600);integer("rows",swell.rows,6,24);integer("seed",swell.seed,0,1000000);
                 scalar("depthFalloff",swell.depthFalloff,1,3);scalar("widthMin",swell.widthMin,.2,4);scalar("widthMax",swell.widthMax,.2,6);
                 scalar("lengthMin",swell.lengthMin,20,1200);scalar("lengthMax",swell.lengthMax,20,1600);
                 scalar("driftSpeed",swell.driftSpeed,0,2);scalar("amplitude",swell.amplitude,0,1.5);scalar("opacity",swell.opacity,0,1);
                 scalar("bandGain",swell.bandGain,0,2);scalar("liftGain",swell.liftGain,0,1);scalar("kickGain",swell.kickGain,0,.5);
                 if(swell.widthMax<swell.widthMin || swell.lengthMax<swell.lengthMin)r.fail(paramsPath,"ordered width and length ranges");
-                if(data.contains("color"))swell.color=r.color(data["color"],paramsPath+".color");
+                if(data.contains("color"))(foam?value->foam.color:swell.color)=r.color(data["color"],paramsPath+".color");
+                if(foam) {
+                    scalar("sizeMin",value->foam.sizeMin,.1,2);scalar("sizeMax",value->foam.sizeMax,.1,2);
+                    scalar("onsetGain",value->foam.onsetGain,0,.5);
+                    if(value->foam.sizeMax<value->foam.sizeMin)r.fail(paramsPath,"ordered size range");
+                    if(data.contains("underprint"))value->foam.underprint=r.color(data["underprint"],paramsPath+".underprint");
+                }
                 params=value;
             } else if (piece->op==OsakaOp::Haze) {
                 if (!slot.contains("params")) r.fail(paramsPath,"required field");
