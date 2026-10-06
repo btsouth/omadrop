@@ -57,7 +57,7 @@ docker exec "$container" bash -euc '
     bin/mpris-state bin/art-fetch bin/omadrop-doctor bin/omadrop-close-window \
     experiments/projectm-ascii/projectm-ascii-live experiments/projectm-ascii/run-collection.sh \
     presets/pilot.txt VERSION licenses/THIRD_PARTY_NOTICES.md licenses/noto-sans-cjk-OFL.txt \
-    shaders/native scene-api/1; do
+    shaders/native scene-api/1 worlds/osaka-jade/scene.json worlds/schema/scene-v1.schema.json; do
     [[ -e "$root/$f" ]] || { echo "missing: $root/$f" >&2; exit 1; }
   done
   for f in "$root/bin/omadrop-ui" "$root/bin/omadrop-osaka" "$root/experiments/projectm-ascii/projectm-ascii-live"; do
@@ -71,6 +71,10 @@ docker exec "$container" bash -euc '
   [[ -n $(ls /usr/share/licenses/omadrop/) ]]
   [[ $(ls "$root"/presets/pilot/*.milk | wc -l) -eq 21 ]]
   omadrop --help >/dev/null
+  # Exercise the installed path without a development override or working dir.
+  unset OMADROP_WORLDS
+  cd /tmp
+  timeout 60s "$root/bin/omadrop-osaka" --verify-render --seed 1 --width 1920 --height 1080 --scale 1
   export QT_QPA_PLATFORM=offscreen
   "$root/bin/omadrop-ui" --controls >/tmp/omadrop-ui.log 2>&1 &
   ui=$!

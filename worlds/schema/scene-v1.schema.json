@@ -1,0 +1,1662 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "world",
+    "profile",
+    "stages",
+    "finish",
+    "disc",
+    "mountain",
+    "profiles"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "world": {
+      "const": "osaka-jade"
+    },
+    "profile": {
+      "const": "osaka-world-v1"
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "phase",
+            "events",
+            "slots"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "phase": {
+              "const": "Backdrop"
+            },
+            "events": {
+              "type": "string",
+              "enum": [
+                "Life",
+                "LifeAndFlock"
+              ]
+            },
+            "slots": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 128,
+              "items": {
+                "$ref": "#/$defs/renderSlot"
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "slots": {
+                    "contains": {
+                      "properties": {
+                        "piece": {
+                          "type": "string",
+                          "enum": [
+                            "FarNetwork",
+                            "NearNetwork",
+                            "Birds"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "events": {
+                    "const": "LifeAndFlock"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "phase",
+            "events",
+            "slots"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "phase": {
+              "const": "Coast"
+            },
+            "events": {
+              "type": "string",
+              "enum": [
+                "Life",
+                "LifeAndFlock"
+              ]
+            },
+            "slots": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 128,
+              "items": {
+                "$ref": "#/$defs/renderSlot"
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "slots": {
+                    "contains": {
+                      "properties": {
+                        "piece": {
+                          "type": "string",
+                          "enum": [
+                            "FarNetwork",
+                            "NearNetwork",
+                            "Birds"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "events": {
+                    "const": "LifeAndFlock"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "phase",
+            "events",
+            "slots"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "phase": {
+              "const": "DistantTown"
+            },
+            "events": {
+              "type": "string",
+              "enum": [
+                "Life",
+                "LifeAndFlock"
+              ]
+            },
+            "slots": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 128,
+              "items": {
+                "$ref": "#/$defs/renderSlot"
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "slots": {
+                    "contains": {
+                      "properties": {
+                        "piece": {
+                          "type": "string",
+                          "enum": [
+                            "FarNetwork",
+                            "NearNetwork",
+                            "Birds"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "events": {
+                    "const": "LifeAndFlock"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "phase",
+            "events",
+            "slots"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "phase": {
+              "const": "Foreground"
+            },
+            "events": {
+              "type": "string",
+              "enum": [
+                "Life",
+                "LifeAndFlock"
+              ]
+            },
+            "slots": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 128,
+              "items": {
+                "$ref": "#/$defs/renderSlot"
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "slots": {
+                    "contains": {
+                      "properties": {
+                        "piece": {
+                          "type": "string",
+                          "enum": [
+                            "FarNetwork",
+                            "NearNetwork",
+                            "Birds"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "events": {
+                    "const": "LifeAndFlock"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "finish": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile"
+      ],
+      "properties": {
+        "profile": {
+          "const": "osaka-finish-v1"
+        }
+      }
+    },
+    "disc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "x",
+        "y",
+        "parallax",
+        "radius"
+      ],
+      "properties": {
+        "profile": {
+          "const": "osaka-disc-v1"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "parallax": {
+          "type": "number"
+        },
+        "radius": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "mountain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "x",
+        "parallax",
+        "peak",
+        "base",
+        "width"
+      ],
+      "properties": {
+        "profile": {
+          "const": "osaka-mountain-v1"
+        },
+        "x": {
+          "type": "number"
+        },
+        "parallax": {
+          "type": "number"
+        },
+        "peak": {
+          "type": "number"
+        },
+        "base": {
+          "type": "number"
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "osaka-finish-v1",
+        "osaka-disc-v1",
+        "osaka-mountain-v1",
+        "osaka-haze-v1",
+        "osaka-sky-v1",
+        "osaka-pane-v1",
+        "osaka-neon-v1"
+      ],
+      "properties": {
+        "osaka-finish-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bloom",
+            "threshold",
+            "vignette",
+            "grain",
+            "knee",
+            "paper"
+          ],
+          "properties": {
+            "bloom": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            },
+            "threshold": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            },
+            "vignette": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            },
+            "grain": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            },
+            "knee": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            },
+            "paper": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            }
+          }
+        },
+        "osaka-disc-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "creamHex",
+            "warmHex",
+            "colorGain",
+            "haloR",
+            "haloG",
+            "haloB",
+            "energyBase",
+            "energyBass",
+            "energySurge",
+            "energyKick",
+            "veil",
+            "texture",
+            "haloA",
+            "haloBRadius",
+            "haloC",
+            "haloD",
+            "haloFar",
+            "restRings",
+            "ring0Offset",
+            "ring0Energy",
+            "ring0Alpha",
+            "ring1Offset",
+            "ring1Energy",
+            "ring1Alpha",
+            "ringAlphaBase",
+            "hitSeconds",
+            "hitThreshold",
+            "hitOffset",
+            "hitTravel",
+            "hitAlpha",
+            "timeOffset"
+          ],
+          "properties": {
+            "creamHex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16777215
+            },
+            "warmHex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16777215
+            },
+            "colorGain": {
+              "type": "number"
+            },
+            "haloR": {
+              "type": "number"
+            },
+            "haloG": {
+              "type": "number"
+            },
+            "haloB": {
+              "type": "number"
+            },
+            "energyBase": {
+              "type": "number"
+            },
+            "energyBass": {
+              "type": "number"
+            },
+            "energySurge": {
+              "type": "number"
+            },
+            "energyKick": {
+              "type": "number"
+            },
+            "veil": {
+              "type": "number"
+            },
+            "texture": {
+              "type": "number"
+            },
+            "haloA": {
+              "type": "number"
+            },
+            "haloBRadius": {
+              "type": "number"
+            },
+            "haloC": {
+              "type": "number"
+            },
+            "haloD": {
+              "type": "number"
+            },
+            "haloFar": {
+              "type": "number"
+            },
+            "restRings": {
+              "type": "number"
+            },
+            "ring0Offset": {
+              "type": "number"
+            },
+            "ring0Energy": {
+              "type": "number"
+            },
+            "ring0Alpha": {
+              "type": "number"
+            },
+            "ring1Offset": {
+              "type": "number"
+            },
+            "ring1Energy": {
+              "type": "number"
+            },
+            "ring1Alpha": {
+              "type": "number"
+            },
+            "ringAlphaBase": {
+              "type": "number"
+            },
+            "hitSeconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "hitThreshold": {
+              "type": "number"
+            },
+            "hitOffset": {
+              "type": "number"
+            },
+            "hitTravel": {
+              "type": "number"
+            },
+            "hitAlpha": {
+              "type": "number"
+            },
+            "timeOffset": {
+              "type": "number"
+            }
+          }
+        },
+        "osaka-mountain-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "topR",
+            "topG",
+            "topB",
+            "bottomR",
+            "bottomG",
+            "bottomB",
+            "foot",
+            "samples",
+            "span",
+            "shapePower",
+            "rippleGain",
+            "ripplePeriod",
+            "summitWidth",
+            "summitOffset",
+            "summitCurve",
+            "summitHeight",
+            "gradientStop",
+            "gradientMix"
+          ],
+          "properties": {
+            "topR": {
+              "type": "number"
+            },
+            "topG": {
+              "type": "number"
+            },
+            "topB": {
+              "type": "number"
+            },
+            "bottomR": {
+              "type": "number"
+            },
+            "bottomG": {
+              "type": "number"
+            },
+            "bottomB": {
+              "type": "number"
+            },
+            "foot": {
+              "type": "number"
+            },
+            "samples": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4096
+            },
+            "span": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "shapePower": {
+              "type": "number"
+            },
+            "rippleGain": {
+              "type": "number"
+            },
+            "ripplePeriod": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "summitWidth": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "summitOffset": {
+              "type": "number"
+            },
+            "summitCurve": {
+              "type": "number"
+            },
+            "summitHeight": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "gradientStop": {
+              "type": "number"
+            },
+            "gradientMix": {
+              "type": "number"
+            }
+          }
+        },
+        "osaka-haze-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "noiseX",
+            "noiseY",
+            "cullSigma"
+          ],
+          "properties": {
+            "noiseX": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "noiseY": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "cullSigma": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        "osaka-sky-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "energyBase",
+            "energyBass",
+            "energySurge",
+            "timeOffset"
+          ],
+          "properties": {
+            "energyBase": {
+              "type": "number"
+            },
+            "energyBass": {
+              "type": "number"
+            },
+            "energySurge": {
+              "type": "number"
+            },
+            "timeOffset": {
+              "type": "number"
+            }
+          }
+        },
+        "osaka-pane-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "alwaysOnCutoff",
+            "base",
+            "hush",
+            "band",
+            "lift",
+            "kick",
+            "near",
+            "upper",
+            "right"
+          ],
+          "properties": {
+            "alwaysOnCutoff": {
+              "type": "number"
+            },
+            "base": {
+              "type": "number"
+            },
+            "hush": {
+              "type": "number"
+            },
+            "band": {
+              "type": "number"
+            },
+            "lift": {
+              "type": "number"
+            },
+            "kick": {
+              "type": "number"
+            },
+            "near": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "w",
+                  "h",
+                  "cols",
+                  "rows",
+                  "on",
+                  "band"
+                ],
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "w": {
+                    "type": "number"
+                  },
+                  "h": {
+                    "type": "number"
+                  },
+                  "cols": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 64
+                  },
+                  "rows": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 64
+                  },
+                  "on": {
+                    "type": "number"
+                  },
+                  "band": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 5
+                  }
+                }
+              }
+            },
+            "upper": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "wx",
+                  "ww",
+                  "cyan",
+                  "on",
+                  "band"
+                ],
+                "properties": {
+                  "wx": {
+                    "type": "number"
+                  },
+                  "ww": {
+                    "type": "number"
+                  },
+                  "cyan": {
+                    "type": "boolean"
+                  },
+                  "on": {
+                    "type": "number"
+                  },
+                  "band": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 5
+                  }
+                }
+              }
+            },
+            "right": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "w",
+                  "h",
+                  "on"
+                ],
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "w": {
+                    "type": "number"
+                  },
+                  "h": {
+                    "type": "number"
+                  },
+                  "on": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "osaka-neon-v1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stutterRate",
+            "stutterProbability",
+            "stutterLevel",
+            "boardX",
+            "boardY",
+            "boardW",
+            "boardH",
+            "boardR",
+            "boardG",
+            "boardB",
+            "tubeR",
+            "tubeG",
+            "tubeB",
+            "tubeMix",
+            "magHex",
+            "outlineAlpha",
+            "outlineX",
+            "outlineY",
+            "outlineW",
+            "outlineH",
+            "outlineWidth",
+            "glyphCount",
+            "glyphX",
+            "glyphY",
+            "glyphStep",
+            "glyphSize",
+            "glowX",
+            "glowY",
+            "glowRadius",
+            "glowBase",
+            "glowKick",
+            "levelBase",
+            "levelSine",
+            "levelRate",
+            "levelKick",
+            "overGain",
+            "addGain",
+            "addBlur"
+          ],
+          "properties": {
+            "stutterRate": {
+              "type": "number"
+            },
+            "stutterProbability": {
+              "type": "number"
+            },
+            "stutterLevel": {
+              "type": "number"
+            },
+            "boardX": {
+              "type": "number"
+            },
+            "boardY": {
+              "type": "number"
+            },
+            "boardW": {
+              "type": "number"
+            },
+            "boardH": {
+              "type": "number"
+            },
+            "boardR": {
+              "type": "number"
+            },
+            "boardG": {
+              "type": "number"
+            },
+            "boardB": {
+              "type": "number"
+            },
+            "tubeR": {
+              "type": "number"
+            },
+            "tubeG": {
+              "type": "number"
+            },
+            "tubeB": {
+              "type": "number"
+            },
+            "tubeMix": {
+              "type": "number"
+            },
+            "magHex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16777215
+            },
+            "outlineAlpha": {
+              "type": "number"
+            },
+            "outlineX": {
+              "type": "number"
+            },
+            "outlineY": {
+              "type": "number"
+            },
+            "outlineW": {
+              "type": "number"
+            },
+            "outlineH": {
+              "type": "number"
+            },
+            "outlineWidth": {
+              "type": "number"
+            },
+            "glyphCount": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            },
+            "glyphX": {
+              "type": "number"
+            },
+            "glyphY": {
+              "type": "number"
+            },
+            "glyphStep": {
+              "type": "number"
+            },
+            "glyphSize": {
+              "type": "number"
+            },
+            "glowX": {
+              "type": "number"
+            },
+            "glowY": {
+              "type": "number"
+            },
+            "glowRadius": {
+              "type": "number"
+            },
+            "glowBase": {
+              "type": "number"
+            },
+            "glowKick": {
+              "type": "number"
+            },
+            "levelBase": {
+              "type": "number"
+            },
+            "levelSine": {
+              "type": "number"
+            },
+            "levelRate": {
+              "type": "number"
+            },
+            "levelKick": {
+              "type": "number"
+            },
+            "overGain": {
+              "type": "number"
+            },
+            "addGain": {
+              "type": "number"
+            },
+            "addBlur": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omadrop.org/worlds/scene-v1.schema.json",
+  "title": "Omadrop scene v1 (Osaka Jade round A)",
+  "$defs": {
+    "renderSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "piece",
+        "gate",
+        "profile"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "piece": {
+          "type": "string",
+          "enum": [
+            "Sky",
+            "AfterSky",
+            "Star",
+            "DiscHook",
+            "Disc",
+            "MountainHook",
+            "Mountain",
+            "BeforeCoast",
+            "CoastHook",
+            "Ridges",
+            "City",
+            "Firework",
+            "AfterValley",
+            "NearRidge",
+            "Train",
+            "SkyLanterns",
+            "Downhill",
+            "FarNetwork",
+            "TownHook",
+            "AfterTown",
+            "RightTown",
+            "StreetSurface",
+            "Cart",
+            "AfterCart",
+            "Festoon",
+            "NearNetwork",
+            "Moths",
+            "AfterWires",
+            "ReflectionCapture",
+            "AfterReflections",
+            "StreetActors",
+            "Birds",
+            "NearHouse",
+            "Wisteria"
+          ]
+        },
+        "gate": {
+          "type": "string",
+          "enum": [
+            "Always",
+            "Chapter",
+            "DiscEnabled",
+            "MountainEnabled",
+            "Land",
+            "DefaultCoastLand",
+            "DefaultCoastChapter",
+            "DefaultTownLand"
+          ]
+        },
+        "profile": {
+          "type": "string",
+          "enum": [
+            "after-cart",
+            "after-reflections",
+            "after-sky",
+            "after-town",
+            "after-valley",
+            "after-wires",
+            "before-coast",
+            "coast-port",
+            "disc-port",
+            "mountain-port",
+            "osaka-cart-group-v1",
+            "osaka-disc-v1",
+            "osaka-downhill-rows-v1",
+            "osaka-festoon-v1",
+            "osaka-firework-v1",
+            "osaka-flock-v1",
+            "osaka-moths-v1",
+            "osaka-mountain-v1",
+            "osaka-near-group-v1",
+            "osaka-near-ridge-v1",
+            "osaka-network-group-v1",
+            "osaka-reflection-v1",
+            "osaka-ridges-v1",
+            "osaka-right-town-v1",
+            "osaka-shooting-star-v1",
+            "osaka-sky-lanterns-v1",
+            "osaka-sky-v1",
+            "osaka-street-actors-v1",
+            "osaka-street-surface-group-v1",
+            "osaka-train-v1",
+            "osaka-valley-city-v1",
+            "osaka-wisteria-v1",
+            "town-port"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Sky"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-sky-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "AfterSky"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "after-sky"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Star"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-shooting-star-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "DiscHook"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "disc-port"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Disc"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-disc-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "MountainHook"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "mountain-port"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Mountain"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-mountain-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "BeforeCoast"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "before-coast"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "CoastHook"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "coast-port"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Ridges"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-ridges-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "City"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-valley-city-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Firework"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-firework-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "AfterValley"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "after-valley"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "NearRidge"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-near-ridge-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Train"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-train-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "SkyLanterns"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-sky-lanterns-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Downhill"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-downhill-rows-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "FarNetwork"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-network-group-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "TownHook"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "town-port"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "AfterTown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "after-town"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "RightTown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-right-town-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "StreetSurface"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-street-surface-group-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Cart"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-cart-group-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "AfterCart"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "after-cart"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Festoon"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-festoon-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "NearNetwork"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-network-group-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Moths"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-moths-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "AfterWires"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "after-wires"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "ReflectionCapture"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-reflection-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "AfterReflections"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "after-reflections"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "StreetActors"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-street-actors-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Birds"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-flock-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "NearHouse"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-near-group-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Wisteria"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "profile": {
+                "const": "osaka-wisteria-v1"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

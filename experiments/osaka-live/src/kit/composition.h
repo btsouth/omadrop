@@ -1,6 +1,7 @@
 #pragma once
 #include "../parts.h"
 #include "events.h"
+#include "parameters.h"
 namespace Journey::Kit {
 enum class OsakaPhase { Backdrop, Coast, DistantTown, Foreground };
 enum class OsakaOp {
@@ -17,11 +18,13 @@ struct OsakaRenderSlot {
     OsakaOp piece;
     OsakaGate gate;
     const char* profile;
+    std::string id;
 };
 struct OsakaRenderStage {
     const OsakaRenderSlot* entries;
     std::size_t count;
     OsakaEventRef events;
+    std::string id;
 };
 struct OsakaFinishV1 {
     static constexpr const char* name = "osaka-finish-v1";
@@ -39,6 +42,7 @@ struct OsakaWorldDescription {
     OsakaFinishV1 finish;
     OsakaDiscPlacementV1 disc;
     OsakaMountainPlacementV1 mountain;
+    OsakaParametersV1 parameters;
 };
 // World supplies ordered typed instances, never drawing callbacks.
 const OsakaWorldDescription& osakaWorld();

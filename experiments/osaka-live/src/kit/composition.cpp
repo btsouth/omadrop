@@ -1,3 +1,4 @@
+#include "parameters.h"
 #include "composition.h"
 #include "groups.h"
 #include "sky.h"
@@ -17,20 +18,24 @@
 namespace Journey::Kit {
 namespace {
 void moon(Ctx& c, const OsakaState& s, const OsakaDiscPlacementV1& placement) {
+    const auto& p = osakaParameters().disc;
     DiscLook d;
     d.pos = {placement.x - s.cam * placement.parallax + s.moonDx, placement.y + s.moonDy};
     d.r = placement.radius;
     const double rise = 1;
-    d.col = d.col2 = mix(CREAM, hex(0xe2703a), s.moonWarm) * float(1.22 * rise);
-    d.halo = Col(0.55f, 0.95f, 0.74f) * float(rise);
-    d.ring = CREAM;
-    d.energy = (0.35 + 0.6 * c.a.bass + 0.2 * c.a.surge + 0.5 * c.kick(6)) * rise;
+    d.col = d.col2 = mix(hex(p.creamHex), hex(p.warmHex), s.moonWarm) * float(p.colorGain * rise);
+    d.halo = Col(float(p.haloR), float(p.haloG), float(p.haloB)) * float(rise);
+    d.ring = hex(p.creamHex);
+    d.energy = (p.energyBase + p.energyBass * c.a.bass + p.energySurge * c.a.surge + p.energyKick * c.kick(6)) * rise;
+    d.veil=p.veil; d.tex=p.texture; d.haloA=p.haloA; d.haloB=p.haloBRadius; d.haloC=p.haloC; d.haloD=p.haloD; d.haloFar=p.haloFar; d.restRings=p.restRings;
     drawDisc(c, d, s.cam);
 }
 void mountainLook(Ctx& c, const OsakaState& s, const OsakaMountainPlacementV1& placement) {
+    const auto& p = osakaParameters().mountain;
     MountainLook m;
     m.px = placement.x - s.cam * placement.parallax; m.peak = placement.peak; m.base = placement.base; m.width = placement.width;
-    m.top = Col(0.050f, 0.300f, 0.220f); m.bot = Col(0.30f, 0.84f, 0.60f);
+    m.top = Col(float(p.topR), float(p.topG), float(p.topB)); m.bot = Col(float(p.bottomR), float(p.bottomG), float(p.bottomB));
+    m.foot=p.foot;
     drawMountain(c, m);
 }
 }

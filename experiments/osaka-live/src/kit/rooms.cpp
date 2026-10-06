@@ -1,3 +1,4 @@
+#include "parameters.h"
 #include "rooms.h"
 #include "primitives.h"
 #include "pane.h"
@@ -22,17 +23,16 @@ void OsakaNearRoomV1::draw(Ctx& c, const OsakaState& s, const OsakaEventState& L
 
 }
 void OsakaRightRoom2V1::draw(Ctx& c, const OsakaState& s, const OsakaEventState& L, Canvas& w, double x0) {
-    const double h2on[3] = {9.2, 12.0, 5.8};
-    const double h2win[3][4] = {{22, 724, 62, 50}, {104, 724, 62, 50}, {24, 826, 96, 74}};
+    const auto& panes = osakaParameters().windows.right;
     for (int i = 0; i < 3; ++i) {
-        const auto& q = h2win[i];
-        const double lv = s.chapter ? paneLevel(c, L, h2on[i] + c.jit(300 + i) * 0.6, (i + 2) % 6, {x0 + q[0], q[1]}) : 1.0;
+        const auto& q = panes[i];
+        const double lv = s.chapter ? paneLevel(c, L, q.on + c.jit(300 + i) * 0.6, (i + 2) % 6, {x0 + q.x, q.y}) : 1.0;
         if (lv > 0.01) {
-            warmPane(w, x0 + q[0], q[1], q[2], q[3], lv);
+            warmPane(w, x0 + q.x, q.y, q.w, q.h, lv);
             c.retain(w, "right-house-lattice-" + std::to_string(i), [&](Canvas& w) {
-                lattice(w, x0 + q[0], q[1], q[2], q[3], 3, 2, INK, 1.2);
+                lattice(w, x0 + q.x, q.y, q.w, q.h, 3, 2, INK, 1.2);
             }, {s.cam});
-        } else darkPane(w, x0 + q[0], q[1], q[2], q[3]);
+        } else darkPane(w, x0 + q.x, q.y, q.w, q.h);
     }
 
 }

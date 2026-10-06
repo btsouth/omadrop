@@ -76,7 +76,7 @@ build_all() {
 stage_from_repo() {
   local dest=$1 name file
   install -d "$dest/bin" "$dest/lib" "$dest/experiments/projectm-ascii" \
-    "$dest/presets/pilot" "$dest/shaders/native" "$dest/scene-api/1" "$dest/licenses"
+    "$dest/presets/pilot" "$dest/shaders/native" "$dest/scene-api/1" "$dest/licenses" "$dest/worlds"
   for name in "${bin_scripts[@]}"; do
     install -Dm755 "$root/bin/$name" "$dest/bin/$name"
   done
@@ -89,6 +89,7 @@ stage_from_repo() {
   done
   install -Dm755 "$root/experiments/projectm-ascii/projectm-ascii-live" \
     "$dest/experiments/projectm-ascii/projectm-ascii-live"
+  cp -a "$root/worlds/." "$dest/worlds/"
   cp -a "$root/presets/pilot/." "$dest/presets/pilot/"
   install -Dm644 "$root/presets/pilot.txt" "$dest/presets/pilot.txt"
   cp -a "$root/presets/textures" "$dest/presets/"
