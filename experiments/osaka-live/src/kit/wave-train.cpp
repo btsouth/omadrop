@@ -23,11 +23,13 @@ void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds
         while(tempo<60)tempo*=2;while(tempo>180)tempo*=.5;
     }
     const double beat=tempo/60,oldSpeed=speed_.value;
-    amplitude_.advance(590+240*std::max(0.,a.bassLevel)/(.20+std::max(0.,a.bassLevel)),1.05*beat,dt);
+    // The surge is the climax: the rising set stands taller than any other.
+    const double climax=params.surgeEnabled?clamp01(a.surge):0;
+    amplitude_.advance(590+240*std::max(0.,a.bassLevel)/(.20+std::max(0.,a.bassLevel))+130*climax,1.05*beat,dt);
     stage_.advance(std::max(5*sstep(.25,.95,energy),params.surgeEnabled?5*sstep(0,.65,a.surge):0),.8*beat,dt);
     speed_.advance(14+6*beat+4*clamp01(count/16.),.65*beat,dt);
     const double mid=std::max(0.,(a.bands[2]+a.bands[3])*.5);
-    throw_.advance(62*mid/(.18+mid)+48*Score::envelope(score.bassHits,seconds,5),2.25*beat,dt);
+    throw_.advance(62*mid/(.18+mid)+48*Score::envelope(score.bassHits,seconds,5)+30*climax,2.25*beat,dt);
     lean_.advance(.075*mid/(.18+mid),1.6*beat,dt);
     // Exact underdamped spring at analyzer hops. Lip lag and overshoot are
     // separate from body stage, with a bounded material displacement.
@@ -188,7 +190,7 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
             delta[j]=delta[j]+V2(breathe*noise1(s.seconds*.23+j*.17,91),
                 breathe*.9*noise1(s.seconds*.19+j*.13,151));
         }
-        const double height=std::clamp(s.amplitude,450.*p.heightScale,850.*p.heightScale)*g;
+        const double height=std::clamp(s.amplitude,450.*p.heightScale,980.*p.heightScale)*g;
         auto map=[&](V2 q) {
             const double top=std::max(0.,q.y),tip=sstep(.52,.78,q.x)*sstep(.30,.65,top);
             return V2(left+width*q.x+s.lean*height*top+s.lipThrow*tip*g*sstep(2,5,crest.stage),p.baseY-height*q.y);
