@@ -1,8 +1,12 @@
 #pragma once
 #include "swell-lines.h"
+#include "wave-train.h"
 namespace Journey::Kit {
 struct FoamFlecksParametersV1 {
     SwellLinesParametersV1 swell;
+    std::string waveInstance;
+    bool masksWaveTrain=false;
+    WaveTrainParametersV2 waveTrain;
     int count=120;
     double responseGain=0;
     double sizeMin=.25,sizeMax=1.15,onsetGain=.24;
@@ -10,6 +14,7 @@ struct FoamFlecksParametersV1 {
 };
 struct FoamFlecksV1 {
     static constexpr const char* name="foam-flecks-v1";
+    static QPainterPath exclusionPath(const Ctx&,const FoamFlecksParametersV1&);
     static void paint(Canvas&,const Ctx&,const FoamFlecksParametersV1&);
     static void draw(Ctx&,const FoamFlecksParametersV1&);
 };

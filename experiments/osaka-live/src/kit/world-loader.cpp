@@ -625,7 +625,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 QStringList keys={"region","exclusions","count","rows","seed","depthFalloff","widthMin","widthMax",
                      "lengthMin","lengthMax","driftSpeed","amplitude","opacity","bandGain","liftGain","kickGain","color","highlight","amplitudeGain","surgeEnabled"};
                 const bool foam=piece->op==OsakaOp::FoamFlecks;
-                if(foam)keys.append({"sizeMin","sizeMax","onsetGain","underprint","responseGain"});
+                if(foam)keys.append({"sizeMin","sizeMax","onsetGain","underprint","responseGain","waveInstance"});
                 const auto data=r.object(slot["params"],paramsPath,{},keys);
                 auto value=std::make_shared<OsakaSlotParamsV1>(); auto& swell=foam?value->foam.swell:value->swell;
                 if(data.contains("surgeEnabled"))swell.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
@@ -657,6 +657,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 if(data.contains("color"))(foam?value->foam.color:swell.color)=r.color(data["color"],paramsPath+".color");
                 if(data.contains("highlight"))swell.highlight=r.color(data["highlight"],paramsPath+".highlight");
                 if(foam) {
+                    if(data.contains("waveInstance"))value->foam.waveInstance=r.string(data["waveInstance"],paramsPath+".waveInstance").toStdString();
                     scalar("responseGain",value->foam.responseGain,0,3);scalar("sizeMin",value->foam.sizeMin,.1,2);scalar("sizeMax",value->foam.sizeMax,.1,2);
                     scalar("onsetGain",value->foam.onsetGain,0,.5);
                     if(value->foam.sizeMax<value->foam.sizeMin)r.fail(paramsPath,"ordered size range");
@@ -707,6 +708,15 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     }
     // Resolve after all slots exist: references may cross stage/order boundaries.
     // Copy the immutable field description, not independently authored settings.
+    for(auto& stage:loaded->entries_)for(auto& slot:stage)
+        if(slot.piece==OsakaOp::FoamFlecks && !slot.params->foam.waveInstance.empty()) {
+            const OsakaRenderSlot* wave=nullptr;
+            for(const auto& sources:loaded->entries_)for(const auto& candidate:sources)
+                if(candidate.id==slot.params->foam.waveInstance && candidate.piece==OsakaOp::WaveTrain)wave=&candidate;
+            if(!wave)r.fail("$.foam["+QString::fromStdString(slot.id)+"].params.waveInstance","id of a WaveTrain slot");
+            auto value=std::make_shared<OsakaSlotParamsV1>(*slot.params);
+            value->foam.masksWaveTrain=true;value->foam.waveTrain=wave->params->waveTrain;slot.params=value;
+        }
     for(auto& stage:loaded->entries_)for(auto& slot:stage)if(slot.piece==OsakaOp::BoatOnWater){
         const OsakaRenderSlot* surface=nullptr;
         for(const auto& sources:loaded->entries_)for(const auto& candidate:sources)

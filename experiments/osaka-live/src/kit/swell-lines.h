@@ -11,13 +11,15 @@ struct SwellLinesParametersV1 {
     double depthFalloff=1.45, widthMin=.55, widthMax=2.0;
     double lengthMin=110, lengthMax=650, driftSpeed=.52, amplitude=1;
     bool surgeEnabled=false;
+    bool orderedRows=true; // printed contours; background WaterSurface retains its authored field
     double amplitudeGain=0;
     double opacity=.34, bandGain=.32, liftGain=.25, kickGain=.10;
     Col color=hex(0x7397a4), highlight=hex(0xdcd7ba);
 };
 struct SwellRowV1 {
     double z, base, amplitude, scale, phase, detail, brightness, lift, highlight;
-    double y(double x) const;
+    double displacementLimit=0;
+    double y(double x,double offset=0) const;
 };
 struct SwellLinesV1 {
     static constexpr const char* name="swell-lines-v1";

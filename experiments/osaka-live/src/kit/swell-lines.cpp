@@ -2,12 +2,13 @@
 #include <cmath>
 #include <QPainterPathStroker>
 namespace Journey::Kit {
-double SwellRowV1::y(double x) const {
+double SwellRowV1::y(double x,double offset) const {
     const double a=x/scale-phase;
     // Printed sea's long curl plus its second harmonic, with calm-sea texture.
-    return base+amplitude*(std::sin(a)+.23*std::sin(a*2.1+.6)
+    const double displacement=offset+amplitude*(std::sin(a)+.23*std::sin(a*2.1+.6)
         +.075*std::sin(x/(scale*.43)+detail))
         -lift*(.65+.35*std::sin(a*.47+detail*.31));
+    return base+(displacementLimit>0 ? displacementLimit*std::tanh(displacement/displacementLimit) : displacement);
 }
 int SwellLinesV1::band(int row,int rows) {
     return std::clamp(int(std::round((1-row/double(rows-1))*5)),0,5);
@@ -19,14 +20,20 @@ SwellRowV1 SwellLinesV1::field(const Ctx& c,int row,const SwellLinesParametersV1
     const double role=(1-z)*5; const int lo=std::min(4,int(role));
     const double flow=c.score ? .95*lerp(c.score->bandIntegrals[lo],c.score->bandIntegrals[lo+1],role-lo) : 0;
     const double id=hash2(row,p.seed+13),lift=c.lift(b),kick=c.kick(5);
-    return {z,p.region.top()+2+(p.region.height()-4)*depth,
+    const auto baseAt=[&](int r){return p.region.top()+2+(p.region.height()-4)*std::pow(r/double(p.rows-1),p.depthFalloff);};
+    // Each row owns less than half of its nearest gap. Include printed-mark
+    // offsets in this same soft envelope, so neighbouring rows never cross.
+    double spacing=1e9;
+    if(row>0)spacing=std::min(spacing,baseAt(row)-baseAt(row-1));
+    if(row+1<p.rows)spacing=std::min(spacing,baseAt(row+1)-baseAt(row));
+    return {z,baseAt(row),
         (7+83*std::pow(depth,1.15))*p.amplitude*(1+.22*e+.16*p.liftGain*lift+p.amplitudeGain*(c.score?c.score->bandBody[1][0]:c.band(0))+(p.surgeEnabled && c.schedule?.65*c.schedule->print.surge(c.t):0)),
         (55+115*depth)*(.86+.28*id),
         c.t*p.driftSpeed*(.81+.37*id)+flow-depth*6+Tau*hash2(row,p.seed+19),
         row*.82-c.t*(.17+.11*hash2(row,p.seed+23)),
         std::min(.85,p.opacity+p.bandGain*e+p.liftGain*.35*lift+p.kickGain*kick),
         (8+8*depth)*p.bandGain*c.band(b)+(10+10*depth)*p.liftGain*lift+(2+8*depth)*p.kickGain*kick,
-        clamp01(p.bandGain*c.band(b)+p.liftGain*lift)};
+        clamp01(p.bandGain*c.band(b)+p.liftGain*lift),p.orderedRows?.42*spacing:0};
 }
 QRectF SwellLinesV1::responseArea(int row,const SwellLinesParametersV1& p) {
     const double z=row/double(p.rows-1),depth=std::pow(z,p.depthFalloff);
@@ -70,7 +77,7 @@ void SwellLinesV1::paint(Canvas& cv,const Ctx& c,const SwellLinesParametersV1& p
         const int n=std::max(5,int(std::ceil(span/20)));
         for(int j=0;j<=n;++j) {
             const double u=j/double(n),x=x0+u*span;
-            const double y=f.y(x)+offset+2*depth*std::sin(Pi*u)-surge;
+            const double y=f.y(x,offset+2*depth*std::sin(Pi*u)-surge);
             const QRectF bounds(x-width,y-width,2*width,2*width);
             if(!allowed(bounds,p)){flush();continue;}
             // Do not bridge a reserved area when sampling crosses its corner.

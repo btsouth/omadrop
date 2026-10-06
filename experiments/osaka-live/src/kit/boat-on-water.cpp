@@ -13,7 +13,7 @@ double BoatOnWaterV1::surfaceY(const Ctx& c,const BoatOnWaterParametersV1& p,dou
     const int lo=std::min(p.swell.rows-2,int(row));
     const double sea=lerp(SwellLinesV1::field(c,lo,p.swell).y(x),SwellLinesV1::field(c,lo+1,p.swell).y(x),row-lo);
     const double depth=1-sstep(0,2,std::max(0.,p.wave.row-row));
-    if(p.ridesWaveTrain)return lerp(sea,WaveTrainV2::surfaceY(WaveTrainV2::worldProfile(c,p.waveTrain),x,p.waveTrain.waterline),depth);
+    if(p.ridesWaveTrain)return std::min(sea,lerp(sea,WaveTrainV2::surfaceY(WaveTrainV2::worldProfile(c,p.waveTrain),x,p.waveTrain.waterline),depth));
     return p.ridesWave?lerp(sea,GreatWaveV1::field(c,p.wave).y(x,sea),depth):sea;
 }
 BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1& p) {
@@ -29,7 +29,7 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
     const int lo=std::min(p.swell.rows-2,int(std::clamp(s.row,0.,double(p.swell.rows-1))));
     const auto low=SwellLinesV1::field(c,lo,p.swell),high=SwellLinesV1::field(c,lo+1,p.swell);
     const double depth=1-sstep(0,2,std::max(0.,p.wave.row-s.row));
-    auto support=[&](double x){const double sea=lerp(low.y(x),high.y(x),s.row-lo);return train?lerp(sea,WaveTrainV2::surfaceY(*train,x,p.waveTrain.waterline),depth):(p.ridesWave?lerp(sea,wave.y(x,sea),depth):sea);};
+    auto support=[&](double x){const double sea=lerp(low.y(x),high.y(x),s.row-lo);return train?std::min(sea,lerp(sea,WaveTrainV2::surfaceY(*train,x,p.waveTrain.waterline),depth)):(p.ridesWave?lerp(sea,wave.y(x,sea),depth):sea);};
     // The overhang is not navigable water. Move the full hull outward before
     // a growing set reaches its lane, then keep to the lower descending face.
     // This uses the drawn lip bounds, including its forward travel and curl.
@@ -68,6 +68,22 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
             for(int j=0;j<24;++j){const double m=(a+b)*.5;if(lowEnough(m))b=m;else a=m;}safe=b;}
         escape=sstep(0,.14,set.phase)*(1-sstep(.94,1,set.phase));
         s.at.x=side*lerp(original,safe,escape);
+    }
+    // The shared perspective row remains the local sea in the safe lane.
+    // A hero face can lift it, but must not replace it with a travelling
+    // reference swell whose slope the escaping boat would follow forever.
+    // Reserve the complete hull at either pitch, including the raised bow.
+    if(train) {
+        const double hullRadius=std::hypot((p.length*.5+26)*p.scale,26*p.scale);
+        const double bounded=std::clamp(s.at.x,hullRadius+16,1920-hullRadius-16);
+        bool clear=true;
+        for(const auto& crest:train->crests) {
+            double left=1e9;for(auto q:crest.boundary)left=std::min(left,q.x);
+            if(bounded+half*1.4+20>=left && bounded-half*1.4<=WaveTrainV2::exclusionRight(crest)+20)clear=false;
+        }
+        // Never trade lip/barrel clearance for screen placement when a later
+        // set leaves no onscreen lane. The 90 s world lane has room for both.
+        if(clear)s.at.x=bounded;
     }
     const double left=support(s.at.x-half),right=support(s.at.x+half);
     s.waterline=(left+2*support(s.at.x)+right)*.25;
@@ -126,7 +142,7 @@ void BoatOnWaterV1::paint(Canvas& cv,const Ctx& c,const BoatOnWaterParametersV1&
     const int lo=std::min(p.swell.rows-2,int(s.row));
     const auto low=SwellLinesV1::field(c,lo,p.swell),high=SwellLinesV1::field(c,lo+1,p.swell);
     const double depth=1-sstep(0,2,std::max(0.,p.wave.row-s.row));
-    auto support=[&](double x){double sea=lerp(low.y(x),high.y(x),s.row-lo);return train?lerp(sea,WaveTrainV2::surfaceY(*train,x,p.waveTrain.waterline),depth):(p.ridesWave?lerp(sea,wave.y(x,sea),depth):sea);};
+    auto support=[&](double x){double sea=lerp(low.y(x),high.y(x),s.row-lo);return train?std::min(sea,lerp(sea,WaveTrainV2::surfaceY(*train,x,p.waveTrain.waterline),depth)):(p.ridesWave?lerp(sea,wave.y(x,sea),depth):sea);};
     const double ca=std::cos(s.tilt),sa=std::sin(s.tilt);
     auto wp=[&](V2 q){return s.at+V2(q.x*ca-q.y*sa,q.x*sa+q.y*ca);};
     // Surface marks beneath the hull; the wake uses the actual contour too.

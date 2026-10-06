@@ -8,8 +8,37 @@ double rowPulse(const std::deque<Event>&events,double t){double sum=0;
 }
 }
 
+QPainterPath FoamFlecksV1::exclusionPath(const Ctx& c,const FoamFlecksParametersV1& p) {
+    QPainterPath path;
+    if(!p.masksWaveTrain)return path;
+    const auto& field=WaveTrainV2::worldProfile(c,p.waveTrain);
+    for(const auto& crest:field.crests) {
+        // A live convex envelope seals the barrel as well as the body. Include
+        // claw tips and their blue shadows, rather than a stale world rectangle.
+        std::vector<V2> points=crest.boundary;
+        auto add=[&](const auto& v){points.insert(points.end(),v.begin(),v.end());};
+        add(crest.foamRim);add(crest.foamInside);
+        for(const auto& f:crest.fingers){add(f.left);add(f.right);add(f.shadow.left);add(f.shadow.right);
+            for(const auto& st:f.twigs){add(st.left);add(st.right);}}
+        for(const auto& st:crest.tangle){add(st.left);add(st.right);}
+        for(const auto& st:crest.falling){add(st.left);add(st.right);}
+        std::sort(points.begin(),points.end(),[](V2 a,V2 b){return a.x<b.x || (a.x==b.x && a.y<b.y);});
+        auto cross=[](V2 a,V2 b,V2 q){return (b.x-a.x)*(q.y-a.y)-(b.y-a.y)*(q.x-a.x);};
+        std::vector<V2> hull;
+        for(auto q:points){while(hull.size()>1 && cross(hull[hull.size()-2],hull.back(),q)<=0)hull.pop_back();hull.push_back(q);}
+        const auto lower=hull.size();
+        for(auto i=points.rbegin()+1;i!=points.rend();++i){while(hull.size()>lower && cross(hull[hull.size()-2],hull.back(),*i)<=0)hull.pop_back();hull.push_back(*i);}
+        if(hull.empty())continue;
+        QPainterPath envelope;envelope.moveTo(hull[0].x,hull[0].y);
+        for(auto q:hull)envelope.lineTo(q.x,q.y);envelope.closeSubpath();
+        path=path.united(envelope);
+    }
+    return path;
+}
+
 void FoamFlecksV1::paint(Canvas& cv,const Ctx& c,const FoamFlecksParametersV1& p) {
     const auto& s=p.swell;
+    const auto waveExclusion=exclusionPath(c,p);
     std::vector<SwellRowV1> fields;for(int row=0;row<s.rows;++row)fields.push_back(SwellLinesV1::field(c,row,s));
     const double kick=c.kick(5);
 
@@ -29,7 +58,7 @@ void FoamFlecksV1::paint(Canvas& cv,const Ctx& c,const FoamFlecksParametersV1& p
         const double start=(lane+.12+.76*hash2(i,s.seed+74))/lanes;
         const double x0=s.region.left()-margin+std::fmod(period*start+travel,period);
         const double offset=(hash2(i,s.seed+75)-.45)*(8+20*depth)-s.kickGain*kick*(2+8*depth);
-        auto top=[&](double x){return f.y(x)+offset;};
+        auto top=[&](double x){return f.y(x,offset);};
         const int lobes=2+int(4*hash2(i,s.seed+76));
         auto under=[&](double u){
             const double lobe=.62+.38*std::abs(std::sin(Pi*u*lobes+hash2(i,s.seed+77)*3));
@@ -43,7 +72,8 @@ void FoamFlecksV1::paint(Canvas& cv,const Ctx& c,const FoamFlecksParametersV1& p
         const int fingers=span>35 ? std::min(3,int(1+3*size*hash2(i,s.seed+79))) : 0;
         const double side=fingers?5:1,above=fingers?8:1;
         const double below=fingers?finger+20:4+2*depth;
-        if(!SwellLinesV1::allowed(QRectF(x0-side,lo-above,span+2*side+(fingers?finger*1.2:0),hi-lo+thick*1.9+below+above),s))continue;
+        const QRectF bounds(x0-side,lo-above,span+2*side+(fingers?finger*1.2:0),hi-lo+thick*1.9+below+above);
+        if(!SwellLinesV1::allowed(bounds,s) || waveExclusion.intersects(bounds))continue;
         // Depth rows flare with their frequency band and a small beat travel delay.
         const double flick=flare;
         const double alpha=std::min(1.0,.61+.28*f.brightness+flick);

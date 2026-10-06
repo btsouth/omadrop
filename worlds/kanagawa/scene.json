@@ -267,6 +267,40 @@
           "parallaxDepth": 0.75
         },
         {
+          "id": "foam",
+          "piece": "FoamFlecks",
+          "profile": "foam-flecks-v1",
+          "gate": "Always",
+          "params": {
+            "region": {
+              "x": -30,
+              "y": 612,
+              "width": 2030,
+              "height": 500
+            },
+            "rows": 12,
+            "seed": 71,
+            "depthFalloff": 1.45,
+            "driftSpeed": 0.52,
+            "amplitude": 0.52,
+            "bandGain": 1.15,
+            "liftGain": 0.5,
+            "kickGain": 0.35,
+            "opacity": 0.22,
+            "count": 240,
+            "sizeMin": 0.3,
+            "sizeMax": 1.1,
+            "onsetGain": 0.5,
+            "color": "#dcd7ba",
+            "underprint": "#223249",
+            "amplitudeGain": 3.5,
+            "responseGain": 1.7,
+            "surgeEnabled": true,
+            "waveInstance": "great-wave"
+          },
+          "parallaxDepth": 0.75
+        },
+        {
           "id": "near-boat",
           "piece": "BoatOnWater",
           "profile": "boat-on-water-v1",

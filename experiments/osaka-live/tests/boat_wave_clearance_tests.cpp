@@ -20,14 +20,19 @@ int main(int argc,char** argv){QCoreApplication app(argc,argv);try{
  }
  WaveTrainParametersV2 params;params.groupPeriod=1800;params.groupWidth=1500;params.groupFloor=.94;params.heightScale=.88;params.waterline=965;params.surgeEnabled=true;params.travelScale=.2;
  Schedule::waveTrainParameters=std::make_shared<WaveTrainParametersV2>(params);
- double minLip=1e9,minCrest=1e9,maxContact=0,maxStep=0;
+ double minLip=1e9,minCrest=1e9,maxContact=0,maxStep=0,minTilt=1e9,maxTilt=-1e9,minEdge=1e9;
  for(double row:{5.6,7.6})for(int seed:{71,137,211}) {
   BoatOnWaterParametersV1 p;p.ridesWave=true;p.ridesWaveTrain=true;p.waveTrain=params;p.wave.row=params.row;
   p.x=row<7?1140:660;p.row=row;p.scale=row<7?.5:.66;p.length=315;p.seed=seed;
+  p.swell.amplitude=.52;p.swell.amplitudeGain=3.5;p.swell.bandGain=1.15;p.swell.liftGain=.5;p.swell.kickGain=.35;p.swell.surgeEnabled=true;
   schedule=Schedule(1);StaticGeometry geometry;c.staticGeometry=&geometry;score=Score{};V2 previous;bool first=true;
   for(int i=1;i<=90*60;++i){c.t=i/60.;audio.bands.fill(.05+.38*(.5+.5*std::sin(c.t*.19)));audio.bassLevel=audio.bands[0];
    audio.surge=sstep(18,19.8,c.t)*(1-sstep(23,29,c.t));score.advance(audio,c.t,1/60.);schedule.advance(c.t,audio,score);c.a=audio;
    const auto b=BoatOnWaterV1::pose(c,p);const auto& field=WaveTrainV2::worldProfile(c,params);
+   const double radius=std::hypot((p.length*.5+26)*p.scale,26*p.scale);
+   minEdge=std::min(minEdge,std::min(b.at.x-radius,1920-b.at.x-radius));
+   require(minEdge>=16-1e-6,"hull clips screen edge");
+   if(row>7){minTilt=std::min(minTilt,b.tilt);maxTilt=std::max(maxTilt,b.tilt);}
    for(const auto& crest:field.crests)if(crest.stage>1.15){double left=1e9,top=1e9;for(auto q:crest.boundary){left=std::min(left,q.x);top=std::min(top,q.y);}
     const double right=WaveTrainV2::exclusionRight(crest),half=p.length*p.scale*.60;
     const double margin=std::max(b.at.x-half-right,left-(b.at.x+half));minLip=std::min(minLip,margin);
@@ -45,6 +50,8 @@ int main(int argc,char** argv){QCoreApplication app(argc,argv);try{
    if(!first){const double step=(b.at-previous).len();if(step>8){std::cerr<<"t "<<c.t<<" row "<<row<<" seed "<<seed<<" step "<<step<<" previous "<<previous.x<<","<<previous.y<<" next "<<b.at.x<<","<<b.at.y<<" stage "<<schedule.waveTrain.pose().stage<<"\n";throw std::runtime_error("boat escape jumps between sets");}maxStep=std::max(maxStep,step);}previous=b.at;first=false;
   }
  }
+ require(minTilt<-.02 && maxTilt>.02,"near boat fails to rock both ways");
+ std::cout<<"near tilt "<<minTilt*180/Pi<<" to "<<maxTilt*180/Pi<<" deg, conservative edge margin "<<minEdge<<" px\n";
  require(escape>250,"boats fail to escape tall travelling sets");
  std::cout<<"max step "<<maxStep<<" px\n";
  require(maxStep<8,"boat escape jumps between sets");

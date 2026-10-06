@@ -9,6 +9,34 @@ void require(bool ok,const char* text){if(!ok)throw std::runtime_error(text);}
 int main(int argc,char** argv){
  QCoreApplication app(argc,argv);
  try {
+    if(argc>1 && std::string(argv[1])=="--live-mask") {
+        Gpu gpu;Audio audio;Score score;Schedule schedule(1);StaticGeometry geometry;
+        FoamFlecksParametersV1 p;p.masksWaveTrain=true;p.count=240;
+        p.waveTrain.groupPeriod=1800;p.waveTrain.groupWidth=1500;p.waveTrain.groupFloor=.94;
+        p.waveTrain.heightScale=.88;p.waveTrain.waterline=965;p.waveTrain.travelScale=.2;
+        p.swell.amplitude=.52;p.swell.amplitudeGain=3.5;p.swell.bandGain=1.15;
+        p.swell.liftGain=.5;p.swell.kickGain=.35;p.swell.surgeEnabled=true;p.responseGain=1.7;
+        Ctx c{gpu,0,audio,&score,1,nullptr,&schedule,&geometry};std::size_t triangles=0;
+        for(int i=1;i<=5400;++i) {
+            c.t=i/60.;audio.bands.fill(i<1200?.01:.8);audio.bassLevel=audio.bands[0];c.a=audio;
+            score.advance(audio,c.t,1/60.);schedule.waveTrain.advance(audio,score,c.t,1/60.,p.waveTrain);
+            if(i%900)continue;
+            const auto mask=FoamFlecksV1::exclusionPath(c,p);
+            const auto& field=WaveTrainV2::worldProfile(c,p.waveTrain);
+            for(const auto& crest:field.crests)for(auto q:crest.boundary)
+                require(mask.intersects(QRectF(q.x-.1,q.y-.1,.2,.2)),"mask misses live body/barrel envelope");
+            Canvas cv;FoamFlecksV1::paint(cv,c,p);
+            require(!cv.vertices().empty(),"live mask removes all sea foam");
+            const auto& v=cv.vertices();
+            for(const auto& cmd:cv.commands())for(int k=cmd.first;k+2<cmd.first+cmd.count;k+=3) {
+                QPainterPath triangle;triangle.moveTo(v[k].x,v[k].y);triangle.lineTo(v[k+1].x,v[k+1].y);
+                triangle.lineTo(v[k+2].x,v[k+2].y);triangle.closeSubpath();
+                require(!mask.intersects(triangle),"sea fleck enters live hero body or barrel");++triangles;
+            }
+        }
+        std::cout<<"PASS: live 90 s moving hero/body/barrel mask, "<<triangles<<" retained foam triangles outside envelope\n";
+        return 0;
+    }
     HeadlessContext context;QString error;require(context.create(error),"EGL failed");
     Gpu gpu;require(gpu.init(error),"GPU init failed");
     FoamFlecksParametersV1 p;std::vector<std::unique_ptr<Canvas>> canvases;Score score;Audio audio;

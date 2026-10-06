@@ -250,7 +250,7 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
                 QPainterPath area; area.addRect(WaterSurfaceV1::responseArea(row,water));
                 regions.emplace_back(); fillRegion(regions.back(),screen.map(area));
                 if(water.swellSeed>=0) {
-                    SwellLinesParametersV1 field;field.region=QRectF(water.x0,water.horizon,water.x1-water.x0,water.nearY-water.horizon);
+                    SwellLinesParametersV1 field;field.orderedRows=false;field.region=QRectF(water.x0,water.horizon,water.x1-water.x0,water.nearY-water.horizon);
                     field.surgeEnabled=water.surgeEnabled;field.amplitudeGain=water.amplitudeGain;field.rows=water.rows;field.seed=water.swellSeed;field.amplitude=water.amplitude;field.driftSpeed=water.drift;
                     field.bandGain=water.bandGain;field.liftGain=water.liftGain;field.kickGain=water.kickGain;
                     movingRegions.push_back({regions.size()-1,row,field,8});
