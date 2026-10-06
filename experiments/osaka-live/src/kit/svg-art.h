@@ -40,8 +40,11 @@ struct SvgImport {
     QString diagnostic;
     explicit operator bool() const { return bool(art); }
 };
-SvgImport importSvg(const QString& filename, double pixelScale = 1.0);
-SvgImport compileSvg(const QByteArray& xml, const QString& filename, double pixelScale = 1.0);
+// Elements whose label the filter accepts are recorded but left out of the plain
+// art (draw() without an id). A piece that draws them itself uses this.
+using LabelFilter = std::function<bool(const QString&)>;
+SvgImport importSvg(const QString& filename, double pixelScale = 1.0, LabelFilter hideLabel = {});
+SvgImport compileSvg(const QByteArray& xml, const QString& filename, double pixelScale = 1.0, LabelFilter hideLabel = {});
 // The same M/L/Q/C/Z replay boundary as the outlined sign art. Exposed for
 // numerical arc/transform tests; malformed input returns an empty path.
 bool svgPath(const QString& data, QPainterPath& path, QString& error, std::vector<SvgPathCommand>* commands = nullptr);

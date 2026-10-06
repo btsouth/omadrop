@@ -50,6 +50,24 @@ void brokenArt(const QString& worldsRoot, QTextStream& out) {
         require(report.find(id)->status == Status::Skipped, QString("%1 was not skipped").arg(id));
     out << "PASS: unloadable artwork fails 'loads' with the importer's message and skips the rest\n";
 }
+
+// Every kind of music-bound layer must be reported when it never responds.
+void deadPieces(const QString& testWorlds, QTextStream& out) {
+    qputenv("OMADROP_WORLDS", testWorlds.toUtf8());
+    Options options;
+    options.world = "dead-pieces";
+    options.analysisSeconds = 6;
+    options.reference = QString(WORLDS_FOLDER) + "/osaka-jade";
+    const Report report = runWorldCheck(options);
+    out << report.summary();
+    require(!report.ready(), "a world whose pieces never respond was ready");
+    const Item* reacts = report.find("reacts");
+    require(reacts && reacts->status == Status::Fail, "reacts did not fail");
+    for (const char* id : {"lantern-offscreen", "lamp-offscreen", "neon-offscreen", "glow-offscreen", "wire-offscreen"})
+        require(reacts->message.contains(id), QString("%1 was not listed as never responding: %2").arg(id, reacts->message));
+    require(!reacts->message.contains("window ("), "the responding window was listed");
+    out << "PASS: lantern, lamp, neon, glow and wire layers that never respond are all reported\n";
+}
 }
 
 int main(int argc, char** argv) {
@@ -57,6 +75,7 @@ int main(int argc, char** argv) {
     QTextStream out(stdout), err(stderr);
     try {
         if (argc >= 3 && QString(argv[1]) == "--broken-art") { brokenArt(argv[2], out); return 0; }
+        if (argc >= 3 && QString(argv[1]) == "--dead-pieces") { deadPieces(argv[2], out); return 0; }
         require(argc >= 4, "usage: osaka-check-tests WORLDS_ROOT WORLD ready|fail:ID [strobe]");
         const QString root = argv[1], world = argv[2], expect = argv[3];
         const bool strobe = argc >= 5 && QString(argv[4]) == "strobe";

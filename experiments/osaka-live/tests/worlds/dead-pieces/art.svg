@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <rect id="window" data-name="window.band0.always" x="300" y="300" width="400" height="300" fill="#10201b"/>
+  <ellipse id="lantern-offscreen" data-name="lantern.band1" cx="3000" cy="500" rx="30" ry="40" fill="#e8a24f"/>
+  <circle id="lamp-offscreen" data-name="lamp.band1" cx="3100" cy="500" r="20" fill="#f7e8b2"/>
+  <rect id="neon-offscreen" data-name="neon.band1" x="3200" y="400" width="100" height="100" fill="none" stroke="#e17fb2" stroke-width="6"/>
+  <circle id="glow-offscreen" data-name="glow.band1" cx="3400" cy="500" r="40" fill="#9fd8ff"/>
+  <path id="wire-offscreen" data-name="wire.band1.pulse" d="M3500 500 L4000 520" fill="none" stroke="#000" stroke-width="2"/>
+</svg>

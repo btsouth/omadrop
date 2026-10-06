@@ -1,6 +1,7 @@
 #include "check.h"
 #include "check-analysis.h"
 #include "check-signal.h"
+#include "label-pieces.h"
 #include "world-loader.h"
 #include "../audio.h"
 #include "../glcore.h"
@@ -115,9 +116,9 @@ double regionBrightness(const std::vector<unsigned char>& rgb, const Region& r) 
 }
 
 struct NodeResult {
-    QString id, label;
+    QString id, label, piece = "window";
     int band = 0;
-    bool kick = false, onset = false, always = false;
+    bool kick = false, onset = false, always = false, sway = false, flicker = false, pulse = false;
     double peak = 0;
     int responding = 0;
     bool responds() const { return responding >= NodeResponseFrames; }
@@ -126,6 +127,9 @@ struct NodeResult {
         if (always) t += ".always";
         if (kick) t += ".kick";
         if (onset) t += ".onset";
+        if (sway) t += ".sway";
+        if (flicker) t += ".flicker";
+        if (pulse) t += ".pulse";
         return t;
     }
 };
@@ -145,8 +149,15 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
     out.startHop = startHop;
     out.hops = windowHops;
     const auto& windows = osakaWorld().windows;
-    std::vector<Region> regions(windows.size());
+    const auto& pieces = osakaWorld().pieces;
+    std::vector<Region> regions(windows.size() + pieces.size());
     const QTransform screen = QTransform().scale(double(w) / 1920.0, double(h) / 1080.0);
+    auto fillRegion = [&](Region& region, const QPainterPath& shape) {
+        const QRectF box = shape.boundingRect();
+        for (int y = std::max(0, int(box.top())); y < std::min(h, int(box.bottom()) + 1); ++y)
+            for (int x = std::max(0, int(box.left())); x < std::min(w, int(box.right()) + 1); ++x)
+                if (shape.contains(QPointF(x + 0.5, y + 0.5))) region.pixels.push_back(std::uint32_t(y * w + x));
+    };
     for (std::size_t n = 0; n < windows.size(); ++n) {
         const SvgElement* element = nullptr;
         for (const auto& e : osakaWorld().art->elements())
@@ -158,11 +169,20 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
         node.onset = windows[n].onset; node.always = windows[n].always;
         out.nodes.push_back(node);
         if (!element) continue;
-        const QPainterPath shape = screen.map(element->transform.map(element->geometry));
-        const QRectF box = shape.boundingRect();
-        for (int y = std::max(0, int(box.top())); y < std::min(h, int(box.bottom()) + 1); ++y)
-            for (int x = std::max(0, int(box.left())); x < std::min(w, int(box.right()) + 1); ++x)
-                if (shape.contains(QPointF(x + 0.5, y + 0.5))) regions[n].pixels.push_back(std::uint32_t(y * w + x));
+        fillRegion(regions[n], screen.map(element->transform.map(element->geometry)));
+    }
+    // Lanterns, lamps, neon signs, glows and wires: measure where each one's light lands.
+    for (std::size_t n = 0; n < pieces.size(); ++n) {
+        const auto& piece = pieces[n];
+        const SvgElement& element = osakaWorld().art->elements()[piece.element];
+        NodeResult node;
+        node.id = element.id;
+        node.label = element.label;
+        node.piece = QString::fromStdString(piece.piece);
+        node.band = piece.band; node.kick = piece.kick; node.onset = piece.onset; node.always = piece.always;
+        node.sway = piece.sway; node.flicker = piece.flicker; node.pulse = piece.pulse;
+        out.nodes.push_back(node);
+        fillRegion(regions[windows.size() + n], screen.map(LabelPiecesV1::area(piece, element)));
     }
     Pipeline music(options.seed), silence(options.seed);
     const std::vector<float> quiet(std::size_t(HopFrames) * 2, 0.f);
@@ -377,13 +397,13 @@ Report runWorldCheck(const Options& options) {
     try {
         folder = osakaWorldFolder(options.world);
         initializeOsakaWorldAt(folder);
-        const auto& windows = osakaWorld().windows;
+        const std::size_t layers = osakaWorld().windows.size() + osakaWorld().pieces.size();
         loads.status = Status::Pass;
         loads.message = "The scene and artwork load cleanly";
-        loads.message += windows.empty() ? "." : windows.size() == 1 ? " (1 layer reacts to music)."
-            : QString(" (%1 layers react to music).").arg(windows.size());
+        loads.message += layers == 0 ? "." : layers == 1 ? " (1 layer reacts to music)."
+            : QString(" (%1 layers react to music).").arg(layers);
         loads.details["folder"] = folder;
-        loads.details["musicLayers"] = int(windows.size());
+        loads.details["musicLayers"] = int(layers);
     } catch (const std::exception& e) {
         loads.status = Status::Fail;
         loads.message = QString::fromUtf8(e.what()) + "\nThe other checks need a world that loads, so they were not run.";
@@ -421,9 +441,9 @@ Report runWorldCheck(const Options& options) {
         QJsonArray nodes;
         QStringList silent;
         for (const auto& n : a.nodes) {
-            nodes.append(QJsonObject{{"id", n.id}, {"label", n.label}, {"binding", n.tokens()},
+            nodes.append(QJsonObject{{"id", n.id}, {"label", n.label}, {"piece", n.piece}, {"binding", n.tokens()},
                 {"peakDifference", n.peak}, {"respondingFrames", n.responding}, {"responds", n.responds()}});
-            if (!n.responds()) silent.append(n.id + " (" + n.tokens() + ")");
+            if (!n.responds()) silent.append(n.id + " (" + n.piece + "." + n.tokens() + ")");
         }
         reacts.details["musicFrameChange"] = a.musicChange;
         reacts.details["silenceFrameChange"] = a.silentChange;
@@ -435,7 +455,7 @@ Report runWorldCheck(const Options& options) {
         if (a.difference < ReactionDifference) {
             reacts.status = Status::Fail;
             reacts.message = "This world looks the same with and without music (" + percent(a.difference, 3)
-                + " different).\nLabel some SVG layers window.band0 to window.band5 so they light up with the sound;\nsee \"Make a window react to music\" in worlds/README.md.";
+                + " different).\nLabel some SVG layers (window, lantern, lamp, neon, glow or wire, with band0 to band5)\nso they react to the sound; see \"Make layers react to music\" in worlds/README.md.";
         } else if (!silent.isEmpty()) {
             reacts.status = Status::Fail;
             reacts.message = numbers + "\nThese music layers never visibly respond: " + silent.join(", ")

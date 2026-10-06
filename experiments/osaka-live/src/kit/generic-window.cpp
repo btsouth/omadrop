@@ -15,12 +15,16 @@ constexpr double OnsetDecay = 8.0;
 constexpr double OnsetMaxAge = 0.40;
 }
 
-double GenericWindowV1::level(const Ctx& c, const OsakaWindowNodeV1& window) {
-    double value = BandGain * c.band(window.band) + LiftGain * c.lift(window.band);
-    if (window.always) value += Base;
-    if (window.kick) value += KickGain * c.kick(6);
-    if (window.onset) value += OnsetGain * onsetFlash(c, OnsetDecay, OnsetMaxAge);
+double GenericWindowV1::envelope(const Ctx& c, int band, bool always, bool kick, bool onset) {
+    double value = BandGain * c.band(band) + LiftGain * c.lift(band);
+    if (always) value += Base;
+    if (kick) value += KickGain * c.kick(6);
+    if (onset) value += OnsetGain * onsetFlash(c, OnsetDecay, OnsetMaxAge);
     return value;
+}
+
+double GenericWindowV1::level(const Ctx& c, const OsakaWindowNodeV1& window) {
+    return envelope(c, window.band, window.always, window.kick, window.onset);
 }
 
 bool GenericWindowV1::draw(Ctx& c, const OsakaWindowNodeV1& window) {

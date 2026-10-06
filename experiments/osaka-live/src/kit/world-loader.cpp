@@ -1,4 +1,5 @@
 #include "world-loader.h"
+#include "piece-label.h"
 #include "window-label.h"
 #include <QDir>
 #include <QFile>
@@ -27,13 +28,21 @@ struct Reader {
     [[noreturn]] void fail(const QString& path, const QString& expected) const {
         throw std::runtime_error((file + ": " + path + ": expected " + expected).toStdString());
     }
-    QJsonObject object(const QJsonValue& v, const QString& p, const QStringList& fields) const {
+    QJsonObject object(const QJsonValue& v, const QString& p, const QStringList& fields,
+                       const QStringList& optional = {}) const {
         if (!v.isObject()) fail(p, "object");
         const auto o = v.toObject();
         for (auto it=o.begin(); it!=o.end(); ++it)
-            if (!fields.contains(it.key())) fail(fieldPath(p,it.key()), "known field (unknown field)");
+            if (!fields.contains(it.key()) && !optional.contains(it.key())) fail(fieldPath(p,it.key()), "known field (unknown field)");
         for (const auto& f : fields) if (!o.contains(f)) fail(fieldPath(p,f), "required field");
         return o;
+    }
+    Col color(const QJsonValue& v, const QString& p) const {
+        const auto text = v.isString() ? v.toString() : QString();
+        bool ok = text.size() == 7 && text[0] == '#';
+        const int value = ok ? text.mid(1).toInt(&ok, 16) : 0;
+        if (!ok) fail(p, "color string like '#1a2b3c'");
+        return hex(value);
     }
     QString string(const QJsonValue& v, const QString& p) const {
         if (!v.isString() || v.toString().isEmpty()) fail(p, "nonempty string");
@@ -68,6 +77,7 @@ struct Reader {
 };
 struct Piece { const char* name; OsakaOp op; const char* profile; };
 constexpr Piece pieces[] = {
+    {"Haze", OsakaOp::Haze, "osaka-haze-v1"},
     {"Sky", OsakaOp::Sky, "osaka-sky-v1"},
     {"AfterSky", OsakaOp::AfterSky, "after-sky"},
     {"Star", OsakaOp::Star, "osaka-shooting-star-v1"},
@@ -128,17 +138,19 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     auto rootObject=doc.object();
     const bool hasNodes=rootObject.contains("nodes");
     if (!hasNodes) rootObject.insert("nodes",QJsonArray{});
-    const auto root=r.object(rootObject, "$",
-                             {"schema","world","profile","stages","finish","disc","mountain","profiles","art","nodes"});
+    const auto root=r.object(rootObject, "$", {"schema","world","profile","stages","art","nodes"},
+                             {"finish","disc","mountain","profiles"});
     if (r.number(root["schema"],"$.schema")!=1) r.fail("$.schema","schema version 1");
     const auto worldName=r.string(root["world"],"$.world");
     r.literal(root["profile"],"$.profile","osaka-world-v1");
     auto loaded=std::unique_ptr<LoadedOsakaWorld>(new LoadedOsakaWorld);
     auto& w=loaded->world_;
-    const auto art=r.object(root["art"],"$.art",{"file","elements"});
+    const bool osaka=worldName=="osaka-jade";
+    const auto art=osaka ? r.object(root["art"],"$.art",{"file","elements"})
+                         : r.object(root["art"],"$.art",{"file"},{"elements"});
     const auto file=r.string(art["file"],"$.art.file");
     if(file!="art.svg")r.fail("$.art.file","art.svg in the world folder");
-    const auto imported=importSvg(QDir(folder).filePath(file));
+    const auto imported=importSvg(QDir(folder).filePath(file),1.0,pieceReplacesArt);
     if(!imported)r.fail("$.art.file",imported.diagnostic);
     w.art=imported.art;
     QSet<QString> explicitWindowIds;
@@ -167,7 +179,15 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             w.windows.push_back(window);
         }
     }
-    for(const auto& element:w.art->elements()) {
+    for(std::size_t index=0;index<w.art->elements().size();++index) {
+        const auto& element=w.art->elements()[index];
+        if(isPieceLabelCandidate(element.label)) {
+            auto node=parsePieceLabel(file,element.id,element.label);
+            checkPieceElement(file,element,node);
+            node.element=index;
+            w.pieces.push_back(node);
+            continue;
+        }
         if(!isWindowLabelCandidate(element.label))continue;
         if(explicitWindowIds.contains(element.id)) {
             loaded->notes_.push_back(QString("%1: element id '%2' label '%3': explicit window node overrides shorthand")
@@ -176,8 +196,8 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         }
         w.windows.push_back(parseWindowLabel(file,element.id,element.label));
     }
-    if(!art["elements"].isObject())r.fail("$.art.elements","element binding object");
-    const auto bindings=worldName=="osaka-jade"
+    if(!art["elements"].isObject() && (osaka || art.contains("elements")))r.fail("$.art.elements","element binding object");
+    const auto bindings=osaka
         ? r.object(art["elements"],"$.art.elements",{"near-house-shell","right-house-2-shell","right-house-3-shell","near-house-roof","near-house-eaves","right-house-2-roof","right-house-3-roof","right-house-3-eaves","near-house-lattice","izakaya-lattice","near-house-deck","street-railing","yatai-frame","izakaya-counter","laundry-line","near-house-lamp-hanger","sign-glyph-0","sign-glyph-1","sign-glyph-2","sign-glyph-3","sign-glyph-4","sign-glyph-5","sign-glyph-6","near-house-mask","shamisen-mask"})
         : art["elements"].toObject();
     for(auto it=bindings.begin();it!=bindings.end();++it) {
@@ -186,16 +206,28 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         if(!found)r.fail(fieldPath("$.art.elements",it.key()),"SVG element ID compatible with Canvas replay");
         w.artwork.emplace(it.key().toStdString(),id);
     }
-    const auto finish=r.object(root["finish"],"$.finish",{"profile"});
-    r.literal(finish["profile"],"$.finish.profile","osaka-finish-v1");
-    const auto disc=r.object(root["disc"],"$.disc",{"profile","x","y","parallax","radius"});
-    r.literal(disc["profile"],"$.disc.profile","osaka-disc-v1");
-    w.disc={r.number(disc["x"],"$.disc.x"),r.number(disc["y"],"$.disc.y"),r.number(disc["parallax"],"$.disc.parallax"),r.number(disc["radius"],"$.disc.radius")};
-    const auto mountain=r.object(root["mountain"],"$.mountain",{"profile","x","parallax","peak","base","width"});
-    r.literal(mountain["profile"],"$.mountain.profile","osaka-mountain-v1");
-    w.mountain={r.number(mountain["x"],"$.mountain.x"),r.number(mountain["parallax"],"$.mountain.parallax"),r.number(mountain["peak"],"$.mountain.peak"),r.number(mountain["base"],"$.mountain.base"),r.number(mountain["width"],"$.mountain.width")};
-    const auto profiles=r.object(root["profiles"],"$.profiles",{"osaka-finish-v1","osaka-disc-v1","osaka-mountain-v1","osaka-haze-v1","osaka-sky-v1","osaka-pane-v1","osaka-neon-v1"});
-    {
+    // A world can leave out what it does not draw. A block that is present must be
+    // complete. A profile block that is left out keeps the library defaults. The
+    // disc and mountain placements are checked against the slots further down.
+    if (root.contains("finish")) {
+        const auto finish=r.object(root["finish"],"$.finish",{"profile"});
+        r.literal(finish["profile"],"$.finish.profile","osaka-finish-v1");
+    }
+    const bool hasDisc=root.contains("disc"), hasMountain=root.contains("mountain");
+    if (hasDisc) {
+        const auto disc=r.object(root["disc"],"$.disc",{"profile","x","y","parallax","radius"});
+        r.literal(disc["profile"],"$.disc.profile","osaka-disc-v1");
+        w.disc={r.number(disc["x"],"$.disc.x"),r.number(disc["y"],"$.disc.y"),r.number(disc["parallax"],"$.disc.parallax"),r.number(disc["radius"],"$.disc.radius")};
+    }
+    if (hasMountain) {
+        const auto mountain=r.object(root["mountain"],"$.mountain",{"profile","x","parallax","peak","base","width"});
+        r.literal(mountain["profile"],"$.mountain.profile","osaka-mountain-v1");
+        w.mountain={r.number(mountain["x"],"$.mountain.x"),r.number(mountain["parallax"],"$.mountain.parallax"),r.number(mountain["peak"],"$.mountain.peak"),r.number(mountain["base"],"$.mountain.base"),r.number(mountain["width"],"$.mountain.width")};
+    }
+    const auto profiles=root.contains("profiles")
+        ? r.object(root["profiles"],"$.profiles",{},{"osaka-finish-v1","osaka-disc-v1","osaka-mountain-v1","osaka-haze-v1","osaka-sky-v1","osaka-pane-v1","osaka-neon-v1"})
+        : QJsonObject{};
+    if (profiles.contains("osaka-finish-v1")) {
         const QString p="$.profiles['osaka-finish-v1']";
         const auto data=r.object(profiles["osaka-finish-v1"],p,{"bloom","threshold","vignette","grain","knee","paper"});
         w.finish.defaults.bloom=r.scalar(data["bloom"],p+".bloom");
@@ -205,7 +237,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         w.finish.defaults.knee=r.scalar(data["knee"],p+".knee");
         w.finish.defaults.paper=r.scalar(data["paper"],p+".paper");
     }
-    {
+    if (profiles.contains("osaka-disc-v1")) {
         const QString p="$.profiles['osaka-disc-v1']";
         const auto data=r.object(profiles["osaka-disc-v1"],p,{"creamHex","warmHex","colorGain","haloR","haloG","haloB","energyBase","energyBass","energySurge","energyKick","veil","texture","haloA","haloBRadius","haloC","haloD","haloFar","restRings","ring0Offset","ring0Energy","ring0Alpha","ring1Offset","ring1Energy","ring1Alpha","ringAlphaBase","hitSeconds","hitThreshold","hitOffset","hitTravel","hitAlpha","timeOffset"});
         w.parameters.disc.creamHex=r.integer(data["creamHex"],p+".creamHex",0,16777215);
@@ -241,7 +273,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         w.parameters.disc.hitAlpha=r.number(data["hitAlpha"],p+".hitAlpha");
         w.parameters.disc.timeOffset=r.number(data["timeOffset"],p+".timeOffset");
     }
-    {
+    if (profiles.contains("osaka-mountain-v1")) {
         const QString p="$.profiles['osaka-mountain-v1']";
         const auto data=r.object(profiles["osaka-mountain-v1"],p,{"topR","topG","topB","bottomR","bottomG","bottomB","foot","samples","span","shapePower","rippleGain","ripplePeriod","summitWidth","summitOffset","summitCurve","summitHeight","gradientStop","gradientMix"});
         w.parameters.mountain.topR=r.number(data["topR"],p+".topR");
@@ -267,7 +299,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         w.parameters.mountain.gradientStop=r.number(data["gradientStop"],p+".gradientStop");
         w.parameters.mountain.gradientMix=r.number(data["gradientMix"],p+".gradientMix");
     }
-    {
+    if (profiles.contains("osaka-haze-v1")) {
         const QString p="$.profiles['osaka-haze-v1']";
         const auto data=r.object(profiles["osaka-haze-v1"],p,{"noiseX","noiseY","cullSigma"});
         w.parameters.haze.noiseX=r.number(data["noiseX"],p+".noiseX");
@@ -277,7 +309,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         w.parameters.haze.cullSigma=r.number(data["cullSigma"],p+".cullSigma");
         if (w.parameters.haze.cullSigma<=0) r.fail(p+".cullSigma","positive number");
     }
-    {
+    if (profiles.contains("osaka-sky-v1")) {
         const QString p="$.profiles['osaka-sky-v1']";
         const auto data=r.object(profiles["osaka-sky-v1"],p,{"energyBase","energyBass","energySurge","timeOffset"});
         w.parameters.sky.energyBase=r.number(data["energyBase"],p+".energyBase");
@@ -285,7 +317,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         w.parameters.sky.energySurge=r.number(data["energySurge"],p+".energySurge");
         w.parameters.sky.timeOffset=r.number(data["timeOffset"],p+".timeOffset");
     }
-    {
+    if (profiles.contains("osaka-pane-v1")) {
         const QString p="$.profiles['osaka-pane-v1']";
         const auto data=r.object(profiles["osaka-pane-v1"],p,{"alwaysOnCutoff","base","hush","band","lift","kick","near","upper","right"});
         w.parameters.windows.alwaysOnCutoff=r.number(data["alwaysOnCutoff"],p+".alwaysOnCutoff");
@@ -328,7 +360,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             w.parameters.windows.right[i].on=r.number(item["on"],q+".on");
         }
     }
-    {
+    if (profiles.contains("osaka-neon-v1")) {
         const QString p="$.profiles['osaka-neon-v1']";
         const auto data=r.object(profiles["osaka-neon-v1"],p,{"stutterRate","stutterProbability","stutterLevel","boardX","boardY","boardW","boardH","boardR","boardG","boardB","tubeR","tubeG","tubeB","tubeMix","magHex","outlineAlpha","outlineX","outlineY","outlineW","outlineH","outlineWidth","glyphCount","glyphX","glyphY","glyphStep","glyphSize","glowX","glowY","glowRadius","glowBase","glowKick","levelBase","levelSine","levelRate","levelKick","overGain","addGain","addBlur"});
         w.parameters.signs.stutterRate=r.number(data["stutterRate"],p+".stutterRate");
@@ -372,22 +404,31 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     }
     if (w.disc.radius<=0) r.fail("$.disc.radius","positive radius");
     if (w.mountain.width<=0) r.fail("$.mountain.width","positive width");
-    if (!root["stages"].isArray() || root["stages"].toArray().size()!=4) r.fail("$.stages","four ordered stages");
+    // A world lists the stages it draws, in render order. Stages left out are empty.
+    if (!root["stages"].isArray() || root["stages"].toArray().isEmpty() || root["stages"].toArray().size()>4)
+        r.fail("$.stages","array of 1..4 ordered stages");
     const auto stages=root["stages"].toArray();
-    const char* phases[]={"Backdrop","Coast","DistantTown","Foreground"};
+    const QStringList phases{"Backdrop","Coast","DistantTown","Foreground"};
     OsakaRenderStage* targets[]={&w.backdrop,&w.coast,&w.distantTown,&w.foreground};
-    for (int i=0;i<4;++i) {
+    int nextPhase=0;
+    bool usesDisc=false, usesMountain=false;
+    for (int i=0;i<stages.size();++i) {
         const QString p="$.stages["+QString::number(i)+"]";
-        const auto stage=r.object(stages[i],p,{"id","phase","events","slots"});
-        r.id(stage["id"],p+".id"); r.literal(stage["phase"],p+".phase",phases[i]);
-        const auto events=r.string(stage["events"],p+".events");
+        const auto stage=r.object(stages[i],p,{"id","phase","slots"},{"events"});
+        r.id(stage["id"],p+".id");
+        const auto phaseName=r.string(stage["phase"],p+".phase");
+        if (stages.size()==4) r.literal(stage["phase"],p+".phase",phases[i]);
+        const int phase=phases.indexOf(phaseName);
+        if (phase<nextPhase) r.fail(p+".phase","Backdrop, Coast, DistantTown or Foreground, each at most once and in that order");
+        nextPhase=phase+1;
+        const auto events=stage.contains("events") ? r.string(stage["events"],p+".events") : QString("Life");
         if (events!="Life" && events!="LifeAndFlock") r.fail(p+".events","Life or LifeAndFlock");
-        if (!stage["slots"].isArray() || stage["slots"].toArray().isEmpty() || stage["slots"].toArray().size()>128) r.fail(p+".slots","array of 1..128 render slots");
+        if (!stage["slots"].isArray() || stage["slots"].toArray().size()>128) r.fail(p+".slots","array of at most 128 render slots");
         const auto slotsArray=stage["slots"].toArray();
-        auto& entries=loaded->entries_[i]; entries.reserve(slotsArray.size());
+        auto& entries=loaded->entries_[phase]; entries.reserve(slotsArray.size());
         for (int j=0;j<slotsArray.size();++j) {
             const QString q=p+".slots["+QString::number(j)+"]";
-            const auto slot=r.object(slotsArray[j],q,{"id","piece","gate","profile"});
+            const auto slot=r.object(slotsArray[j],q,{"id","piece","gate","profile"},{"params"});
             r.id(slot["id"],q+".id");
             const auto name=r.string(slot["piece"],q+".piece");
             const Piece* piece=nullptr;
@@ -399,10 +440,52 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             for (const auto& item:gates) if (gateName==item.name) { gate=&item; break; }
             if (!gate) r.fail(q+".gate","known Osaka gate");
             if ((piece->op==OsakaOp::FarNetwork || piece->op==OsakaOp::NearNetwork || piece->op==OsakaOp::Birds) && events!="LifeAndFlock") r.fail(p+".events","LifeAndFlock for network or birds");
-            entries.push_back({piece->op,gate->gate,piece->profile,slot["id"].toString().toStdString()});
+            usesDisc|=piece->op==OsakaOp::Disc;
+            usesMountain|=piece->op==OsakaOp::Mountain;
+            std::shared_ptr<const OsakaSlotParamsV1> params;
+            const QString paramsPath=fieldPath(q,"params");
+            if (piece->op==OsakaOp::Haze) {
+                if (!slot.contains("params")) r.fail(paramsPath,"required field");
+                const auto data=r.object(slot["params"],paramsPath,{"y","sigma","lo","hi","color","gain"},{"shift","drift","seed"});
+                auto value=std::make_shared<OsakaSlotParamsV1>();
+                auto& haze=value->haze;
+                haze.y=r.number(data["y"],paramsPath+".y");
+                haze.sigma=r.number(data["sigma"],paramsPath+".sigma");
+                if (haze.sigma<=0) r.fail(paramsPath+".sigma","positive number");
+                haze.lo=r.number(data["lo"],paramsPath+".lo");
+                haze.hi=r.number(data["hi"],paramsPath+".hi");
+                haze.color=r.color(data["color"],paramsPath+".color");
+                haze.gain=r.number(data["gain"],paramsPath+".gain");
+                if (data.contains("shift")) haze.shift=r.number(data["shift"],paramsPath+".shift");
+                if (data.contains("drift")) haze.drift=r.number(data["drift"],paramsPath+".drift");
+                if (data.contains("seed")) haze.seed=r.number(data["seed"],paramsPath+".seed");
+                params=value;
+            } else if (piece->op==OsakaOp::Ridges && slot.contains("params")) {
+                const auto data=r.object(slot["params"],paramsPath,{"ridges"});
+                const auto listPath=paramsPath+".ridges";
+                if (!data["ridges"].isArray() || data["ridges"].toArray().isEmpty() || data["ridges"].toArray().size()>8)
+                    r.fail(listPath,"array of 1..8 ridges");
+                auto value=std::make_shared<OsakaSlotParamsV1>();
+                const auto list=data["ridges"].toArray();
+                for (int k=0;k<list.size();++k) {
+                    const QString rp=listPath+"["+QString::number(k)+"]";
+                    const auto ridge=r.object(list[k],rp,{"seed","base","amp","scale","parallax","top","bottom"});
+                    OsakaRidgeSpecV1 spec{r.integer(ridge["seed"],rp+".seed",0,1000000),
+                        r.number(ridge["base"],rp+".base"),r.number(ridge["amp"],rp+".amp"),r.number(ridge["scale"],rp+".scale"),
+                        r.number(ridge["parallax"],rp+".parallax"),r.color(ridge["top"],rp+".top"),r.color(ridge["bottom"],rp+".bottom")};
+                    if (spec.scale<=0) r.fail(rp+".scale","positive number");
+                    value->ridges.push_back(spec);
+                }
+                params=value;
+            } else if (slot.contains("params")) {
+                r.fail(paramsPath,"known field (unknown field)");
+            }
+            entries.push_back({piece->op,gate->gate,piece->profile,slot["id"].toString().toStdString(),params});
         }
-        *targets[i]={entries.data(),entries.size(),events=="Life" ? OsakaEventRef::Life : OsakaEventRef::LifeAndFlock,stage["id"].toString().toStdString()};
+        *targets[phase]={entries.data(),entries.size(),events=="Life" ? OsakaEventRef::Life : OsakaEventRef::LifeAndFlock,stage["id"].toString().toStdString()};
     }
+    if (usesDisc && !hasDisc) r.fail("$.disc","required field");
+    if (usesMountain && !hasMountain) r.fail("$.mountain","required field");
     return loaded;
 }
 }

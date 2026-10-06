@@ -188,3 +188,23 @@ general and red flash counting) with no GPU or Qt dependency, so the preview too
 can reuse it. `check-signal.*` generates the built-in test music. `check.*` runs
 the five checks headless and builds the text and JSON reports for
 `omadrop-osaka --check`. See `worlds/README.md` for what each check means.
+
+## Label pieces and backdrop slots, round 4
+
+`window-label.*` and `piece-label.*` hold the label grammar: `piece(.token)*`,
+lowercase, exactly one `band0` to `band5`. `window` keeps its own parser. The
+`lantern`, `lamp`, `neon`, `glow` and `wire` pieces parse in `piece-label.*`,
+expand into `OsakaWorldDescription::pieces` at load, and are drawn after the
+windows by `label-pieces.*` (`generic-lantern-v1`, `generic-lamp-v1`,
+`generic-neon-v1`, `generic-glow-v1`, `generic-wire-v1`). They reuse Osaka's
+lantern, neon, strand and pulse drawing and envelope arithmetic as defaults. No
+`osaka-*-v1` profile changes. Lanterns, neon signs and wires replace their flat
+art (`importSvg` takes a label filter for that); lamps and glows keep it.
+`LabelPiecesV1::area` says where each piece's light lands, and `--check` and the
+tests measure brightness there.
+
+The loader accepts a world that lists only the stages it draws and leaves out
+`finish`, `disc`, `mountain`, `profiles` and each profile block (library
+defaults apply). `Haze` is a new slot piece that calls the existing haze band,
+and `Ridges` can take its own ridge list through `params`. Osaka's slots carry
+no `params`, so its drawing is unchanged.

@@ -22,7 +22,7 @@ add_executable(osaka-render-comparison-tests render_comparison_tests.cpp)
 target_include_directories(osaka-render-comparison-tests PRIVATE ../src)
 add_test(NAME bounded-render-comparison COMMAND osaka-render-comparison-tests)
 
-add_executable(osaka-world-loader-tests world_loader_tests.cpp osaka-oracle.cpp ../src/kit/world-loader.cpp ../src/kit/window-label.cpp ../src/kit/svg-art.cpp ../src/kit/svg-path.cpp ../src/canvas.cpp)
+add_executable(osaka-world-loader-tests world_loader_tests.cpp osaka-oracle.cpp ../src/kit/world-loader.cpp ../src/kit/window-label.cpp ../src/kit/piece-label.cpp ../src/kit/svg-art.cpp ../src/kit/svg-path.cpp ../src/canvas.cpp)
 target_link_libraries(osaka-world-loader-tests PRIVATE Qt6::Gui Qt6::OpenGL)
 target_compile_definitions(osaka-world-loader-tests PRIVATE OSAKA_WORLD_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/osaka-jade")
 add_test(NAME world-folder-validation COMMAND osaka-world-loader-tests)
@@ -39,6 +39,16 @@ target_compile_definitions(osaka-window-shorthand-tests PRIVATE
     WORLDS_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds"
     LIT_WINDOWS_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/examples/lit-windows")
 add_test(NAME window-shorthand-and-render COMMAND osaka-window-shorthand-tests)
+
+add_executable(osaka-label-piece-tests label_pieces_tests.cpp
+    ${OSAKA_KIT_SOURCES}
+    ../src/world.cpp ../src/canvas.cpp ../src/gpu.cpp ../src/rig.cpp ../src/osaka.cpp
+    ../src/headless.cpp ../src/score.cpp ../src/schedule.cpp ../src/audio.cpp)
+target_include_directories(osaka-label-piece-tests PRIVATE ../src)
+target_link_libraries(osaka-label-piece-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL PkgConfig::FFTW)
+target_compile_definitions(osaka-label-piece-tests PRIVATE
+    NIGHT_STREET_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/examples/night-street")
+add_test(NAME label-pieces-and-backdrop COMMAND osaka-label-piece-tests)
 
 add_executable(osaka-svg-tests svg_tests.cpp ../src/kit/svg-art.cpp ../src/kit/svg-path.cpp ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp)
 target_include_directories(osaka-svg-tests PRIVATE ../src)
@@ -71,14 +81,16 @@ set(CHECK_REPO_WORLDS "${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds")
 set(CHECK_TEST_WORLDS "${CMAKE_CURRENT_SOURCE_DIR}/worlds")
 add_test(NAME check-osaka-jade-ready COMMAND osaka-check-tests ${CHECK_REPO_WORLDS} osaka-jade ready)
 add_test(NAME check-lit-windows-ready COMMAND osaka-check-tests ${CHECK_REPO_WORLDS} examples/lit-windows ready)
+add_test(NAME check-night-street-ready COMMAND osaka-check-tests ${CHECK_REPO_WORLDS} examples/night-street ready)
+add_test(NAME check-dead-pieces-fail-reacts COMMAND osaka-check-tests --dead-pieces ${CHECK_TEST_WORLDS})
 add_test(NAME check-ignores-music-fails-reacts COMMAND osaka-check-tests ${CHECK_TEST_WORLDS} ignores-music fail:reacts)
 add_test(NAME check-harsh-flashing-fails-flashing COMMAND osaka-check-tests ${CHECK_TEST_WORLDS} harsh-flashing fail:flashing strobe)
 add_test(NAME check-unloadable-art-fails-loads COMMAND osaka-check-tests --broken-art ${CHECK_REPO_WORLDS})
-set_tests_properties(check-osaka-jade-ready check-lit-windows-ready check-ignores-music-fails-reacts
+set_tests_properties(check-osaka-jade-ready check-lit-windows-ready check-night-street-ready check-dead-pieces-fail-reacts check-ignores-music-fails-reacts
     check-harsh-flashing-fails-flashing check-unloadable-art-fails-loads PROPERTIES TIMEOUT 900)
 
 add_executable(osaka-reload-tests world_reload_tests.cpp ../src/kit/world-reload.cpp ../src/kit/world-loader.cpp
-    ../src/kit/window-label.cpp ../src/kit/svg-art.cpp ../src/kit/svg-path.cpp ../src/canvas.cpp ../src/osaka.cpp)
+    ../src/kit/window-label.cpp ../src/kit/piece-label.cpp ../src/kit/svg-art.cpp ../src/kit/svg-path.cpp ../src/canvas.cpp ../src/osaka.cpp)
 set_target_properties(osaka-reload-tests PROPERTIES AUTOMOC ON)
 target_include_directories(osaka-reload-tests PRIVATE ../src)
 target_link_libraries(osaka-reload-tests PRIVATE Qt6::Gui Qt6::OpenGL)

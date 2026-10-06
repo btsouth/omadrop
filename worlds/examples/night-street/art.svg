@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <!-- Street and kerb -->
+  <rect id="street" data-name="street" x="0" y="930" width="1920" height="150" fill="#050e0c"/>
+  <rect id="kerb" data-name="kerb" x="0" y="926" width="1920" height="6" fill="#16322a"/>
+
+  <!-- Left shop -->
+  <path id="shop-left-roof" data-name="shop-left-roof" d="M40 440 L110 366 L570 366 L640 440 Z" fill="#04100c"/>
+  <rect id="shop-left" data-name="shop-left" x="70" y="436" width="540" height="494" fill="#081a15"/>
+  <rect id="shop-left-eave" data-name="shop-left-eave" x="60" y="430" width="560" height="12" fill="#030b09"/>
+  <rect id="shop-left-door" data-name="shop-left-door" x="270" y="730" width="130" height="200" rx="6" fill="#030c09" stroke="#1d3b31" stroke-width="5"/>
+  <rect id="left-window-0" data-name="window.band1.always" x="110" y="490" width="120" height="120" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="6"/>
+  <rect id="left-window-1" data-name="window.band3.kick" x="270" y="490" width="120" height="120" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="6"/>
+  <rect id="left-window-2" data-name="window.band2.onset" x="430" y="490" width="120" height="120" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="6"/>
+  <rect id="left-window-3" data-name="window.band0.always" x="110" y="750" width="110" height="110" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="6"/>
+  <rect id="left-window-4" data-name="window.band4.always.kick" x="450" y="750" width="110" height="110" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="6"/>
+
+  <!-- Right building -->
+  <path id="shop-right-roof" data-name="shop-right-roof" d="M1090 380 L1150 310 L1790 310 L1850 380 Z" fill="#04100c"/>
+  <rect id="shop-right" data-name="shop-right" x="1110" y="376" width="720" height="554" fill="#081a15"/>
+  <rect id="shop-right-eave" data-name="shop-right-eave" x="1100" y="370" width="740" height="12" fill="#030b09"/>
+  <rect id="shop-right-door" data-name="shop-right-door" x="1620" y="740" width="130" height="190" rx="6" fill="#030c09" stroke="#1d3b31" stroke-width="5"/>
+  <rect id="right-window-0" data-name="window.band2.always" x="1170" y="430" width="110" height="130" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="6"/>
+  <rect id="right-window-1" data-name="window.band5.onset" x="1330" y="430" width="110" height="130" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="6"/>
+  <rect id="right-window-2" data-name="window.band1.always.kick" x="1490" y="430" width="110" height="130" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="6"/>
+  <rect id="right-window-3" data-name="window.band3.always" x="1650" y="430" width="110" height="130" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="6"/>
+  <rect id="right-window-4" data-name="window.band0.kick" x="1170" y="760" width="130" height="120" rx="6" fill="#10201b" stroke="#c99a58" stroke-width="6"/>
+
+  <!-- Sign board and its neon outline -->
+  <rect id="sign-board" data-name="sign-board" x="1375" y="605" width="170" height="100" rx="10" fill="#050f0c"/>
+  <path id="sign-neon" data-name="neon.band3.flicker"
+        d="M1388 620 h144 a10 10 0 0 1 10 10 v60 a10 10 0 0 1 -10 10 h-144 a10 10 0 0 1 -10 -10 v-60 a10 10 0 0 1 10 -10 Z M1488 660 a21 21 0 1 0 -42 0 a21 21 0 1 0 42 0 Z"
+        fill="none" stroke="#e17fb2" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Brackets for the two lanterns -->
+  <path id="bracket-left" data-name="bracket-left" d="M610 520 H672" fill="none" stroke="#030b09" stroke-width="5"/>
+  <path id="bracket-right" data-name="bracket-right" d="M1110 520 H1050" fill="none" stroke="#030b09" stroke-width="5"/>
+  <ellipse id="lantern-left" data-name="lantern.band2.kick.sway" cx="672" cy="572" rx="26" ry="34" fill="#e8a24f"/>
+  <ellipse id="lantern-right" data-name="lantern.band4.sway" cx="1050" cy="572" rx="26" ry="34" fill="#e8a24f"/>
+
+  <!-- Lamp post -->
+  <rect id="post" data-name="post" x="835" y="520" width="12" height="412" fill="#030b09"/>
+  <rect id="post-base" data-name="post-base" x="824" y="910" width="34" height="22" fill="#030b09"/>
+  <path id="post-arm" data-name="post-arm" d="M841 530 C 841 505 870 498 890 498" fill="none" stroke="#030b09" stroke-width="8"/>
+  <circle id="lamp-head" data-name="lamp.band1.kick" cx="896" cy="506" r="20" fill="#f7e8b2"/>
+
+  <!-- Two wires, roof to post and post to roof -->
+  <path id="wire-left" data-name="wire.band1.pulse" d="M580 380 C 680 450 760 490 838 524" fill="none" stroke="#030b09" stroke-width="2"/>
+  <path id="wire-right" data-name="wire.band4.pulse" d="M846 530 C 980 470 1060 420 1112 392" fill="none" stroke="#030b09" stroke-width="2"/>
+</svg>

@@ -6,10 +6,6 @@
     "world",
     "profile",
     "stages",
-    "finish",
-    "disc",
-    "mountain",
-    "profiles",
     "art"
   ],
   "properties": {
@@ -25,262 +21,77 @@
     },
     "stages": {
       "type": "array",
-      "minItems": 4,
+      "minItems": 1,
       "maxItems": 4,
-      "prefixItems": [
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "id",
-            "phase",
-            "events",
-            "slots"
-          ],
-          "properties": {
-            "id": {
-              "type": "string",
-              "minLength": 1
-            },
-            "phase": {
-              "const": "Backdrop"
-            },
-            "events": {
-              "type": "string",
-              "enum": [
-                "Life",
-                "LifeAndFlock"
-              ]
-            },
-            "slots": {
-              "type": "array",
-              "minItems": 1,
-              "maxItems": 128,
-              "items": {
-                "$ref": "#/$defs/renderSlot"
-              }
-            }
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "phase",
+          "slots"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
           },
-          "allOf": [
-            {
-              "if": {
-                "properties": {
-                  "slots": {
-                    "contains": {
-                      "properties": {
-                        "piece": {
-                          "type": "string",
-                          "enum": [
-                            "FarNetwork",
-                            "NearNetwork",
-                            "Birds"
-                          ]
-                        }
-                      }
-                    }
-                  }
-                }
-              },
-              "then": {
-                "properties": {
-                  "events": {
-                    "const": "LifeAndFlock"
-                  }
-                }
-              }
+          "phase": {
+            "type": "string",
+            "enum": [
+              "Backdrop",
+              "Coast",
+              "DistantTown",
+              "Foreground"
+            ]
+          },
+          "events": {
+            "type": "string",
+            "enum": [
+              "Life",
+              "LifeAndFlock"
+            ]
+          },
+          "slots": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 128,
+            "items": {
+              "$ref": "#/$defs/renderSlot"
             }
-          ]
+          }
         },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "id",
-            "phase",
-            "events",
-            "slots"
-          ],
-          "properties": {
-            "id": {
-              "type": "string",
-              "minLength": 1
-            },
-            "phase": {
-              "const": "Coast"
-            },
-            "events": {
-              "type": "string",
-              "enum": [
-                "Life",
-                "LifeAndFlock"
-              ]
-            },
-            "slots": {
-              "type": "array",
-              "minItems": 1,
-              "maxItems": 128,
-              "items": {
-                "$ref": "#/$defs/renderSlot"
-              }
-            }
-          },
-          "allOf": [
-            {
-              "if": {
-                "properties": {
-                  "slots": {
-                    "contains": {
-                      "properties": {
-                        "piece": {
-                          "type": "string",
-                          "enum": [
-                            "FarNetwork",
-                            "NearNetwork",
-                            "Birds"
-                          ]
-                        }
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "slots": {
+                  "contains": {
+                    "properties": {
+                      "piece": {
+                        "type": "string",
+                        "enum": [
+                          "FarNetwork",
+                          "NearNetwork",
+                          "Birds"
+                        ]
                       }
                     }
                   }
                 }
-              },
-              "then": {
-                "properties": {
-                  "events": {
-                    "const": "LifeAndFlock"
-                  }
+              }
+            },
+            "then": {
+              "properties": {
+                "events": {
+                  "const": "LifeAndFlock"
                 }
               }
             }
-          ]
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "id",
-            "phase",
-            "events",
-            "slots"
-          ],
-          "properties": {
-            "id": {
-              "type": "string",
-              "minLength": 1
-            },
-            "phase": {
-              "const": "DistantTown"
-            },
-            "events": {
-              "type": "string",
-              "enum": [
-                "Life",
-                "LifeAndFlock"
-              ]
-            },
-            "slots": {
-              "type": "array",
-              "minItems": 1,
-              "maxItems": 128,
-              "items": {
-                "$ref": "#/$defs/renderSlot"
-              }
-            }
-          },
-          "allOf": [
-            {
-              "if": {
-                "properties": {
-                  "slots": {
-                    "contains": {
-                      "properties": {
-                        "piece": {
-                          "type": "string",
-                          "enum": [
-                            "FarNetwork",
-                            "NearNetwork",
-                            "Birds"
-                          ]
-                        }
-                      }
-                    }
-                  }
-                }
-              },
-              "then": {
-                "properties": {
-                  "events": {
-                    "const": "LifeAndFlock"
-                  }
-                }
-              }
-            }
-          ]
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "id",
-            "phase",
-            "events",
-            "slots"
-          ],
-          "properties": {
-            "id": {
-              "type": "string",
-              "minLength": 1
-            },
-            "phase": {
-              "const": "Foreground"
-            },
-            "events": {
-              "type": "string",
-              "enum": [
-                "Life",
-                "LifeAndFlock"
-              ]
-            },
-            "slots": {
-              "type": "array",
-              "minItems": 1,
-              "maxItems": 128,
-              "items": {
-                "$ref": "#/$defs/renderSlot"
-              }
-            }
-          },
-          "allOf": [
-            {
-              "if": {
-                "properties": {
-                  "slots": {
-                    "contains": {
-                      "properties": {
-                        "piece": {
-                          "type": "string",
-                          "enum": [
-                            "FarNetwork",
-                            "NearNetwork",
-                            "Birds"
-                          ]
-                        }
-                      }
-                    }
-                  }
-                }
-              },
-              "then": {
-                "properties": {
-                  "events": {
-                    "const": "LifeAndFlock"
-                  }
-                }
-              }
-            }
-          ]
-        }
-      ]
+          }
+        ],
+        "description": "Stages a world draws, in render order. Each phase at most once; the loader checks the order."
+      }
     },
     "finish": {
       "type": "object",
@@ -359,15 +170,7 @@
     "profiles": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "osaka-finish-v1",
-        "osaka-disc-v1",
-        "osaka-mountain-v1",
-        "osaka-haze-v1",
-        "osaka-sky-v1",
-        "osaka-pane-v1",
-        "osaka-neon-v1"
-      ],
+      "required": [],
       "properties": {
         "osaka-finish-v1": {
           "type": "object",
@@ -1007,8 +810,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "file",
-        "elements"
+        "file"
       ],
       "properties": {
         "file": {
@@ -1121,7 +923,8 @@
             "StreetActors",
             "Birds",
             "NearHouse",
-            "Wisteria"
+            "Wisteria",
+            "Haze"
           ]
         },
         "gate": {
@@ -1172,8 +975,13 @@
             "osaka-train-v1",
             "osaka-valley-city-v1",
             "osaka-wisteria-v1",
-            "town-port"
+            "town-port",
+            "osaka-haze-v1"
           ]
+        },
+        "params": {
+          "description": "Settings in scene.json. Required for Haze; optional for Ridges; not allowed for other pieces.",
+          "type": "object"
         }
       },
       "allOf": [
@@ -1717,6 +1525,156 @@
             "properties": {
               "profile": {
                 "const": "osaka-wisteria-v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Haze"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "params"
+            ],
+            "properties": {
+              "profile": {
+                "const": "osaka-haze-v1"
+              },
+              "params": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "y",
+                  "sigma",
+                  "lo",
+                  "hi",
+                  "color",
+                  "gain"
+                ],
+                "properties": {
+                  "y": {
+                    "type": "number"
+                  },
+                  "sigma": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "lo": {
+                    "type": "number"
+                  },
+                  "hi": {
+                    "type": "number"
+                  },
+                  "shift": {
+                    "type": "number"
+                  },
+                  "drift": {
+                    "type": "number"
+                  },
+                  "seed": {
+                    "type": "number"
+                  },
+                  "color": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "gain": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "piece": {
+                "const": "Ridges"
+              }
+            },
+            "required": [
+              "params"
+            ]
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "ridges"
+                ],
+                "properties": {
+                  "ridges": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 8,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "seed",
+                        "base",
+                        "amp",
+                        "scale",
+                        "parallax",
+                        "top",
+                        "bottom"
+                      ],
+                      "properties": {
+                        "seed": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1000000
+                        },
+                        "base": {
+                          "type": "number"
+                        },
+                        "amp": {
+                          "type": "number"
+                        },
+                        "scale": {
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        },
+                        "parallax": {
+                          "type": "number"
+                        },
+                        "top": {
+                          "type": "string",
+                          "pattern": "^#[0-9a-fA-F]{6}$"
+                        },
+                        "bottom": {
+                          "type": "string",
+                          "pattern": "^#[0-9a-fA-F]{6}$"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "params"
+            ]
+          },
+          "then": {
+            "properties": {
+              "piece": {
+                "enum": [
+                  "Haze",
+                  "Ridges"
+                ]
               }
             }
           }
