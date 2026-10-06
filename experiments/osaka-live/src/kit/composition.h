@@ -49,6 +49,7 @@ struct OsakaRenderSlot {
     const char* profile;
     std::string id;
     std::shared_ptr<const OsakaSlotParamsV1> params = nullptr;
+    double parallaxDepth = 0;
 };
 struct OsakaRenderStage {
     const OsakaRenderSlot* entries;

@@ -37,6 +37,13 @@ int main(int argc,char**argv){QCoreApplication app(argc,argv);try{
  p.x=1000;p.width=500;p.height=100;p.row=9;
  auto rgb=capture();need(rgb==capture(),"fish nondeterminism");c.a.bands[0]=.8;need(rgb!=capture(),"fish ignores bass");p.seed++;need(rgb!=capture(),"fish ignores seed");
  c.t=25;Canvas cv;paint(cv);need(cv.empty(),"fish fails to land");
+ }else if(mode=="swell"){
+ p.domain=3;p.x=0;p.y=1010;p.width=1920;p.height=130;
+ schedule.print.foregroundSwell.start=12;schedule.print.foregroundSwell.duration=11;c.t=17;
+ auto rgb=capture();need(rgb==capture(),"foreground swell nondeterminism");
+ Canvas cv;paint(cv);auto bounds=cv.bounds();need(bounds[1]>940 && bounds[3]<=1141,"foreground swell leaves bottom band");
+ for(auto&v:score.bandBody)v.fill(.8);score.bassHits={{16.9,1,1}};need(rgb!=capture(),"foreground crest ignores music");
+ c.t=25;Canvas done;paint(done);need(done.empty(),"foreground swell fails to settle");
  }else{
  p.x=0;p.y=310;p.width=1920;p.height=280;
  for(int i=0;i<int(PrintMoment::Count);++i){auto&v=schedule.print.events[i];v.start=10;v.duration=8;v.direction=1;v.height=.5;}

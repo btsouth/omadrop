@@ -11,7 +11,8 @@ struct MomentScheduleV1 {
     explicit MomentScheduleV1(int seed=1):seed(seed) { dragonNext=varied(91,0,180,300); }
     int seed=1;double next=4,last=0,heldBass=0,surgeStart=-1000,surgeReady=10,dragonNext=240;
     unsigned serial=0,surgeCycle=0,dragonCycle=0;std::uint64_t beatSerial=0;
-    PrintEventV1 dragon,flock;
+    PrintEventV1 dragon,flock,foregroundSwell;
+    double swellNext=12;
     double birdNext=6;
     double surgeFlow=0;
     WaveSetV1 wave,previousWave;
@@ -50,6 +51,9 @@ struct MomentScheduleV1 {
             if(selected==int(PrintMoment::Birds) && t-flock.start>=flock.duration)flock=v;
             next=t+varied(10,++serial,5,10);
         }
+        if(t>=swellNext){foregroundSwell.start=t;foregroundSwell.duration=11;foregroundSwell.cycle++;
+            foregroundSwell.direction=varied(97,foregroundSwell.cycle,0,1)<.5?-1:1;
+            swellNext=t+varied(98,foregroundSwell.cycle,22,34);}
         if(t>=birdNext && t-flock.start<flock.duration)birdNext=flock.start+flock.duration+1;
         if(t>=birdNext){flock.start=t;++flock.cycle;flock.duration=varied(80,flock.cycle,9,14);flock.direction=varied(81,flock.cycle,0,1)<.5?-1:1;
             flock.count=3+int(varied(82,flock.cycle,0,6));flock.height=varied(83,flock.cycle,0,1);birdNext=t+varied(84,flock.cycle,17,30);}

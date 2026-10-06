@@ -452,7 +452,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         auto& entries=loaded->entries_[phase]; entries.reserve(slotsArray.size());
         for (int j=0;j<slotsArray.size();++j) {
             const QString q=p+".slots["+QString::number(j)+"]";
-            const auto slot=r.object(slotsArray[j],q,{"id","piece","gate","profile"},{"params"});
+            const auto slot=r.object(slotsArray[j],q,{"id","piece","gate","profile"},{"params","parallaxDepth"});
             r.id(slot["id"],q+".id");
             const auto name=r.string(slot["piece"],q+".piece");
             const Piece* piece=nullptr;
@@ -539,7 +539,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 scalar("row",life.row,0,23);scalar("scale",life.scale,.1,3);scalar("gain",life.gain,0,4);scalar("speed",life.speed,.1,4);
                 if(data.contains("count"))life.count=r.integer(data["count"],paramsPath+".count",1,30);
                 if(data.contains("seed"))life.seed=r.integer(data["seed"],paramsPath+".seed",0,1000000);
-                if(data.contains("domain"))life.domain=r.integer(data["domain"],paramsPath+".domain",0,2);
+                if(data.contains("domain"))life.domain=r.integer(data["domain"],paramsPath+".domain",0,3);
                 if(data.contains("band"))life.band=r.integer(data["band"],paramsPath+".band",0,5);
                 if(data.contains("surgeEnabled"))life.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
                 if(data.contains("waterInstance"))life.waterInstance=r.string(data["waterInstance"],paramsPath+".waterInstance").toStdString();
@@ -677,7 +677,9 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             } else if (slot.contains("params")) {
                 r.fail(paramsPath,"known field (unknown field)");
             }
-            entries.push_back({piece->op,gate->gate,piece->profile,slot["id"].toString().toStdString(),params});
+            double depth=0;if(slot.contains("parallaxDepth")){depth=r.number(slot["parallaxDepth"],q+".parallaxDepth");
+                if(depth<0 || depth>1.2)r.fail(q+".parallaxDepth","number in 0..1.2");}
+            entries.push_back({piece->op,gate->gate,piece->profile,slot["id"].toString().toStdString(),params,depth});
         }
         *targets[phase]={entries.data(),entries.size(),events=="Life" ? OsakaEventRef::Life : OsakaEventRef::LifeAndFlock,stage["id"].toString().toStdString()};
     }

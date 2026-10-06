@@ -145,3 +145,5 @@ add_executable(boat-wave-clearance-tests boat_wave_clearance_tests.cpp ../src/ki
 target_include_directories(boat-wave-clearance-tests PRIVATE ../src)
 target_link_libraries(boat-wave-clearance-tests PRIVATE Qt6::Gui Qt6::OpenGL)
 add_test(NAME boat-hull-below-crest-and-outside-curl COMMAND boat-wave-clearance-tests)
+
+add_test(NAME foreground-swell-bounded-and-music COMMAND print-life-tests swell)

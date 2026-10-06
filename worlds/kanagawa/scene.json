@@ -45,19 +45,22 @@
             "grain": 0,
             "energyGrade": 0.75,
             "cloudBands": true
-          }
+          },
+          "parallaxDepth": 0.08
         },
         {
           "id": "sun",
           "piece": "Disc",
           "profile": "osaka-disc-v1",
-          "gate": "Always"
+          "gate": "Always",
+          "parallaxDepth": 0.12
         },
         {
           "id": "fuji",
           "piece": "Mountain",
           "profile": "osaka-mountain-v1",
-          "gate": "Always"
+          "gate": "Always",
+          "parallaxDepth": 0.18
         },
         {
           "id": "fuji-plume",
@@ -76,7 +79,8 @@
             "color": "#7397a4",
             "accent": "#e6c384",
             "ink": "#c34043"
-          }
+          },
+          "parallaxDepth": 0.18
         },
         {
           "id": "snow-life",
@@ -90,7 +94,8 @@
             "width": 45,
             "height": 35,
             "accent": "#fff2c8"
-          }
+          },
+          "parallaxDepth": 0.18
         },
         {
           "id": "gulls",
@@ -109,7 +114,8 @@
             "color": "#223249",
             "accent": "#dcd7ba",
             "ink": "#223249"
-          }
+          },
+          "parallaxDepth": 0.35
         },
         {
           "id": "sky-life",
@@ -123,7 +129,8 @@
             "height": 280,
             "surgeEnabled": true,
             "band": 5
-          }
+          },
+          "parallaxDepth": 0.4
         },
         {
           "id": "sea",
@@ -158,7 +165,8 @@
             "swellSeed": 71,
             "amplitudeGain": 3.5,
             "surgeEnabled": true
-          }
+          },
+          "parallaxDepth": 0.75
         },
         {
           "id": "ryujin",
@@ -177,7 +185,8 @@
             "accent": "#dcd7ba",
             "ink": "#102955",
             "row": 0.65
-          }
+          },
+          "parallaxDepth": 0.3
         },
         {
           "id": "swells",
@@ -209,7 +218,8 @@
             "highlight": "#dcd7ba",
             "amplitudeGain": 3.5,
             "surgeEnabled": true
-          }
+          },
+          "parallaxDepth": 0.75
         },
         {
           "id": "foam",
@@ -255,7 +265,8 @@
             "amplitudeGain": 3.5,
             "responseGain": 1.7,
             "surgeEnabled": true
-          }
+          },
+          "parallaxDepth": 0.75
         },
         {
           "id": "water-life",
@@ -274,7 +285,8 @@
             "accent": "#dcd7ba",
             "ink": "#223249",
             "row": 3.5
-          }
+          },
+          "parallaxDepth": 0.6
         },
         {
           "id": "far-boat",
@@ -304,7 +316,8 @@
             "foam": "#dcd7ba",
             "surgeEnabled": true,
             "waveInstance": "great-wave"
-          }
+          },
+          "parallaxDepth": 0.75
         },
         {
           "id": "great-wave",
@@ -333,7 +346,8 @@
             "lines": "#7397a4",
             "surgeEnabled": true,
             "row": 7.2
-          }
+          },
+          "parallaxDepth": 0.75
         },
         {
           "id": "near-boat",
@@ -363,7 +377,8 @@
             "foam": "#dcd7ba",
             "surgeEnabled": true,
             "waveInstance": "great-wave"
-          }
+          },
+          "parallaxDepth": 0.75
         },
         {
           "id": "fish",
@@ -382,6 +397,25 @@
             "accent": "#dcd7ba",
             "ink": "#102955",
             "row": 9.3
+          },
+          "parallaxDepth": 0.85
+        },
+        {
+          "id": "foreground-swell",
+          "piece": "PrintMoments",
+          "profile": "print-moments-v1",
+          "gate": "Always",
+          "parallaxDepth": 1.15,
+          "params": {
+            "domain": 3,
+            "x": 0,
+            "y": 1010,
+            "width": 1920,
+            "height": 130,
+            "color": "#7397a4",
+            "accent": "#dcd7ba",
+            "ink": "#102955",
+            "band": 0
           }
         }
       ]

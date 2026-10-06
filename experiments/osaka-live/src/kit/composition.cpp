@@ -23,7 +23,7 @@ namespace {
 void moon(Ctx& c, const OsakaState& s, const OsakaDiscPlacementV1& placement) {
     const auto& p = osakaParameters().disc;
     DiscLook d;
-    d.pos = {placement.x - s.cam * placement.parallax + s.moonDx, placement.y + s.moonDy};
+    d.pos = {placement.x - s.cam * placement.parallax + s.moonDx, placement.y + s.moonDy + c.cameraY};
     d.r = placement.radius;
     const double rise = 1;
     d.col = d.col2 = mix(hex(p.creamHex), hex(p.warmHex), s.moonWarm) * float(p.colorGain * rise);
@@ -43,7 +43,7 @@ void moon(Ctx& c, const OsakaState& s, const OsakaDiscPlacementV1& placement) {
 void mountainLook(Ctx& c, const OsakaState& s, const OsakaMountainPlacementV1& placement) {
     const auto& p = osakaParameters().mountain;
     MountainLook m;
-    m.px = placement.x - s.cam * placement.parallax; m.peak = placement.peak; m.base = placement.base; m.width = placement.width;
+    m.px = placement.x - s.cam * placement.parallax; m.peak = placement.peak+c.cameraY; m.base = placement.base+c.cameraY; m.width = placement.width;
     m.top = Col(float(p.topR), float(p.topG), float(p.topB)); m.bot = Col(float(p.bottomR), float(p.bottomG), float(p.bottomB));
     m.foot=p.foot; m.snow=p.snow; m.snowScale=p.snowScale;
     m.snowCol=Col(float(p.snowR),float(p.snowG),float(p.snowB));
@@ -86,6 +86,9 @@ void OsakaCompositionV1::render(Ctx& c, const OsakaState& s, const OsakaWorldDes
     for (std::size_t i = 0; i < stage.count; ++i) {
         const auto& slot = stage.entries[i];
         if (!enabled(slot.gate)) continue;
+        const double oldY=c.cameraY;
+        // Less than three design pixels, slow and independent of musical hits.
+        c.cameraY=oldY+slot.parallaxDepth*(2.2*std::sin(c.t*.32)+.65*std::sin(c.t*.19));
         switch (slot.piece) {
         case OsakaOp::Sky: OsakaSkyV1::draw(c, s); break;
         case OsakaOp::WaterSurface: WaterSurfaceV1::draw(c, slot.params->water); break;
@@ -147,6 +150,7 @@ void OsakaCompositionV1::render(Ctx& c, const OsakaState& s, const OsakaWorldDes
         case OsakaOp::NearHouse: OsakaNearGroupV1::draw(c, s, L); break;
         case OsakaOp::Wisteria: wisteria(c, s, L); break;
         }
+        c.cameraY=oldY;
     }
     if (drawWindows) {
         for (const auto& window : world.windows) GenericWindowV1::draw(c, window);

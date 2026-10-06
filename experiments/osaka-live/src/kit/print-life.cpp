@@ -127,6 +127,23 @@ void PrintMomentsV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
         auto [u,alpha]=active(PrintMoment::Gust);if(alpha>0)for(int i=0;i<16;++i){double x=p.x+p.width*u+(hash2(i,p.seed)-.5)*430;
             const auto sea=SwellLinesV1::field(c,5+i%5,p.swell);double y=sea.y(x)+i*2;
             cv.color(p.accent,.38*alpha);cv.moveTo(x-70,y);cv.curveTo(x-10,y-7,x+55,y+2,x+130,y-4);cv.stroke(1.4);}
+    }else if(p.domain==3){
+        const auto& v=clock.foregroundSwell;const double u=(c.t-v.start)/v.duration;
+        if(u<=0 || u>=1)return;
+        const double envelope=sstep(0,.24,u)*(1-sstep(.70,1,u));
+        const double bass=clamp01(3*(c.score?c.score->bandBody[1][0]:c.band(0)));
+        auto crest=[&](double x){return 1122-envelope*(82+13*bass)+17*std::sin(x*.003-c.t*.31*v.direction);};
+        cv.color(p.ink);cv.moveTo(-40,1140);
+        for(int i=0;i<=80;++i){const double x=-40+i*25;cv.lineTo(x,crest(x));}cv.lineTo(1960,1140);cv.closePath();cv.fill();
+        for(int line=0;line<3;++line){std::vector<V2> points;
+            for(int i=0;i<=80;++i){double x=-40+i*25;points.push_back({x,crest(x)+5+line*12+2*std::sin(x*.012+line)});}
+            cv.polyline(points,line?1.3:3.2,line?p.color:p.accent,line?.45:.72*envelope);}
+        for(int i=0;i<24;++i){double x=80+i*79+14*std::sin(c.t*.23+i);
+            cv.color(p.accent,.65*envelope);cv.moveTo(x-10,crest(x)+3);cv.curveTo(x-2,crest(x)-7,x+5,crest(x)-5,x+17,crest(x)+2);cv.stroke(1.6);}
+        const double hit=c.kick(5)+c.hit(5);
+        for(int i=0;i<18;++i){const double phase=c.t*.36+hash2(i,p.seed),f=phase-std::floor(phase),x=90+i*102+f*14;
+            const double alpha=envelope*sstep(0,.10,f)*(1-sstep(.5,1,f))*(.20+.45*hit);
+            cv.disc(x,crest(x)-25*std::sin(Pi*f)*(1+.25*bass),1.2,p.accent,alpha);}
     }else{
         auto [u,alpha]=active(PrintMoment::SnowGlint);if(alpha>0){const double x=p.x-14+u*26,y=p.y+9+7*std::sin(u*Pi);
             alpha*=.1+.9*clamp01(2*c.band(p.band)*p.gain+.7*c.hit(5)+c.kick(5));
