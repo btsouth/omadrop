@@ -545,10 +545,11 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 if(!slot.contains("params"))r.fail(paramsPath,"required field");
                 const auto data=r.object(slot["params"],paramsPath,{"waterInstance"},
                     {"x","row","length","scale","driftX","driftRows","driftSpeed","crewCount","oarCount","seed","band",
-                     "rowingTempo","tempoGain","splashGain","kickGain","hull","trim","ink","foam","surgeEnabled"});
+                     "rowingTempo","tempoGain","splashGain","kickGain","hull","trim","ink","foam","surgeEnabled","waveInstance"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();auto& boat=value->boat;
                 if(data.contains("surgeEnabled"))boat.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
                 boat.waterInstance=r.string(data["waterInstance"],paramsPath+".waterInstance").toStdString();
+                if(data.contains("waveInstance"))boat.waveInstance=r.string(data["waveInstance"],paramsPath+".waveInstance").toStdString();
                 auto scalar=[&](const char* name,double& target,double lo,double hi){
                     if(!data.contains(name))return;target=r.number(data[name],paramsPath+"."+name);
                     if(target<lo || target>hi)r.fail(paramsPath+"."+name,"number in "+QString::number(lo)+".."+QString::number(hi));
@@ -568,7 +569,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 if(!slot.contains("params"))r.fail(paramsPath,"required field");
                 const auto data=r.object(slot["params"],paramsPath,{},
                     {"anchorSide","x","y","width","baseHeight","maxRise","curlAmount","clawCount","clawSize","seed",
-                     "lowGain","swellGain","kickGain","onsetGain","body","bottom","underprint","foam","lines","surgeEnabled"});
+                     "lowGain","swellGain","kickGain","onsetGain","body","bottom","underprint","foam","lines","surgeEnabled","row"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();auto& wave=value->greatWave;
                 if(data.contains("surgeEnabled"))wave.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
                 if(data.contains("anchorSide")) {
@@ -580,7 +581,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                     if(!data.contains(name))return;target=r.number(data[name],paramsPath+"."+name);
                     if(target<lo || target>hi)r.fail(paramsPath+"."+name,"number in "+QString::number(lo)+".."+QString::number(hi));
                 };
-                scalar("x",wave.x,-1920,3840);scalar("y",wave.y,400,1200);scalar("width",wave.width,300,1800);
+                scalar("row",wave.row,0,23);scalar("x",wave.x,-1920,3840);scalar("y",wave.y,400,1200);scalar("width",wave.width,300,1800);
                 scalar("baseHeight",wave.baseHeight,150,900);scalar("maxRise",wave.maxRise,0,800);
                 if(wave.baseHeight+wave.maxRise>1050)r.fail(paramsPath,"baseHeight + maxRise at most 1050");
                 scalar("curlAmount",wave.curlAmount,0,1);scalar("clawSize",wave.clawSize,.25,1.5);
@@ -687,6 +688,20 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         value->boat.swell=surface->params->swell;
         if(value->boat.row-value->boat.driftRows<0 || value->boat.row+value->boat.driftRows>value->boat.swell.rows-1)
             r.fail(path+".row","row and driftRows within the named surface");
+        if(!value->boat.waveInstance.empty()){
+            const OsakaRenderSlot* wave=nullptr;std::size_t waveIndex=0,boatIndex=0;
+            for(std::size_t i=0;i<stage.size();++i){const auto& candidate=stage[i];
+                if(&candidate==&slot)boatIndex=i;
+                if(candidate.id==value->boat.waveInstance && candidate.piece==OsakaOp::GreatWave){wave=&candidate;waveIndex=i;}}
+            if(!wave)r.fail(path+".waveInstance","id of a GreatWave slot in the same stage");
+            value->boat.wave=wave->params->greatWave;
+            value->boat.ridesWave=true;
+            const double row=value->boat.row,margin=value->boat.driftRows;
+            if(row-margin<value->boat.wave.row && row+margin>=value->boat.wave.row)
+                r.fail(path+".row","boat lane must remain on one side of the wave depth");
+            if((row>=value->boat.wave.row)!=(boatIndex>waveIndex))
+                r.fail(path+".waveInstance","boat layer order must agree with wave depth");
+        }
         slot.params=value;
     }
     for(auto& stage:loaded->entries_)for(auto& slot:stage)

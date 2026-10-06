@@ -275,6 +275,36 @@
           }
         },
         {
+          "id": "far-boat",
+          "piece": "BoatOnWater",
+          "profile": "boat-on-water-v1",
+          "gate": "Always",
+          "params": {
+            "waterInstance": "swells",
+            "x": 1140,
+            "row": 5.6,
+            "length": 285,
+            "scale": 0.5,
+            "crewCount": 5,
+            "oarCount": 5,
+            "driftX": 45,
+            "driftRows": 0.18,
+            "driftSpeed": 0.01,
+            "seed": 137,
+            "band": 0,
+            "rowingTempo": 0.3,
+            "tempoGain": 0.4,
+            "splashGain": 0.5,
+            "kickGain": 0.75,
+            "hull": "#c0a36e",
+            "trim": "#e6c384",
+            "ink": "#14141c",
+            "foam": "#dcd7ba",
+            "surgeEnabled": true,
+            "waveInstance": "great-wave"
+          }
+        },
+        {
           "id": "great-wave",
           "piece": "GreatWave",
           "profile": "great-wave-v1",
@@ -299,36 +329,8 @@
             "underprint": "#1d4673",
             "foam": "#dcd7ba",
             "lines": "#7397a4",
-            "surgeEnabled": true
-          }
-        },
-        {
-          "id": "far-boat",
-          "piece": "BoatOnWater",
-          "profile": "boat-on-water-v1",
-          "gate": "Always",
-          "params": {
-            "waterInstance": "swells",
-            "x": 1670,
-            "row": 5.6,
-            "length": 285,
-            "scale": 0.5,
-            "crewCount": 5,
-            "oarCount": 5,
-            "driftX": 45,
-            "driftRows": 0.18,
-            "driftSpeed": 0.01,
-            "seed": 137,
-            "band": 0,
-            "rowingTempo": 0.3,
-            "tempoGain": 0.4,
-            "splashGain": 0.5,
-            "kickGain": 0.75,
-            "hull": "#c0a36e",
-            "trim": "#e6c384",
-            "ink": "#14141c",
-            "foam": "#dcd7ba",
-            "surgeEnabled": true
+            "surgeEnabled": true,
+            "row": 7.2
           }
         },
         {
@@ -338,7 +340,7 @@
           "gate": "Always",
           "params": {
             "waterInstance": "swells",
-            "x": 1370,
+            "x": 660,
             "row": 7.6,
             "length": 315,
             "scale": 0.66,
@@ -357,7 +359,8 @@
             "trim": "#e6c384",
             "ink": "#14141c",
             "foam": "#dcd7ba",
-            "surgeEnabled": true
+            "surgeEnabled": true,
+            "waveInstance": "great-wave"
           }
         },
         {

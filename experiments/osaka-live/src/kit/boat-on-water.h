@@ -1,9 +1,12 @@
 #pragma once
 #include "swell-lines.h"
+#include "great-wave.h"
 namespace Journey::Kit {
 struct BoatOnWaterParametersV1 {
     bool surgeEnabled=false;
-    std::string waterInstance;
+    std::string waterInstance,waveInstance;
+    GreatWaveParametersV1 wave;
+    bool ridesWave=false;
     SwellLinesParametersV1 swell; // resolved from the named surface, never a second sea
     double x=1400, row=7, length=300, scale=.6;
     double driftX=55, driftRows=.15, driftSpeed=.012;
@@ -12,7 +15,7 @@ struct BoatOnWaterParametersV1 {
     Col hull=hex(0xc0a36e), trim=hex(0xe6c384), ink=hex(0x14141c), foam=hex(0xdcd7ba);
 };
 struct BoatOnWaterPoseV1 {
-    V2 at; double row=0, tilt=0, waterline=0, stroke=0, splash=0, spray=0;
+    V2 at; double row=0, tilt=0, waterline=0, stroke=0, splash=0, spray=0, brace=0;
 };
 struct BoatOnWaterV1 {
     static constexpr const char* name="boat-on-water-v1";

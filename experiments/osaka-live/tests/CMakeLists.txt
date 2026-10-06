@@ -117,8 +117,8 @@ target_include_directories(great-wave-tests PRIVATE ../src)
 target_link_libraries(great-wave-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
 add_test(NAME great-wave-standing-bounded-and-music COMMAND great-wave-tests)
 
-add_executable(boat-on-water-tests boat_on_water_tests.cpp ../src/kit/boat-on-water.cpp ../src/kit/swell-lines.cpp
-    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp ../src/rig.cpp)
+add_executable(boat-on-water-tests boat_on_water_tests.cpp ../src/kit/boat-on-water.cpp ../src/kit/swell-lines.cpp ../src/kit/great-wave.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp ../src/rig.cpp ../src/schedule.cpp)
 target_include_directories(boat-on-water-tests PRIVATE ../src)
 target_link_libraries(boat-on-water-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
 add_test(NAME boat-on-water-contact-deterministic-and-music COMMAND boat-on-water-tests)

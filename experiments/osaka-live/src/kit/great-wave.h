@@ -7,6 +7,7 @@ struct GreatWaveParametersV1 {
     bool anchorRight=false;
     double x=0,y=1100,width=1200,baseHeight=650,maxRise=210,curlAmount=.65;
     int clawCount=18,seed=71;
+    double row=7.2;
     double clawSize=1,lowGain=2.4,swellGain=.35,kickGain=.22,onsetGain=.18;
     Col body=hex(0x285579),bottom=hex(0x102955),underprint=hex(0x1d4673),
         foam=hex(0xdcd7ba),lines=hex(0x7397a4);
@@ -18,11 +19,17 @@ struct GreatWavePoseV1 {
     unsigned setCycle=0;
 };
 struct WaveTipResponseV1 { int band=0; double drive=0,extension=1,flick=0; };
+struct GreatWaveFieldV1 {
+    std::array<V2,65> face{};
+    double growth=0;
+    double y(double x,double swellY) const;
+};
 struct GreatWaveV1 {
     static constexpr const char* name="great-wave-v1";
     static GreatWavePoseV1 pose(const Ctx&,const GreatWaveParametersV1&);
     static WaveTipResponseV1 tip(const Ctx&,const GreatWaveParametersV1&,int finger);
     static V2 map(V2,const GreatWavePoseV1&,const GreatWaveParametersV1&);
+    static GreatWaveFieldV1 field(const Ctx&,const GreatWaveParametersV1&);
     static QRectF responseArea(const GreatWaveParametersV1&);
     static void paint(Canvas& body,Canvas& flow,Canvas& foam,const Ctx&,const GreatWaveParametersV1&);
     static void draw(Ctx&,const GreatWaveParametersV1&);

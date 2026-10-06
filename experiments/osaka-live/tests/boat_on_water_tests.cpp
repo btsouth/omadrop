@@ -39,6 +39,39 @@ int main(int argc,char** argv){QCoreApplication app(argc,argv);try{
     if(!first)require(std::abs(s.at.x-previous.at.x)<1 && std::abs(s.row-previous.row)<.01,"lane wrap or path seam");
     previous=s;first=false;
  }
+ // Foreground hull vertices never enter the drawn wave body as sets pass.
+ p.ridesWave=true;p.x=660;p.row=7.6;p.wave.baseHeight=340;p.wave.maxRise=650;
+ Schedule schedule(1);c.schedule=&schedule;score={};audio.bands.fill(.4);
+ double lowestClearance=1e9,highestLift=0,largestStep=0,lastY=0;
+ for(int i=1;i<=180*60;++i){c.t=i/60.;score.advance(audio,c.t,1./60);schedule.advance(c.t,audio,score);
+   auto far=p;far.x=1140;far.row=5.6;far.scale=.5;far.length=285;
+   require(BoatOnWaterV1::pose(c,far).at.y>600,"distant boat rides foreground height");
+   const auto boat=BoatOnWaterV1::pose(c,p);require(std::abs(boat.tilt)<=.55,"boat tips over");const auto field=GreatWaveV1::field(c,p.wave);
+   for(int j=0;j<=16;++j){double qx=p.length*p.scale*(j/16.-.5)*1.18;
+     const double x=boat.at.x+qx*std::cos(boat.tilt)-26*p.scale*std::sin(boat.tilt);
+     const double y=boat.at.y+qx*std::sin(boat.tilt)+26*p.scale*std::cos(boat.tilt);
+     const double clearance=BoatOnWaterV1::surfaceY(c,p,x,boat.row)-y;
+     lowestClearance=std::min(lowestClearance,clearance);require(clearance>=-1e-6,"hull enters wave height field");}
+   auto swellOnly=p;swellOnly.ridesWave=false;
+   highestLift=std::max(highestLift,BoatOnWaterV1::pose(c,swellOnly).at.y-boat.at.y);
+   if(i>1)largestStep=std::max(largestStep,std::abs(boat.at.y-lastY));lastY=boat.at.y;
+ }
+ require(highestLift>60 && largestStep<12,"boat does not ride smoothly over passing set");
+ // Compare the rigid hull's support against actual body triangles, not only
+ // the field implementation. All samples must stay outside the water fill.
+ for(int i=0;i<180;++i){c.t=i;Canvas body,flow,foam;GreatWaveV1::paint(body,flow,foam,c,p.wave);
+   const auto boat=BoatOnWaterV1::pose(c,p);const auto&vertices=body.vertices();
+   for(int j=0;j<=10;++j){double qx=p.length*p.scale*(j/10.-.5);
+     V2 q=boat.at+V2(qx*std::cos(boat.tilt)-25*p.scale*std::sin(boat.tilt),qx*std::sin(boat.tilt)+25*p.scale*std::cos(boat.tilt));
+     for(const auto&cmd:body.commands())for(int k=cmd.first;k+2<cmd.first+cmd.count;k+=3){
+       auto a=vertices[k],b=vertices[k+1],v=vertices[k+2];
+       auto cross=[&](auto a,auto b){return (b.x-a.x)*(q.y-a.y)-(b.y-a.y)*(q.x-a.x);};
+       double x=cross(a,b),y=cross(b,v),z=cross(v,a);
+       require(!((x>1e-5 && y>1e-5 && z>1e-5)||(x<-1e-5 && y<-1e-5 && z<-1e-5)),"hull inside rendered wave triangles");
+     }
+   }
+ }
+ std::cout<<"Wave hull minimum clearance "<<lowestClearance<<", maximum lift "<<highestLift<<", maximum step "<<largestStep<<" px\n";
  require(maxContact<.5 && maxPitchError<1e-8,"boat misses weighted swell support tolerance");
  std::cout<<"PASS: exact RGB, rowing integral, band splash, kick spray, seed, eight-hour bounded seamless drift; contact error "<<maxContact<<" px (tolerance 0.5), pitch error "<<maxPitchError<<'\n';
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

@@ -326,6 +326,12 @@ binding tokens. All geometry remains deterministic for identical music/seed.
 ### Boats on shared swells
 
 Place a `BoatOnWater` / `boat-on-water-v1` slot after the sea, foam and wave.
+An optional `waveInstance` names a GreatWave in the same stage and adds its
+travelling face to the support field. `GreatWave.params.row` declares its depth
+(default 7.2). Shallower boats must be placed before that wave slot, deeper
+boats after it; drifting lanes may not cross that depth. Foreground hulls use
+conservative support across their full length, so they never sit inside the
+water body. Crews brace on hits and the oars respond with small flails.
 Its required `params.waterInstance` is the id of a `SwellLines` slot in the same
 world. `x`, fractional `row`, `length`, `scale`, `crewCount`, `oarCount`, hull
 paints, seeded `driftX` / `driftRows` / `driftSpeed`, and rowing/splash gains are

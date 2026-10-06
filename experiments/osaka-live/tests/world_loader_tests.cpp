@@ -300,6 +300,20 @@ int main(int argc, char** argv) {
         invalid(withBoat(missing),wavePath+".oarCount: expected at most crewCount");
         missing=boatSettings;missing["row"]=7.2;missing["boardingAt"]=35;
         invalid(withBoat(missing),wavePath+".boardingAt: expected known field (unknown field)");
+        auto ridingBoat=[&](double row,bool after){
+            auto settings=boatSettings;settings["waveInstance"]="ride-wave";settings["row"]=row;
+            auto r=withBoat(settings);auto stages=r["stages"].toArray();auto stage=stages[0].toObject();auto entries=stage["slots"].toArray();
+            QJsonObject wave{{"id","ride-wave"},{"piece","GreatWave"},{"profile","great-wave-v1"},{"gate","Always"},{"params",QJsonObject{{"row",7.2}}}};
+            entries.insert(a.backdrop.count+(after?0:1),wave);stage["slots"]=entries;stages[0]=stage;r["stages"]=stages;return r;
+        };
+        for(auto pair:{std::pair<double,bool>{7.6,true},{5.6,false}}){root=ridingBoat(pair.first,pair.second);
+            {QFile out(file);require(out.open(QIODevice::WriteOnly),"write wave boat fixture");out.write(QJsonDocument(root).toJson());}
+            const auto loaded=loadOsakaWorld(tmp.path());const auto& entries=loaded->description().backdrop;
+            const auto& boat=entries.entries[a.backdrop.count+(pair.second?1:0)].params->boat;
+            require(boat.ridesWave && boat.wave.row==7.2,"named wave field lost");}
+        invalid(ridingBoat(5.6,true),"$.boat[test-boat].params.waveInstance: expected boat layer order must agree with wave depth");
+        invalid(ridingBoat(7.6,false),"$.boat[test-boat].params.waveInstance: expected boat layer order must agree with wave depth");
+        invalid(ridingBoat(7.2,true),"$.boat[test-boat].params.row: expected boat lane must remain on one side of the wave depth");
         std::cout<<"PASS: loaded Osaka equals compiled oracle; exact invalid diagnostics\n";
     } catch (const std::exception& e) { std::cerr<<e.what()<<'\n';return 1; }
 }

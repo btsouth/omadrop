@@ -77,6 +77,24 @@ V2 GreatWaveV1::map(V2 q,const GreatWavePoseV1& s,const GreatWaveParametersV1& p
     const double x=(q.x+170*s.curl*lip+sway*crest)*p.width/1440.+s.travel;
     return {p.x+(p.anchorRight?-x:x),p.y+(q.y-1080)*s.height/1000.+heave*crest+ripple};
 }
+GreatWaveFieldV1 GreatWaveV1::field(const Ctx& c,const GreatWaveParametersV1& p){
+    const auto s=pose(c,p);GreatWaveFieldV1 out;out.growth=s.growth;
+    // The height field uses the drawn silhouette's transformed Bezier controls,
+    // including the forward lip and the descending face. A small spatial
+    // support kernel bridges the overhang smoothly rather than dropping a hull.
+    const std::array<Cubic,4> curves={{{{-180,1100},{-240,720},{-100,275},{220,130}},
+        {{220,130},{475,-25},{825,65},{990,245}},
+        {{990,245},{1145,395},{1120,515},{1000,560}},
+        {{850,735},{1040,880},{1230,875},{1440,1040}}}};
+    int at=0;for(const auto& q:curves){Cubic mapped{map(q.a,s,p),map(q.b,s,p),map(q.c,s,p),map(q.d,s,p)};
+        for(int j=0;j<16;++j)out.face[at++]=mapped.at(j/16.);}
+    out.face[64]=map({1440,1040},s,p);return out;
+}
+double GreatWaveFieldV1::y(double x,double swellY)const{
+    if(growth<.001)return swellY;
+    double top=swellY;for(const auto&q:face){const double dx=x-q.x;top=std::min(top,q.y+dx*dx/150.-12*growth);}
+    return lerp(swellY,top,sstep(0,.045,growth));
+}
 QRectF GreatWaveV1::responseArea(const GreatWaveParametersV1& p){
     return QRectF(p.anchorRight?p.x-p.width*1.35:p.x-p.width*.5,p.y-p.baseHeight-p.maxRise-120,p.width*1.85,p.baseHeight+p.maxRise+120);
 }
