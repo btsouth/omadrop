@@ -188,3 +188,4 @@ target_sources(swell-piece-tests PRIVATE ../src/schedule.cpp ../src/kit/wave-tra
 add_test(NAME swell-lines-no-crossing-at-maximum-input COMMAND swell-piece-tests --no-crossing)
 target_sources(foam-piece-tests PRIVATE ../src/schedule.cpp)
 add_test(NAME foam-flecks-outside-live-hero-and-barrel COMMAND foam-piece-tests --live-mask)
+add_test(NAME foam-breakers-follow-music COMMAND foam-piece-tests --breakers)

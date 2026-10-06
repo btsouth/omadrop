@@ -37,6 +37,30 @@ int main(int argc,char** argv){
         std::cout<<"PASS: live 90 s moving hero/body/barrel mask, "<<triangles<<" retained foam triangles outside envelope\n";
         return 0;
     }
+    if(argc>1 && std::string(argv[1])=="--breakers") {
+        Gpu gpu;Audio audio;Score score;StaticGeometry geometry;
+        FoamFlecksParametersV1 p;p.count=0;p.breakers=120;p.spray=12;p.swell.surgeEnabled=true;p.swell.flowGain=3;
+        auto shapes=[&](double t,double loud){
+            audio={};audio.bands.fill(loud);for(auto& body:score.bandBody)body.fill(loud);
+            Ctx c{gpu,t,audio,&score,1,nullptr,nullptr,&geometry};Canvas cv;FoamFlecksV1::paint(cv,c,p);
+            return cv.vertices().size();
+        };
+        require(shapes(14,.05)==shapes(14,.05),"breakers not deterministic");
+        const auto quiet=shapes(14,.05),loud=shapes(14,.5);
+        require(loud>quiet,"loud music did not add breakers");
+        score.onsets.push_back({14,1,1});
+        require(shapes(14,.05)==quiet,"breaker pops at onset discovery");
+        const auto ripple=shapes(14.4,.05);score={};const auto still=shapes(14.4,.05);
+        require(ripple>still,"onset did not raise a cluster of breakers");
+        score={};score.bassHits.push_back({14,1,2});const auto kick=shapes(14.55,.05);
+        p.spray=0;const auto noSpray=shapes(14.55,.05);
+        require(kick>noSpray,"strong kick threw no spray");
+        p.spray=12;p.swell.exclusions={p.swell.region};score={};
+        require(shapes(14,.5)==0,"exclusion did not hide breakers");
+        std::cout<<"PASS: breakers deterministic, louder music adds crests, onset clusters ripple without a pop, kick spray, exclusions ("
+                 <<quiet<<" quiet / "<<loud<<" loud vertices)\n";
+        return 0;
+    }
     HeadlessContext context;QString error;require(context.create(error),"EGL failed");
     Gpu gpu;require(gpu.init(error),"GPU init failed");
     FoamFlecksParametersV1 p;std::vector<std::unique_ptr<Canvas>> canvases;Score score;Audio audio;

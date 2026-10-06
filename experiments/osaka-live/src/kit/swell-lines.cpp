@@ -22,7 +22,7 @@ SwellRowV1 SwellLinesV1::field(const Ctx& c,int row,const SwellLinesParametersV1
     const int b=band(row,p.rows);
     const double e=c.score ? .20*c.score->bandBody[0][b]+.50*c.score->bandBody[1][b]+.30*c.score->bandBody[2][b] : c.band(b);
     const double role=(1-z)*5; const int lo=std::min(4,int(role));
-    const double flow=c.score ? .95*lerp(c.score->bandIntegrals[lo],c.score->bandIntegrals[lo+1],role-lo) : 0;
+    const double flow=c.score ? p.flowGain*.95*lerp(c.score->bandIntegrals[lo],c.score->bandIntegrals[lo+1],role-lo) : 0;
     const double id=hash2(row,p.seed+13),lift=c.lift(b),kick=c.kick(5);
     const auto baseAt=[&](int r){return p.region.top()+2+(p.region.height()-4)*std::pow(r/double(p.rows-1),p.depthFalloff);};
     // Each row owns less than half of its nearest gap. Include printed-mark

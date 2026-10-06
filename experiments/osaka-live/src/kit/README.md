@@ -252,11 +252,33 @@ sizeMin/sizeMax, color, underprint and onsetGain. A small event-selected subset
 brightens on onsets/kicks; exclusions cull complete silhouettes. Match region,
 rows, depthFalloff, seed, driftSpeed and amplitude to the swell instance.
 
+Foam `breakers` (0..200) adds a bounded pool of breaking crests that ride the
+shared swell lines: a light face rises, a cream rim rolls into an overhanging
+lip, two to five claws hang from it and the crest dissolves into foam, all over
+a dark `underprint` key. Each onset or kick seeds a cluster whose members are
+born later the farther they sit from its origin, so crests ripple outward across
+rows; hashed ambient lanes keep a few lazy crests in quiet passages. Cluster size,
+crest size and lane presence follow the short band bodies, and kicks swell live
+crests. `breakerScale` (.1..3), `breakerLife` (.4..4 s), `breakerBody` and
+`breakerFace` set size, timing and paints. `spray` (0..40) flings that many snow
+dots ballistically from the largest crests of kicks at or above `sprayThreshold`.
+Origins avoid the live wave-train body; crests and spray are culled against it
+and the exclusions as complete shapes.
+
+`flowGain` (0..4, default 1) on SwellLines, FoamFlecks and WaterSurface scales the
+band-integral share of drift. With a lower driftSpeed the sea runs with the music
+rather than a constant clock. Keep it equal across the sea instances.
+
 `water-surface-v1` optionally takes `swellSeed` to share the new contour field;
 its horizon/nearY, rows, amplitude and drift should match the swell instance.
 `innerLines` (0..3) and `crestOpacity` (0..1) allow a world to replace the old
 full-width accents with broken contours. With no swellSeed, the original water
 arithmetic and default accents are preserved. Water supports 3..24 depth rows.
+`glitter` (0..400) draws the sun's reflection as crisp `glint` dashes in a
+column under `glintX` that widens toward the viewer (`glitterWidth` at the
+horizon plus `glitterSpread` per pixel of depth, down to `glintDepth`). The treble
+strand clock sets how fast dashes swap, treble level and lift set how many are
+lit and every onset reshuffles the column. Zero keeps the original glints.
 
 `boat-on-water-v1` ports Journey's shallow oshiokuri hull, seated jointed crew,
 raised ends and recovery/catch/drive/settle oars. One canvas pass includes faint
