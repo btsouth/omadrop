@@ -3,7 +3,7 @@
 #pragma once
 #include "../world.h"
 #include "../rig.h"
-#include "osaka-legacy.h"
+#include "events.h"
 
 namespace Journey::Kit {
 struct OsakaPulseStreamV1 {

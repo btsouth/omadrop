@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 namespace {
 double easedDistance(double t, double t0, double t1, double d0, double d1) {
     if (t <= t0) return d0;

@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 void OsakaChimeV1::draw(Ctx& c, const Life& L, Canvas& f, double t, double ox) {
         // Wind chime under the eave swings in the gust.
         const double swing = std::sin(t * 2) * 0.05 + 0.35 * ring((c.schedule->action(Moment::Gust,t,0)),1.3,0.7) + 0.06 * L.wind * std::sin(t * 4.7);

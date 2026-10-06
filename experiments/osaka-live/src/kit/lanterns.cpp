@@ -11,7 +11,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 void OsakaPaperLanternV1::draw(Canvas& light, V2 at, double rx, double ry, double tilt, Col paper, double bright) {
     light.save();
     light.translate(at.x, at.y);

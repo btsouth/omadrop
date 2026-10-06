@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 namespace {
 V2 starPos(const Shell& sh, V2 dir, double speed, double age, double fx, double fy) {
     const double k = sh.kind == 3 ? 1.7 : 2.4;

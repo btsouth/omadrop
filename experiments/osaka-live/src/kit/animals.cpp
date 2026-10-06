@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 void OsakaMothsV1::draw(Ctx& c, const OsakaState& s, double px) {
     GpuProfile::Group profileGroup(c.gpu.profile,"moths");
     const double t = c.t, py = 612;

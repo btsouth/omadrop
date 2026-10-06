@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 Spans OsakaWireNetworkV1::runs(double cam) {
     std::vector<std::array<V2, 6>> pts;
     std::array<V2, 6> a, b;

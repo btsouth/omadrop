@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 namespace {
 const V2 FIREWORK(842, 418);
 std::vector<Shell> shellPlan(const Ctx& c, const Life& L) {

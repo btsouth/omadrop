@@ -29,7 +29,6 @@ struct OsakaLifeV1 {
 };
 using OsakaEventState = OsakaLifeV1;
 
-using OsakaLegacyLife = OsakaEventState;
 struct OsakaEventsV1 {
     static constexpr const char* name = "osaka-events-v1";
     static OsakaEventState at(const Ctx& c);

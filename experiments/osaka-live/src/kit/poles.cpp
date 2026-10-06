@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 void OsakaPolesV1::draw(Ctx& c, const OsakaState& s, const Life& L, Canvas& cv, Canvas& l, Canvas& cone, Canvas* staticPoles, double t, double cam, double land, bool far) {
     const Col INSUL(0.55f, 0.66f, 0.58f);
     // Poles: valley poles fade with the land under the fog instead of popping.

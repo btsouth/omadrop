@@ -2,7 +2,7 @@
 #include "pane.h"
 
 namespace Journey::Kit {
-double OsakaPaneV1::level(const Ctx& c, const OsakaLegacyLife& L, double onTime, int band, V2 centre) {
+double OsakaPaneV1::level(const Ctx& c, const OsakaEventState& L, double onTime, int band, V2 centre) {
     const double on = onTime <= -50 ? 1.0 : c.schedule->pane(c.t, onTime);
     if (on <= 0) return 0;
     // Absolute level keeps the room warm; the relative lift makes each pane

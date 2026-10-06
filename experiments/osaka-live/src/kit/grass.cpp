@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 void OsakaGrassV1::draw(const Life& L, Canvas& f, Rng& rng, double t, double ox) {
     for (int i = 0; i < 70; ++i) {
         const double bx = 480 + rng.uni() * 190 + ox, by = 968;

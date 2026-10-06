@@ -12,7 +12,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 void OsakaFestoonV1::draw(Ctx& c, const OsakaState& s, const Life& L, V2 b) {
     GpuProfile::Group profileGroup(c.gpu.profile,"festoon");
     const double t = c.t;

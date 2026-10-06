@@ -42,7 +42,7 @@ SOURCES += src/kit/neon.cpp
 HEADERS += src/kit/neon.h
 
 HEADERS += src/kit/palette.h src/kit/disc_shaders.h src/kit/haze_shaders.h \
-    src/kit/sky_shaders.h src/kit/layout.h src/kit/osaka-legacy.h
+    src/kit/sky_shaders.h src/kit/layout.h
 
 SOURCES += src/kit/lanterns.cpp
 HEADERS += src/kit/lanterns.h
@@ -105,3 +105,6 @@ SOURCES += src/kit/groups.cpp
 HEADERS += src/kit/groups.h
 
 HEADERS += src/kit/effects_shaders.h
+
+SOURCES += src/kit/composition.cpp
+HEADERS += src/kit/composition.h

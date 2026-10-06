@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 void OsakaStrandsV1::draw(Ctx& c, const OsakaState& s, const Life& L, Canvas& cv, Canvas& l, const Spans& spans, const std::array<std::array<V2, 4>, 6>& outs, const std::function<double(int,double)>& dipAt, double t, double land, bool far) {
     // Each strand has its own gauge (the bass strand heaviest) and a moonlit
     // upper edge; it hums with a soft glow that follows its band.

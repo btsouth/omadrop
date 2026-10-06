@@ -1,7 +1,7 @@
 #pragma once
 #include "../world.h"
 #include "../rig.h"
-#include "osaka-legacy.h"
+#include "events.h"
 
 namespace Journey::Kit {
 struct OsakaStreetClothV1 {
@@ -13,12 +13,12 @@ inline void streetFigure(Canvas& cv, const RigIn& r, Col cloth) { OsakaStreetClo
 
 struct OsakaNorenV1 {
     static constexpr const char* name = "osaka-noren-v1";
-    static void draw(Ctx& c, const OsakaState& s, const OsakaLegacyLife& L, Canvas& l, double t, double yx);
+    static void draw(Ctx& c, const OsakaState& s, const OsakaEventState& L, Canvas& l, double t, double yx);
 };
 
 struct OsakaIzakayaClothV1 {
     static constexpr const char* name = "osaka-izakaya-cloth-v1";
-    static void draw(const OsakaLegacyLife& L, Canvas& f, double t, double x0);
+    static void draw(const OsakaEventState& L, Canvas& f, double t, double x0);
 };
 
 }

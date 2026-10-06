@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 void OsakaPulseStreamV1::draw(Ctx& c, const OsakaState& s, Canvas& l, const Spans& spans, const std::array<std::array<V2, 4>, 6>& outs, const std::function<double(int,double)>& dipAt, const std::array<double,16>& tailFade, double land, bool far) {
     // Light travelling the strands: one stream per frequency role, faster
     // and brighter as its band rises.

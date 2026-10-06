@@ -4,7 +4,7 @@
 #include "layout.h"
 
 namespace Journey::Kit {
-void OsakaNearRoomV1::draw(Ctx& c, const OsakaState& s, const OsakaLegacyLife& L, Canvas& w, double t, double ox, const NearPane (&U)[4], double (&lv)[4], double& room) {
+void OsakaNearRoomV1::draw(Ctx& c, const OsakaState& s, const OsakaEventState& L, Canvas& w, double t, double ox, const NearPane (&U)[4], double (&lv)[4], double& room) {
     for (int i = 0; i < 4; ++i) {
         lv[i] = s.chapter ? paneLevel(c, L, U[i].on, U[i].band, {U[i].x + ox, U[i].y}) : 1.0;
         if (lv[i] > 0.01) warmPane(w, U[i].x + ox, U[i].y, U[i].w, U[i].h, lv[i]);
@@ -21,7 +21,7 @@ void OsakaNearRoomV1::draw(Ctx& c, const OsakaState& s, const OsakaLegacyLife& L
     w.glow(270 + ox, 716, 80, Col(1.0f, 0.86f, 0.62f), 0.40 * c.kick(5));
 
 }
-void OsakaRightRoom2V1::draw(Ctx& c, const OsakaState& s, const OsakaLegacyLife& L, Canvas& w, double x0) {
+void OsakaRightRoom2V1::draw(Ctx& c, const OsakaState& s, const OsakaEventState& L, Canvas& w, double x0) {
     const double h2on[3] = {9.2, 12.0, 5.8};
     const double h2win[3][4] = {{22, 724, 62, 50}, {104, 724, 62, 50}, {24, 826, 96, 74}};
     for (int i = 0; i < 3; ++i) {
@@ -36,7 +36,7 @@ void OsakaRightRoom2V1::draw(Ctx& c, const OsakaState& s, const OsakaLegacyLife&
     }
 
 }
-void OsakaRightRoom3V1::draw(Ctx& c, const OsakaState& s, const OsakaLegacyLife& L, Canvas& w, double t, double x0, const UpperPane (&ups)[4], double& shamisenPane) {
+void OsakaRightRoom3V1::draw(Ctx& c, const OsakaState& s, const OsakaEventState& L, Canvas& w, double t, double x0, const UpperPane (&ups)[4], double& shamisenPane) {
     for (int i = 0; i < 4; ++i) {
         const UpperPane& u = ups[i];
         double lv = s.chapter ? paneLevel(c, L, u.on, u.band, {x0 + u.wx, 690}) : 1.0;

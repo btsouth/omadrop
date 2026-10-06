@@ -39,48 +39,114 @@ checks.
 | `flock.h` | Original landing/formation tables, flock rendering and per-frame dip profile shared by strands and pulses. |
 | `events.h`, `light-wave.h`, `firework.h` | Versioned shell/life defaults and one central event input from the unchanged Schedule; the same state feeds panes, festoon, lanterns, birds and figures. Light-wave and star/smoke profiles preserve accumulation and pass order. |
 
-## Keep the composition contract
+## Final compiled composition
 
-`osaka.cpp` owns draw order, Canvas acquisition, parent profile groups, the
-reflection snapshot and pass submission around the town pieces. Keep those
-positions. Retained keys and camera parameters belong to the current Ctx;
-these pieces do not introduce a new cache namespace or transform system.
-Backdrop shader strings remain literal in the kit shader headers, with the
-old shader header including them for remaining callers. Effect names, uniforms
-and blend modes remain the same.
+`osaka.cpp` is the Osaka world description: four ordered typed render-slot
+arrays, the shared life/flock event references, disc/mountain placement,
+and the finish profile. `composition.cpp` executes the arrays using the
+existing Canvas/Gpu renderer. `groups.cpp` keeps the original shared canvases,
+retained keys and pass recipes, including masked shadows and reflection
+capture after wires but before foreground people. Pieces do not acquire an
+independent texture merely because they are library instances.
 
-`osaka-legacy.h` now provides only a source-compatible include for round 1
-profiles. The `OsakaLegacyLife` name aliases `OsakaEventState` from `events.h`; it owns no
-second shell list, clock or detector. `OsakaEventsV1::at` is invoked at the same
-composition entry points as the original `lifeAt`. All consumers of that draw
-receive the same state. Schedule and Score, including the global event serial,
-remain unchanged.
+`actors.h` adds woman/fan, tea/kettle, patrons/cups, cook/ladle/pot,
+customer/bowl, couple/lantern, child, lantern-bearer, cyclist/bicycle/headlamp
+and shamisen/instrument profiles. `figure.h` accepts today's absolute design
+pixel joint targets through the unchanged rig solver. Literal four-knot
+windows are declarative `ActionWindow` clips; dynamic event-relative knots,
+trigonometric tracks, gait and reach constraints retain their exact arithmetic.
+`groups.h` also adds the near wooded ridge, train, shooting star, reflection, steam,
+fog and glow profiles, plus town/cart/near-house/network render groups.
 
-Procedural defaults stay pinned in their named `osaka-*-v1` profiles:
-city RNG 41 (two layers, x 560..1400 and conditional roof advancement), downhill
-RNG 55 (three row tables and uninterrupted window draws), grass RNG 66 (70
-strokes then 54 flowers on the same stream), wisteria RNG 88 (15 crowns, 30
-sorted racemes and original petal draws), strand RNG 101 plus quay RNG 1012+i,
-and shell/star/smoke RNG 404+31*si / 900+si. All hash keys and jit inputs retain
-their original values and evaluation order.
+The temporary `osaka-legacy.h` bridge and `OsakaLegacyLife` alias are removed.
+Every consumer uses `OsakaEventState`; each original composition entry point
+still evaluates the same event state at the same time. Score, Schedule and the
+global event serial are unchanged. Journey's existing hook APIs remain as
+compatibility ports in the library executor, not arbitrary world callbacks.
 
-Actor choreography, near-ridge trees, train, reflections and remaining
-composition stay in Osaka. Before data-loaded Osaka is complete, extract those
-groups and make render insertion/reflection capture explicit. Do not add a
-per-world executable extension API, file format or SVG importer in this step.
+Procedural seeds, RNG advancement, hash/jit keys, parallax and retained cache
+keys remain the original v1 defaults. The grass and flower passes still share
+RNG 66 across the intervening body pass. City/downhill/wisteria/strand and
+shell/star/smoke streams retain their original ordering and values.
 
-For an extraction, retain the previous binary and run both the looped music
-and silent captures on the same GPU, seed, size and scale. Run
-`tools/compare-frames.py --require-identical` against the previous commit, then
-against the original baseline at the milestone. This gates every saved RGB
-pixel and the complete 5 Hz brightness/clock/firework series. It does not check
-every full-rate motion frame or establish artistic acceptance.
+`effects_shaders.h` holds the unchanged reflection, steam, radial-light and fog
+shader literals. The root shader header is only a compatibility include.
 
-Round 2 also compares exact production PCM-hop poses selected from the entire
-music/silent fixtures: full/small launch/burst flashes and finales, bird
-approach/landing/scatter/return, six measured band lifts at onsets and late
-lantern fades. An external capture-only main translation unit supplies those
-saved poses and faster lossless PNG encoding; production main stays unchanged.
-These images close the named cadence gaps, not all possible seeds, camera
-travel or full-rate motion. The original-baseline comparison and same-device
-60 s GPU profiles remain required at the milestone.
+## Profile identifiers
+
+These are the actual compiled profile names, grouped by header. An instance
+uses its typed profile; the world render slots label that profile explicitly.
+
+| Header | Immutable profile names |
+| --- | --- |
+| `actors.h` | `osaka-woman-fan-v1`, `osaka-tea-v1`, `osaka-patrons-v1`, `osaka-cook-v1`, `osaka-customer-v1`, `osaka-couple-v1`, `osaka-child-v1`, `osaka-bearer-v1`, `osaka-cyclist-v1`, `osaka-shamisen-v1` |
+| `animals.h` | `osaka-moths-v1`, `osaka-rail-cat-v1`, `osaka-sill-cat-v1`, `osaka-veranda-cat-v1` |
+| `chime.h` | `osaka-chime-v1` |
+| `city.h` | `osaka-valley-city-v1` |
+| `cloth.h` | `osaka-street-cloth-v1`, `osaka-noren-v1`, `osaka-izakaya-cloth-v1` |
+| `composition.h` | `osaka-finish-v1`, `osaka-world-v1`, `osaka-composition-v1` |
+| `disc.h` | `osaka-disc-v1` |
+| `downhill.h` | `osaka-downhill-rows-v1` |
+| `events.h` | `osaka-shell-v1`, `osaka-life-v1`, `osaka-events-v1` |
+| `festoon.h` | `osaka-festoon-v1` |
+| `figure.h` | `osaka-figure-v1` |
+| `firework.h` | `osaka-firework-v1` |
+| `flock.h` | `osaka-flock-v1`, `osaka-flock-dip-v1` |
+| `grass.h` | `osaka-grass-v1`, `osaka-grass-flowers-v1` |
+| `groups.h` | `osaka-near-ridge-v1`, `osaka-train-v1`, `osaka-reflection-v1`, `osaka-shooting-star-v1`, `osaka-fog-v1`, `osaka-glow-through-v1`, `osaka-steam-v1`, `osaka-right-town-v1`, `osaka-street-surface-group-v1`, `osaka-street-actors-v1`, `osaka-cart-group-v1`, `osaka-near-group-v1`, `osaka-network-group-v1` |
+| `haze.h` | `osaka-haze-v1` |
+| `lanterns.h` | `osaka-paper-lantern-v1`, `osaka-lantern-v1`, `osaka-cart-lantern-v1` |
+| `light-wave.h` | `osaka-light-wave-v1`, `osaka-festoon-light-wave-v1` |
+| `mountain.h` | `osaka-mountain-v1` |
+| `neon.h` | `osaka-neon-v1` |
+| `network.h` | `osaka-wire-network-v1` |
+| `pane.h` | `osaka-pane-v1` |
+| `poles.h` | `osaka-poles-v1` |
+| `primitives.h` | `osaka-warm-pane-v1`, `osaka-dark-pane-v1`, `osaka-lattice-v1`, `osaka-roof-v1` |
+| `pulses.h` | `osaka-pulse-stream-v1` |
+| `ridges.h` | `osaka-ridges-v1` |
+| `rooms.h` | `osaka-near-room-v1`, `osaka-right-room-2-v1`, `osaka-right-room-3-v1`, `osaka-cart-room-v1` |
+| `sky-lanterns.h` | `osaka-sky-lanterns-v1`, `osaka-couple-lantern-v1` |
+| `sky.h` | `osaka-sky-v1` |
+| `strands.h` | `osaka-strands-v1` |
+| `town.h` | `osaka-near-house-v1`, `osaka-right-house-2-v1`, `osaka-right-house-3-v1`, `osaka-near-house-deck-v1`, `osaka-street-surface-v1`, `osaka-street-railing-v1`, `osaka-yatai-frame-v1`, `osaka-near-house-mask-v1`, `osaka-shamisen-mask-v1` |
+| `wisteria.h` | `osaka-wisteria-v1` |
+
+## Remaining to externalize in step 2
+
+- Ordered slot arrays, gates, event references, placement and finish parameters
+  are compiled data today. Add a validated loader and stable instance IDs.
+- Static paths, glyph outlines, masks, palettes, layout tables and procedural
+  generator defaults still live in C++ profiles. Export supported art and
+  typed numeric parameters without changing geometry or RNG order.
+- Actor style, absolute targets, props, action knots and participant placement
+  remain compiled defaults. Literal window clips already have a data shape;
+  combined sine/backOut tracks, dynamic surge-relative windows, gait speed
+  derivatives, the cook's reach clamp and score/fallback strumming require
+  typed track/constraint schemas before they can be serialized. No generic
+  expression or executable world extension has been added.
+- Shared pass recipes, uniform bindings, masked layers, retained insertion,
+  capture regions and existing Journey ports need a typed declarative contract.
+  The top-level reflection capture is already an explicit ordered slot.
+- Noise fields, seeded generators, light waves, particles and shader algorithms
+  remain library behavior code because they generate/evaluate data per frame.
+  Their bounded settings can be externalized; the algorithms stay in the kit.
+
+No file format, SVG importer, art normalization, new renderer, event detector
+or camera cache redesign is part of step 1. Externalization needs its own
+fidelity proof, especially for subdivision, precision and cache identity.
+
+## Verification contract
+
+For each local extraction commit, compare both the 180 s looped music and
+60 s silence fixtures with `compare-frames.py --require-identical`, seed 1,
+1920x1080 and scale 1 on the same Intel GPU, against the immediately previous
+commit. Compare the complete saved RGB/clock/firework series and selected
+production PCM-hop poses, including actor clip phases and shell-relative
+child/lantern phases. The final milestone also compares original `9f2b6d3`.
+This is saved-frame fidelity, not every motion frame or artistic acceptance.
+
+Final validation includes Osaka CTests, controller fake-process tests, and
+interleaved same-device baseline/final 60 s GPU profiles with matching
+render-thread CPU timing. Report shared-machine load for each run; timing
+under changing load is a paired measurement, not a clean-device budget claim.

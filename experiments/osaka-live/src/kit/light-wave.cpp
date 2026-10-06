@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 void OsakaLightWaveV1::pane(const Ctx& c, const OsakaEventState& L, double on, V2 centre, double& level) {
     for (const Shell& sh : L.shells) {
         const double arrive = sh.burst + (centre - sh.at).len() / 1500.0;

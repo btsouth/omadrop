@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 void OsakaDownhillRowsV1::draw(Ctx& c, const OsakaState& s, const Life& L) {
     GpuProfile::Group profileGroup(c.gpu.profile,"downhillRoofs");
     Rng rng(55);

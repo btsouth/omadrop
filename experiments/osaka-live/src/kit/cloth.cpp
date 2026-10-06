@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Journey::Kit {
-using Life = OsakaLegacyLife;
+using Life = OsakaEventState;
 void OsakaStreetClothV1::draw(Canvas& cv, const RigIn& r, Col cloth) {
     const Body b = solve(r);
     drawBody(cv, b, INK);
