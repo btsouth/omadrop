@@ -179,7 +179,7 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
         // forward, so it reads as a wave breaking, not a deflating hump.
         const double sink=p.sinkTo>p.sinkFrom?sstep(p.sinkFrom,p.sinkTo,a):0,held=sink>0?g/std::max(.05,1-sink):g;
         crest.stage=std::clamp(s.stage,0.,5.)*sstep(.12,.88,held)*sstep(0,.3,1-sink);
-        const double crash=sink>0?190*std::sin(Pi*std::min(1.,sink*1.25)):0;
+        const double crash=sink>0?115*std::sin(Pi*std::min(1.,sink*1.25)):0;
         Samples v=blend(crest.stage);Controls delta{};const auto& st=stages();
         auto controlsAt=[&](double stage,int j) {
             stage=std::clamp(stage,0.,5.);const int i=std::min(4,int(stage));
