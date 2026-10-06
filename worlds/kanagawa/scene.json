@@ -189,6 +189,62 @@
             "foam": "#dcd7ba",
             "lines": "#7397a4"
           }
+        },
+        {
+          "id": "far-boat",
+          "piece": "BoatOnWater",
+          "profile": "boat-on-water-v1",
+          "gate": "Always",
+          "params": {
+            "waterInstance": "swells",
+            "x": 1670,
+            "row": 5.6,
+            "length": 285,
+            "scale": 0.5,
+            "crewCount": 5,
+            "oarCount": 5,
+            "driftX": 45,
+            "driftRows": 0.18,
+            "driftSpeed": 0.01,
+            "seed": 137,
+            "band": 0,
+            "rowingTempo": 0.3,
+            "tempoGain": 0.18,
+            "splashGain": 0.23,
+            "kickGain": 0.14,
+            "hull": "#c0a36e",
+            "trim": "#e6c384",
+            "ink": "#14141c",
+            "foam": "#dcd7ba"
+          }
+        },
+        {
+          "id": "near-boat",
+          "piece": "BoatOnWater",
+          "profile": "boat-on-water-v1",
+          "gate": "Always",
+          "params": {
+            "waterInstance": "swells",
+            "x": 1370,
+            "row": 7.6,
+            "length": 315,
+            "scale": 0.66,
+            "crewCount": 6,
+            "oarCount": 6,
+            "driftX": 65,
+            "driftRows": 0.18,
+            "driftSpeed": 0.008,
+            "seed": 211,
+            "band": 0,
+            "rowingTempo": 0.33,
+            "tempoGain": 0.18,
+            "splashGain": 0.23,
+            "kickGain": 0.14,
+            "hull": "#c0a36e",
+            "trim": "#e6c384",
+            "ink": "#14141c",
+            "foam": "#dcd7ba"
+          }
         }
       ]
     }
