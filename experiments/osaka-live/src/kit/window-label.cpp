@@ -15,9 +15,9 @@ namespace {
 }
 
 bool isWindowLabelCandidate(const QString& label) {
-    if (label == "window" || label.startsWith("window.")) return true;
-    // A dotted label is shorthand-shaped. Keep ordinary artist labels untouched.
-    return label.contains('.');
+    // Only labels naming a known piece are shorthand. Ordinary artist labels,
+    // dotted or not (for example "house.v2"), stay plain art.
+    return label == "window" || label.startsWith("window.");
 }
 
 OsakaWindowNodeV1 parseWindowLabel(const QString& svgFile, const QString& elementId,

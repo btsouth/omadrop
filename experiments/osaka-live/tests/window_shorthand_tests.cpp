@@ -1,4 +1,5 @@
 #include "../src/headless.h"
+#include "../src/kit/window-label.h"
 #include "../src/kit/world-loader.h"
 #include "../src/scene.h"
 #include "../src/score.h"
@@ -102,6 +103,11 @@ void grammar() {
     require(duplicate.diagnostic
                 == "art.svg:1: element <rect> id='dup': label='window.band1': duplicate id 'dup'",
             duplicate.diagnostic.toUtf8().constData());
+    require(isWindowLabelCandidate("window.band2.kick") && isWindowLabelCandidate("window"),
+            "window labels were not recognized as shorthand");
+    require(!isWindowLabelCandidate("house.v2") && !isWindowLabelCandidate("roof")
+                && !isWindowLabelCandidate("windows.left"),
+            "ordinary artist labels were treated as shorthand");
     std::cout << "PASS: grammar errors include file, element id, label, and reason\n";
 }
 
