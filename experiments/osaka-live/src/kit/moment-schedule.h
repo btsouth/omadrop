@@ -10,7 +10,8 @@ struct MomentScheduleV1 {
     explicit MomentScheduleV1(int seed=1):seed(seed) { dragonNext=varied(91,0,180,300); }
     int seed=1;double next=4,last=0,heldBass=0,surgeStart=-1000,surgeReady=10,dragonNext=240;
     unsigned serial=0,surgeCycle=0,dragonCycle=0;std::uint64_t beatSerial=0;
-    PrintEventV1 dragon;
+    PrintEventV1 dragon,flock;
+    double birdNext=6;
     std::array<PrintEventV1,int(PrintMoment::Count)> events{};
     double varied(int key,unsigned cycle,double lo,double hi)const{return lerp(lo,hi,hash2(seed*71.+key,cycle));}
     static const char* name(PrintMoment m){static constexpr const char* names[]={"fish","crane-pair","fishing-boat","lantern-boat","wind-gust","horizon-squall","snow-glint","shooting-star","bird-flock"};return names[int(m)];}
@@ -36,6 +37,8 @@ struct MomentScheduleV1 {
             v.height=varied(41,serial,0,1);v.count=3+int(varied(42,serial,0,6));
             next=t+varied(10,++serial,5,10);
         }
+        if(t>=birdNext){flock.start=t;++flock.cycle;flock.duration=varied(80,flock.cycle,9,14);flock.direction=varied(81,flock.cycle,0,1)<.5?-1:1;
+            flock.count=3+int(varied(82,flock.cycle,0,6));flock.height=varied(83,flock.cycle,0,1);birdNext=t+varied(84,flock.cycle,17,30);}
         // Music can bring a pending visit forward by up to four seconds,
         // without shortening the several-minute recurrence or popping in.
         if(t>=dragonNext-(a.bassLevel>.35?4:0)){

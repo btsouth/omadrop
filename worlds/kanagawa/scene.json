@@ -77,6 +77,25 @@
           }
         },
         {
+          "id": "gulls",
+          "piece": "BirdFlock",
+          "profile": "bird-flock-v1",
+          "gate": "Always",
+          "params": {
+            "x": 0,
+            "y": 240,
+            "width": 1920,
+            "height": 260,
+            "scale": 1,
+            "count": 9,
+            "band": 5,
+            "surgeEnabled": true,
+            "color": "#223249",
+            "accent": "#dcd7ba",
+            "ink": "#223249"
+          }
+        },
+        {
           "id": "sky-life",
           "piece": "PrintMoments",
           "profile": "print-moments-v1",
