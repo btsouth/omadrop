@@ -266,7 +266,11 @@ int main(int argc, char** argv) {
         require(parsedWave.anchorRight && parsedWave.x==1890 && parsedWave.maxRise==123 && parsedWave.seed==9,"wave settings lost");
         const QString wavePath="$.stages[0].slots["+QString::number(a.backdrop.count)+"].params";
         invalid(withWave(QJsonObject{{"anchorSide","up"}}),wavePath+".anchorSide: expected left or right");
-        invalid(withWave(QJsonObject{{"maxRise",401}}),wavePath+".maxRise: expected number in 0..400");
+        invalid(withWave(QJsonObject{{"maxRise",801}}),wavePath+".maxRise: expected number in 0..800");
+        root=withWave(QJsonObject{{"baseHeight",340},{"maxRise",650},{"surgeEnabled",true}});
+        {QFile out(file);require(out.open(QIODevice::WriteOnly),"write wide response failed");out.write(QJsonDocument(root).toJson());}
+        const auto wide=loadOsakaWorld(tmp.path());const auto& parsedWide=wide->description().backdrop.entries[a.backdrop.count].params->greatWave;
+        require(parsedWide.baseHeight==340 && parsedWide.maxRise==650 && parsedWide.surgeEnabled,"wide wave parameters lost");
         invalid(withWave(QJsonObject{{"baseHeight",900},{"maxRise",200}}),wavePath+": expected baseHeight + maxRise at most 1050");
         invalid(withWave(QJsonObject{{"clawCount",18.5}}),wavePath+".clawCount: expected integer in 6..30");
         invalid(withWave(QJsonObject{{"breakEnabled",true}}),wavePath+".breakEnabled: expected known field (unknown field)");

@@ -12,8 +12,14 @@ int main(){try{
  if(a.serial!=seen){if(seen)need(t-prior>=5 && t-prior<=10.02,"event gap out of bounds");seen=a.serial;prior=t;}
  if(a.surgeStart!=lastSurge){if(lastSurge>0)need(a.surgeStart-lastSurge>=45 && a.surgeStart-lastSurge<=91,"surge cooldown");lastSurge=a.surgeStart;need(a.heldBass>=1.8,"unsustained gate");}
  need(a.surge(t)>=0 && a.surge(t)<=1,"surge envelope bound");}
+ for(const auto&v:a.events)need(v.cycle>=5,"moment omitted from recurring rounds");
  need(a.surgeCycle>=5 && a.dragonCycle>=1,"missing recurring surge or dragon");
  need(a.events[0].count!=other.events[0].count || a.next!=other.next,"seed has no variety");
  MomentScheduleV1 transient;for(int i=1;i<60;++i)transient.advance(i/60.,loud,score);need(transient.surgeCycle==0,"single transient triggers surge");
+ MomentScheduleV1 reset;reset.surgeReady=1000;
+ for(int i=1;i<600;++i)reset.advance(i/60.,loud,score);
+ for(int i=600;i<900;++i)reset.advance(i/60.,{},{});
+ need(reset.heldBass==0,"sustained gate remembers old loud passage");reset.surgeReady=0;
+ Score hit;hit.bassHits={{15,.9,999}};reset.advance(15,loud,hit);need(reset.surgeCycle==0,"new transient inherits old bass gate");
  std::cout<<"PASS seeded ten-minute bounds, sustained bass gate, 45-90s cooldown, quiet suppression and rare creature\n";
 }catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}}

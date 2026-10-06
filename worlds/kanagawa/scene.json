@@ -77,6 +77,20 @@
           }
         },
         {
+          "id": "snow-life",
+          "piece": "PrintMoments",
+          "profile": "print-moments-v1",
+          "gate": "Always",
+          "params": {
+            "domain": 2,
+            "x": 1086,
+            "y": 476,
+            "width": 45,
+            "height": 35,
+            "accent": "#fff2c8"
+          }
+        },
+        {
           "id": "gulls",
           "piece": "BirdFlock",
           "profile": "bird-flock-v1",
@@ -105,7 +119,8 @@
             "y": 310,
             "width": 1920,
             "height": 280,
-            "surgeEnabled": true
+            "surgeEnabled": true,
+            "band": 5
           }
         },
         {
@@ -190,7 +205,8 @@
             "gain": 1,
             "color": "#285579",
             "accent": "#dcd7ba",
-            "ink": "#102955"
+            "ink": "#102955",
+            "row": 6.4
           }
         },
         {
@@ -237,6 +253,25 @@
             "amplitudeGain": 3.5,
             "responseGain": 1.7,
             "surgeEnabled": true
+          }
+        },
+        {
+          "id": "water-life",
+          "piece": "PrintMoments",
+          "profile": "print-moments-v1",
+          "gate": "Always",
+          "params": {
+            "domain": 1,
+            "waterInstance": "swells",
+            "x": 0,
+            "y": 700,
+            "width": 1920,
+            "height": 380,
+            "scale": 1,
+            "color": "#e6c384",
+            "accent": "#dcd7ba",
+            "ink": "#223249",
+            "row": 3.5
           }
         },
         {
@@ -323,6 +358,25 @@
             "ink": "#14141c",
             "foam": "#dcd7ba",
             "surgeEnabled": true
+          }
+        },
+        {
+          "id": "fish",
+          "piece": "LeapingFish",
+          "profile": "leaping-fish-v1",
+          "gate": "Always",
+          "params": {
+            "waterInstance": "swells",
+            "x": 1000,
+            "y": 880,
+            "width": 770,
+            "height": 100,
+            "scale": 0.8,
+            "count": 5,
+            "color": "#285579",
+            "accent": "#dcd7ba",
+            "ink": "#102955",
+            "row": 9.3
           }
         }
       ]

@@ -88,6 +88,7 @@ constexpr Piece pieces[] = {
     {"SmokePlume", OsakaOp::SmokePlume, "smoke-plume-v1"},
     {"BirdFlock", OsakaOp::BirdFlock, "bird-flock-v1"},
     {"SeaCreature", OsakaOp::SeaCreature, "sea-creature-v1"},
+    {"LeapingFish", OsakaOp::LeapingFish, "leaping-fish-v1"},
     {"PrintMoments", OsakaOp::PrintMoments, "print-moments-v1"},
     {"AfterSky", OsakaOp::AfterSky, "after-sky"},
     {"Star", OsakaOp::Star, "osaka-shooting-star-v1"},
@@ -524,15 +525,16 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 color("texture",water.texture); color("foam",water.foam); color("underprint",water.underprint);
                 color("glint",water.glint); color("hotGlint",water.hotGlint);
                 params=value;
-            } else if (piece->op==OsakaOp::SeaCreature || piece->op==OsakaOp::PrintMoments || piece->op==OsakaOp::SmokePlume || piece->op==OsakaOp::BirdFlock) {
+            } else if (piece->op==OsakaOp::SeaCreature || piece->op==OsakaOp::LeapingFish || piece->op==OsakaOp::PrintMoments || piece->op==OsakaOp::SmokePlume || piece->op==OsakaOp::BirdFlock) {
                 const auto data=r.object(slot["params"],paramsPath,{},
-                    {"x","y","width","height","scale","gain","speed","count","seed","band","surgeEnabled","waterInstance","color","accent","ink"});
+                    {"x","y","width","height","scale","gain","speed","row","count","seed","band","domain","surgeEnabled","waterInstance","color","accent","ink"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();auto& life=value->life;
                 auto scalar=[&](const char* key,double& target,double lo,double hi){if(data.contains(key)){target=r.number(data[key],paramsPath+"."+key);if(target<lo || target>hi)r.fail(paramsPath+"."+key,"bounded print piece parameter");}};
                 scalar("x",life.x,-1920,3840);scalar("y",life.y,0,1200);scalar("width",life.width,1,3840);scalar("height",life.height,1,1200);
-                scalar("scale",life.scale,.1,3);scalar("gain",life.gain,0,4);scalar("speed",life.speed,.1,4);
+                scalar("row",life.row,0,23);scalar("scale",life.scale,.1,3);scalar("gain",life.gain,0,4);scalar("speed",life.speed,.1,4);
                 if(data.contains("count"))life.count=r.integer(data["count"],paramsPath+".count",1,30);
                 if(data.contains("seed"))life.seed=r.integer(data["seed"],paramsPath+".seed",0,1000000);
+                if(data.contains("domain"))life.domain=r.integer(data["domain"],paramsPath+".domain",0,2);
                 if(data.contains("band"))life.band=r.integer(data["band"],paramsPath+".band",0,5);
                 if(data.contains("surgeEnabled"))life.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
                 if(data.contains("waterInstance"))life.waterInstance=r.string(data["waterInstance"],paramsPath+".waterInstance").toStdString();
@@ -693,7 +695,8 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             for(const auto& candidateStage:loaded->entries_)for(const auto& candidate:candidateStage)
                 if(candidate.id==slot.params->life.waterInstance)surface=&candidate;
             if(!surface || surface->piece!=OsakaOp::SwellLines)r.fail("$.stages","print waterInstance must name SwellLines");
-            auto value=std::make_shared<OsakaSlotParamsV1>(*slot.params);value->life.swell=surface->params->swell;slot.params=value;
+            auto value=std::make_shared<OsakaSlotParamsV1>(*slot.params);value->life.swell=surface->params->swell;
+            if(value->life.row>value->life.swell.rows-1)r.fail("$.stages","print row outside named surface");slot.params=value;
         }
     if (usesDisc && !hasDisc) r.fail("$.disc","required field");
     if (usesMountain && !hasMountain) r.fail("$.mountain","required field");

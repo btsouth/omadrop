@@ -37,5 +37,12 @@ int main(int argc,char** argv){QCoreApplication app(argc,argv);try{
         const auto s=GreatWaveV1::pose(c,p);require(std::isfinite(s.height) && s.height>=p.baseHeight && s.height<=p.baseHeight+p.maxRise,"reachable crash or unbounded rise");
         require(s.curl>=0 && s.curl<=p.curlAmount,"curl exceeds limit");
         const auto lip=GreatWaveV1::map({1000,560},s,p);require(std::isfinite(lip.x) && lip.y<p.y,"lip can plunge into sea");}
+    // The surge fan must extend from the curling lip into visible sky, not
+    // disappear above a full-height crown. Isolate its right-hand support.
+    Schedule schedule(1);c.schedule=&schedule;c.t=20;schedule.print.surgeStart=17;
+    p={};p.maxRise=0;p.kickGain=p.onsetGain=0;score={};
+    Canvas body0,flow0,foam0;GreatWaveV1::paint(body0,flow0,foam0,c,p);const auto restBounds=foam0.bounds();
+    p.surgeEnabled=true;Canvas body1,flow1,foam1;GreatWaveV1::paint(body1,flow1,foam1,c,p);const auto fanBounds=foam1.bounds();
+    require(fanBounds[2]>restBounds[2]+40,"surge fan never leaves the visible curling lip");
     std::cout<<"PASS: exact RGB determinism, loud/silence, smooth attack/settle, max rise, kick/onset/swell, seed/side, eight hours without crash\n";
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

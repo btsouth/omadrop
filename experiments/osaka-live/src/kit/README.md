@@ -275,3 +275,31 @@ both ends of the same field. No independently phased bob is added.
 base tempo plus the selected causal band integral, so changing music does not
 jump a pose. Band energy/kick lightly brighten oar rings; kick adds bow spray.
 The check tool measures each boat's current music/silence hull-and-oar footprint.
+
+## Printed wildlife and recurring moments
+
+`print-life.h` provides `smoke-plume-v1`, `bird-flock-v1`, `leaping-fish-v1`,
+`sea-creature-v1` and `print-moments-v1`. These append ink geometry to the caller's
+Canvas. Shared parameters are x, y, width, height, scale, gain, speed, count,
+seed, band, color, accent and ink. Fish and creatures resolve waterInstance to
+an existing SwellLines slot and use its fractional row; the loader checks both.
+Smoke reads a causal band body, birds read treble integral and onset flaps,
+and fish and creatures vary their excursion with the selected band.
+
+`PrintMoments` domain 0 places sky passes, squalls and surge wind; domain 1 uses
+the named water field for passing fishing/lantern boats and gusts; domain 2
+places a moving, music-brightened snow glint. World folders choose the placement
+and palette. `MomentScheduleV1` uses a seeded permutation of nine events with
+five to ten seconds between starts, plus independent flock and creature clocks.
+The first occurrence of a moment uses its original speed; later speeds vary.
+
+`surgeEnabled` opts wave, water, foam, boats, smoke and birds into the independent
+sustained-bass surge. Its body envelope eases in over 1.8 seconds and settles by
+11 seconds, with a seeded 45 to 90 second cooldown. Osaka's original schedule
+fields and drawings do not consume this state.
+
+The world checker measures sparse ink support, covers the opening schedule and
+loops a short fixture only when it must reach an actual rare creature visit.
+That rare window also receives the flashing check. No event is forced for a
+world check. Separate CTests cover exact RGB, music response, exits, bounds and
+the sustained gate, including its reset after a quiet passage.

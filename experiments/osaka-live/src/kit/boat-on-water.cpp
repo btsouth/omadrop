@@ -22,6 +22,7 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
     // Integral makes tempo change continuously; never multiply time by the
     // current band/kick (that would jump the pose on every beat).
     s.stroke=c.t*p.rowingTempo+p.tempoGain*(c.score?c.score->bandIntegrals[p.band]:0)+hash2(p.seed,43);
+    if(p.surgeEnabled && c.schedule)s.stroke+=.6*c.schedule->print.surgeFlow;
     s.splash=std::clamp(.10+p.splashGain*(.55*c.band(p.band)+.45*c.kick(5)),0.,.55);
     s.spray=std::clamp(p.kickGain*c.kick(6)+(p.surgeEnabled && c.schedule?.45*c.schedule->print.surge(c.t):0),0.,.8);
     return s;
@@ -54,7 +55,7 @@ void BoatOnWaterV1::paint(Canvas& cv,const Ctx& c,const BoatOnWaterParametersV1&
         const double f=(i+.5)/p.crewCount,bx=-ln/2+ln*(.12+.72*f),by=2*sc+8*sc*std::sin(f*Pi);
         const double phase=s.stroke-i*.025,drive=std::sin(Tau*phase),dip=std::max(0.,std::sin(Tau*phase+.6));
         RigIn r;r.h=62*sc;r.facing=1;r.hair=Hair::Short;r.garment=Garment::Jacket;
-        r.hip={bx,by-13*sc};r.lean=.18+.30*drive;
+        r.hip={bx,by-13*sc};r.lean=.18+.30*drive+(p.surgeEnabled && c.schedule?.22*c.schedule->print.surge(c.t):0);
         r.footF={bx+21*sc,by+3*sc};r.footB={bx+7*sc,by+5*sc};
         const V2 wanted(bx+(17+10*drive)*sc,by-(16-2*drive)*sc);
         const V2 shoulder=r.hip+V2(std::sin(r.lean),-std::cos(r.lean))*(.275*r.h),reach=wanted-shoulder;

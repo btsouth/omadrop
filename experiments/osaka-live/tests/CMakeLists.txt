@@ -112,7 +112,7 @@ target_link_libraries(foam-piece-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
 add_test(NAME foam-flecks-deterministic-and-music COMMAND foam-piece-tests)
 
 add_executable(great-wave-tests great_wave_tests.cpp ../src/kit/great-wave.cpp
-    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp)
+    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp ../src/schedule.cpp)
 target_include_directories(great-wave-tests PRIVATE ../src)
 target_link_libraries(great-wave-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
 add_test(NAME great-wave-standing-bounded-and-music COMMAND great-wave-tests)
@@ -131,4 +131,11 @@ add_executable(print-life-tests print_life_tests.cpp ../src/kit/print-life.cpp .
     ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp ../src/schedule.cpp)
 target_include_directories(print-life-tests PRIVATE ../src)
 target_link_libraries(print-life-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
-add_test(NAME print-life-deterministic-and-music COMMAND print-life-tests)
+add_test(NAME smoke-plume-deterministic-and-music COMMAND print-life-tests smoke)
+add_test(NAME bird-flock-deterministic-and-music COMMAND print-life-tests birds)
+add_test(NAME sea-creature-deterministic-and-music COMMAND print-life-tests dragon)
+add_test(NAME leaping-fish-deterministic-and-music COMMAND print-life-tests fish)
+add_test(NAME print-moments-deterministic-and-exit COMMAND print-life-tests moments)
+
+add_test(NAME check-kanagawa-ready COMMAND osaka-check-tests ${CHECK_REPO_WORLDS} kanagawa ready)
+set_tests_properties(check-kanagawa-ready PROPERTIES TIMEOUT 900)

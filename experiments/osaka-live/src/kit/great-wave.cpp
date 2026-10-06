@@ -129,6 +129,21 @@ void GreatWaveV1::paint(Canvas& body,Canvas& flow,Canvas& foam,const Ctx& c,cons
         foam.color(p.foam,.35*fan+.16+.18*(.5+.5*std::sin(phase))+.7*s.flick);
         foam.ellipse(x,y,(1+1.5*hash2(i,p.seed+65))*scale,(1.2+2*hash2(i,p.seed+66))*scale);foam.fill();
     }
+    // The broad fan leaves the outer curling lip, where its flight stays in
+    // the sky. Crown-top spray at full height would leave the picture.
+    if(p.surgeEnabled && c.schedule){const double age=c.t-c.schedule->print.surgeStart;
+        for(int i=0;i<36;++i){const double flight=(age-1.3-i*.04)/3.5;if(flight<=0 || flight>=1)continue;
+            const double fade=sstep(0,.10,flight)*(1-sstep(.65,1,flight));
+            const V2 root=mapped(crown[2].at(.06+.52*hash2(i,p.seed+81)));
+            const double angle=-1.48+.95*hash2(i,p.seed+82),reach=(150+230*hash2(i,p.seed+83))*flight;
+            const double side=p.anchorRight?-1:1;
+            const V2 at=root+V2(side*std::cos(angle)*reach,std::sin(angle)*reach+55*flight*flight);
+            const V2 tail=at-V2(side*std::cos(angle),std::sin(angle))*(5+12*hash2(i,p.seed+84));
+            foam.line(tail.x,tail.y,at.x,at.y,(1+1.2*hash2(i,p.seed+85))*scale,p.foam,.72*fade);
+            foam.disc(at.x,at.y,1.2*scale,p.foam,.7*fade);
+        }
+    }
+
 }
 void GreatWaveV1::draw(Ctx& c,const GreatWaveParametersV1& p){
     GpuProfile::Group group(c.gpu.profile,name);

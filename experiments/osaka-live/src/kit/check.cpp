@@ -157,6 +157,8 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
     std::vector<MovingRegion> movingRegions;
     struct BoatRegion {std::size_t index;BoatOnWaterParametersV1 params;};
     std::vector<BoatRegion> boatRegions;
+    struct InkRegion {std::size_t index;OsakaOp op;PrintLifeParametersV1 params;};
+    std::vector<InkRegion> inkRegions;
     const QTransform screen = QTransform().scale(double(w) / 1920.0, double(h) / 1080.0);
     auto fillRegion = [&](Region& region, const QPainterPath& shape) {
         const QRectF box = shape.boundingRect();
@@ -196,12 +198,12 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
     for (const auto* stage : {&description.backdrop,&description.coast,&description.distantTown,&description.foreground}) {
         for (std::size_t i=0;i<stage->count;++i) {
             const auto& slot=stage->entries[i];
-            if(slot.piece==OsakaOp::SmokePlume || slot.piece==OsakaOp::PrintMoments) {
+            if(slot.piece==OsakaOp::SmokePlume || slot.piece==OsakaOp::BirdFlock || slot.piece==OsakaOp::PrintMoments || slot.piece==OsakaOp::SeaCreature || slot.piece==OsakaOp::LeapingFish) {
                 const auto& p=slot.params->life;NodeResult node;node.id=QString::fromStdString(slot.id);node.label=slot.profile;
-                node.piece=slot.profile;node.band=p.band;node.kick=true;node.onset=true;
-                out.nodes.push_back(node);QPainterPath area;
-                area.addRect(slot.piece==OsakaOp::SmokePlume?QRectF(p.x-20,p.y-p.height,p.width+40,p.height+20):QRectF(p.x,p.y,p.width,p.height));
-                regions.emplace_back();fillRegion(regions.back(),screen.map(area));
+                node.piece=slot.profile;node.band=p.band;node.movingSurface=true;
+                node.kick=slot.piece==OsakaOp::SmokePlume || (slot.piece==OsakaOp::PrintMoments && p.domain!=0);
+                node.onset=slot.piece==OsakaOp::BirdFlock || (slot.piece==OsakaOp::PrintMoments && p.domain!=1);
+                out.nodes.push_back(node);regions.emplace_back();inkRegions.push_back({regions.size()-1,slot.piece,p});
             }
             if(slot.piece==OsakaOp::BoatOnWater) {
                 NodeResult node;node.id=QString::fromStdString(slot.id);node.label="boat-on-water-v1";
@@ -299,6 +301,24 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
             area.addPath(BoatOnWaterV1::responsePath(BoatOnWaterV1::pose(sc,boat.params),boat.params));
             area.setFillRule(Qt::WindingFill);auto& pixels=regions[boat.index].pixels;pixels.clear();
             fillRegion(regions[boat.index],screen.map(area));
+        }
+        for(const auto&ink:inkRegions){
+            Ctx mc{world.gpu(),t,music.audio,&music.score,options.seed,nullptr,&music.schedule};
+            Ctx sc{world.gpu(),t,silence.audio,&silence.score,options.seed,nullptr,&silence.schedule};
+            Canvas mcv,scv;
+            auto paint=[&](Canvas&cv,const Ctx&ctx){switch(ink.op){
+                case OsakaOp::SmokePlume:SmokePlumeV1::paint(cv,ctx,ink.params);break;
+                case OsakaOp::BirdFlock:BirdFlockV1::paint(cv,ctx,ink.params);break;
+                case OsakaOp::SeaCreature:SeaCreatureV1::paint(cv,ctx,ink.params);break;
+                case OsakaOp::LeapingFish:LeapingFishV1::paint(cv,ctx,ink.params);break;
+                default:PrintMomentsV1::paint(cv,ctx,ink.params);break;}};
+            paint(mcv,mc);paint(scv,sc);auto area=printResponsePath(mcv);area.addPath(printResponsePath(scv));area.setFillRule(Qt::WindingFill);
+            area=screen.map(area);QImage mask(w,h,QImage::Format_Alpha8);mask.fill(0);
+            {QPainter painter(&mask);painter.fillPath(area,Qt::white);}
+            auto& pixels=regions[ink.index].pixels;pixels.clear();
+            const auto box=area.boundingRect().toAlignedRect().intersected(QRect(0,0,w,h));
+            for(int y=box.top();y<=box.bottom();++y){const auto*line=mask.constScanLine(y);
+                for(int x=box.left();x<=box.right();++x)if(line[x])pixels.push_back(std::uint32_t(y*w+x));}
         }
         for (std::size_t n = 0; n < regions.size(); ++n) {
             double gap = 0;
@@ -492,7 +512,7 @@ Report runWorldCheck(const Options& options) {
     };
     const QString notLoaded = "Not run, because the world did not load.";
 
-    const Fixture fixture = loadFixture(options);
+    Fixture fixture = loadFixture(options);
     report.fixture = fixture.description;
     QString folder;
     try {
@@ -512,6 +532,15 @@ Report runWorldCheck(const Options& options) {
         return finish();
     }
 
+    bool recurringInk=false,rareCreature=false;
+    for(const auto*stage:{&osakaWorld().backdrop,&osakaWorld().coast,&osakaWorld().distantTown,&osakaWorld().foreground})
+        for(std::size_t i=0;i<stage->count;++i){const auto op=stage->entries[i].piece;
+            recurringInk|=op==OsakaOp::PrintMoments;rareCreature|=op==OsakaOp::SeaCreature;}
+    if(rareCreature && fixture.hops<360*60){
+        const auto original=fixture.samples;const std::size_t wanted=360*60*HopFrames*2;
+        fixture.samples.resize(wanted);for(std::size_t i=original.size();i<wanted;++i)fixture.samples[i]=original[i%original.size()];
+        fixture.hops=360*60;fixture.length=360;report.fixture+=" (looped for rare event checks)";
+    }
     HeadlessContext context;
     QString error;
     if (!context.create(error)) throw std::runtime_error(("No GPU is available for the check: " + error).toStdString());
@@ -521,8 +550,8 @@ Report runWorldCheck(const Options& options) {
     glGetQueryiv(GL_TIMESTAMP, GL_QUERY_COUNTER_BITS, &timerBits);
 
     const int perFrame = int(HopsPerSecond) / options.fps;
-    const int windowHops = std::max(perFrame, std::min(fixture.hops, int(options.analysisSeconds * HopsPerSecond)) / perFrame * perFrame);
-    const int startHop = busiestStart(fixture, windowHops, perFrame);
+    const int windowHops = std::max(perFrame, std::min(fixture.hops, int((recurringInk?std::max(60.,options.analysisSeconds):options.analysisSeconds) * HopsPerSecond)) / perFrame * perFrame);
+    const int startHop = recurringInk?0:busiestStart(fixture, windowHops, perFrame);
     const double startSeconds = startHop / HopsPerSecond;
     report.info["analysis"] = QJsonObject{{"startSeconds", startSeconds}, {"seconds", windowHops / HopsPerSecond},
         {"fps", options.fps}, {"width", options.analysisWidth}, {"height", options.analysisHeight}, {"seed", options.seed}};
@@ -537,6 +566,18 @@ Report runWorldCheck(const Options& options) {
         a = analyze(world, fixture, options, startHop, windowHops);
     }
 
+    if(rareCreature){
+        Pipeline find(options.seed);int first=-1;
+        for(int i=0;i<fixture.hops;++i){find.hop(&fixture.samples[std::size_t(i)*HopFrames*2],i);
+            if(find.schedule.print.dragon.cycle){first=i/perFrame*perFrame;break;}}
+        if(first>=0){World world(options.seed);world.setScale(1);if(!world.init(error))throw std::runtime_error(error.toStdString());
+            const int count=std::min(int(std::ceil(find.schedule.print.dragon.duration+1)*60),fixture.hops-first);const auto rare=analyze(world,fixture,options,first,count);
+            for(std::size_t n=0;n<a.nodes.size();++n){a.nodes[n].responding+=rare.nodes[n].responding;a.nodes[n].peak=std::max(a.nodes[n].peak,rare.nodes[n].peak);}
+            reacts.details["rareCreatureWindowStart"]=first/HopsPerSecond;reacts.details["rareCreatureWindowSeconds"]=count/HopsPerSecond;
+            if(rare.general.worstArea>a.general.worstArea){a.general=rare.general;a.general.worstStartSeconds+=(first-startHop)/HopsPerSecond;a.general.worstEndSeconds+=(first-startHop)/HopsPerSecond;}
+            if(rare.red.worstArea>a.red.worstArea){a.red=rare.red;a.red.worstStartSeconds+=(first-startHop)/HopsPerSecond;a.red.worstEndSeconds+=(first-startHop)/HopsPerSecond;}
+        }
+    }
     // 3. Reacts to music.
     {
         QJsonArray nodes;

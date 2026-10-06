@@ -3,8 +3,8 @@
 namespace Journey::Kit {
 // Model-space ink pieces. Placement and palette belong to the world folder.
 struct PrintLifeParametersV1 {
-    double x=0,y=0,width=1920,height=500,scale=1,gain=1,speed=1;
-    int count=7,seed=71,band=0;
+    double x=0,y=0,width=1920,height=500,scale=1,gain=1,speed=1,row=6;
+    int count=7,seed=71,band=0,domain=0;
     bool surgeEnabled=false;
     std::string waterInstance;
     SwellLinesParametersV1 swell;
@@ -14,5 +14,7 @@ struct SmokePlumeV1 {static constexpr const char* name="smoke-plume-v1";static v
 struct PrintBirdPoseV1 {double x,y,size,flap,direction,alpha;};
 struct BirdFlockV1 {static constexpr const char* name="bird-flock-v1";static std::vector<PrintBirdPoseV1> poses(const Ctx&,const PrintLifeParametersV1&);static void paint(Canvas&,const Ctx&,const PrintLifeParametersV1&);};
 struct SeaCreatureV1 {static constexpr const char* name="sea-creature-v1";static void paint(Canvas&,const Ctx&,const PrintLifeParametersV1&);};
+struct LeapingFishV1 {static constexpr const char* name="leaping-fish-v1";static void paint(Canvas&,const Ctx&,const PrintLifeParametersV1&);};
+QPainterPath printResponsePath(const Canvas&);
 struct PrintMomentsV1 {static constexpr const char* name="print-moments-v1";static void paint(Canvas&,const Ctx&,const PrintLifeParametersV1&);};
 }
