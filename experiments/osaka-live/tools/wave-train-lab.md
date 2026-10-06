@@ -78,6 +78,23 @@ Claws overlap each other like the woodblock reference and may lie over the
 face, so there is no body-exclusion or crossing requirement; each claw outline
 must still be simple and bounded.
 
+## Woodblock finish (P1)
+
+The body is printed as five fixed tone bands between the outer skin and the
+face, dark outside and lighter through the middle, each with a top-to-base
+gradation. Thin light key lines separate the bands. Of the sixteen flowing
+contours, four are tapered cream veins on the upper face and into the curl and
+eight are faint lines; the rest are not drawn. A dark key line outlines the
+silhouette, the foam sheet's rim, every claw, side hook and tip tendril, in
+place of the earlier offset blue peaks, which only read against a cream sky.
+Clusters sit between 22% and 87% of the lip, so the back of the wave stays
+smooth; the sheet fades out there too. Face whitecap chips are no longer
+painted. Five thicker tip tendrils all curl into the barrel.
+
+The near water is painted after the crests, so the wave rises out of the sea.
+A smaller foreground swell rises in front of the hero's foot, sized to cover
+it, with a broken cream crest and small sickle claws spilling down its front.
+
 Whitecaps and contour flow are retained. Quiet coherent material wobble
 continues with zero bands. The six profiles and body stage, bass height,
 mid lean/throw and tempo travel mappings are unchanged.

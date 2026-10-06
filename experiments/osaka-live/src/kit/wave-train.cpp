@@ -220,8 +220,8 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
         // the shoulder (lows) to the curl tip (highs).
         constexpr int Clusters=11;
         constexpr int counts[Clusters]={3,4,3,3,4,3,4,3,4,3,4};
-        constexpr double along[Clusters]={.05,.135,.215,.30,.385,.47,.555,.64,.725,.805,.88};
-        constexpr double size[Clusters]={.62,.80,.95,1.05,1.15,.92,1.0,.86,.74,.62,.52};
+        constexpr double along[Clusters]={.22,.29,.36,.43,.50,.565,.63,.69,.75,.81,.87};
+        constexpr double size[Clusters]={.55,.72,.90,1.05,1.20,1.28,1.18,1.0,.84,.68,.54};
         std::array<double,Clusters> centreArc{},gate{};
         for(int c=0;c<Clusters;++c) {
             const double u=along[c]+.012*std::sin(c*2.7+1.3);centreArc[c]=u*lipLength;
@@ -280,8 +280,9 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
             const double u=lipArc[j]/lipLength;double near=0;
             for(int c=0;c<Clusters;++c)near=std::max(near,gate[c]*std::exp(-std::pow((lipArc[j]-centreArc[c])/(60*size[c]),2)));
             const double band=bandLevel(s.bands[std::min(5,int(u*6))]);
-            const double depth=(2+12*near)*(.70+.65*band)*(1+.40*fbm1(u*6+s.seconds*.05,10))*growth;
-            const double rim=(2+4*(.5+.5*noise1(u*20+s.seconds*.11,14)))*growth;
+            const double back=sstep(.10,.24,u);
+            const double depth=back*(2+12*near)*(.70+.65*band)*(1+.40*fbm1(u*6+s.seconds*.05,10))*growth;
+            const double rim=back*(2+4*(.5+.5*noise1(u*20+s.seconds*.11,14)))*growth;
             crest.foamRim.push_back(crest.outerLip[j]-lipNormal[j]*rim);
             crest.foamInside.push_back(crest.outerLip[j]+lipNormal[j]*depth);
             crest.foamThickness=std::max(crest.foamThickness,depth+rim);
@@ -296,12 +297,12 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
         }
         // The curl tip unravels into thin tangled tendrils and sheds loose fingers into the barrel.
         const double tipGate=sstep(3.2,4.6,crest.stage)*g;
-        for(int k=0;k<7;++k) {
-            const double index=indexAt((.835+.022*k+.006*std::sin(k*3.1))*lipLength);
+        for(int k=0;k<5;++k) {
+            const double index=indexAt((.86+.028*k+.006*std::sin(k*3.1))*lipLength);
             const V2 root=sample(crest.outerLip,index),t=tangentAt(index);
-            const double sway=.18*noise1(s.seconds*.5+k*1.3,451);
-            crest.tangle.push_back(strand(root,std::atan2(t.y,t.x)-(.2+.9*hash2(k,62))+sway,(26+40*hash2(k,63))*(.55+.75*highs)*tipGate,
-                (1.4+1.6*hash2(k,64))*tipGate,(k%2?1:-1)*(1.6+1.6*hash2(k,65)),1.2,16));
+            const double sway=.14*noise1(s.seconds*.45+k*1.3,451);
+            crest.tangle.push_back(strand(root,std::atan2(t.y,t.x)+.25+.35*hash2(k,62)+sway,(30+34*hash2(k,63))*(.55+.75*highs)*tipGate,
+                (3.2+2.2*hash2(k,64))*tipGate,1.9+1.1*hash2(k,65),1.5,16));
         }
         for(int k=0;k<6;++k) {
             const double phase=wrap(s.flow*2.4+hash2(k,71),1.);
@@ -321,6 +322,12 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
                 const V2 outside=v[j],inside=v[6*Steps-j];
                 line.push_back(map(lerp(outside,inside,f)));
             }
+        }
+        // Fixed material bands carry the flat woodblock tones, outer skin to face.
+        constexpr double bandAt[6]={0,.10,.30,.52,.74,1};
+        for(int b=0;b<6;++b) {
+            auto& edge=crest.bandEdges[b];edge.reserve(49);
+            for(int j=0;j<=48;++j)edge.push_back(map(lerp(v[j],v[6*Steps-j],bandAt[b])));
         }
         // Small broken whitecaps ride the face; their roots share the contour
         // transform. High bands alter size continuously, never a spawn switch.
@@ -351,44 +358,110 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
     }return out;
 }
 void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPoseV2& s,const WaveTrainParametersV2& p) {
-    auto body=f.surface;body.push_back({p.x1,p.waterline+p.depth});body.push_back({p.x0,p.waterline+p.depth});
-    cv.linear(0,p.waterline,0,1290,{{0,p.body,1},{1,p.bottom,1}});fill(cv,body);
-    for(int row=0;row<6;++row) {
-        std::vector<V2> line;for(auto v:f.surface)line.push_back(v+V2(0,35+row*35));stripe(cv,line,1.1,p.lines,.24);
-    }
     for(const auto& crest:f.crests) {
         const double top=p.baseY-s.amplitude*crest.envelope;
-        cv.linear(0,top,0,1100,{{0,p.body,1},{.38f,hex(0x274569),1},{.78f,p.bottom,1},{1,hex(0x121827),1}});
-        fill(cv,crest.boundary);
-        stripe(cv,crest.contours[13],22*crest.envelope,p.bottom,.42*crest.contourAlpha[13]);
+        // Woodblock body: flat tone bands with a printed top-to-base gradation
+        // (bokashi), thin light key lines between bands, sparse flowing veins.
+        static const Col tones[5]={hex(0x1a3a66),hex(0x2a5a88),hex(0x3a6d98),hex(0x2d6090),hex(0x1e4775)};
+        const Col deep=hex(0x0f2347);
+        for(int b=0;b<5;++b) {
+            auto band=crest.bandEdges[b];band.insert(band.end(),crest.bandEdges[b+1].rbegin(),crest.bandEdges[b+1].rend());
+            cv.linear(0,top,0,p.baseY,{{0,tones[b],1},{.55f,mix(tones[b],deep,.25),1},{1,mix(tones[b],deep,.6),1}});
+            fill(cv,band);
+        }
+        for(int b=1;b<5;++b)stripe(cv,crest.bandEdges[b],1.3*crest.envelope,p.lines,.45);
         for(int row=0;row<16;++row) {
-            const double pulse=.5+.5*std::sin(s.flow*8-row*.6);
-            if(row%4==0)stripe(cv,crest.contours[row],13*crest.envelope,p.lines,(.12+.07*pulse)*crest.contourAlpha[row]);
-            stripe(cv,crest.contours[row],(row%4==0?2:1)*crest.envelope,p.lines,(.30+.16*pulse)*crest.contourAlpha[row]);
+            const double alpha=crest.contourAlpha[row];if(alpha<=0)continue;
+            const auto& line=crest.contours[row];
+            if(row%4==1) {
+                // Cream vein: tapered, only on the upper face and into the curl.
+                const int from=14+row%3*3;std::vector<V2> l,r;
+                for(int j=from;j<=47;++j) {
+                    const double z=(j-from)/double(47-from),w=2.4*crest.envelope*std::pow(std::sin(Pi*z),.7);
+                    const V2 t=unit(line[j+1]-line[j-1]),n{-t.y,t.x};l.push_back(line[j]+n*w);r.push_back(line[j]-n*w);
+                }
+                ribbon(cv,l,r,p.foam,.75*alpha);
+            } else if(row%2==0) {
+                std::vector<V2> part(line.begin()+8,line.end());
+                stripe(cv,part,1.0*crest.envelope,p.lines,.30*alpha);
+            }
+        }
+        {
+            auto loop=crest.boundary;loop.push_back(loop.front());
+            stripe(cv,loop,2.2*crest.envelope,hex(0x0e2140),.85);
         }
         // Sheet and lace first, then each stroke's offset blue underprint and
         // cream in lip order, so later claws overlap earlier ones like a print.
-        if(crest.foamRim.size()>1)ribbon(cv,crest.foamRim,crest.foamInside,p.foam);
+        if(crest.foamRim.size()>1) {
+            stripe(cv,crest.foamRim,1.6*crest.envelope*sstep(.4,1.5,crest.foamThickness),hex(0x0e2140),.85);
+            ribbon(cv,crest.foamRim,crest.foamInside,p.foam);
+        }
         for(const auto& l:crest.lace)if(l.alpha>0)ribbon(cv,l.left,l.right,p.bottom,.95*l.alpha);
+        // Key-block outline: each cream stroke sits on a slightly wider dark
+        // copy, so overlapping claws stay legible against sky and face alike.
+        const Col key=hex(0x0e2140);
         auto print=[&](const WaveTrainProfileV2::Strand& st,double alpha) {
             const double root=.5*(st.left[0]-st.right[0]).len();
             if(root<=0||alpha<=0)return;
-            const double k=std::clamp(root/6,.3,1.6);const V2 offset=V2(-3.5,-4.5)*k;
+            const double edge=std::clamp(.35*root,.8,1.8);
             std::vector<V2> l,r;l.reserve(st.centre.size());r.reserve(st.centre.size());
             for(size_t j=0;j<st.centre.size();++j) {
-                const V2 half=(st.left[j]-st.right[j])*.5,n=unit(half)*(half.len()+2.0*k);
-                l.push_back(st.centre[j]+offset+n);r.push_back(st.centre[j]+offset-n);
+                const V2 half=(st.left[j]-st.right[j])*.5,n=unit(half)*(half.len()+edge);
+                l.push_back(st.centre[j]+n);r.push_back(st.centre[j]-n);
             }
-            ribbon(cv,l,r,p.bottom,.9*alpha);ribbon(cv,st.left,st.right,p.foam,alpha);
+            ribbon(cv,l,r,key,.9*alpha);ribbon(cv,st.left,st.right,p.foam,alpha);
         };
         for(const auto& f:crest.fingers)if(f.length>.5) {
-            ribbon(cv,f.shadow.left,f.shadow.right,p.underprint,f.opacity);
-            ribbon(cv,f.left,f.right,p.foam,f.opacity);
+            print({f.centre,f.left,f.right,1},f.opacity);
             for(const auto& twig:f.twigs)print(twig,f.opacity);
         }
         for(const auto& st:crest.tangle)print(st,st.alpha);
         for(const auto& st:crest.falling)print(st,st.alpha);
-        for(const auto& cap:crest.whitecaps)ribbon(cv,cap.edge,cap.inside,p.foam,.85);
+    }
+    // The near water passes in front of every crest, so the wave rises out of
+    // the sea instead of standing on it.
+    // A smaller swell rises in front of the hero's foot, as in the print's
+    // foreground, so the wave's base sinks into the trough instead of
+    // ending in a hard wedge.
+    double humpX=0,humpWidth=1,humpHeight=0;
+    if(f.hero>=0) {
+        const auto& b=f.crests[f.hero].boundary;double lo=1e9,hi=-1e9,top=1e9;
+        for(int i=78;i<=96;++i){lo=std::min(lo,b[i].x);hi=std::max(hi,b[i].x);top=std::min(top,b[i].y);}
+        humpX=.5*(lo+hi)+.10*(hi-lo);humpWidth=std::max(60.,.55*(hi-lo));
+        humpHeight=std::max(0.,p.waterline-top+14);
+    }
+    auto surface=f.surface;std::vector<V2> lip;
+    for(auto& q:surface) {
+        const double bump=std::exp(-.5*std::pow((q.x-humpX)/humpWidth,2));
+        q.y-=humpHeight*bump;if(bump>.18)lip.push_back(q);
+    }
+    auto body=surface;body.push_back({p.x1,p.waterline+p.depth});body.push_back({p.x0,p.waterline+p.depth});
+    cv.linear(0,p.waterline,0,1290,{{0,p.body,1},{1,p.bottom,1}});fill(cv,body);
+    for(int row=0;row<6;++row) {
+        std::vector<V2> line;for(auto v:surface)line.push_back(v+V2(0,35+row*35));stripe(cv,line,1.1,p.lines,.24);
+    }
+    if(lip.size()>2) {
+        // Cream crest on the foreground swell: thick and broken at the peak,
+        // a thin rim down its shoulders, with small sickle claws spilling
+        // down its front like the hero's.
+        std::vector<V2> l,r;const double scale=std::min(1.,humpHeight/60);
+        size_t peak=0;for(size_t j=1;j<lip.size();++j)if(lip[j].y<lip[peak].y)peak=j;
+        const double spread=std::max(3.,.16*lip.size());
+        for(size_t j=0;j<lip.size();++j) {
+            const double near=std::exp(-std::pow((double(j)-double(peak)-.6*spread)/spread,2));
+            const double w=(1.8+14*near*(.75+.25*noise1(j*.9+s.seconds*.2,57)))*scale;
+            l.push_back(lip[j]+V2(0,-1));r.push_back(lip[j]+V2(0,w));
+        }
+        stripe(cv,l,1.4,hex(0x0e2140),.8);ribbon(cv,l,r,p.foam,.95);
+        const double size=scale;
+        for(int k=0;k<5 && size>.15;++k) {
+            const size_t j=std::min(lip.size()-2,peak+size_t(std::round((.2+.45*k)*spread)));
+            const V2 t=unit(lip[j+1]-lip[j]);
+            auto claw=strand(lip[j]+V2(0,4),std::atan2(t.y,t.x)+.30+.10*hash2(k,5),(46-5*k)*size*(.8+.4*hash2(k,6)),(7-.7*k)*size,.9+.3*hash2(k,7),1.6,16);
+            const Col key=hex(0x0e2140);std::vector<V2> kl,kr;
+            for(size_t q=0;q<claw.centre.size();++q){const V2 h=(claw.left[q]-claw.right[q])*.5,n=unit(h)*(h.len()+1.1);kl.push_back(claw.centre[q]+n);kr.push_back(claw.centre[q]-n);}
+            ribbon(cv,kl,kr,key,.85);ribbon(cv,claw.left,claw.right,p.foam);
+        }
     }
     for(const auto& cap:f.swellCaps)ribbon(cv,cap.edge,cap.inside,p.foam,.85);
     for(const auto& d:s.droplets)if(d.life>0 && d.age<d.life) {

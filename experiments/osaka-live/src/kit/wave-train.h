@@ -71,6 +71,7 @@ struct WaveTrainProfileV2 {
         double a=0,envelope=0,stage=0;
         std::vector<V2> boundary,outerLip,foamRim,foamInside;
         std::array<std::vector<V2>,16> contours;
+        std::array<std::vector<V2>,6> bandEdges; // fixed outer-to-inner tone bands
         std::array<double,16> contourAlpha{};
         std::vector<Finger> fingers;
         std::vector<Strand> lace,tangle,falling;
