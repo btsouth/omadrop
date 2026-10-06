@@ -22,10 +22,23 @@ add_executable(osaka-render-comparison-tests render_comparison_tests.cpp)
 target_include_directories(osaka-render-comparison-tests PRIVATE ../src)
 add_test(NAME bounded-render-comparison COMMAND osaka-render-comparison-tests)
 
-add_executable(osaka-world-loader-tests world_loader_tests.cpp osaka-oracle.cpp ../src/kit/world-loader.cpp ../src/kit/svg-art.cpp ../src/kit/svg-path.cpp ../src/canvas.cpp)
+add_executable(osaka-world-loader-tests world_loader_tests.cpp osaka-oracle.cpp ../src/kit/world-loader.cpp ../src/kit/window-label.cpp ../src/kit/svg-art.cpp ../src/kit/svg-path.cpp ../src/canvas.cpp)
 target_link_libraries(osaka-world-loader-tests PRIVATE Qt6::Gui Qt6::OpenGL)
 target_compile_definitions(osaka-world-loader-tests PRIVATE OSAKA_WORLD_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/osaka-jade")
 add_test(NAME world-folder-validation COMMAND osaka-world-loader-tests)
+
+file(GLOB OSAKA_KIT_SOURCES CONFIGURE_DEPENDS ../src/kit/*.cpp)
+list(FILTER OSAKA_KIT_SOURCES EXCLUDE REGEX "/svg-check\\.cpp$")
+add_executable(osaka-window-shorthand-tests window_shorthand_tests.cpp
+    ${OSAKA_KIT_SOURCES}
+    ../src/world.cpp ../src/canvas.cpp ../src/gpu.cpp ../src/rig.cpp ../src/osaka.cpp
+    ../src/headless.cpp ../src/score.cpp ../src/schedule.cpp)
+target_include_directories(osaka-window-shorthand-tests PRIVATE ../src)
+target_link_libraries(osaka-window-shorthand-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
+target_compile_definitions(osaka-window-shorthand-tests PRIVATE
+    WORLDS_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds"
+    LIT_WINDOWS_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/examples/lit-windows")
+add_test(NAME window-shorthand-and-render COMMAND osaka-window-shorthand-tests)
 
 add_executable(osaka-svg-tests svg_tests.cpp ../src/kit/svg-art.cpp ../src/kit/svg-path.cpp ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp)
 target_include_directories(osaka-svg-tests PRIVATE ../src)

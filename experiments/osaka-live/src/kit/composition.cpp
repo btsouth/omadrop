@@ -15,6 +15,7 @@
 #include "lanterns.h"
 #include "actors.h"
 #include "palette.h"
+#include "generic-window.h"
 namespace Journey::Kit {
 namespace {
 void moon(Ctx& c, const OsakaState& s, const OsakaDiscPlacementV1& placement) {
@@ -52,6 +53,12 @@ void OsakaCompositionV1::render(Ctx& c, const OsakaState& s, const OsakaWorldDes
         phase == OsakaPhase::DistantTown ? world.distantTown : world.foreground;
     const auto L = OsakaEventsV1::at(c);
     const auto plan = stage.events == OsakaEventRef::LifeAndFlock ? birdPlan(c) : std::vector<BirdPlan>{};
+    const bool drawWindows = phase == OsakaPhase::Foreground && !world.windows.empty();
+    if (drawWindows) {
+        Canvas& art = c.canvas();
+        world.art->draw(art);
+        c.gpu.draw(art);
+    }
     bool defaultCoastLand = false, defaultTown = false;
     auto enabled = [&](OsakaGate gate) {
         switch (gate) {
@@ -112,6 +119,7 @@ void OsakaCompositionV1::render(Ctx& c, const OsakaState& s, const OsakaWorldDes
         case OsakaOp::Wisteria: wisteria(c, s, L); break;
         }
     }
+    if (drawWindows) for (const auto& window : world.windows) GenericWindowV1::draw(c, window);
 }
 }
 namespace Journey {

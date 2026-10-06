@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <rect id="building" data-name="building"
+        x="470" y="190" width="980" height="760" rx="24"
+        fill="#0b2521" stroke="#b98243" stroke-width="10"/>
+  <rect id="window-0" data-name="window.band0.always"
+        x="560" y="300" width="220" height="170" rx="8"
+        fill="#10201b" stroke="#d7ad68" stroke-width="7"/>
+  <rect id="window-1" data-name="window.band1.kick"
+        x="850" y="300" width="220" height="170" rx="8"
+        fill="#10201b" stroke="#d7ad68" stroke-width="7"/>
+  <rect id="window-2" data-name="window.band2.onset"
+        x="1140" y="300" width="220" height="170" rx="8"
+        fill="#10201b" stroke="#d7ad68" stroke-width="7"/>
+  <rect id="window-3" data-name="window.band3.always.kick"
+        x="560" y="590" width="220" height="170" rx="8"
+        fill="#10201b" stroke="#d7ad68" stroke-width="7"/>
+  <rect id="window-4" data-name="window.band4.always.onset"
+        x="850" y="590" width="220" height="170" rx="8"
+        fill="#10201b" stroke="#d7ad68" stroke-width="7"/>
+  <rect id="window-5" data-name="window.band5.kick.onset"
+        x="1140" y="590" width="220" height="170" rx="8"
+        fill="#10201b" stroke="#d7ad68" stroke-width="7"/>
+  <rect id="door" data-name="door"
+        x="900" y="810" width="120" height="140" rx="6"
+        fill="#071713" stroke="#b98243" stroke-width="7"/>
+</svg>

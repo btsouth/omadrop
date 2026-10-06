@@ -98,9 +98,10 @@ int main(int argc,char** argv) {
         {"width","Frame width.","number","1920"},{"height","Frame height.","number","1080"},
         {"scale","Internal resolution scale: auto, or 0.5 to 1.0.","value"},
         {"seed","Schedule seed (live default random; headless default 1).","number"},
+        {"world","World folder under OMADROP_WORLDS.","name","osaka-jade"},
         {"stats","Per-frame response and timing CSV.","path"}});
     parser.process(*app);
-    try { Journey::Kit::initializeOsakaWorld(); }
+    try { Journey::Kit::initializeOsakaWorld(parser.value("world")); }
     catch (const std::exception& e) { QTextStream(stderr)<<e.what()<<'\n'; return 2; }
     bool ok=false;
     const double seconds=parser.value("seconds").toDouble(&ok);

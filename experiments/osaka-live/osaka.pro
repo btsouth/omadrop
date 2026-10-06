@@ -116,3 +116,9 @@ HEADERS += src/kit/parameters.h
 
 SOURCES += src/kit/svg-art.cpp src/kit/svg-path.cpp
 HEADERS += src/kit/svg-art.h src/kit/world-art.h
+
+SOURCES += src/kit/window-label.cpp
+HEADERS += src/kit/window-label.h
+
+SOURCES += src/kit/generic-window.cpp
+HEADERS += src/kit/generic-window.h
