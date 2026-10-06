@@ -271,3 +271,24 @@ renderer; the usual halo, texture, veil and ring controls still apply.
 The existing Mountain profile optionally accepts `snow` (0..1), `snowScale`
 (positive) and `snowR`, `snowG`, `snowB`. These expose the original MountainLook
 snow cap; omitted fields keep Osaka's snow-free silhouette and geometry.
+
+## Living water
+
+`WaterSurface` uses `water-surface-v1` with slot `params`. Optional fields:
+
+| Control | Fields and bounds |
+| --- | --- |
+| Placement | `horizon` (0..1079), `nearY` (below horizon + 2, at most 1200), `x0`, `x1` (right of x0) |
+| Density | `rows` (3..9), `textureRows` (0..65), `glints` (0..115), `sampleStep` (8..128 pixels) |
+| Flow | `amplitude` (0..1), `wavelength` (0.5..4), `drift` (0..2), `phase`, `seed` (0..1000000) |
+| Paint | `top`, `bottom`, `crest`, `texture`, `foam`, `underprint`, `glint`, `hotGlint` as hex colors; `opacity` (0..1) |
+| Response | `bandGain` (0..3), `liftGain` (0..1), `kickGain` (0..0.5) |
+| Print accents | `capDensity` (0..1), `capScale` (0..1.5), `glintX`, `glintDepth` (1..1080) |
+
+Defaults are in `kit/water-surface.h`. The live depth planes, broken print
+crests, texture and sunset reflections are ported from Journey's sea passes,
+with a reduced geometry budget. Far-to-near rows use bands 5..0. Band-integrated
+flow is continuous; measured level and lift brighten ripples and caps, while
+kick adds a localized reflection shimmer. No crash, impact, spray or story clock.
+The readiness check measures each depth row's crest and ripple area like the
+label pieces' light areas. Hidden or unresponsive water rows fail music response.

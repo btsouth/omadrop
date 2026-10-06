@@ -391,6 +391,55 @@ void backdropWorld(const QString& nightStreet) {
     std::cout << "PASS: a non-Osaka world loads sky, moon, ridges and haze from scene.json; bad parameters name file, path and expectation\n";
 }
 
+void genericLandscape() {
+    QTemporaryDir temporary;
+    const QString folder=makeWorld(temporary,"landscape","");
+    const auto source=QJsonDocument::fromJson(R"({
+      "schema":1,"world":"landscape","profile":"osaka-world-v1","art":{"file":"art.svg"},
+      "stages":[{"id":"landscape","phase":"Backdrop","slots":[
+        {"id":"sky","piece":"GradientSky","gate":"Always","profile":"gradient-sky-v1",
+         "params":{"stops":[{"y":0,"color":"#957fb8"},{"y":612,"color":"#e6c384"}],
+                   "paperTop":"#dcd7ba","paperBottom":"#c0a36e","printGrade":0.6,"grain":0.01}},
+        {"id":"lake","piece":"WaterSurface","gate":"Always","profile":"water-surface-v1",
+         "params":{"nearY":1040,"rows":7,"bandGain":1.2,"liftGain":0.7,"kickGain":0.2}}
+      ]}]
+    })").object();
+    auto save=[&](const QJsonObject& root) { write(folder+"/scene.json",QJsonDocument(root).toJson()); };
+    save(source);
+    const auto loaded=loadOsakaWorld(folder);
+    const auto& description=loaded->description();
+    require(description.backdrop.count==2 && description.backdrop.entries[0].piece==OsakaOp::GradientSky
+        && description.backdrop.entries[1].piece==OsakaOp::WaterSurface,"generic landscape slots missing");
+    const auto& water=description.backdrop.entries[1].params->water;
+    require(WaterSurfaceV1::band(0,water.rows)==5 && WaterSurfaceV1::band(6,water.rows)==0,"water depth bindings reversed");
+    auto invalid=[&](int slot,const QString& field,const QJsonValue& value,const QString& reason) {
+        auto root=source; auto stages=root["stages"].toArray(); auto stage=stages[0].toObject();
+        auto entries=stage["slots"].toArray(); auto item=entries[slot].toObject(); auto params=item["params"].toObject();
+        params[field]=value; item["params"]=params; entries[slot]=item; stage["slots"]=entries; stages[0]=stage; root["stages"]=stages;
+        save(root);
+        try { loadOsakaWorld(folder); } catch (const std::runtime_error& error) {
+            require(QString::fromUtf8(error.what()).contains(reason),error.what()); return;
+        }
+        throw std::runtime_error("invalid landscape parameters accepted");
+    };
+    invalid(0,"stops",QJsonArray{QJsonObject{{"y",400},{"color","#dcd7ba"}},QJsonObject{{"y",400},{"color","#e6c384"}}},"strictly increasing");
+    invalid(0,"printGrade",1.1,"number in 0..1");
+    invalid(1,"rows",10,"integer in 3..9");
+    invalid(1,"sampleStep",0,"number in 8..128");
+    invalid(1,"nearY",600,"position below horizon");
+    invalid(1,"kickGain",.6,"number in 0..0.5");
+    invalid(1,"x1",-40,"position right of x0");
+    save(source); initializeOsakaWorldAt(folder);
+    Audio quiet,loud; loud.bands.fill(.8); loud.bass=.8;
+    const auto a=render(quiet,640,360),b=render(loud,640,360);
+    double difference=0;
+    for (std::size_t i=0;i<a.size();++i) difference+=std::abs(int(a[i])-int(b[i]));
+    difference/=double(a.size())*255;
+    require(difference>.002,"living water did not visibly respond to bands");
+    require(a==render(quiet,640,360),"landscape changed between identical runs");
+    std::cout<<"PASS: generic landscape validation, depth bindings, deterministic render and live music response\n";
+}
+
 void backdropRenders(const QString& nightStreet) {
     // Haze and ridges draw from their scene.json parameters: changing the haze gain changes the picture.
     QTemporaryDir temporary;
@@ -434,6 +483,7 @@ int main(int argc, char** argv) {
         hiddenArt();
         backdropWorld(QStringLiteral(NIGHT_STREET_FOLDER));
         response();
+        genericLandscape();
         backdropRenders(QStringLiteral(NIGHT_STREET_FOLDER));
     } catch (const std::exception& error) {
         std::cerr << "FAIL: " << error.what() << '\n';

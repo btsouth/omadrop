@@ -12,6 +12,14 @@ void Score::advance(const Audio& a, double t, double dt) {
         // Five cycles also repeat the quay's original 1.4 multiplier.
         strandPhase[i] = std::fmod(strandPhase[i] + speed*(0.55+3.4*a.bands[i])*dt, 5.0);
     }
+    // Independent water controls leave Osaka means, phases and event math intact.
+    constexpr double spans[]={.4,.9,1.6};
+    const double gains[]={-std::expm1(-dt/spans[0]),-std::expm1(-dt/spans[1]),-std::expm1(-dt/spans[2])};
+    for (int i=0;i<6;++i) {
+        bandIntegrals[i]+=a.bands[i]*dt;
+        for (int j=0;j<3;++j)
+            bandBody[j][i]+=(a.bands[i]-bandBody[j][i])*gains[j];
+    }
     bassMean_ += (a.bass-bassMean_)*-std::expm1(-dt/2.1);
     midMean_ += (a.bands[3]-midMean_)*-std::expm1(-dt/0.83);
     auto append=[&](auto& list, double strength) { list.push_back({t,std::clamp(strength,0.0,1.0),++serial_}); };

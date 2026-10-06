@@ -83,6 +83,7 @@ void OsakaCompositionV1::render(Ctx& c, const OsakaState& s, const OsakaWorldDes
         if (!enabled(slot.gate)) continue;
         switch (slot.piece) {
         case OsakaOp::Sky: OsakaSkyV1::draw(c, s); break;
+        case OsakaOp::WaterSurface: WaterSurfaceV1::draw(c, slot.params->water); break;
         case OsakaOp::GradientSky: GradientSkyV1::draw(c, slot.params->gradientSky); break;
         case OsakaOp::AfterSky: if (b && b->afterSky) b->afterSky(); break;
         case OsakaOp::Star: OsakaShootingStarV1::draw(c, s); break;

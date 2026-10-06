@@ -80,6 +80,13 @@ int main() {
         const double ts=schedule.moments[int(Moment::Train)].start;
         if(ts!=trainStart) { trainStart=ts; ++trains; }
     }
+    for (int band=0;band<6;++band) {
+        require(std::isfinite(score.bandIntegrals[band]) && score.bandIntegrals[band]>1000,
+            "water flow stopped or became nonfinite over eight hours");
+        for (const auto& body:score.bandBody)
+            require(std::isfinite(body[band]) && body[band]>=0 && body[band]<=.27,
+                "causal water energy escaped its input range");
+    }
     require(fireworks>100 && trains>100,"moments failed to recur");
     // Strong measured events remain required, even for loud material.
     // Gymnopedie gets one small shell and cannot add follow-ups; Sneaky and

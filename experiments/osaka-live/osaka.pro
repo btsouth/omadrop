@@ -131,3 +131,6 @@ HEADERS += src/kit/check-analysis.h src/kit/check-signal.h src/kit/check.h
 
 SOURCES += src/kit/gradient-sky.cpp
 HEADERS += src/kit/gradient-sky.h
+
+SOURCES += src/kit/water-surface.cpp
+HEADERS += src/kit/water-surface.h

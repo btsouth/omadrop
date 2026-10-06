@@ -213,3 +213,25 @@ no `params`, so its drawing is unchanged.
 
 `gradient-sky.*` ports the Journey sunset ramp and paper wash as palette-controlled
 `gradient-sky-v1` slot parameters. It has no Journey timing or Osaka sky dependency.
+
+`water-surface.*` ports `printSea`, `calmSea` texture and `sea` reflections from
+the Journey prototype. Geometry and controls are evaluated live; band integrals
+are sampled once per row. Slot parameters bound density and expose all paints.
+`check.cpp` measures every row's light area using `responseArea`, as for round 4
+label pieces. This adds no nodes or pass changes to Osaka.
+
+The live Score holds six cumulative band integrals and three fixed-size causal
+envelopes at the prototype's 0.4/0.9/1.6 second scales. Unlike the offline
+prototype's box-window means, these are exponential envelopes; no audio history
+is added. Osaka's means, strand phases and event formulas remain unchanged.
+
+Water response uses mean absolute pixel brightness change inside each declared
+row area. A travelling crest brightens some pixels and darkens others, which
+would cancel in the label lights' average-brightness measurement. The same
+2% threshold and three-frame requirement apply; existing label checks are unchanged.
+
+Port sources: Journey `journey-osaka-polish` at `4c2d413`,
+`kanagawa.cpp:64-93` (sky), `707-731` (Fuji and sun), `305-365` (reflections);
+`ending_water.cpp:35-61` (calm texture), `64-142` (printed sea and crest caps).
+Only the reusable landscape drawing is carried over, with world-controlled
+paints and density. The prototype checkout is preserved.

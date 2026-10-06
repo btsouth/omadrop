@@ -119,6 +119,7 @@ struct NodeResult {
     QString id, label, piece = "window";
     int band = 0;
     bool kick = false, onset = false, always = false, sway = false, flicker = false, pulse = false;
+    bool movingSurface = false;
     double peak = 0;
     int responding = 0;
     bool responds() const { return responding >= NodeResponseFrames; }
@@ -184,6 +185,25 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
         out.nodes.push_back(node);
         fillRegion(regions[windows.size() + n], screen.map(LabelPiecesV1::area(piece, element)));
     }
+    // Generic water slots declare the same measured light regions as label
+    // pieces. Measure every depth band so a hidden or dead sea cannot pass.
+    const auto& description=osakaWorld();
+    for (const auto* stage : {&description.backdrop,&description.coast,&description.distantTown,&description.foreground}) {
+        for (std::size_t i=0;i<stage->count;++i) {
+            const auto& slot=stage->entries[i];
+            if (slot.piece!=OsakaOp::WaterSurface) continue;
+            const auto& water=slot.params->water;
+            for (int row=0;row<water.rows;++row) {
+                NodeResult node;
+                node.id=QString::fromStdString(slot.id)+".row"+QString::number(row);
+                node.label="water-surface-v1"; node.piece="water-surface"; node.movingSurface=true;
+                node.band=WaterSurfaceV1::band(row,water.rows); node.kick=water.kickGain>0;
+                out.nodes.push_back(node);
+                QPainterPath area; area.addRect(WaterSurfaceV1::responseArea(row,water));
+                regions.emplace_back(); fillRegion(regions.back(),screen.map(area));
+            }
+        }
+    }
     Pipeline music(options.seed), silence(options.seed);
     const std::vector<float> quiet(std::size_t(HopFrames) * 2, 0.f);
     FlashAnalyzer general(FlashKind::General, w, h, options.fps), red(FlashKind::Red, w, h, options.fps);
@@ -210,7 +230,17 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
             ++transitions;
         }
         for (std::size_t n = 0; n < regions.size(); ++n) {
-            const double gap = std::abs(regionBrightness(m, regions[n]) - regionBrightness(s, regions[n]));
+            double gap = 0;
+            if (out.nodes[n].movingSurface) {
+                // Opposing changes on a travelling crest cancel in an average
+                // brightness. Use the same per-pixel difference as the whole
+                // picture check, inside the declared water light region.
+                for (auto pixel : regions[n].pixels) {
+                    const auto p=3*std::size_t(pixel);
+                    gap+=std::abs(.2126*(int(m[p])-int(s[p]))+.7152*(int(m[p+1])-int(s[p+1]))+.0722*(int(m[p+2])-int(s[p+2])))/255.0;
+                }
+                if (!regions[n].pixels.empty()) gap/=regions[n].pixels.size();
+            } else gap=std::abs(regionBrightness(m, regions[n])-regionBrightness(s, regions[n]));
             out.nodes[n].peak = std::max(out.nodes[n].peak, gap);
             out.nodes[n].responding += gap >= NodeResponse;
         }

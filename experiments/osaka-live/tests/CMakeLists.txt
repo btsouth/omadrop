@@ -82,11 +82,12 @@ set(CHECK_TEST_WORLDS "${CMAKE_CURRENT_SOURCE_DIR}/worlds")
 add_test(NAME check-osaka-jade-ready COMMAND osaka-check-tests ${CHECK_REPO_WORLDS} osaka-jade ready)
 add_test(NAME check-lit-windows-ready COMMAND osaka-check-tests ${CHECK_REPO_WORLDS} examples/lit-windows ready)
 add_test(NAME check-night-street-ready COMMAND osaka-check-tests ${CHECK_REPO_WORLDS} examples/night-street ready)
+add_test(NAME check-hidden-water-fails-reacts COMMAND osaka-check-tests --dead-water ${CHECK_REPO_WORLDS})
 add_test(NAME check-dead-pieces-fail-reacts COMMAND osaka-check-tests --dead-pieces ${CHECK_TEST_WORLDS})
 add_test(NAME check-ignores-music-fails-reacts COMMAND osaka-check-tests ${CHECK_TEST_WORLDS} ignores-music fail:reacts)
 add_test(NAME check-harsh-flashing-fails-flashing COMMAND osaka-check-tests ${CHECK_TEST_WORLDS} harsh-flashing fail:flashing strobe)
 add_test(NAME check-unloadable-art-fails-loads COMMAND osaka-check-tests --broken-art ${CHECK_REPO_WORLDS})
-set_tests_properties(check-osaka-jade-ready check-lit-windows-ready check-night-street-ready check-dead-pieces-fail-reacts check-ignores-music-fails-reacts
+set_tests_properties(check-hidden-water-fails-reacts check-osaka-jade-ready check-lit-windows-ready check-night-street-ready check-dead-pieces-fail-reacts check-ignores-music-fails-reacts
     check-harsh-flashing-fails-flashing check-unloadable-art-fails-loads PROPERTIES TIMEOUT 900)
 
 add_executable(osaka-reload-tests world_reload_tests.cpp ../src/kit/world-reload.cpp ../src/kit/world-loader.cpp

@@ -10,6 +10,10 @@ struct Score {
     std::deque<Event> onsets, bassHits, midPeaks, surges;
     // Current means and bounded strand phases, never an entire-file timeline.
     std::array<double, 6> means{}, strandPhase{};
+    // Fixed-size causal water controls. Integrals never store a PCM timeline;
+    // three envelopes give a flowing surface inertia without frame history.
+    std::array<double, 6> bandIntegrals{};
+    std::array<std::array<double, 6>, 3> bandBody{};
     void advance(const Audio& a, double now, double dt);
     double mean(int band, double) const { return means[band]; }
     static const Event* last(const std::deque<Event>& events, double t);

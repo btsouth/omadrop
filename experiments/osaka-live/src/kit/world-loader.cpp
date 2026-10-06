@@ -80,6 +80,7 @@ constexpr Piece pieces[] = {
     {"Haze", OsakaOp::Haze, "osaka-haze-v1"},
     {"Sky", OsakaOp::Sky, "osaka-sky-v1"},
     {"GradientSky", OsakaOp::GradientSky, "gradient-sky-v1"},
+    {"WaterSurface", OsakaOp::WaterSurface, "water-surface-v1"},
     {"AfterSky", OsakaOp::AfterSky, "after-sky"},
     {"Star", OsakaOp::Star, "osaka-shooting-star-v1"},
     {"DiscHook", OsakaOp::DiscHook, "disc-port"},
@@ -478,6 +479,41 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 sky.grain=r.number(data["grain"],paramsPath+".grain");
                 if (sky.printGrade<0 || sky.printGrade>1) r.fail(paramsPath+".printGrade","number in 0..1");
                 if (sky.grain<0 || sky.grain>0.1) r.fail(paramsPath+".grain","number in 0..0.1");
+                params=value;
+            } else if (piece->op==OsakaOp::WaterSurface) {
+                if (!slot.contains("params")) r.fail(paramsPath,"required field");
+                const auto data=r.object(slot["params"],paramsPath,{},
+                    {"horizon","nearY","x0","x1","rows","textureRows","glints","seed","sampleStep",
+                     "amplitude","wavelength","drift","phase","top","bottom","crest","texture","foam",
+                     "underprint","glint","hotGlint","opacity","bandGain","liftGain","kickGain",
+                     "capDensity","capScale","glintX","glintDepth"});
+                auto value=std::make_shared<OsakaSlotParamsV1>();
+                auto& water=value->water;
+                auto scalar=[&](const char* name,double& target,double lo,double hi) {
+                    if (!data.contains(name)) return;
+                    target=r.number(data[name],paramsPath+"."+name);
+                    if (target<lo || target>hi) r.fail(paramsPath+"."+name,"number in "+QString::number(lo)+".."+QString::number(hi));
+                };
+                scalar("horizon",water.horizon,0,1079); scalar("nearY",water.nearY,1,1200);
+                scalar("x0",water.x0,-2000,3840); scalar("x1",water.x1,-2000,3840);
+                scalar("sampleStep",water.sampleStep,8,128); scalar("amplitude",water.amplitude,0,1);
+                scalar("wavelength",water.wavelength,.5,4); scalar("drift",water.drift,0,2);
+                scalar("phase",water.phase,-1000,1000); scalar("opacity",water.opacity,0,1);
+                scalar("bandGain",water.bandGain,0,3); scalar("liftGain",water.liftGain,0,1);
+                scalar("kickGain",water.kickGain,0,.5); scalar("capDensity",water.capDensity,0,1);
+                scalar("capScale",water.capScale,0,1.5); scalar("glintX",water.glintX,-2000,3840);
+                scalar("glintDepth",water.glintDepth,1,1080);
+                if (water.nearY<=water.horizon+2) r.fail(paramsPath+".nearY","position below horizon + 2");
+                if (water.x1<=water.x0) r.fail(paramsPath+".x1","position right of x0");
+                auto integer=[&](const char* name,int& target,int lo,int hi) {
+                    if (data.contains(name)) target=r.integer(data[name],paramsPath+"."+name,lo,hi);
+                };
+                integer("rows",water.rows,3,9); integer("textureRows",water.textureRows,0,65);
+                integer("glints",water.glints,0,115); integer("seed",water.seed,0,1000000);
+                auto color=[&](const char* name,Col& target) { if (data.contains(name)) target=r.color(data[name],paramsPath+"."+name); };
+                color("top",water.top); color("bottom",water.bottom); color("crest",water.crest);
+                color("texture",water.texture); color("foam",water.foam); color("underprint",water.underprint);
+                color("glint",water.glint); color("hotGlint",water.hotGlint);
                 params=value;
             } else if (piece->op==OsakaOp::Haze) {
                 if (!slot.contains("params")) r.fail(paramsPath,"required field");
