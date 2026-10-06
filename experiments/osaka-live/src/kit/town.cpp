@@ -3,27 +3,27 @@
 #include "world-art.h"
 
 namespace Journey::Kit {
-void OsakaNearHouseV1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double x0, double x1, Col wall, Col rf, Col rf2) {
+void OsakaNearHouseV1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double x0, double, Col, Col, Col) {
     c.retain(cv, "near-house", [&](Canvas& cv) {
         drawWorldArt(cv, "near-house-shell", x0 + 80);
         drawWorldArt(cv, "near-house-roof", x0 + 80);
         drawWorldArt(cv, "near-house-eaves", x0 + 80);
     }, {s.cam});
 }
-void OsakaRightHouse2V1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double x0, Col wall, Col rf, Col rf2) {
+void OsakaRightHouse2V1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double x0, Col, Col, Col) {
     c.retain(cv, "right-house-2", [&](Canvas& cv) {
         drawWorldArt(cv, "right-house-2-shell", x0 - 1262);
         drawWorldArt(cv, "right-house-2-roof", x0 - 1262);
     }, {s.cam});
 }
-void OsakaRightHouse3V1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double x0, Col wall, Col rf, Col rf2) {
+void OsakaRightHouse3V1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double x0, Col, Col, Col) {
     c.retain(cv, "right-house-3", [&](Canvas& cv) {
         drawWorldArt(cv, "right-house-3-shell", x0 - 1512);
         drawWorldArt(cv, "right-house-3-roof", x0 - 1512);
         drawWorldArt(cv, "right-house-3-eaves", x0 - 1512);
     }, {s.cam});
 }
-void OsakaDeckV1::draw(Ctx& c, const OsakaState& s, Canvas& f, double ox, Col roomCol, Col wall) {
+void OsakaDeckV1::draw(Ctx& c, const OsakaState& s, Canvas& f, double ox, Col, Col) {
     c.retain(f, "near-house-deck", [&](Canvas& f) {
         drawWorldArt(f, "near-house-deck", ox);
     }, {s.cam});
@@ -53,14 +53,14 @@ void OsakaCartFrameV1::draw(Ctx& c, const OsakaState& s, Canvas& p, double yx) {
         drawWorldArt(p, "yatai-frame", yx - 770);
     }, {s.cam});
 }
-void OsakaNearMaskV1::draw(Ctx& c, const OsakaState& s, Canvas& mask, double ox, const NearPane (&U)[4]) {
+void OsakaNearMaskV1::draw(Ctx& c, const OsakaState& s, Canvas& mask, double ox, const NearPane (&)[4]) {
     c.retain(mask, "near-house-mask", [&](Canvas& mask) {
-            for (const NearPane& q : U) mask.fillRect(q.x + ox, q.y, q.w, q.h, Col(1, 1, 1));
+            drawWorldArt(mask, "near-house-mask", ox);
     }, {s.cam});
 }
 void OsakaShamisenMaskV1::draw(Ctx& c, const OsakaState& s, Canvas& mask, double x0) {
     c.retain(mask, "shamisen-mask", [&](Canvas& mask) {
-            mask.fillRect(x0 + 30, 640, 96, 96, Col(1, 1, 1));
+            drawWorldArt(mask, "shamisen-mask", x0 - 1512);
     }, {s.cam});
 }
 }

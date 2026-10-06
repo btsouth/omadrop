@@ -9,7 +9,7 @@ A profile is a named version of a piece's behavior and defaults, with stable
 now supplies ordered instances and several numeric profile settings; library
 methods preserve the existing arithmetic and drawing behavior. `DiscLook` and
 `MountainLook` expose appearance parameters, and primitive wrappers keep their
-existing signatures. SVG art import comes in a later round.
+existing signatures. SVG art import and native retained-span replay are available.
 
 ## Where Osaka uses each piece
 
@@ -25,7 +25,7 @@ existing signatures. SVG art import comes in a later round.
 | `pane.h` | `osaka-pane-v1`: scheduled panes, band lift, shared kick and outward shell flashes. It receives the existing shell list; it does not trigger fireworks. |
 | `rooms.h` | Separate near-room, right-room-2, right-room-3 and cart-room profiles. The original pane layouts, light gradients, glow and cyan flicker stay with their room. `layout.h` holds the unchanged near and upper-right layout tables. |
 | `neon.h` | `osaka-neon-v1`: board, retained tubes, broad glow, stutter and neon gain. The caller still adds bulbs and invokes `submit` on the shared neon Canvas at its original position. |
-| `sign-outlines.cpp` | The unchanged `drawSignGlyph` implementation reads the existing outline asset. It serves the izakaya sign and cart curtains. |
+| `sign-outlines.cpp` | The `drawSignGlyph` wrapper places and tints the seven SVG glyphs. It serves the izakaya sign and cart curtains. |
 | `lanterns.h`, `onset.h` | Paper, hand-held and cart lantern profiles. The original onset lookup reads Score without creating events. |
 | `cloth.h` | Street reflected cloth and separate cart/izakaya curtain profiles. They write into their original shared body/light canvases. |
 | `festoon.h`, `sky-lanterns.h` | Festoon and valley/couple releases. Existing positions, serial-based beat indexing, shell flashes and retirement times. |
@@ -130,10 +130,10 @@ test oracle, rather than a runtime fallback for missing world data.
 Still behavior: disc ring selection, shader/noise equations and uniforms;
 mountain curve evaluator and snow-cap paths; haze/sky shaders and pass bounds;
 pane recurrence and shared light-wave evaluator; room/primitive drawing and
-actor clips; sign glyph paths and parser. These require the later supported
+actor clips; animated sign placement and tint. These require the later supported
 art subset or typed track/constraint/pass contracts. Other library profiles
 (actors, animals, events, groups, network, cloth, lanterns, vegetation, city,
-ridges and downhill generators) remain compiled. No SVG importer, shorthand,
+ridges and downhill generators) remain compiled. No shorthand,
 generic expressions, new renderer or event detector is added in this round.
 
 Numeric substitutions preserve math order, original decimal doubles, RNG
@@ -155,3 +155,25 @@ Final validation includes Osaka CTests, controller fake-process tests, and
 interleaved same-device baseline/final 60 s GPU profiles with matching
 render-thread CPU timing. Report shared-machine load for each run; timing
 under changing load is a paired measurement, not a clean-device budget claim.
+
+## Static art, step 2 round B2
+
+`scene.json.art` binds the static town artwork to IDs in `art.svg`. The world
+loader owns the imported art; `world-art.h` replays validated, immutable recipes
+into the original caller-owned retained canvases. It preserves cache keys,
+append points and pass grouping. Paths retain quadratics and explicit closes;
+round strokes use Canvas tessellation, and decimal SVG RGB percentages narrow
+directly to float instead of passing through QColor's 16-bit channels. No
+per-frame XML/path/style parsing is performed. The existing `SvgArt::draw()` API
+keeps the broader SVG subset and its committed goldens. `replay()` rejects
+composited group opacity, use instances and viewport clipping rather than
+changing their semantics. Scene bindings validate that compatibility at startup.
+
+Town wrappers no longer construct the migrated outlines. `primitives.cpp`
+still serves procedural downhill buildings and dynamic library consumers.
+Camera-dependent quay clipping/steps, rooms, actors, cloth, neon response,
+reflection snapshot timing and RNG streams remain compiled and unchanged.
+Seven reusable sign paths now live in SVG, preserving the OFL notice/provenance;
+`drawSignGlyph` applies the original animated placement, size, tint and alpha.
+The exporter reads only the historical migration revision and is not used at
+build or runtime. Edit SVG paths in place while preserving bound IDs.

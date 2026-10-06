@@ -61,3 +61,25 @@ It prints subset version 1 and each element's ID, label, type and source line as
 JSON. Invalid art prints a diagnostic and exits with status 1. Artwork is bounded
 to 16 MiB, 10,000 source elements, nesting depth 64, 20,000 compiled instances
 and 2 million compiled vertices; extreme coordinates are rejected too.
+
+## Osaka static artwork
+
+`osaka-jade/art.svg` is the source of truth for the static near/right shells,
+roofs, lattices, deck, rail and cart frame, fixed sign glyphs and retained
+masks. `scene.json.art` names the file and maps each piece binding to a drawable
+SVG element ID. Keep those IDs while redrawing in Inkscape. Missing bindings,
+missing IDs and elements incompatible with retained Canvas replay fail at
+startup. The original retained keys, pass order and masks stay in the library.
+
+The importer compiles native replay recipes once, preserving M/L/Q/C/Z commands,
+round strokes, rectangle/circle operations and decimal float paints. SVG `use`,
+viewport clipping and composited group opacity continue through the general
+immutable `draw()` API; these cannot be bound to an existing retained span.
+Animated geometry, procedural buildings and camera-dependent quay steps remain
+compiled. See `experiments/osaka-live/src/kit/README.md` for the runtime boundary.
+
+`python3 experiments/osaka-live/tools/export-osaka-art.py OUTPUT.svg` is a one-time
+migration aid reading historical `bfc79ff`, not a build input. It records the
+original commands and arithmetic, not flattened points. Do not regenerate over
+artist edits. The seven sign outlines preserve the Noto Sans CJK JP Bold font
+hash and SIL OFL provenance in the SVG; the bundled OFL notice remains required.

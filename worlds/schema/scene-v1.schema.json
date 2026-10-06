@@ -1039,7 +1039,9 @@
             "sign-glyph-3",
             "sign-glyph-4",
             "sign-glyph-5",
-            "sign-glyph-6"
+            "sign-glyph-6",
+            "near-house-mask",
+            "shamisen-mask"
           ],
           "properties": {
             "near-house-shell": {
@@ -1131,6 +1133,14 @@
               "minLength": 1
             },
             "sign-glyph-6": {
+              "type": "string",
+              "minLength": 1
+            },
+            "near-house-mask": {
+              "type": "string",
+              "minLength": 1
+            },
+            "shamisen-mask": {
               "type": "string",
               "minLength": 1
             }

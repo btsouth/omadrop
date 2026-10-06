@@ -544,7 +544,9 @@
       "sign-glyph-3": "sign-glyph-3",
       "sign-glyph-4": "sign-glyph-4",
       "sign-glyph-5": "sign-glyph-5",
-      "sign-glyph-6": "sign-glyph-6"
+      "sign-glyph-6": "sign-glyph-6",
+      "near-house-mask": "near-house-mask",
+      "shamisen-mask": "shamisen-mask"
     }
   }
 }
