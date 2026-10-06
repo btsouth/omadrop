@@ -9,14 +9,36 @@ struct WaveTrainParametersV2 {
     Col body=hex(0x285579),bottom=hex(0x102955),underprint=hex(0x1d4673),
         foam=hex(0xdcd7ba),lines=hex(0x7397a4);
 };
+constexpr int WaveTrainFingerCountV2=38,WaveTrainDropletLimitV2=192;
+struct WaveTrainDropletV2 {
+    V2 position,velocity;double age=0,life=0,size=0;unsigned serial=0;
+};
+struct WaveTrainFingerStateV2 {double extension=0,flick=0;};
 struct WaveTrainPoseV2 {
     double amplitude=800,stage=0,baseWidth=1060,lean=0,phaseSpeed=65,lipThrow=0;
     double lipStage=-1; // negative selects the direct static study profile
     double seconds=0,distance=0,flow=0,energy=0,tempo=90;
+    std::array<double,6> bands{};
+    std::array<WaveTrainFingerStateV2,WaveTrainFingerCountV2> fingers{};
+    std::array<WaveTrainDropletV2,WaveTrainDropletLimitV2> droplets{};
 };
 struct CriticalSpringV2 {
     double value=0,velocity=0;
     void advance(double target,double omega,double dt);
+};
+// Reusable detail controller; the lab can hold the body at an authored stage.
+class WaveTrainFoamMotionV2 {
+public:
+    void advance(const Audio&,const Score&,WaveTrainPoseV2&,double seconds,double dt);
+private:
+    std::array<CriticalSpringV2,WaveTrainFingerCountV2> fingerLength_{};
+    std::array<double,WaveTrainFingerCountV2> flick_{},flickVelocity_{};
+    std::array<double,6> previousBand_{},lastBandOnset_{{-1,-1,-1,-1,-1,-1}};
+    std::array<V2,WaveTrainFingerCountV2> previousTip_{};
+    bool tipsReady_=false;
+    unsigned rng_=0x75a31f29,serial_=0;
+    std::uint64_t lastKick_=0;
+    double sprayClock_=0;
 };
 class WaveTrainMotionV2 {
 public:
@@ -27,14 +49,25 @@ private:
     CriticalSpringV2 amplitude_,stage_,speed_,throw_,lean_;
     double lip_=0,lipVelocity_=0;
     WaveTrainPoseV2 pose_;
+    WaveTrainFoamMotionV2 foam_;
 };
 struct WaveTrainProfileV2 {
+    struct Finger {
+        V2 root,tip;double lipIndex=0,length=0,angle=0;int band=0;
+        std::vector<V2> centre,left,right,forkLeft,forkRight;
+    };
+    struct Whitecap {std::vector<V2> edge,inside;};
     struct Crest {
         double a=0,envelope=0,stage=0;
         std::vector<V2> boundary,outerLip,foamInside;
         std::array<std::vector<V2>,16> contours;
+        std::array<double,16> contourAlpha{};
+        std::vector<Finger> fingers;
+        std::vector<Whitecap> whitecaps;
+        double foamThickness=0;
     };
     std::vector<V2> surface;
+    std::vector<Whitecap> swellCaps;
     std::vector<Crest> crests;
     std::vector<std::vector<V2>> boundaries;
     int hero=-1;
