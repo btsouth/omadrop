@@ -67,25 +67,35 @@ flat in int v_paint;
 out vec4 o;
 uniform sampler2D u_paints;
 vec4 T(int i) { return texelFetch(u_paints, ivec2(i, v_paint), 0); }
+vec4 gradientColor(vec4 c, bool svg) { return svg ? vec4(c.rgb*c.a,c.a) : c; }
 vec4 gradient() {
     vec4 h = T(0), m = T(1), e = T(2), q = T(3);
     vec2 u = vec2(m.x * v_pos.x + m.z * v_pos.y + e.x, m.y * v_pos.x + m.w * v_pos.y + e.y);
+    bool svg = h.x >= 4.0;
     float t;
-    if (h.x < 1.5) { vec2 d = q.xy - e.zw; t = dot(u - e.zw, d) / max(dot(d, d), 1e-9); }
-    else t = length(u - e.zw) / q.z;
+    if (h.x < 1.5 || h.x == 4.0) { vec2 d = q.xy - e.zw; t = dot(u - e.zw, d) / max(dot(d, d), 1e-9); }
+    else if (h.x < 2.5) t = length(u - e.zw) / q.z;
+    else {
+        vec2 d = u - h.zw, v = e.zw - h.zw;
+        float dr=q.z-q.w, a=dot(v,v)-dr*dr;
+        float b=-2.0*(dot(d,v)+q.w*dr), c=dot(d,d)-q.w*q.w;
+        t=abs(a)<1e-20 ? (abs(b)<1e-20 ? 1.0 : -c/b) : (-b-sqrt(max(0.0,b*b-4.0*a*c)))/(2.0*a);
+    }
     t = clamp(t, 0.0, 1.0);
     int n = int(h.y + 0.5);
     vec4 o0 = T(4), o1 = T(5);
     float offs[8] = float[8](o0.x, o0.y, o0.z, o0.w, o1.x, o1.y, o1.z, o1.w);
     vec4 prev = T(6);
-    if (t <= offs[0]) return prev;
-    for (int i = 1; i < 8; ++i) {
-        if (i >= n) break;
-        vec4 c = T(6 + i);
-        if (t <= offs[i]) return mix(prev, c, (t - offs[i - 1]) / max(offs[i] - offs[i - 1], 1e-6));
+    if (t <= offs[0]) return gradientColor(prev,svg);
+    float previousOffset = offs[0];
+    for (int i = 1; i < n; ++i) {
+        vec4 c = i < 8 ? T(6+i) : T(17+(i-8)*2);
+        float offset = i < 8 ? offs[i] : T(16+(i-8)*2).x;
+        if (t <= offset) return gradientColor(mix(prev, c, (t - previousOffset) / max(offset - previousOffset, 1e-6)),svg);
+        previousOffset = offset;
         prev = c;
     }
-    return prev;
+    return gradientColor(prev,svg);
 }
 void main() {
     if (v_mode == 1) {
@@ -324,6 +334,11 @@ void Gpu::release() {
         glDeleteFramebuffers(1,&t.fbo); glDeleteRenderbuffers(1,&t.color); glDeleteRenderbuffers(1,&t.depth);
     }
     reducedLayers_.clear();
+    for(auto& entry:opacityTargets_) {
+        auto& t=entry.second;
+        glDeleteFramebuffers(1,&t.fbo);glDeleteRenderbuffers(1,&t.color);glDeleteRenderbuffers(1,&t.depth);
+    }
+    opacityTargets_.clear();
 
 }
 
@@ -549,10 +564,21 @@ void Gpu::bindGeometry(const Canvas& c) {
     }
     if(paints!=zeroPaints_ && (retained ? retained->paintRevision!=c.revision() : dynamicPaintId_!=c.identity() || dynamicPaintRevision_!=c.revision())) {
         const auto& g = c.gradients();
-        geometryStats_.paintBytes += std::max<std::size_t>(1, g.size()) * sizeof(GradientRow);
-        static const GradientRow zero;
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 16, GLsizei(std::max<std::size_t>(1, g.size())),
-                     0, GL_RGBA, GL_FLOAT, g.empty() ? &zero : g.data());
+        std::size_t width=16;
+        for(const auto& row:g)width=std::max(width,16+row.extraStops.size()*2);
+        std::vector<float> packed(width*4*std::max<std::size_t>(1,g.size()),0);
+        for(std::size_t y=0;y<g.size();++y) {
+            float* dst=packed.data()+y*width*4;
+            std::copy(g[y].data.begin(),g[y].data.end(),dst);
+            for(std::size_t i=0;i<g[y].extraStops.size();++i) {
+                const auto& stop=g[y].extraStops[i];const std::size_t k=64+i*8;
+                const float factor=g[y].data[0]>=4 ? 1.f : stop.a;
+                dst[k]=stop.offset;dst[k+4]=stop.c.r*factor;dst[k+5]=stop.c.g*factor;dst[k+6]=stop.c.b*factor;dst[k+7]=stop.a;
+            }
+        }
+        geometryStats_.paintBytes += packed.size()*sizeof(float);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, GLsizei(width), GLsizei(std::max<std::size_t>(1,g.size())),
+                     0, GL_RGBA, GL_FLOAT, packed.data());
         if(retained) retained->paintRevision=c.revision();
         else {dynamicPaintId_=c.identity();dynamicPaintRevision_=c.revision();}
     }
@@ -572,7 +598,7 @@ void Gpu::drawCanvas(const Canvas& c) {
         if(enabled) glEnable(GL_STENCIL_TEST); else glDisable(GL_STENCIL_TEST);
         stencil=enabled;
     };
-    if(cacheGeometry_ && c.batchSpatially) {
+    if(cacheGeometry_ && c.batchSpatially && std::all_of(c.commands().begin(),c.commands().end(),[](const Canvas::Cmd& cmd) {return cmd.kind==Canvas::CmdKind::Direct || cmd.kind==Canvas::CmdKind::StencilFill || cmd.kind==Canvas::CmdKind::StencilOnce;})) {
         // Sharing a screen cell creates a dependency. A later shape can only
         // move before an earlier one when their padded coverage is disjoint.
         // Keep each original triangle and its original vertex index.
@@ -624,7 +650,8 @@ void Gpu::drawCanvas(const Canvas& c) {
         const auto& cmd=commands[ci];
         if (cmd.kind == Canvas::CmdKind::Cached) {
             setStencil(false);
-            drawCanvas(c.retained(cmd.first));
+            if(cmd.opacity<1)drawOpacity(c.retained(cmd.first),cmd.opacity);
+            else drawCanvas(c.retained(cmd.first));
             glUseProgram(canvas_.id);
             bound = false;
             continue;
@@ -672,12 +699,16 @@ void Gpu::drawCanvas(const Canvas& c) {
             setStencil(false);
             glDrawArrays(GL_TRIANGLES, cmd.first, cmd.count);
             break;
+        case Canvas::CmdKind::StencilEvenOdd:
         case Canvas::CmdKind::StencilFill:
             setStencil(true);
             glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
             glStencilFunc(GL_ALWAYS, 0, 0xff);
-            glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
-            glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+            if(cmd.kind==Canvas::CmdKind::StencilEvenOdd)glStencilOp(GL_KEEP,GL_KEEP,GL_INVERT);
+            else {
+                glStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, GL_INCR_WRAP);
+                glStencilOpSeparate(GL_BACK, GL_KEEP, GL_KEEP, GL_DECR_WRAP);
+            }
             glDrawArrays(GL_TRIANGLES, cmd.first, cmd.count);
             glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
             glStencilFunc(GL_NOTEQUAL, 0, 0xff);
@@ -699,6 +730,44 @@ void Gpu::drawCanvas(const Canvas& c) {
     }
     setStencil(false);
     glBindVertexArray(0);
+}
+
+// SVG opacity applies after compositing all descendants, including overlap.
+// Each nesting level owns a separate multisampled stencil target. This branch
+// is unused by legacy canvases, so their blend and resolve order is preserved.
+void Gpu::drawOpacity(const Canvas& canvas,float opacity) {
+    if(opacity<=0 || canvas.empty())return;
+    GLint framebuffer,viewport[4],scissorBox[4],srcRgb,dstRgb,srcAlpha,dstAlpha;
+    GLfloat blendColor[4];
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING,&framebuffer);glGetIntegerv(GL_VIEWPORT,viewport);
+    glGetIntegerv(GL_SCISSOR_BOX,scissorBox);
+    const bool scissorEnabled=glIsEnabled(GL_SCISSOR_TEST),blendEnabled=glIsEnabled(GL_BLEND);
+    glGetIntegerv(GL_BLEND_SRC_RGB,&srcRgb);glGetIntegerv(GL_BLEND_DST_RGB,&dstRgb);
+    glGetIntegerv(GL_BLEND_SRC_ALPHA,&srcAlpha);glGetIntegerv(GL_BLEND_DST_ALPHA,&dstAlpha);glGetFloatv(GL_BLEND_COLOR,blendColor);
+    const int w=viewport[2],h=viewport[3];
+    auto& target=opacityTargets_[{++opacityDepth_,w,h}];
+    if(!target.fbo) {
+        glGenFramebuffers(1,&target.fbo);glGenRenderbuffers(1,&target.color);glGenRenderbuffers(1,&target.depth);
+        glBindRenderbuffer(GL_RENDERBUFFER,target.color);glRenderbufferStorageMultisample(GL_RENDERBUFFER,samples_,GL_RGBA16F,w,h);
+        glBindRenderbuffer(GL_RENDERBUFFER,target.depth);glRenderbufferStorageMultisample(GL_RENDERBUFFER,samples_,GL_DEPTH24_STENCIL8,w,h);
+        bindFramebuffer(GL_FRAMEBUFFER,target.fbo);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_RENDERBUFFER,target.color);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_DEPTH_STENCIL_ATTACHMENT,GL_RENDERBUFFER,target.depth);
+        if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE)std::abort();
+    }
+    bindFramebuffer(GL_FRAMEBUFFER,target.fbo);glViewport(0,0,w,h);glDisable(GL_SCISSOR_TEST);
+    glClearColor(0,0,0,0);glClear(GL_COLOR_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);
+    setBlend(Blend::Over,1);drawCanvas(canvas);
+    const int texture=acquire(w,h);
+    bindFramebuffer(GL_READ_FRAMEBUFFER,target.fbo);bindFramebuffer(GL_DRAW_FRAMEBUFFER,pool_[texture].fbo);
+    glBlitFramebuffer(0,0,w,h,0,0,w,h,GL_COLOR_BUFFER_BIT,GL_NEAREST);
+    bindFramebuffer(GL_FRAMEBUFFER,GLuint(framebuffer));glViewport(viewport[0],viewport[1],w,h);
+    if(scissorEnabled) {glEnable(GL_SCISSOR_TEST);glScissor(scissorBox[0],scissorBox[1],scissorBox[2],scissorBox[3]);}
+    glUseProgram(compositeP_.id);glActiveTexture(GL_TEXTURE0);glBindTexture(GL_TEXTURE_2D,pool_[texture].tex);
+    compositeP_.set("u_tex",0);compositeP_.set("u_gain",1.f);compositeP_.set("u_opacity",opacity);
+    if(blendEnabled)glEnable(GL_BLEND);else glDisable(GL_BLEND);
+    glBlendColor(blendColor[0],blendColor[1],blendColor[2],blendColor[3]);glBlendFuncSeparate(srcRgb,dstRgb,srcAlpha,dstAlpha);
+    fullscreen();pool_[texture].used=false;--opacityDepth_;
 }
 
 void Gpu::draw(const Canvas& canvas, Blend blend, float gain) {
