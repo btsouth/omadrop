@@ -8,6 +8,7 @@
 #include "../src/score.h"
 #include "../src/schedule.h"
 #include "../src/world.h"
+#include <QColor>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -284,24 +285,52 @@ QJsonObject readScene(const QString& folder) {
 void backdropWorld(const QString& nightStreet) {
     const auto loaded = loadOsakaWorld(nightStreet);
     const auto& world = loaded->description();
-    // A world lists only the stages it draws.
-    require(world.backdrop.count == 4 && world.coast.count == 0 && world.distantTown.count == 0
+    // A world lists only the stages it draws. Expected values come from the
+    // example scene itself so its art can change without editing this test.
+    const auto sceneRoot = readScene(nightStreet);
+    const auto stages = sceneRoot["stages"].toArray();
+    require(stages.size() == 1, "night-street should list one stage");
+    const QJsonObject stage = stages[0].toObject();
+    const QJsonArray sceneSlots = stage.value("slots").toArray();
+    require(int(world.backdrop.count) == sceneSlots.size() && world.coast.count == 0 && world.distantTown.count == 0
                 && world.foreground.count == 0, "night-street stages are wrong");
-    const OsakaOp ops[] = {OsakaOp::Sky, OsakaOp::Disc, OsakaOp::Ridges, OsakaOp::Haze};
-    for (int i = 0; i < 4; ++i) require(world.backdrop.entries[i].piece == ops[i], "slot order changed");
     require(world.backdrop.id == "backdrop" && world.backdrop.events == OsakaEventRef::Life, "stage identity changed");
-    const auto& ridges = world.backdrop.entries[2].params;
-    require(ridges && ridges->ridges.size() == 2, "ridges did not load");
-    require(ridges->ridges[0].seed == 21 && ridges->ridges[0].base == 690 && ridges->ridges[0].amp == 190
-                && ridges->ridges[0].scale == 620 && ridges->ridges[0].par == 0.04, "ridge numbers changed");
-    require(ridges->ridges[1].seed == 22 && ridges->ridges[1].base == 740, "second ridge changed");
-    require(std::abs(ridges->ridges[0].top.r - 8 / 255.0) < 1e-6 && std::abs(ridges->ridges[0].top.g - 40 / 255.0) < 1e-6,
-            "ridge color changed");
-    const auto& haze = world.backdrop.entries[3].params;
-    require(haze && haze->haze.y == 740 && haze->haze.sigma == 54 && haze->haze.drift == 5
-                && haze->haze.seed == 31 && haze->haze.gain == 0.14 && haze->haze.shift == 0,
-            "haze did not load");
-    require(world.disc.x == 1450 && world.disc.radius == 84, "moon placement changed");
+    int ridgeSlots = 0, hazeSlots = 0;
+    for (int i = 0; i < sceneSlots.size(); ++i) {
+        const auto slot = sceneSlots[i].toObject();
+        const auto piece = slot["piece"].toString();
+        const auto& entry = world.backdrop.entries[i];
+        const QJsonObject params = slot.value("params").toObject();
+        if (piece == "Sky") require(entry.piece == OsakaOp::Sky, "sky slot order changed");
+        else if (piece == "Disc") require(entry.piece == OsakaOp::Disc, "disc slot order changed");
+        else if (piece == "Ridges") {
+            ++ridgeSlots;
+            require(entry.piece == OsakaOp::Ridges && entry.params, "ridges did not load");
+            const QJsonArray list = params.value("ridges").toArray();
+            require(int(entry.params->ridges.size()) == list.size(), "ridge count did not load");
+            for (int r = 0; r < list.size(); ++r) {
+                const auto want = list[r].toObject();
+                const auto& got = entry.params->ridges[r];
+                require(got.seed == want["seed"].toInt() && got.base == want["base"].toDouble()
+                            && got.amp == want["amp"].toDouble() && got.scale == want["scale"].toDouble()
+                            && got.par == want["parallax"].toDouble(), "ridge numbers did not load");
+                const QColor top(want["top"].toString());
+                require(std::abs(got.top.r - top.redF()) < 1e-6 && std::abs(got.top.g - top.greenF()) < 1e-6,
+                        "ridge color did not load");
+            }
+        } else if (piece == "Haze") {
+            ++hazeSlots;
+            require(entry.piece == OsakaOp::Haze && entry.params, "haze did not load");
+            const auto& haze = entry.params->haze;
+            require(haze.y == params["y"].toDouble() && haze.sigma == params["sigma"].toDouble()
+                        && haze.drift == params["drift"].toDouble() && haze.seed == params["seed"].toInt()
+                        && haze.gain == params["gain"].toDouble(), "haze numbers did not load");
+        }
+    }
+    require(ridgeSlots >= 1 && hazeSlots >= 1, "night-street should use ridges and haze");
+    const QJsonObject disc = sceneRoot.value("disc").toObject();
+    require(world.disc.x == disc["x"].toDouble() && world.disc.radius == disc["radius"].toDouble(),
+            "moon placement did not load");
     // No mountain slot, so no mountain block is needed, and unlisted profiles keep library defaults.
     require(world.mountain.width == OsakaMountainPlacementV1{}.width, "mountain default changed");
     require(world.parameters.sky.timeOffset == OsakaSkyParametersV1{}.timeOffset, "sky defaults changed");
