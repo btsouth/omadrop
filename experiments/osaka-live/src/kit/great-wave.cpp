@@ -49,7 +49,7 @@ GreatWavePoseV1 GreatWaveV1::pose(const Ctx& c,const GreatWaveParametersV1& p){
 }
 V2 GreatWaveV1::map(V2 q,const GreatWavePoseV1& s,const GreatWaveParametersV1& p){
     const double crest=1-sstep(580,1080,q.y),lip=sstep(540,1040,q.x)*crest;
-    const double x=(q.x+75*s.curl*lip)*p.width/1440.;
+    const double x=(q.x+120*s.curl*lip)*p.width/1440.;
     return {p.x+(p.anchorRight?-x:x),p.y+(q.y-1080)*s.height/1000.};
 }
 QRectF GreatWaveV1::responseArea(const GreatWaveParametersV1& p){
@@ -103,7 +103,7 @@ void GreatWaveV1::paint(Canvas& body,Canvas& flow,Canvas& foam,const Ctx& c,cons
         // stay in that cell even at maximum rise and full beat extension.
         const double spacing=(b-a).len()/.008/(p.clawCount*(seg==0?.18:(seg==1?.64:.18)));
         const double requested=(seg==0?58:(seg==1?100:48))*scale*p.clawSize*(.8+.35*hash2(i,p.seed+30));
-        const double length=std::min(requested,spacing*.95/(1+.4*(p.kickGain+p.onsetGain)))*(1+.4*s.flick);
+        const double length=std::min(requested,spacing*.95/(1+1.1*(p.kickGain+p.onsetGain)))*(1+1.1*s.flick);
         const double width=std::min((seg==2?7:12)*scale*p.clawSize,length*.19);
         talons.push_back({mapped(q.at(u)+n*(seg==2?-3:(seg==0?38:68)*(1+.23*fbm1(u*17,seg+p.seed))*.90)),
             angle+(p.anchorRight?-1:1)*(seg==2?-.58:.45),length,width,(p.anchorRight?-1:1)*(seg==2?.95:1.5)});
@@ -121,7 +121,7 @@ void GreatWaveV1::paint(Canvas& body,Canvas& flow,Canvas& foam,const Ctx& c,cons
     // clock or full-frame white flash can pop at a particle cycle boundary.
     for(int i=0;i<30;++i){const double u=.12+.74*hash2(i,p.seed+64);const V2 source=mapped(crown[1].at(u));
         const double phase=c.t*(.55+.15*hash2(i,p.seed+67))+Tau*hash2(i,p.seed+68);
-        const double dist=12+55*hash2(i,p.seed+69)+12*std::sin(phase)+45*s.flick;
+        const double dist=12+55*hash2(i,p.seed+69)+12*std::sin(phase)+150*s.flick;
         const double x=source.x+(p.anchorRight?1:-1)*dist*.72,y=source.y-dist*.65;
         foam.color(p.foam,.16+.18*(.5+.5*std::sin(phase))+.7*s.flick);
         foam.ellipse(x,y,(1+1.5*hash2(i,p.seed+65))*scale,(1.2+2*hash2(i,p.seed+66))*scale);foam.fill();

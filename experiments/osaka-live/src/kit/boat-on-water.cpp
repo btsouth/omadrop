@@ -23,7 +23,7 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
     // current band/kick (that would jump the pose on every beat).
     s.stroke=c.t*p.rowingTempo+p.tempoGain*(c.score?c.score->bandIntegrals[p.band]:0)+hash2(p.seed,43);
     s.splash=std::clamp(.10+p.splashGain*(.55*c.band(p.band)+.45*c.kick(5)),0.,.55);
-    s.spray=std::clamp(p.kickGain*c.kick(6),0.,.35);
+    s.spray=std::clamp(p.kickGain*c.kick(6),0.,.8);
     return s;
 }
 QPainterPath BoatOnWaterV1::responsePath(const BoatOnWaterPoseV1& s,const BoatOnWaterParametersV1& p) {
@@ -92,8 +92,8 @@ void BoatOnWaterV1::paint(Canvas& cv,const Ctx& c,const BoatOnWaterParametersV1&
         cv.ellipse(water.x,surfaceY(c,p,water.x,s.row),(7+24*ring)*sc,(1.5+4*ring)*sc);cv.stroke(1.1*sc);
     }
     const double bow=s.at.x+ln*.48*ca;
-    for(int j=0;j<5;++j){const double id=hash2(j,p.seed+61),x=bow+(3+j*3)*sc;
-        const double y=surfaceY(c,p,x,s.row)-(3+12*id)*sc*(.4+s.spray);
+    for(int j=0;j<12;++j){const double id=hash2(j,p.seed+61),x=bow+(3+j*3)*sc;
+        const double y=surfaceY(c,p,x,s.row)-(3+38*id)*sc*(.4+2*s.spray);
         cv.color(p.foam,s.spray);cv.ellipse(x,y,(.8+.5*id)*sc,(1.2+.9*id)*sc);cv.fill();}
 }
 void BoatOnWaterV1::draw(Ctx& c,const BoatOnWaterParametersV1& p) {

@@ -20,7 +20,7 @@ SwellRowV1 SwellLinesV1::field(const Ctx& c,int row,const SwellLinesParametersV1
     const double flow=c.score ? .95*lerp(c.score->bandIntegrals[lo],c.score->bandIntegrals[lo+1],role-lo) : 0;
     const double id=hash2(row,p.seed+13),lift=c.lift(b),kick=c.kick(5);
     return {z,p.region.top()+2+(p.region.height()-4)*depth,
-        (7+83*std::pow(depth,1.15))*p.amplitude*(1+.22*e+.16*p.liftGain*lift),
+        (7+83*std::pow(depth,1.15))*p.amplitude*(1+.22*e+.16*p.liftGain*lift+p.amplitudeGain*(c.score?c.score->bandBody[1][0]:c.band(0))),
         (55+115*depth)*(.86+.28*id),
         c.t*p.driftSpeed*(.81+.37*id)+flow-depth*6+Tau*hash2(row,p.seed+19),
         row*.82-c.t*(.17+.11*hash2(row,p.seed+23)),
@@ -31,7 +31,7 @@ SwellRowV1 SwellLinesV1::field(const Ctx& c,int row,const SwellLinesParametersV1
 QRectF SwellLinesV1::responseArea(int row,const SwellLinesParametersV1& p) {
     const double z=row/double(p.rows-1),depth=std::pow(z,p.depthFalloff);
     const double y=p.region.top()+2+(p.region.height()-4)*depth;
-    const double spread=(7+83*std::pow(depth,1.15))*p.amplitude*1.8+40;
+    const double spread=(7+83*std::pow(depth,1.15))*p.amplitude*(1.8+p.amplitudeGain)+40;
     return QRectF(p.region.left(),std::max(p.region.top(),y-spread),p.region.width(),2*spread).intersected(p.region);
 }
 QPainterPath SwellLinesV1::responsePath(const Ctx& c,int row,const SwellLinesParametersV1& p,double width) {

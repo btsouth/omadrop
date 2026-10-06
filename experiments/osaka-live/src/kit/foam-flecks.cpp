@@ -11,7 +11,7 @@ void FoamFlecksV1::paint(Canvas& cv,const Ctx& c,const FoamFlecksParametersV1& p
         const int row=i%s.rows;const auto& f=fields[row];const double depth=std::pow(f.z,s.depthFalloff);
         const double id=hash2(i,s.seed+71),spanScale=lerp(p.sizeMin,p.sizeMax,id*id);
         const double breath=.84+.16*std::sin(c.t*(.45+.55*hash2(i,s.seed+72))+Tau*hash2(i,s.seed+73));
-        const double size=spanScale*breath*(1+.20*s.liftGain*c.lift(SwellLinesV1::band(row,s.rows)));
+        const double size=spanScale*breath*(1+p.responseGain*(c.score?c.score->bandBody[1][0]:c.band(0)))*(1+.20*s.liftGain*c.lift(SwellLinesV1::band(row,s.rows)));
         const double span=(18+130*depth)*size,thick=(2+19*depth)*(.7+.5*size);
         const double margin=260,period=s.region.width()+2*margin;
         const double travel=c.t*s.driftSpeed*(7+12*hash2(i,s.seed+32));

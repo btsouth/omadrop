@@ -10,6 +10,7 @@ struct SwellLinesParametersV1 {
     int count=260, rows=12, seed=71;
     double depthFalloff=1.45, widthMin=.55, widthMax=2.0;
     double lengthMin=110, lengthMax=650, driftSpeed=.52, amplitude=1;
+    double amplitudeGain=0;
     double opacity=.34, bandGain=.32, liftGain=.25, kickGain=.10;
     Col color=hex(0x7397a4), highlight=hex(0xdcd7ba);
 };

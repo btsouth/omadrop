@@ -4,6 +4,7 @@ namespace Journey::Kit {
 struct FoamFlecksParametersV1 {
     SwellLinesParametersV1 swell;
     int count=120;
+    double responseGain=0;
     double sizeMin=.25,sizeMax=1.15,onsetGain=.24;
     Col color=hex(0xdcd7ba),underprint=hex(0x0e2347);
 };
