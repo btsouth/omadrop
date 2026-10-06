@@ -29,6 +29,7 @@ existing signatures. SVG art import and native retained-span replay are availabl
 | `lanterns.h`, `onset.h` | Paper, hand-held and cart lantern profiles. The original onset lookup reads Score without creating events. |
 | `cloth.h` | Street reflected cloth and separate cart/izakaya curtain profiles. They write into their original shared body/light canvases. |
 | `festoon.h`, `sky-lanterns.h` | Festoon and valley/couple releases. Existing positions, serial-based beat indexing, shell flashes and retirement times. |
+| `generic-window.h` | `generic-window-v1`: shorthand window fills in the main canvas pass. |
 | `animals.h`, `chime.h` | Moths, railing/sill/veranda cats and chime, including original masked-sill insertion and gestures. |
 | `city.h`, `downhill.h` | Procedural city and downhill row profiles, retaining all layout/window RNG draws and cache keys. |
 | `grass.h` | Grass and flowers share the caller's RNG across the original intervening body pass. |
@@ -93,6 +94,7 @@ uses its typed profile; the world render slots label that profile explicitly.
 | `grass.h` | `osaka-grass-v1`, `osaka-grass-flowers-v1` |
 | `groups.h` | `osaka-near-ridge-v1`, `osaka-train-v1`, `osaka-reflection-v1`, `osaka-shooting-star-v1`, `osaka-fog-v1`, `osaka-glow-through-v1`, `osaka-steam-v1`, `osaka-right-town-v1`, `osaka-street-surface-group-v1`, `osaka-street-actors-v1`, `osaka-cart-group-v1`, `osaka-near-group-v1`, `osaka-network-group-v1` |
 | `haze.h` | `osaka-haze-v1` |
+| `generic-window.h` | `generic-window-v1` |
 | `lanterns.h` | `osaka-paper-lantern-v1`, `osaka-lantern-v1`, `osaka-cart-lantern-v1` |
 | `light-wave.h` | `osaka-light-wave-v1`, `osaka-festoon-light-wave-v1` |
 | `mountain.h` | `osaka-mountain-v1` |
@@ -133,8 +135,9 @@ pane recurrence and shared light-wave evaluator; room/primitive drawing and
 actor clips; animated sign placement and tint. These require the later supported
 art subset or typed track/constraint/pass contracts. Other library profiles
 (actors, animals, events, groups, network, cloth, lanterns, vegetation, city,
-ridges and downhill generators) remain compiled. No shorthand,
-generic expressions, new renderer or event detector is added in this round.
+ridges and downhill generators) remain compiled. Window layer shorthand
+expands into `generic-window-v1` nodes. No generic expressions, new renderer or
+event detector is added in this round.
 
 Numeric substitutions preserve math order, original decimal doubles, RNG
 keys, cache keys and the points where values narrow to floats. Art paths and

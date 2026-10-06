@@ -18,19 +18,20 @@ OMADROP_WORLDS="$PWD/worlds" experiments/osaka-live/build/omadrop-osaka --world 
 
 Numbers use exact decimal doubles; existing float conversions happen at the
 same drawing boundaries. Every profile field is required. Instance IDs are
-unique across all stages and slots; stage and slot array order is significant.
-Version 1 currently accepts the Osaka world and its named library profiles.
+unique across stages, slots and explicit nodes; stage and slot array order is
+significant. Version 1 accepts the Osaka world, the window shorthand example
+and their named library profiles.
 
-Art paths, shaders and procedural behavior remain in the kit. SVG validation
-is available below; scene art bindings and label shorthand come in later rounds.
-No general SVG renderer,
-expressions, hot reload or executable world code is supported today.
+Art paths, shaders and procedural behavior remain in the kit. SVG validation,
+scene art bindings and window label shorthand are available below. No general
+SVG renderer, expressions, hot reload or executable world code is supported
+today.
 
 ## Supported SVG
 
-SVG subset version 1 compiles artwork into the existing Canvas. It is available
-as an import/check tool; Osaka does not load SVG artwork yet. Use a 1920 by 1080
-artboard with `viewBox="0 0 1920 1080"`.
+SVG subset version 1 compiles artwork into the existing Canvas at world load.
+The headless import/check tool is also available. Use a 1920 by 1080 artboard
+with `viewBox="0 0 1920 1080"`.
 
 Groups, paths (including curves and arcs), rectangles, circles, ellipses,
 polygons, polylines and lines are supported. You can use transforms, solid
@@ -50,6 +51,30 @@ stylesheets are rejected. Inline `style` attributes are supported. Other
 unsupported elements or properties produce a filename, element ID and line
 number so you can fix the export. Use plain numbers or px for shape dimensions;
 percentages are supported for opacity, gradient coordinates and stop offsets.
+
+## Make a window react to music
+
+Name an SVG element with `window.band0`, replacing `band0` with the music band
+you want from `band0` through `band5`. The label can also include `kick`,
+`onset` or `always`:
+
+```svg
+<rect id="kitchen-window" data-name="window.band2.always.kick"
+      x="120" y="160" width="90" height="120" fill="#10201b"/>
+```
+
+`band0` through `band5` are required. Exactly one is allowed. `kick` adds a
+short bass-hit boost, `onset` adds a brief flash on a new sound, and `always`
+keeps a steady warm level when the music is quiet. Tokens can appear in any
+order after `window`. Use `inkscape:label` or `data-name` for the name and keep
+the element's `id` unique.
+
+`worlds/examples/lit-windows/` is a shorthand-only example with six windows.
+Its `scene.json` has no window nodes:
+
+```sh
+OMADROP_WORLDS="$PWD/worlds" experiments/osaka-live/build/omadrop-osaka --world examples/lit-windows
+```
 
 Build and run the headless check tool from the repository root:
 

@@ -157,7 +157,7 @@ void explicitOverride() {
     require(windows[1].id == "window-1" && windows[1].band == 5
                 && windows[1].explicitNode, "explicit node did not override shorthand");
     require(loaded->notes().size() == 1
-                && loaded->notes().first().contains("explicit window node overrides shorthand"),
+                && loaded->notes().front().contains("explicit window node overrides shorthand"),
             "override was not noted");
     std::cout << "PASS: explicit scene node overrode shorthand and was noted\n";
 }
