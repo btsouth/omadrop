@@ -225,6 +225,27 @@ int main(int argc, char** argv) {
         invalid(changeSlot("extra",0),"$.stages[0].slots[0].extra: expected known field (unknown field)");
         root=original; auto stages=root["stages"].toArray();auto stage=stages[3].toObject();stage["events"]="Life";stages[3]=stage;root["stages"]=stages;
         invalid(root,"$.stages[3].events: expected LifeAndFlock for network or birds");
+        root=original; auto profiles=root["profiles"].toObject(); profiles["unknown-v1"]=QJsonObject{}; root["profiles"]=profiles;
+        invalid(root,"$.profiles['unknown-v1']: expected known field (unknown field)");
+        auto changeParameter=[&](const QString& profile, const QString& key, const QJsonValue& value) {
+            auto r=original;auto profiles=r["profiles"].toObject();auto settings=profiles[profile].toObject();settings[key]=value;profiles[profile]=settings;r["profiles"]=profiles;return r;
+        };
+        invalid(changeParameter("osaka-mountain-v1","samples",160.5),"$.profiles['osaka-mountain-v1'].samples: expected integer in 1..4096");
+        invalid(changeParameter("osaka-mountain-v1","samples",4097),"$.profiles['osaka-mountain-v1'].samples: expected integer in 1..4096");
+        invalid(changeParameter("osaka-finish-v1","bloom",1e100),"$.profiles['osaka-finish-v1'].bloom: expected finite float");
+        invalid(changeParameter("osaka-disc-v1","hitSeconds",0),"$.profiles['osaka-disc-v1'].hitSeconds: expected positive number");
+        invalid(changeParameter("osaka-neon-v1","glyphCount",4),"$.profiles['osaka-neon-v1'].glyphCount: expected integer in 1..3");
+        invalid(changeParameter("osaka-haze-v1","noiseX",QJsonValue()),"$.profiles['osaka-haze-v1'].noiseX: expected finite number");
+        root=original;profiles=root["profiles"].toObject();auto sky=profiles["osaka-sky-v1"].toObject();sky.remove("timeOffset");profiles["osaka-sky-v1"]=sky;root["profiles"]=profiles;
+        invalid(root,"$.profiles['osaka-sky-v1'].timeOffset: expected required field");
+        root=original;profiles=root["profiles"].toObject();auto windows=profiles["osaka-pane-v1"].toObject();auto near=windows["near"].toArray();auto pane=near[0].toObject();pane["band"]=6;near[0]=pane;windows["near"]=near;profiles["osaka-pane-v1"]=windows;root["profiles"]=profiles;
+        invalid(root,"$.profiles['osaka-pane-v1'].near[0].band: expected integer in 0..5");
+        // A finite, non-default double survives parsing without rounding to float.
+        root=original; disc=root["disc"].toObject();disc["x"]=1.0000000000000002;root["disc"]=disc;
+        { QFile output(file);require(output.open(QIODevice::WriteOnly),"write round-trip fixture failed");output.write(QJsonDocument(root).toJson()); }
+        const auto roundTrip=loadOsakaWorld(tmp.path());
+        require(roundTrip->description().disc.x==1.0000000000000002,"double failed to round-trip exactly");
+        require(a.disc.x==b.disc.x,"loading a second world changed the first immutable description");
         std::cout<<"PASS: loaded Osaka equals compiled oracle; exact invalid diagnostics\n";
     } catch (const std::exception& e) { std::cerr<<e.what()<<'\n';return 1; }
 }

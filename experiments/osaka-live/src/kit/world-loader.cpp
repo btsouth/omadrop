@@ -11,6 +11,15 @@
 #include <stdexcept>
 namespace Journey::Kit {
 namespace {
+QString fieldPath(const QString& path, const QString& field) {
+    auto alpha=[](QChar c) { return (c>='a' && c<='z') || (c>='A' && c<='Z') || c=='_'; };
+    bool identifier=!field.isEmpty() && alpha(field[0]);
+    for (const auto c:field) identifier=identifier && (alpha(c) || (c>='0' && c<='9'));
+    if (identifier) return path+"."+field;
+    QString escaped=field;
+    escaped.replace("\\","\\\\").replace("'","\\'").replace("\n","\\n").replace("\r","\\r").replace("\t","\\t");
+    return path+"['"+escaped+"']";
+}
 struct Reader {
     QString file;
     QSet<QString> ids;
@@ -21,8 +30,8 @@ struct Reader {
         if (!v.isObject()) fail(p, "object");
         const auto o = v.toObject();
         for (auto it=o.begin(); it!=o.end(); ++it)
-            if (!fields.contains(it.key())) fail(p+"."+it.key(), "known field (unknown field)");
-        for (const auto& f : fields) if (!o.contains(f)) fail(p+"."+f, "required field");
+            if (!fields.contains(it.key())) fail(fieldPath(p,it.key()), "known field (unknown field)");
+        for (const auto& f : fields) if (!o.contains(f)) fail(fieldPath(p,f), "required field");
         return o;
     }
     QString string(const QJsonValue& v, const QString& p) const {
@@ -131,7 +140,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     w.mountain={r.number(mountain["x"],"$.mountain.x"),r.number(mountain["parallax"],"$.mountain.parallax"),r.number(mountain["peak"],"$.mountain.peak"),r.number(mountain["base"],"$.mountain.base"),r.number(mountain["width"],"$.mountain.width")};
     const auto profiles=r.object(root["profiles"],"$.profiles",{"osaka-finish-v1","osaka-disc-v1","osaka-mountain-v1","osaka-haze-v1","osaka-sky-v1","osaka-pane-v1","osaka-neon-v1"});
     {
-        const QString p="$.profiles.osaka-finish-v1";
+        const QString p="$.profiles['osaka-finish-v1']";
         const auto data=r.object(profiles["osaka-finish-v1"],p,{"bloom","threshold","vignette","grain","knee","paper"});
         w.finish.defaults.bloom=r.scalar(data["bloom"],p+".bloom");
         w.finish.defaults.threshold=r.scalar(data["threshold"],p+".threshold");
@@ -141,7 +150,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         w.finish.defaults.paper=r.scalar(data["paper"],p+".paper");
     }
     {
-        const QString p="$.profiles.osaka-disc-v1";
+        const QString p="$.profiles['osaka-disc-v1']";
         const auto data=r.object(profiles["osaka-disc-v1"],p,{"creamHex","warmHex","colorGain","haloR","haloG","haloB","energyBase","energyBass","energySurge","energyKick","veil","texture","haloA","haloBRadius","haloC","haloD","haloFar","restRings","ring0Offset","ring0Energy","ring0Alpha","ring1Offset","ring1Energy","ring1Alpha","ringAlphaBase","hitSeconds","hitThreshold","hitOffset","hitTravel","hitAlpha","timeOffset"});
         w.parameters.disc.creamHex=r.integer(data["creamHex"],p+".creamHex",0,16777215);
         w.parameters.disc.warmHex=r.integer(data["warmHex"],p+".warmHex",0,16777215);
@@ -177,7 +186,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         w.parameters.disc.timeOffset=r.number(data["timeOffset"],p+".timeOffset");
     }
     {
-        const QString p="$.profiles.osaka-mountain-v1";
+        const QString p="$.profiles['osaka-mountain-v1']";
         const auto data=r.object(profiles["osaka-mountain-v1"],p,{"topR","topG","topB","bottomR","bottomG","bottomB","foot","samples","span","shapePower","rippleGain","ripplePeriod","summitWidth","summitOffset","summitCurve","summitHeight","gradientStop","gradientMix"});
         w.parameters.mountain.topR=r.number(data["topR"],p+".topR");
         w.parameters.mountain.topG=r.number(data["topG"],p+".topG");
@@ -203,7 +212,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         w.parameters.mountain.gradientMix=r.number(data["gradientMix"],p+".gradientMix");
     }
     {
-        const QString p="$.profiles.osaka-haze-v1";
+        const QString p="$.profiles['osaka-haze-v1']";
         const auto data=r.object(profiles["osaka-haze-v1"],p,{"noiseX","noiseY","cullSigma"});
         w.parameters.haze.noiseX=r.number(data["noiseX"],p+".noiseX");
         if (w.parameters.haze.noiseX<=0) r.fail(p+".noiseX","positive number");
@@ -213,7 +222,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         if (w.parameters.haze.cullSigma<=0) r.fail(p+".cullSigma","positive number");
     }
     {
-        const QString p="$.profiles.osaka-sky-v1";
+        const QString p="$.profiles['osaka-sky-v1']";
         const auto data=r.object(profiles["osaka-sky-v1"],p,{"energyBase","energyBass","energySurge","timeOffset"});
         w.parameters.sky.energyBase=r.number(data["energyBase"],p+".energyBase");
         w.parameters.sky.energyBass=r.number(data["energyBass"],p+".energyBass");
@@ -221,7 +230,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         w.parameters.sky.timeOffset=r.number(data["timeOffset"],p+".timeOffset");
     }
     {
-        const QString p="$.profiles.osaka-pane-v1";
+        const QString p="$.profiles['osaka-pane-v1']";
         const auto data=r.object(profiles["osaka-pane-v1"],p,{"alwaysOnCutoff","base","hush","band","lift","kick","near","upper","right"});
         w.parameters.windows.alwaysOnCutoff=r.number(data["alwaysOnCutoff"],p+".alwaysOnCutoff");
         w.parameters.windows.base=r.number(data["base"],p+".base");
@@ -264,7 +273,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         }
     }
     {
-        const QString p="$.profiles.osaka-neon-v1";
+        const QString p="$.profiles['osaka-neon-v1']";
         const auto data=r.object(profiles["osaka-neon-v1"],p,{"stutterRate","stutterProbability","stutterLevel","boardX","boardY","boardW","boardH","boardR","boardG","boardB","tubeR","tubeG","tubeB","tubeMix","magHex","outlineAlpha","outlineX","outlineY","outlineW","outlineH","outlineWidth","glyphCount","glyphX","glyphY","glyphStep","glyphSize","glowX","glowY","glowRadius","glowBase","glowKick","levelBase","levelSine","levelRate","levelKick","overGain","addGain","addBlur"});
         w.parameters.signs.stutterRate=r.number(data["stutterRate"],p+".stutterRate");
         w.parameters.signs.stutterProbability=r.number(data["stutterProbability"],p+".stutterProbability");

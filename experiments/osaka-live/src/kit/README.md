@@ -4,14 +4,12 @@ A piece is a drawing operation. It writes into the caller's Canvas or runs an
 existing GPU pass at the caller's insertion point. A piece can share body and
 light canvases with other pieces. It does not need its own texture.
 
-A profile is a named version of a piece's behavior and defaults. This first
-step uses compiled C++ types named `Osaka...V1`, with `osaka-*-v1` identifiers.
-Their methods hold Osaka's existing constants and arithmetic. `DiscLook` and
-`MountainLook` also expose the existing appearance parameters. The primitive
-wrappers keep their old signatures and default arguments. These profiles are
-fixed Osaka defaults, not a scene loader or a general SVG importer. A later
-scene.json and SVG layer can instantiate these pieces after its own fidelity
-checks.
+A profile is a named version of a piece's behavior and defaults, with stable
+`osaka-*-v1` identifiers and typed `Osaka...V1` implementations. The world folder
+now supplies ordered instances and several numeric profile settings; library
+methods preserve the existing arithmetic and drawing behavior. `DiscLook` and
+`MountainLook` expose appearance parameters, and primitive wrappers keep their
+existing signatures. SVG art import comes in a later round.
 
 ## Where Osaka uses each piece
 
@@ -112,29 +110,36 @@ uses its typed profile; the world render slots label that profile explicitly.
 | `town.h` | `osaka-near-house-v1`, `osaka-right-house-2-v1`, `osaka-right-house-3-v1`, `osaka-near-house-deck-v1`, `osaka-street-surface-v1`, `osaka-street-railing-v1`, `osaka-yatai-frame-v1`, `osaka-near-house-mask-v1`, `osaka-shamisen-mask-v1` |
 | `wisteria.h` | `osaka-wisteria-v1` |
 
-## Remaining to externalize in step 2
+## World folders, step 2 round A
 
-- Ordered slot arrays, gates, event references, placement and finish parameters
-  are compiled data today. Add a validated loader and stable instance IDs.
-- Static paths, glyph outlines, masks, palettes, layout tables and procedural
-  generator defaults still live in C++ profiles. Export supported art and
-  typed numeric parameters without changing geometry or RNG order.
-- Actor style, absolute targets, props, action knots and participant placement
-  remain compiled defaults. Literal window clips already have a data shape;
-  combined sine/backOut tracks, dynamic surge-relative windows, gait speed
-  derivatives, the cook's reach clamp and score/fallback strumming require
-  typed track/constraint schemas before they can be serialized. No generic
-  expression or executable world extension has been added.
-- Shared pass recipes, uniform bindings, masked layers, retained insertion,
-  capture regions and existing Journey ports need a typed declarative contract.
-  The top-level reflection capture is already an explicit ordered slot.
-- Noise fields, seeded generators, light waves, particles and shader algorithms
-  remain library behavior code because they generate/evaluate data per frame.
-  Their bounded settings can be externalized; the algorithms stay in the kit.
+Osaka loads `worlds/osaka-jade/scene.json` once at startup through Qt JSON.
+`world-loader.cpp` builds an owned immutable description, rejects unknown
+fields and profiles, duplicate IDs, missing dependencies and non-finite values,
+and reports the file, JSON path and expectation. The compiled description is
+only in `tests/osaka-oracle.cpp`. See `worlds/README.md` for discovery and schema.
 
-No file format, SVG importer, art normalization, new renderer, event detector
-or camera cache redesign is part of step 1. Externalization needs its own
-fidelity proof, especially for subdivision, precision and cache identity.
+Now data: ordered stages/slots, gates, event refs, placements and finish; disc
+colors, look defaults and ring response/timing coefficients; mountain colors,
+sampling and curve coefficients; haze noise/cull settings; sky response gains
+and time offset; pane response gains and near/upper/right pane layout tables;
+neon board/tube/glow geometry, colors, glyph count/spacing, stutter, response and
+pass gains. `parameters.h` defines their typed versioned shapes. Loader fields
+are all required; compiled defaults support existing library callers and the
+test oracle, rather than a runtime fallback for missing world data.
+
+Still behavior: disc ring selection, shader/noise equations and uniforms;
+mountain curve evaluator and snow-cap paths; haze/sky shaders and pass bounds;
+pane recurrence and shared light-wave evaluator; room/primitive drawing and
+actor clips; sign glyph paths and parser. These require the later supported
+art subset or typed track/constraint/pass contracts. Other library profiles
+(actors, animals, events, groups, network, cloth, lanterns, vegetation, city,
+ridges and downhill generators) remain compiled. No SVG importer, shorthand,
+generic expressions, new renderer or event detector is added in this round.
+
+Numeric substitutions preserve math order, original decimal doubles, RNG
+keys, cache keys and the points where values narrow to floats. Art paths and
+shaders retain their bytes. A validated description stays const for its entire
+rendering lifetime; there is no per-frame JSON parsing or profile lookup.
 
 ## Verification contract
 
