@@ -63,14 +63,14 @@ void SeaCreatureV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
     auto water=[&](double x){return printWater(c,p,x);};
     std::vector<V2> coil;
     for(int i=0;i<=96;++i){const double f=i/96.,x=p.x+(f-.5)*p.width+travel;
-        const double y=water(x)+18-(p.height*(.75+.35*bass)*emerge)*std::pow(.5+.5*std::sin(f*Tau*3-u*3),1.25);
+        const double y=water(x)+18*p.scale-(p.height*(.75+.35*bass)*emerge)*std::pow(.5+.5*std::sin(f*Tau*3-u*3),1.25);
         if(y>water(x)-1){if(coil.size()>1){cv.polyline(coil,18*p.scale,p.ink);cv.polyline(coil,13*p.scale,p.color);cv.polyline(coil,3*p.scale,p.accent,.6);}coil.clear();}else coil.push_back({x,y});
         if(i%3==0 && y<water(x)-5){cv.line(x-3,y-4,x+3,y+3,1.3*p.scale,p.accent,.65);}}
     if(coil.size()>1){cv.polyline(coil,18*p.scale,p.ink);cv.polyline(coil,13*p.scale,p.color);cv.polyline(coil,3*p.scale,p.accent,.6);}
-    const double x=p.x+p.width*.42+travel,y=water(x)+15-p.height*emerge;
+    const double x=p.x+p.width*.42+travel,y=water(x)+15*p.scale-p.height*emerge;
     if(y<water(x)-5){const double alpha=sstep(5,20,water(x)-y);
         for(int pass=0;pass<2;++pass){cv.color(pass?p.color:p.ink,alpha);
-            cv.moveTo(x-35,water(x-35)-1);cv.curveTo(x-45,y+50,x-30,y+20,x-12,y+5);cv.stroke((pass?13:18)*p.scale);}
+            cv.moveTo(x-35*p.scale,water(x-35*p.scale)-1);cv.curveTo(x-45*p.scale,y+50*p.scale,x-30*p.scale,y+20*p.scale,x-12*p.scale,y+5*p.scale);cv.stroke((pass?13:18)*p.scale);}
         cv.save();cv.translate(x,y);cv.scale(p.scale,p.scale);
         cv.color(p.ink,alpha);cv.moveTo(-20,8);cv.curveTo(-22,-20,-2,-24,10,-10);cv.lineTo(26,-4);cv.curveTo(25,8,10,12,3,14);cv.lineTo(-20,8);cv.closePath();cv.fill();
         cv.color(p.color,alpha);cv.moveTo(-17,6);cv.curveTo(-18,-15,-1,-19,8,-8);cv.lineTo(23,-2);cv.lineTo(6,10);cv.closePath();cv.fill();
@@ -78,7 +78,7 @@ void SeaCreatureV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
         for(int i=0;i<2;++i){double x=-12+i*12;cv.poly({{x,-11},{x-5,-29},{x+2,-22},{x+5,-32}},2,p.accent,alpha);}
         cv.color(p.accent,alpha);cv.moveTo(19,4);cv.curveTo(44,1,35,-18,51,-13);cv.stroke(1.4);
         cv.moveTo(17,8);cv.curveTo(37,22,46,11,49,16);cv.stroke(1.1);cv.restore();}
-    for(int i=0;i<8;++i){double x=p.x+(i/7.-.5)*p.width+travel;cv.color(p.accent,.36*emerge);cv.ellipse(x,water(x)+3,12+8*emerge,2);cv.stroke(1);}
+    for(int i=0;i<8;++i){double x=p.x+(i/7.-.5)*p.width+travel;cv.color(p.accent,.36*emerge);cv.ellipse(x,water(x)+3,(12+8*emerge)*p.scale,2*p.scale);cv.stroke(p.scale);}
 }
 }
 namespace Journey::Kit {

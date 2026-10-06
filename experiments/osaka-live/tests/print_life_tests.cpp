@@ -27,6 +27,10 @@ int main(int argc,char**argv){QCoreApplication app(argc,argv);try{
  }else if(mode=="dragon"){
  c.t=240;schedule.print.dragon.start=234;schedule.print.dragon.duration=18;p.x=1515;p.width=230;p.height=95;p.scale=.85;
  auto rgb=capture();need(rgb==capture(),"dragon nondeterminism");for(auto&v:score.bandBody)v.fill(.8);need(rgb!=capture(),"dragon ignores bass");
+ p.x=1240;p.width=110;p.height=38;p.scale=.32;p.row=.65;
+ Canvas distant;paint(distant);auto bounds=distant.bounds();
+ need(bounds[0]>1150 && bounds[2]<1340 && bounds[1]>565 && bounds[3]<695,"distant creature overlaps boat lanes");
+ auto small=capture();need(small==capture() && small!=rgb,"distant creature not distinct/deterministic");
  c.t=260;Canvas cv;paint(cv);need(cv.empty(),"dragon fails to submerge");
  }else if(mode=="fish"){
  c.t=14;schedule.print.events[int(PrintMoment::Fish)].start=13;schedule.print.events[int(PrintMoment::Fish)].direction=1;
