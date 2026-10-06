@@ -6,7 +6,7 @@ namespace Journey::Kit {
 struct PrintLifeParametersV1 {
     double x=0,y=0,width=1920,height=500,scale=1,gain=1,speed=1,row=6;
     int count=7,seed=71,band=0,domain=0;
-    bool surgeEnabled=false,nearEvents=false,followsBoat=false;
+    bool surgeEnabled=false,nearEvents=false,followsBoat=false,resident=false;
     std::string boatInstance;
     BoatOnWaterParametersV1 boat;
     std::string waterInstance;

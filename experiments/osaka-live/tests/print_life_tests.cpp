@@ -17,6 +17,10 @@ int main(int argc,char**argv){QCoreApplication app(argc,argv);try{
  auto quiet=capture();need(quiet==capture(),"plume nondeterministic");for(auto&v:score.bandBody)v.fill(.8);c.a.bands.fill(.8);
  need(quiet!=capture(),"plume ignores bass");auto loud=capture();schedule.print.surgeStart=12;need(loud!=capture(),"eruption missing");
  score.bassHits={{13.9,1,1}};need(loud!=capture(),"vent beat missing");
+ // A strong bass hit sends a flat puff up the plume.
+ for(auto&v:score.bandBody)v.fill(0);c.a={};schedule.print.surgeStart=-1000;score.bassHits={};
+ Canvas plain;SmokePlumeV1::paint(plain,c,p);score.bassHits={{12.5,.9,7}};Canvas puffed;SmokePlumeV1::paint(puffed,c,p);
+ need(puffed.vertices().size()>plain.vertices().size()+20 && puffed.bounds()[1]<plain.bounds()[1]+1,"bass hit has no puff");
  }else if(mode=="birds"){
  schedule.print.flock.start=10;schedule.print.flock.duration=12;schedule.print.flock.count=7;schedule.print.flock.height=.5;
  p.x=0;p.y=300;p.width=1920;p.height=180;
@@ -28,6 +32,17 @@ int main(int argc,char**argv){QCoreApplication app(argc,argv);try{
  score.onsets={{13.9,1,1}};need(BirdFlockV1::poses(c,p)[0].flap!=original.flap,"onset ignores flap");need(rgb!=capture(),"flap not rendered");
  schedule.print.surgeStart=12;need(BirdFlockV1::poses(c,p)[0].y<original.y,"surge ignores scatter");
  schedule.print.surgeStart=-1000;c.t=25;need(BirdFlockV1::poses(c,p).empty(),"birds fail to exit");
+ // The resident flock stays in the sky band most of the time, clear of the
+ // sun and Fuji, scatters upward on a strong kick and regroups.
+ p.resident=true;p.count=9;p.x=0;p.y=160;p.width=1920;p.height=190;p.nearEvents=true;score={};
+ int present=0,samples=0;
+ for(double t=0;t<3600;t+=7){c.t=t;int on=0;for(const auto&b:BirdFlockV1::poses(c,p)){need(b.y<390,"resident bird crosses sun or Fuji");if(b.x>0 && b.x<1920)++on;}
+  ++samples;if(on>=5)++present;}
+ need(present>.8*samples,"resident flock leaves the frame");
+ c.t=30;schedule.print.flock.start=-1000;const auto calm=BirdFlockV1::poses(c,p);score.bassHits={{29.7,.95,9}};const auto thrown=BirdFlockV1::poses(c,p);
+ double rise=0;for(std::size_t i=0;i<calm.size();++i)rise+=calm[i].y-thrown[i].y;need(rise>9*30,"kick does not scatter the flock upward");
+ score.bassHits={{26,.95,9}};double back=0;const auto regrouped=BirdFlockV1::poses(c,p);
+ for(std::size_t i=0;i<calm.size();++i)back+=std::abs(calm[i].y-regrouped[i].y);need(back<9*2,"flock does not regroup");
  }else if(mode=="dragon"){
  c.t=240;schedule.print.dragon.start=234;schedule.print.dragon.duration=18;p.x=1515;p.width=230;p.height=95;p.scale=.85;
  auto rgb=capture();need(rgb==capture(),"dragon nondeterminism");for(auto&v:score.bandBody)v.fill(.8);need(rgb!=capture(),"dragon ignores bass");

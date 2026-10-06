@@ -214,6 +214,7 @@
           "profile": "boat-on-water-v1",
           "gate": "Always",
           "params": {
+            "pitchGain": 1.5,
             "waterInstance": "swells",
             "x": 1140,
             "row": 5.6,
@@ -308,6 +309,7 @@
           "profile": "boat-on-water-v1",
           "gate": "Always",
           "params": {
+            "pitchGain": 1.6,
             "waterInstance": "swells",
             "x": 660,
             "row": 7.6,
@@ -340,12 +342,13 @@
           "profile": "bird-flock-v1",
           "gate": "Always",
           "params": {
+            "resident": true,
             "x": 0,
             "y": 160,
             "width": 1920,
             "height": 190,
             "scale": 1.35,
-            "count": 5,
+            "count": 9,
             "band": 5,
             "surgeEnabled": true,
             "color": "#223249",

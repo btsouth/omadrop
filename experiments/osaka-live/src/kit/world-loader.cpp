@@ -533,9 +533,11 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 params=value;
             } else if (piece->op==OsakaOp::SeaCreature || piece->op==OsakaOp::LeapingFish || piece->op==OsakaOp::PrintMoments || piece->op==OsakaOp::SmokePlume || piece->op==OsakaOp::BirdFlock) {
                 const auto data=r.object(slot["params"],paramsPath,{},
-                    {"x","y","width","height","scale","gain","speed","row","count","seed","band","domain","surgeEnabled","nearEvents","boatInstance","waterInstance","color","accent","ink"});
+                    {"x","y","width","height","scale","gain","speed","row","count","seed","band","domain","surgeEnabled","nearEvents","resident","boatInstance","waterInstance","color","accent","ink"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();auto& life=value->life;
                 if(data.contains("nearEvents"))life.nearEvents=r.boolean(data["nearEvents"],paramsPath+".nearEvents");
+                if(data.contains("resident")){if(piece->op!=OsakaOp::BirdFlock)r.fail(paramsPath+".resident","BirdFlock only");
+                    life.resident=r.boolean(data["resident"],paramsPath+".resident");}
                 if(data.contains("boatInstance"))life.boatInstance=r.string(data["boatInstance"],paramsPath+".boatInstance").toStdString();
                 auto scalar=[&](const char* key,double& target,double lo,double hi){if(data.contains(key)){target=r.number(data[key],paramsPath+"."+key);if(target<lo || target>hi)r.fail(paramsPath+"."+key,"bounded print piece parameter");}};
                 scalar("x",life.x,-1920,3840);scalar("y",life.y,0,1200);scalar("width",life.width,1,3840);scalar("height",life.height,1,1200);
@@ -553,7 +555,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 if(!slot.contains("params"))r.fail(paramsPath,"required field");
                 const auto data=r.object(slot["params"],paramsPath,{"waterInstance"},
                     {"x","row","length","scale","driftX","driftRows","driftSpeed","crewCount","oarCount","seed","band",
-                     "rowingTempo","tempoGain","splashGain","kickGain","hull","trim","ink","foam","surgeEnabled","waveInstance","gullVisits"});
+                     "rowingTempo","tempoGain","splashGain","kickGain","pitchGain","hull","trim","ink","foam","surgeEnabled","waveInstance","gullVisits"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();auto& boat=value->boat;
                 if(data.contains("gullVisits"))boat.gullVisits=r.boolean(data["gullVisits"],paramsPath+".gullVisits");
                 if(data.contains("surgeEnabled"))boat.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
@@ -567,6 +569,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 scalar("scale",boat.scale,.15,1.5);scalar("driftX",boat.driftX,0,500);scalar("driftRows",boat.driftRows,0,2);
                 scalar("driftSpeed",boat.driftSpeed,0,.05);scalar("rowingTempo",boat.rowingTempo,.1,.6);
                 scalar("tempoGain",boat.tempoGain,0,.5);scalar("splashGain",boat.splashGain,0,.5);scalar("kickGain",boat.kickGain,0,.8);
+                scalar("pitchGain",boat.pitchGain,1,2.5);
                 auto integer=[&](const char* name,int& target,int lo,int hi){if(data.contains(name))target=r.integer(data[name],paramsPath+"."+name,lo,hi);};
                 integer("crewCount",boat.crewCount,0,10);integer("oarCount",boat.oarCount,0,10);
                 integer("seed",boat.seed,0,1000000);integer("band",boat.band,0,5);
