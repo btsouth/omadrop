@@ -1015,9 +1015,25 @@
         },
         "elements": {
           "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "minLength": 1
+          "additionalProperties": false,
+          "required": [
+            "near-house-shell",
+            "right-house-2-shell",
+            "right-house-3-shell"
+          ],
+          "properties": {
+            "near-house-shell": {
+              "type": "string",
+              "minLength": 1
+            },
+            "right-house-2-shell": {
+              "type": "string",
+              "minLength": 1
+            },
+            "right-house-3-shell": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         }
       }

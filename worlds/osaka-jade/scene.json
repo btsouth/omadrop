@@ -522,7 +522,9 @@
   "art": {
     "file": "art.svg",
     "elements": {
-      "near-house-shell": "near-house-shell"
+      "near-house-shell": "near-house-shell",
+      "right-house-2-shell": "right-house-2-shell",
+      "right-house-3-shell": "right-house-3-shell"
     }
   }
 }

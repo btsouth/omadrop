@@ -137,7 +137,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     if(!imported)r.fail("$.art.file",imported.diagnostic);
     w.art=imported.art;
     if(!art["elements"].isObject())r.fail("$.art.elements","element binding object");
-    const auto bindings=r.object(art["elements"],"$.art.elements",{"near-house-shell"});
+    const auto bindings=r.object(art["elements"],"$.art.elements",{"near-house-shell","right-house-2-shell","right-house-3-shell"});
     for(auto it=bindings.begin();it!=bindings.end();++it) {
         const auto id=r.string(it.value(),fieldPath("$.art.elements",it.key()));
         bool found=false;for(const auto& e:w.art->elements())if(e.id==id)found=bool(e.replay)&&(e.tag=="g"||e.tag=="path"||e.tag=="rect"||e.tag=="circle");

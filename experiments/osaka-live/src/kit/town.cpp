@@ -19,13 +19,13 @@ void OsakaNearHouseV1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double x0, 
 }
 void OsakaRightHouse2V1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double x0, Col wall, Col rf, Col rf2) {
     c.retain(cv, "right-house-2", [&](Canvas& cv) {
-        cv.fillRect(x0, 690, 252, 250, mix(wall, Col(0.03f, 0.13f, 0.10f), 0.5));
+        drawWorldArt(cv, "right-house-2-shell", x0 - 1262);
         roof(cv, x0, x0 + 250, 690, 628, 22, mix(rf, Col(0.03f, 0.14f, 0.105f), 0.5), mix(rf2, Col(0.10f, 0.38f, 0.28f), 0.4), RIM, 7);
     }, {s.cam});
 }
 void OsakaRightHouse3V1::draw(Ctx& c, const OsakaState& s, Canvas& cv, double x0, Col wall, Col rf, Col rf2) {
     c.retain(cv, "right-house-3", [&](Canvas& cv) {
-        cv.fillRect(x0, 600, 470, 340, wall);
+        drawWorldArt(cv, "right-house-3-shell", x0 - 1512);
         roof(cv, x0, x0 + 470, 600, 512, 34, rf, rf2, RIM, 9);
         cv.color(rf);
         cv.moveTo(x0 - 44, 770); cv.lineTo(x0 + 480, 770); cv.lineTo(x0 + 480, 786); cv.lineTo(x0 - 52, 786); cv.closePath();
