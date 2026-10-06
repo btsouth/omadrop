@@ -11,8 +11,8 @@ struct MomentScheduleV1 {
     explicit MomentScheduleV1(int seed=1):seed(seed) { dragonNext=varied(91,0,180,300); }
     int seed=1;double next=4,last=0,heldBass=0,surgeStart=-1000,surgeReady=10,dragonNext=240;
     unsigned serial=0,surgeCycle=0,dragonCycle=0;std::uint64_t beatSerial=0;
-    PrintEventV1 dragon,flock,foregroundSwell;
-    double swellNext=12;
+    PrintEventV1 dragon,flock,foregroundSwell,gull;
+    double swellNext=12,gullNext=8,gullTakeoff=-1000;
     double birdNext=6;
     double surgeFlow=0;
     WaveSetV1 wave,previousWave;
@@ -46,10 +46,16 @@ struct MomentScheduleV1 {
             const int selected=(offset+stride*index)%9;
             auto&v=events[selected];v.start=t;++v.cycle;
             v.speed=v.cycle==1?1:varied(30+int(index),serial,.75,1.3);
-            v.duration=8/v.speed;v.direction=varied(40,serial,0,1)<.5?-1:1;
+            v.duration=(selected==int(PrintMoment::Squall)?12:selected==int(PrintMoment::Cranes)?11:8)/v.speed;v.direction=varied(40,serial,0,1)<.5?-1:1;
             v.height=varied(41,serial,0,1);v.count=3+int(varied(42,serial,0,6));
             if(selected==int(PrintMoment::Birds) && t-flock.start>=flock.duration)flock=v;
             next=t+varied(10,++serial,5,10);
+        }
+        if(t>=gullNext){gull.start=t;gull.duration=26;++gull.cycle;gullTakeoff=-1000;
+            gullNext=t+varied(99,gull.cycle,36,52);}
+        if(gullTakeoff<gull.start && t>=gull.start+9){
+            if(beat && t-beat->t<.1 && beat->strength>=.6 && a.bassLevel>.25)gullTakeoff=t;
+            else if(t>=gull.start+22)gullTakeoff=t;
         }
         if(t>=swellNext){foregroundSwell.start=t;foregroundSwell.duration=11;foregroundSwell.cycle++;
             foregroundSwell.direction=varied(97,foregroundSwell.cycle,0,1)<.5?-1:1;

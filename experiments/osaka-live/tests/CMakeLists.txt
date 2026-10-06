@@ -127,7 +127,7 @@ add_executable(print-schedule-tests print_schedule_tests.cpp ../src/score.cpp)
 target_include_directories(print-schedule-tests PRIVATE ../src)
 add_test(NAME print-schedule-bounds-and-sustained-surge COMMAND print-schedule-tests)
 
-add_executable(print-life-tests print_life_tests.cpp ../src/kit/print-life.cpp ../src/kit/swell-lines.cpp
+add_executable(print-life-tests print_life_tests.cpp ../src/kit/print-life.cpp ../src/kit/swell-lines.cpp ../src/kit/boat-on-water.cpp ../src/kit/great-wave.cpp ../src/rig.cpp
     ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp ../src/schedule.cpp)
 target_include_directories(print-life-tests PRIVATE ../src)
 target_link_libraries(print-life-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
@@ -147,3 +147,5 @@ target_link_libraries(boat-wave-clearance-tests PRIVATE Qt6::Gui Qt6::OpenGL)
 add_test(NAME boat-hull-below-crest-and-outside-curl COMMAND boat-wave-clearance-tests)
 
 add_test(NAME foreground-swell-bounded-and-music COMMAND print-life-tests swell)
+
+add_test(NAME boat-gull-landing-and-hit-takeoff COMMAND boat-wave-clearance-tests --gull)

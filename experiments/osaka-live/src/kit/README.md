@@ -303,3 +303,16 @@ loops a short fixture only when it must reach an actual rare creature visit.
 That rare window also receives the flashing check. No event is forced for a
 world check. Separate CTests cover exact RGB, music response, exits, bounds and
 the sustained gate, including its reset after a quiet passage.
+
+The print profiles also expose optional `cloudBands` and `energyGrade` sky
+parameters, `printBreathing` on the disc profile, and `parallaxDepth` (0..1.2)
+on a render slot. The latter scales a slow viewer bob of at most 2.85 design
+pixels. Keep a boat and its supporting surface at the same depth. Osaka uses
+zero for all these optional controls.
+
+`PrintMoments` domain 3 draws a recurring foreground swell. `nearEvents` on
+print life pieces enlarges midground flight and rain. `gullVisits` on a boat
+adds a circling approach, bow perch and loud-hit departure with a bounded
+quiet fallback. `boatInstance` on `LeapingFish` resolves a named boat and uses
+its moving position and surface for nearby leaps. Boat wave references exclude
+the lip and overhang from navigable water, with an eased outward escape.

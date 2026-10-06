@@ -3,7 +3,7 @@
 #include "great-wave.h"
 namespace Journey::Kit {
 struct BoatOnWaterParametersV1 {
-    bool surgeEnabled=false;
+    bool surgeEnabled=false,gullVisits=false;
     std::string waterInstance,waveInstance;
     GreatWaveParametersV1 wave;
     bool ridesWave=false;
@@ -17,8 +17,10 @@ struct BoatOnWaterParametersV1 {
 struct BoatOnWaterPoseV1 {
     V2 at; double row=0, tilt=0, waterline=0, stroke=0, splash=0, spray=0, brace=0;
 };
+struct BoatGullPoseV1 {V2 at;double flap=0,alpha=0;bool landed=false;};
 struct BoatOnWaterV1 {
     static constexpr const char* name="boat-on-water-v1";
+    static BoatGullPoseV1 gullPose(const Ctx&,const BoatOnWaterParametersV1&);
     static V2 keel(const BoatOnWaterParametersV1&,double u);
     static double surfaceY(const Ctx&,const BoatOnWaterParametersV1&,double x,double row);
     static BoatOnWaterPoseV1 pose(const Ctx&,const BoatOnWaterParametersV1&);

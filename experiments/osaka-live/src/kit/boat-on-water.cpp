@@ -72,6 +72,23 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
     s.spray=std::clamp(p.kickGain*c.kick(6)+(p.surgeEnabled && c.schedule?.45*c.schedule->print.surge(c.t):0),0.,.8);
     return s;
 }
+BoatGullPoseV1 BoatOnWaterV1::gullPose(const Ctx& c,const BoatOnWaterParametersV1&p){
+    BoatGullPoseV1 out;if(!p.gullVisits || !c.schedule)return out;
+    const auto& clock=c.schedule->print;const double age=c.t-clock.gull.start;
+    if(age<0 || age>clock.gull.duration)return out;
+    auto bow=[&](const Ctx& at){const auto b=pose(at,p);const V2 q(p.length*p.scale*.48,-8*p.scale);
+        return b.at+V2(q.x*std::cos(b.tilt)-q.y*std::sin(b.tilt),q.x*std::sin(b.tilt)+q.y*std::cos(b.tilt));};
+    out.at=bow(c);out.alpha=sstep(0,1,age);out.flap=std::sin(c.t*5.2);
+    if(clock.gullTakeoff>=clock.gull.start && c.t>=clock.gullTakeoff){
+        const double fly=c.t-clock.gullTakeoff;Ctx born=c;born.t=clock.gullTakeoff;
+        out.at=bow(born)+V2(95*fly,-75*fly-13*fly*fly);
+        out.alpha=1-sstep(3,4,fly);out.flap=std::sin(fly*8);
+    }else if(age<8){
+        const double approach=1-sstep(4,8,age),angle=age*1.12;
+        out.at=out.at+V2(140*approach*std::cos(angle),-24*approach-85*approach*(.65+.35*std::sin(angle)));
+    }else{out.landed=true;out.flap=0;}
+    return out;
+}
 QPainterPath BoatOnWaterV1::responsePath(const BoatOnWaterPoseV1& s,const BoatOnWaterParametersV1& p) {
     QPainterPath area;const double ln=p.length*p.scale,sc=p.scale;
     area.addRect(QRectF(-ln/2-35*sc,-60*sc,ln+100*sc,145*sc));
@@ -142,6 +159,20 @@ void BoatOnWaterV1::paint(Canvas& cv,const Ctx& c,const BoatOnWaterParametersV1&
         cv.color(p.foam,s.splash*(1-ring)*sstep(.05,.35,dip));
         cv.ellipse(water.x,support(water.x),(7+24*ring)*sc,(1.5+4*ring)*sc);cv.stroke(1.1*sc);
     }
+    const auto gull=gullPose(c,p);
+    if(gull.alpha>0){cv.save();cv.translate(gull.at.x,gull.at.y);cv.scale(sc*1.8,sc*1.8);
+        if(gull.landed){
+            cv.line(-3,0,-2,-4,.8,p.ink,gull.alpha);cv.line(1,0,2,-4,.8,p.ink,gull.alpha);
+            cv.color(p.foam,gull.alpha);cv.ellipse(-1,-7,6,3.6);cv.fill();
+            cv.color(p.ink,.8*gull.alpha);cv.moveTo(-6,-8);cv.curveTo(-3,-10,0,-8,2,-6);cv.stroke(1);
+            cv.disc(4,-11,2.7,p.foam,gull.alpha);cv.disc(5,-11, .55,p.ink,gull.alpha);
+            cv.tri({6,-11},{10,-10},{6,-9},p.trim,gull.alpha);
+        }else{
+            cv.color(p.foam,gull.alpha);cv.moveTo(-1,-4);cv.curveTo(-5,-7,-11,-6-8*gull.flap,-17,-4-10*gull.flap);
+            cv.curveTo(-10,-1-3*gull.flap,-4,0,0,-2);cv.curveTo(5,0,11,-1-3*gull.flap,17,-4-10*gull.flap);
+            cv.curveTo(11,-6-8*gull.flap,5,-7,1,-4);cv.closePath();cv.fill();
+            cv.line(-4,-3,4,-3,2,p.ink,.6*gull.alpha);cv.disc(5,-4,2,p.foam,gull.alpha);
+        }cv.restore();}
     const double bow=s.at.x+ln*.48*ca;
     for(int j=0;j<12;++j){const double id=hash2(j,p.seed+61),x=bow+(3+j*3)*sc;
         const double y=support(x)-(3+38*id)*sc*(.4+2*s.spray);

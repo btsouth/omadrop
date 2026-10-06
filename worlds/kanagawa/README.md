@@ -14,10 +14,18 @@ beat-pulsed vent.
 
 The launch seed varies gull passes and a schedule of visible moments every five
 to ten seconds: leaping fish, cranes, a fishing boat, a lantern boat, water gusts,
-a horizon squall, a snow glint and a shooting star. A friendly Ryujin breaches
-between the boats after three to five minutes, then returns every four to six
+a passing squall, a snow glint and a shooting star. A small friendly Ryujin breaches
+beside Fuji after three to five minutes, then returns every four to six
 minutes. Music can advance a pending visit by up to four seconds. Each visit
 submerges completely; there is no disaster or impact state.
+
+Two depths of cloud bands drift across the print. Sustained song energy warms
+its sky grade and bass breathes through the sun halo. A near swell occasionally
+crests across the bottom, with a slow viewer bob of at most a few pixels.
+The two rowing boats escape outward while a set builds, keeping their hulls
+below the crest and outside the curl. A gull circles the near boat, lands on
+its bow, and takes off on a strong hit. Birds pass through the middle distance,
+fish leap beside the moving near boat, and alternate squalls bring rain closer.
 
 Placement, palette, surface references and piece parameters live in scene.json.
 The new ink pieces use generic profiles in the library: bird-flock-v1,

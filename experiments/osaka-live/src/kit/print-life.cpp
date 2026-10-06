@@ -1,6 +1,7 @@
 #include "print-life.h"
 namespace Journey::Kit { namespace {
 double printWater(const Ctx&c,const PrintLifeParametersV1&p,double x) {
+ if(p.followsBoat)return BoatOnWaterV1::surfaceY(c,p.boat,x,BoatOnWaterV1::pose(c,p.boat).row);
  const double row=std::clamp(p.row,0.,double(p.swell.rows-1));const int lo=std::min(p.swell.rows-2,int(row));
  return lerp(SwellLinesV1::field(c,lo,p.swell).y(x),SwellLinesV1::field(c,lo+1,p.swell).y(x),row-lo);
 }
@@ -45,7 +46,7 @@ std::vector<PrintBirdPoseV1> BirdFlockV1::poses(const Ctx&c,const PrintLifeParam
     const double alpha=sstep(0,.07,u)*(1-sstep(.86,1,u));
     for(int i=0;i<std::min(p.count,event.count);++i){const double id=hash2(i,p.seed+event.cycle),direction=scattering?(i%2?1:-1):event.direction;
         const double x=scattering?p.x+p.width*.36+direction*age*(90+35*id):p.x+(direction>0?u:1-u)*(p.width+180)-90-i*28*direction;
-        const double y=p.y+p.height*event.height+18*std::sin(c.t*.6+i*.8)-i*7-105*scatter*(.5+id);
+        const double y=p.y+p.height*event.height+(p.nearEvents?45:18)*std::sin(c.t*.6+i*.8)-i*7-105*scatter*(.5+id);
         const double phase=c.t*(4+id)+(c.score?c.score->bandIntegrals[p.band]*3:0)+i*1.4;
         const double flap=std::sin(phase)*(1+.65*c.hit(7)+.7*scatter);
         out.push_back({x,y,p.scale*(.65+.35*id),flap,direction,alpha});}
@@ -86,7 +87,8 @@ void LeapingFishV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
     if(!c.schedule)return;const auto&v=c.schedule->print.events[int(PrintMoment::Fish)];
     const double age=(c.t-v.start)*v.speed*p.speed;
     for(int i=0;i<std::min(p.count,5);++i){const double u=(age-i*.85)/2.2;if(u<=0 || u>=1)continue;
-        const double x=p.x+p.width*hash2(i,p.seed+v.cycle)+(u-.5)*110*v.direction;
+        const double origin=p.followsBoat?BoatOnWaterV1::pose(c,p.boat).at.x+p.boat.length*p.boat.scale*.8:p.x;
+        const double x=origin+p.width*hash2(i,p.seed+v.cycle)+(u-.5)*110*v.direction;
         const double water=printWater(c,p,x);
         const double y=water-p.height*std::sin(Pi*u)*(1+.5*c.band(p.band));
         const double alpha=sstep(0,.05,u)*(1-sstep(.94,1,u));
@@ -104,12 +106,20 @@ void PrintMomentsV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
     if(p.domain==0){
         auto [u,alpha]=active(PrintMoment::Cranes);const auto&v=clock.events[int(PrintMoment::Cranes)];
         if(alpha>0)for(int i=0;i<2;++i){double x=p.x+(v.direction>0?u:1-u)*(p.width+160)-80-i*65*v.direction,y=p.y+60+p.height*v.height*.45+i*23;
-            printBird(cv,{x,y,1.35*p.scale,std::sin(c.t*3.4+i*.5+(c.score?c.score->bandIntegrals[p.band]:0))*(1+.5*c.hit(6)),v.direction,alpha},p,true);}
+            printBird(cv,{x,y,(p.nearEvents?1.9:1.35)*p.scale,std::sin(c.t*3.4+i*.5+(c.score?c.score->bandIntegrals[p.band]:0))*(1+.5*c.hit(6)),v.direction,alpha},p,true);}
         auto [su,sa]=active(PrintMoment::Star);if(sa>0){const auto&v=clock.events[int(PrintMoment::Star)];double x=p.x+p.width*(.30+.35*v.height)+su*330,y=p.y-130+su*115;
             cv.line(x-90,y-32,x,y,1.8*p.scale,p.accent,.6*sa);cv.disc(x,y,2.4*p.scale,p.accent,sa);}
-        auto [qu,qa]=active(PrintMoment::Squall);if(qa>0){const auto&v=clock.events[int(PrintMoment::Squall)];double x=p.x+p.width*(v.direction>0?qu:1-qu),y=p.y+p.height-20;
-            for(int i=0;i<6;++i){cv.color(p.ink,.13*qa);cv.ellipse(x+(i-2)*40,y-i%2*7,80,8+i%3*2);cv.fill();}
-            for(int i=0;i<18;++i){double xx=x-130+i*17,yy=y+14;cv.line(xx,yy,xx-6,yy+15+8*hash2(i,p.seed),.8,p.color,.22*qa);}}
+        auto [qu,qa]=active(PrintMoment::Squall);if(qa>0){const auto&v=clock.events[int(PrintMoment::Squall)];
+            const double close=p.nearEvents && v.cycle%2?1.65:1.;
+            double x=p.x+(p.width+400)*(v.direction>0?qu:1-qu)-200,y=p.y+p.height-20-65*(close-1);
+            const double music=clamp01(3*(c.score?c.score->bandBody[1][p.band]:c.band(p.band)));
+            for(int i=0;i<6;++i){cv.color(p.ink,.17*qa);cv.ellipse(x+(i-2)*40*close,y-i%2*9,80*close,(9+i%3*3)*close);cv.fill();}
+            for(int i=0;i<(p.nearEvents?38:18);++i){
+                const double phase=c.t*(.38+.12*hash2(i,p.seed+4))+hash2(i,p.seed+5),f=phase-std::floor(phase);
+                double xx=x+(hash2(i,p.seed)-.5)*320*close-f*24,yy=y+22+f*120*close;
+                const double fade=sstep(0,.08,f)*(1-sstep(.8,1,f));
+                cv.line(xx,yy,xx-12*close,yy+(18+30*hash2(i,p.seed+1))*close,
+                    .65+music*.95,p.color,(.20+.15*music)*qa*fade);}}
         for(int i=0;i<8;++i){double y=p.y+30+i*17,x=p.x+p.width*(.5+.5*std::sin(c.t*.23+i*.53));
             cv.color(p.accent,.20*surge);cv.moveTo(x-170,y);cv.curveTo(x-70,y-12,x+70,y+9,x+180,y-4);cv.stroke(1.2*p.scale);}
     }else if(p.domain==1){

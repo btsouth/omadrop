@@ -7,6 +7,17 @@ void require(bool b,const char* text){if(!b)throw std::runtime_error(text);}
 int main(int argc,char** argv){QCoreApplication app(argc,argv);try{
  Gpu gpu;Score score;Audio audio;Schedule schedule(1);std::vector<std::unique_ptr<Canvas>> canvases;
  Ctx c{gpu,0,audio,&score,1,&canvases,&schedule};double gap=0,maxLift=0,escape=0;
+ if(argc>1 && std::string(argv[1])=="--gull"){
+  BoatOnWaterParametersV1 p;p.gullVisits=true;schedule.print.gull.start=8;schedule.print.gull.duration=26;schedule.print.gullNext=50;
+  c.t=11;const auto circling=BoatOnWaterV1::gullPose(c,p);require(circling.alpha>0 && !circling.landed,"missing circling approach");
+  c.t=17;const auto perched=BoatOnWaterV1::gullPose(c,p);require(perched.landed && perched.alpha==1,"gull does not land");
+  schedule.advance(c.t,{},score);require(BoatOnWaterV1::gullPose(c,p).landed,"quiet music ejects gull");
+  Audio loud;loud.bassLevel=.5;loud.bands.fill(.4);score.bassHits={{17,.9,999}};schedule.advance(17,loud,score);
+  require(schedule.print.gullTakeoff==17,"loud hit does not launch gull");c.t=18;
+  const auto flight=BoatOnWaterV1::gullPose(c,p);require(!flight.landed && flight.at.y<perched.at.y-60,"takeoff is not visible");
+  c.t=22;require(BoatOnWaterV1::gullPose(c,p).alpha==0,"gull fails to leave");
+  std::cout<<"PASS: circling, attached bow landing, quiet perch, loud-hit takeoff and complete departure\n";return 0;
+ }
  for(bool right:{false,true})for(int seed:{71,137,211}){
   BoatOnWaterParametersV1 p;p.ridesWave=true;p.x=right?1260:660;p.row=7.6;p.scale=.66;p.length=315;
   p.wave.baseHeight=340;p.wave.maxRise=650;p.wave.anchorRight=right;p.wave.x=right?1920:0;p.wave.seed=seed;

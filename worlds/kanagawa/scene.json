@@ -98,41 +98,6 @@
           "parallaxDepth": 0.18
         },
         {
-          "id": "gulls",
-          "piece": "BirdFlock",
-          "profile": "bird-flock-v1",
-          "gate": "Always",
-          "params": {
-            "x": 0,
-            "y": 240,
-            "width": 1920,
-            "height": 260,
-            "scale": 1,
-            "count": 9,
-            "band": 5,
-            "surgeEnabled": true,
-            "color": "#223249",
-            "accent": "#dcd7ba",
-            "ink": "#223249"
-          },
-          "parallaxDepth": 0.35
-        },
-        {
-          "id": "sky-life",
-          "piece": "PrintMoments",
-          "profile": "print-moments-v1",
-          "gate": "Always",
-          "params": {
-            "x": 0,
-            "y": 310,
-            "width": 1920,
-            "height": 280,
-            "surgeEnabled": true,
-            "band": 5
-          },
-          "parallaxDepth": 0.4
-        },
-        {
           "id": "sea",
           "piece": "WaterSurface",
           "profile": "water-surface-v1",
@@ -376,9 +341,51 @@
             "ink": "#14141c",
             "foam": "#dcd7ba",
             "surgeEnabled": true,
-            "waveInstance": "great-wave"
+            "waveInstance": "great-wave",
+            "gullVisits": true
           },
           "parallaxDepth": 0.75
+        },
+        {
+          "id": "gulls",
+          "piece": "BirdFlock",
+          "profile": "bird-flock-v1",
+          "gate": "Always",
+          "params": {
+            "x": 0,
+            "y": 410,
+            "width": 1920,
+            "height": 280,
+            "scale": 2.2,
+            "count": 7,
+            "band": 5,
+            "surgeEnabled": true,
+            "color": "#223249",
+            "accent": "#dcd7ba",
+            "ink": "#223249",
+            "nearEvents": true
+          },
+          "parallaxDepth": 0.35
+        },
+        {
+          "id": "sky-life",
+          "piece": "PrintMoments",
+          "profile": "print-moments-v1",
+          "gate": "Always",
+          "params": {
+            "x": 0,
+            "y": 390,
+            "width": 1920,
+            "height": 270,
+            "surgeEnabled": true,
+            "band": 5,
+            "scale": 1.5,
+            "nearEvents": true,
+            "color": "#7397a4",
+            "accent": "#dcd7ba",
+            "ink": "#223249"
+          },
+          "parallaxDepth": 0.4
         },
         {
           "id": "fish",
@@ -389,14 +396,15 @@
             "waterInstance": "swells",
             "x": 1000,
             "y": 880,
-            "width": 770,
-            "height": 100,
-            "scale": 0.8,
-            "count": 5,
+            "width": 185,
+            "height": 120,
+            "scale": 1.35,
+            "count": 4,
             "color": "#285579",
             "accent": "#dcd7ba",
             "ink": "#102955",
-            "row": 9.3
+            "row": 9.3,
+            "boatInstance": "near-boat"
           },
           "parallaxDepth": 0.85
         },
