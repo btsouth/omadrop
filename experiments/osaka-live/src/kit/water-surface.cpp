@@ -40,7 +40,12 @@ void WaterSurfaceV1::draw(Ctx& c,const WaterSurfaceParametersV1& p) {
         const double e=energy(c,b),lift=c.lift(b),travel=flow(c,z);
         const double clock=c.t*p.drift+travel-p.phase;
         const double waveScale=(55+115*z)*p.wavelength;
+        SwellLinesParametersV1 shared;
+        shared.region=QRectF(p.x0,p.horizon,p.x1-p.x0,p.nearY-p.horizon);
+        shared.rows=p.rows;shared.seed=p.swellSeed;shared.amplitude=p.amplitude;shared.driftSpeed=p.drift;shared.liftGain=p.liftGain;shared.bandGain=p.bandGain;shared.kickGain=p.kickGain;
+        const auto field=p.swellSeed>=0 ? SwellLinesV1::field(c,row,shared) : SwellRowV1{};
         auto top=[&](double x) {
+            if(p.swellSeed>=0)return field.y(x);
             const double a=x/waveScale-clock+z*6;
             return y+(7+83*std::pow(z,1.15))*p.amplitude*(1+.35*e)
                 *(std::sin(a)+.23*std::sin(a*2.1+.6));
@@ -49,10 +54,23 @@ void WaterSurfaceV1::draw(Ctx& c,const WaterSurfaceParametersV1& p) {
         for(double x=p.x0;x<p.x1;x+=p.sampleStep)crest.push_back({x,top(x)});
         crest.push_back({p.x1,top(p.x1)});
         cv.color(mix(p.top,p.bottom,z*.9));
-        cv.moveTo(p.x0,1140);for(V2 q:crest)cv.lineTo(q.x,q.y);cv.lineTo(p.x1,1140);cv.closePath();cv.fill();
-        cv.polyline(crest,1.2+1.5*z,p.crest,.9);
+        if(p.swellSeed>=0 && row+1<p.rows) {
+            // Nearer planes will cover everything below their own edge. Fill
+            // only the interval to that edge, avoiding twelve full-height
+            // stencil/cover passes. Max handles crossing contours; later
+            // planes still paint over the older one in the original order.
+            const auto next=SwellLinesV1::field(c,row+1,shared);
+            cv.moveTo(crest.front().x,crest.front().y);
+            for(V2 q:crest)cv.lineTo(q.x,q.y);
+            for(auto q=crest.rbegin();q!=crest.rend();++q)cv.lineTo(q->x,std::max(q->y,next.y(q->x)));
+        } else {
+            cv.moveTo(p.x0,1140);for(V2 q:crest)cv.lineTo(q.x,q.y);cv.lineTo(p.x1,1140);
+        }
+        cv.closePath();cv.fill();
+        const Col lineColor=p.swellSeed>=0 ? mix(p.crest,p.texture,std::min(.9,p.bandGain*e+p.liftGain*.5*lift)) : p.crest;
+        if(p.crestOpacity>0)cv.polyline(crest,1.2+1.5*z,lineColor,p.crestOpacity);
         const double bright=std::min(1.0,.18+p.bandGain*e+p.liftGain*lift+p.kickGain*kick);
-        for(int j=0;j<3;++j) {
+        for(int j=0;j<p.innerLines;++j) {
             std::vector<V2> water;
             for(double x=p.x0;x<p.x1;x+=p.sampleStep)water.push_back({x,top(x)+10+j*(8+14*z)});
             water.push_back({p.x1,top(p.x1)+10+j*(8+14*z)});

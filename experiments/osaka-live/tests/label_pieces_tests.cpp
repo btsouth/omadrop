@@ -401,15 +401,23 @@ void genericLandscape() {
          "params":{"stops":[{"y":0,"color":"#957fb8"},{"y":612,"color":"#e6c384"}],
                    "paperTop":"#dcd7ba","paperBottom":"#c0a36e","printGrade":0.6,"grain":0.01}},
         {"id":"lake","piece":"WaterSurface","gate":"Always","profile":"water-surface-v1",
-         "params":{"nearY":1040,"rows":7,"bandGain":1.2,"liftGain":0.7,"kickGain":0.2}}
+         "params":{"nearY":1040,"rows":7,"bandGain":1.2,"liftGain":0.7,"kickGain":0.2}},
+        {"id":"swells","piece":"SwellLines","gate":"Always","profile":"swell-lines-v1",
+         "params":{"count":64,"rows":12,"seed":71,"depthFalloff":1.45}},
+        {"id":"foam","piece":"FoamFlecks","gate":"Always","profile":"foam-flecks-v1",
+         "params":{"count":48,"rows":12,"seed":71,"sizeMin":0.3,"sizeMax":1.1}}
       ]}]
     })").object();
     auto save=[&](const QJsonObject& root) { write(folder+"/scene.json",QJsonDocument(root).toJson()); };
     save(source);
     const auto loaded=loadOsakaWorld(folder);
     const auto& description=loaded->description();
-    require(description.backdrop.count==2 && description.backdrop.entries[0].piece==OsakaOp::GradientSky
+    require(description.backdrop.count==4 && description.backdrop.entries[0].piece==OsakaOp::GradientSky
         && description.backdrop.entries[1].piece==OsakaOp::WaterSurface,"generic landscape slots missing");
+    require(description.backdrop.entries[2].piece==OsakaOp::SwellLines
+        && description.backdrop.entries[2].params->swell.count==64
+        && description.backdrop.entries[3].piece==OsakaOp::FoamFlecks
+        && description.backdrop.entries[3].params->foam.count==48,"new sea pieces did not load parameters");
     const auto& water=description.backdrop.entries[1].params->water;
     require(WaterSurfaceV1::band(0,water.rows)==5 && WaterSurfaceV1::band(6,water.rows)==0,"water depth bindings reversed");
     auto invalid=[&](int slot,const QString& field,const QJsonValue& value,const QString& reason) {
@@ -424,11 +432,20 @@ void genericLandscape() {
     };
     invalid(0,"stops",QJsonArray{QJsonObject{{"y",400},{"color","#dcd7ba"}},QJsonObject{{"y",400},{"color","#e6c384"}}},"strictly increasing");
     invalid(0,"printGrade",1.1,"number in 0..1");
-    invalid(1,"rows",10,"integer in 3..9");
+    invalid(1,"rows",25,"integer in 3..24");
     invalid(1,"sampleStep",0,"number in 8..128");
     invalid(1,"nearY",600,"position below horizon");
     invalid(1,"kickGain",.6,"number in 0..0.5");
     invalid(1,"x1",-40,"position right of x0");
+    invalid(1,"innerLines",4,"integer in 0..3");
+    invalid(1,"swellSeed",-2,"integer in 0..1000000");
+    invalid(2,"count",601,"integer in 0..600");
+    invalid(2,"depthFalloff",0,"number in 1..3");
+    invalid(2,"widthMax",.3,"ordered width and length ranges");
+    invalid(2,"exclusions",QString("none"),"array of at most 8 rectangles");
+    invalid(3,"count",301,"integer in 0..300");
+    invalid(3,"sizeMax",.2,"ordered size range");
+    invalid(3,"onsetGain",.6,"number in 0..0.5");
     save(source); initializeOsakaWorldAt(folder);
     Audio quiet,loud; loud.bands.fill(.8); loud.bass=.8;
     const auto a=render(quiet,640,360),b=render(loud,640,360);

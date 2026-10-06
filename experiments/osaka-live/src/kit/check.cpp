@@ -1,4 +1,5 @@
 #include "check.h"
+#include <QPainter>
 #include "check-analysis.h"
 #include "check-signal.h"
 #include "label-pieces.h"
@@ -152,6 +153,8 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
     const auto& windows = osakaWorld().windows;
     const auto& pieces = osakaWorld().pieces;
     std::vector<Region> regions(windows.size() + pieces.size());
+    struct MovingRegion {std::size_t index;int row;SwellLinesParametersV1 field;double width;};
+    std::vector<MovingRegion> movingRegions;
     const QTransform screen = QTransform().scale(double(w) / 1920.0, double(h) / 1080.0);
     auto fillRegion = [&](Region& region, const QPainterPath& shape) {
         const QRectF box = shape.boundingRect();
@@ -202,6 +205,8 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
                     QPainterPath area;area.addRect(SwellLinesV1::responseArea(row,swell));
                     for(const auto& box:swell.exclusions){QPainterPath excluded;excluded.addRect(box);area=area.subtracted(excluded);}
                     regions.emplace_back();fillRegion(regions.back(),screen.map(area));
+                    const double depth=std::pow(row/double(swell.rows-1),swell.depthFalloff);
+                    movingRegions.push_back({regions.size()-1,row,swell,foam?16+45*depth:12+37*depth+2*swell.widthMax});
                 }
             }
             if (slot.piece!=OsakaOp::WaterSurface) continue;
@@ -214,6 +219,12 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
                 out.nodes.push_back(node);
                 QPainterPath area; area.addRect(WaterSurfaceV1::responseArea(row,water));
                 regions.emplace_back(); fillRegion(regions.back(),screen.map(area));
+                if(water.swellSeed>=0) {
+                    SwellLinesParametersV1 field;field.region=QRectF(water.x0,water.horizon,water.x1-water.x0,water.nearY-water.horizon);
+                    field.rows=water.rows;field.seed=water.swellSeed;field.amplitude=water.amplitude;field.driftSpeed=water.drift;
+                    field.bandGain=water.bandGain;field.liftGain=water.liftGain;field.kickGain=water.kickGain;
+                    movingRegions.push_back({regions.size()-1,row,field,8});
+                }
             }
         }
     }
@@ -241,6 +252,23 @@ Analysis analyze(World& world, const Fixture& fixture, const Options& options, i
             musicChange += meanBrightnessDifference(previousMusic.data(), m.data(), pixels);
             silentChange += meanBrightnessDifference(previousSilence.data(), s.data(), pixels);
             ++transitions;
+        }
+        // Moving crest light belongs to its curved geometry, like label light
+        // areas. Rectangular extrema dilute narrow far crests with unrelated
+        // flat water. Measure the union of the current music/quiet support
+        // strips, with the same 2% threshold and exclusion rules.
+        for(const auto& moving:movingRegions) {
+            Ctx mc{world.gpu(),t,music.audio,&music.score,options.seed,nullptr,&music.schedule};
+            Ctx sc{world.gpu(),t,silence.audio,&silence.score,options.seed,nullptr,&silence.schedule};
+            auto area=SwellLinesV1::responsePath(mc,moving.row,moving.field,moving.width);
+            area.addPath(SwellLinesV1::responsePath(sc,moving.row,moving.field,moving.width));
+            area.setFillRule(Qt::WindingFill);area=screen.map(area);
+            QImage mask(w,h,QImage::Format_Alpha8);mask.fill(0);
+            {QPainter painter(&mask);painter.fillPath(area,Qt::white);}
+            auto& pixels=regions[moving.index].pixels;pixels.clear();
+            const auto box=area.boundingRect().toAlignedRect().intersected(QRect(0,0,w,h));
+            for(int y=box.top();y<=box.bottom();++y){const auto* line=mask.constScanLine(y);
+                for(int x=box.left();x<=box.right();++x)if(line[x])pixels.push_back(std::uint32_t(y*w+x));}
         }
         for (std::size_t n = 0; n < regions.size(); ++n) {
             double gap = 0;

@@ -64,12 +64,12 @@
           "gate": "Always",
           "params": {
             "horizon": 612,
-            "nearY": 1050,
-            "rows": 6,
-            "textureRows": 40,
-            "glints": 90,
+            "nearY": 1112,
+            "rows": 12,
+            "textureRows": 0,
+            "glints": 35,
             "sampleStep": 16,
-            "amplitude": 0.55,
+            "amplitude": 0.85,
             "wavelength": 1,
             "drift": 0.52,
             "top": "#376582",
@@ -83,7 +83,84 @@
             "capScale": 0.72,
             "bandGain": 1.15,
             "liftGain": 0.5,
-            "kickGain": 0.12
+            "kickGain": 0.1,
+            "capDensity": 0,
+            "innerLines": 0,
+            "crestOpacity": 0.72,
+            "swellSeed": 71
+          }
+        },
+        {
+          "id": "swells",
+          "piece": "SwellLines",
+          "profile": "swell-lines-v1",
+          "gate": "Always",
+          "params": {
+            "region": {
+              "x": -30,
+              "y": 612,
+              "width": 2030,
+              "height": 500
+            },
+            "rows": 12,
+            "seed": 71,
+            "depthFalloff": 1.45,
+            "driftSpeed": 0.52,
+            "amplitude": 0.85,
+            "bandGain": 1.15,
+            "liftGain": 0.5,
+            "kickGain": 0.1,
+            "opacity": 0.26,
+            "count": 600,
+            "widthMin": 0.8,
+            "widthMax": 1.35,
+            "lengthMin": 180,
+            "lengthMax": 760,
+            "color": "#7397a4",
+            "highlight": "#dcd7ba"
+          }
+        },
+        {
+          "id": "foam",
+          "piece": "FoamFlecks",
+          "profile": "foam-flecks-v1",
+          "gate": "Always",
+          "params": {
+            "region": {
+              "x": -30,
+              "y": 612,
+              "width": 2030,
+              "height": 500
+            },
+            "rows": 12,
+            "seed": 71,
+            "depthFalloff": 1.45,
+            "driftSpeed": 0.52,
+            "amplitude": 0.85,
+            "bandGain": 1.15,
+            "liftGain": 0.5,
+            "kickGain": 0.1,
+            "opacity": 0.22,
+            "count": 240,
+            "sizeMin": 0.3,
+            "sizeMax": 1.1,
+            "onsetGain": 0.24,
+            "color": "#dcd7ba",
+            "underprint": "#223249",
+            "exclusions": [
+              {
+                "x": -30,
+                "y": 700,
+                "width": 670,
+                "height": 420
+              },
+              {
+                "x": 1080,
+                "y": 810,
+                "width": 580,
+                "height": 135
+              }
+            ]
           }
         }
       ]

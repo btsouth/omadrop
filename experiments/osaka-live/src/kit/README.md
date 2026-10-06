@@ -249,3 +249,9 @@ drift/breathing clocks. It accepts the swell field settings plus count,
 sizeMin/sizeMax, color, underprint and onsetGain. A small event-selected subset
 brightens on onsets/kicks; exclusions cull complete silhouettes. Match region,
 rows, depthFalloff, seed, driftSpeed and amplitude to the swell instance.
+
+`water-surface-v1` optionally takes `swellSeed` to share the new contour field;
+its horizon/nearY, rows, amplitude and drift should match the swell instance.
+`innerLines` (0..3) and `crestOpacity` (0..1) allow a world to replace the old
+full-width accents with broken contours. With no swellSeed, the original water
+arithmetic and default accents are preserved. Water supports 3..24 depth rows.

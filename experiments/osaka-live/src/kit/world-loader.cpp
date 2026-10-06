@@ -488,7 +488,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                     {"horizon","nearY","x0","x1","rows","textureRows","glints","seed","sampleStep",
                      "amplitude","wavelength","drift","phase","top","bottom","crest","texture","foam",
                      "underprint","glint","hotGlint","opacity","bandGain","liftGain","kickGain",
-                     "capDensity","capScale","glintX","glintDepth"});
+                     "capDensity","capScale","glintX","glintDepth","innerLines","crestOpacity","swellSeed"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();
                 auto& water=value->water;
                 auto scalar=[&](const char* name,double& target,double lo,double hi) {
@@ -504,13 +504,13 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 scalar("bandGain",water.bandGain,0,3); scalar("liftGain",water.liftGain,0,1);
                 scalar("kickGain",water.kickGain,0,.5); scalar("capDensity",water.capDensity,0,1);
                 scalar("capScale",water.capScale,0,1.5); scalar("glintX",water.glintX,-2000,3840);
-                scalar("glintDepth",water.glintDepth,1,1080);
+                scalar("glintDepth",water.glintDepth,1,1080);scalar("crestOpacity",water.crestOpacity,0,1);
                 if (water.nearY<=water.horizon+2) r.fail(paramsPath+".nearY","position below horizon + 2");
                 if (water.x1<=water.x0) r.fail(paramsPath+".x1","position right of x0");
                 auto integer=[&](const char* name,int& target,int lo,int hi) {
                     if (data.contains(name)) target=r.integer(data[name],paramsPath+"."+name,lo,hi);
                 };
-                integer("rows",water.rows,3,9); integer("textureRows",water.textureRows,0,65);
+                integer("rows",water.rows,3,24);integer("swellSeed",water.swellSeed,0,1000000);integer("innerLines",water.innerLines,0,3); integer("textureRows",water.textureRows,0,65);
                 integer("glints",water.glints,0,115); integer("seed",water.seed,0,1000000);
                 auto color=[&](const char* name,Col& target) { if (data.contains(name)) target=r.color(data[name],paramsPath+"."+name); };
                 color("top",water.top); color("bottom",water.bottom); color("crest",water.crest);
@@ -520,7 +520,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             } else if (piece->op==OsakaOp::SwellLines || piece->op==OsakaOp::FoamFlecks) {
                 if (!slot.contains("params")) r.fail(paramsPath,"required field");
                 QStringList keys={"region","exclusions","count","rows","seed","depthFalloff","widthMin","widthMax",
-                     "lengthMin","lengthMax","driftSpeed","amplitude","opacity","bandGain","liftGain","kickGain","color"};
+                     "lengthMin","lengthMax","driftSpeed","amplitude","opacity","bandGain","liftGain","kickGain","color","highlight"};
                 const bool foam=piece->op==OsakaOp::FoamFlecks;
                 if(foam)keys.append({"sizeMin","sizeMax","onsetGain","underprint"});
                 const auto data=r.object(slot["params"],paramsPath,{},keys);
@@ -551,6 +551,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 scalar("bandGain",swell.bandGain,0,2);scalar("liftGain",swell.liftGain,0,1);scalar("kickGain",swell.kickGain,0,.5);
                 if(swell.widthMax<swell.widthMin || swell.lengthMax<swell.lengthMin)r.fail(paramsPath,"ordered width and length ranges");
                 if(data.contains("color"))(foam?value->foam.color:swell.color)=r.color(data["color"],paramsPath+".color");
+                if(data.contains("highlight"))swell.highlight=r.color(data["highlight"],paramsPath+".highlight");
                 if(foam) {
                     scalar("sizeMin",value->foam.sizeMin,.1,2);scalar("sizeMax",value->foam.sizeMax,.1,2);
                     scalar("onsetGain",value->foam.onsetGain,0,.5);
