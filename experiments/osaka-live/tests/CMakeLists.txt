@@ -27,6 +27,19 @@ target_link_libraries(osaka-world-loader-tests PRIVATE Qt6::Gui Qt6::OpenGL)
 target_compile_definitions(osaka-world-loader-tests PRIVATE OSAKA_WORLD_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/osaka-jade")
 add_test(NAME world-folder-validation COMMAND osaka-world-loader-tests)
 
+file(GLOB OSAKA_KIT_SOURCES CONFIGURE_DEPENDS ../src/kit/*.cpp)
+list(REMOVE_ITEM OSAKA_KIT_SOURCES ../src/kit/svg-check.cpp)
+add_executable(osaka-window-shorthand-tests window_shorthand_tests.cpp
+    ${OSAKA_KIT_SOURCES}
+    ../src/world.cpp ../src/canvas.cpp ../src/gpu.cpp ../src/rig.cpp ../src/osaka.cpp
+    ../src/headless.cpp ../src/score.cpp ../src/schedule.cpp)
+target_include_directories(osaka-window-shorthand-tests PRIVATE ../src)
+target_link_libraries(osaka-window-shorthand-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
+target_compile_definitions(osaka-window-shorthand-tests PRIVATE
+    WORLDS_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds"
+    LIT_WINDOWS_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/examples/lit-windows")
+add_test(NAME window-shorthand-and-render COMMAND osaka-window-shorthand-tests)
+
 add_executable(osaka-svg-tests svg_tests.cpp ../src/kit/svg-art.cpp ../src/kit/svg-path.cpp ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp)
 target_include_directories(osaka-svg-tests PRIVATE ../src)
 target_link_libraries(osaka-svg-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
