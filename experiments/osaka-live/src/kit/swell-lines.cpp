@@ -48,6 +48,16 @@ SwellRowV1 SwellLinesV1::field(const Ctx& c,int row,const SwellLinesParametersV1
         roll=std::min(1.4,roll);
         heave=-p.rollGain*roll*(2+26*depth);
     }
+    // The beat lands on every row at once: a quick lift and settle per bass
+    // hit, nearer rows more, so the whole sea moves with the drum.
+    double beat=0;
+    if(p.beatGain>0 && c.score) {
+        for(auto it=c.score->bassHits.rbegin();it!=c.score->bassHits.rend();++it) {
+            const double age=c.t-it->t;if(age<0)continue;if(age>1)break;
+            beat+=it->strength*(age/.09)*std::exp(1-age/.09);
+        }
+        beat=std::min(1.3,beat);heave-=p.beatGain*beat*(4+34*depth);
+    }
     // The set from the shared print clock rolls in the same way, taller.
     double set=0,foam=0;
     if(p.rollGain>0 && c.schedule) {
@@ -55,14 +65,14 @@ SwellRowV1 SwellLinesV1::field(const Ctx& c,int row,const SwellLinesParametersV1
         heave-=2.2*p.rollGain*set*(2+26*depth);
     }
     SwellRowV1 out{z,baseAt(row)+heave,
-        (7+83*std::pow(depth,1.15))*p.amplitude*(1+.45*p.rollGain*(roll+set)+.22*e+.16*p.liftGain*lift+p.amplitudeGain*(c.score?c.score->bandBody[1][0]:c.band(0))+(p.surgeEnabled && c.schedule?.65*c.schedule->print.surge(c.t):0)),
+        (7+83*std::pow(depth,1.15))*p.amplitude*(1+.45*p.rollGain*(roll+set)+.5*p.beatGain*beat+.22*e+.16*p.liftGain*lift+p.amplitudeGain*(c.score?c.score->bandBody[1][0]:c.band(0))+(p.surgeEnabled && c.schedule?.65*c.schedule->print.surge(c.t):0)),
         (55+115*depth)*(.86+.28*id),
         c.t*p.driftSpeed*(.81+.37*id)+(p.surgeEnabled?1.9:1)*flow-depth*6+Tau*hash2(row,p.seed+19),
         row*.82-c.t*(.17+.11*hash2(row,p.seed+23)),
         std::min(.85,p.opacity+p.bandGain*e+p.liftGain*.35*lift+p.kickGain*kick+.35*set),
         (8+8*depth)*p.bandGain*c.band(b)+(10+10*depth)*p.liftGain*lift+(2+8*depth)*p.kickGain*kick,
         clamp01(p.bandGain*c.band(b)+p.liftGain*lift+.7*set),p.orderedRows?p.rowFreedom*spacing:0};
-    out.roll=roll+set;out.foam=foam;out.set=set;
+    out.roll=roll+set+.6*p.beatGain*beat;out.foam=foam;out.set=set;
     if(p.rollGain>0 && c.schedule) {
         // The landing lifts a ring of water that runs out along the rows
         // nearest the wave, strongest where it struck, fading as it spreads.

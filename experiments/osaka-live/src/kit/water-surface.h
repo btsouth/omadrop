@@ -23,7 +23,7 @@ struct WaterSurfaceParametersV1 {
     int glitter=0;
     double glitterWidth=22, glitterSpread=.32;
     // Shared with SwellLines (see swell-lines.h).
-    double rowFreedom=.42, rollGain=0, rollDelay=.55;
+    double rowFreedom=.42, rollGain=0, rollDelay=.55, beatGain=0;
     // Foam rims printed on each row where it stands above its rest line;
     // louder music and the rolling bass swell raise more of the sea into foam.
     double crestFoam=0;

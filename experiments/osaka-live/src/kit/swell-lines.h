@@ -19,6 +19,9 @@ struct SwellLinesParametersV1 {
     // Each bass hit lifts the sea as a swell that rolls from the horizon to
     // the viewer over rollDelay seconds. Zero keeps the uniform kick heave.
     double rollGain=0,rollDelay=.55;
+    // beatGain: every bass hit lifts all rows together at once and stands
+    // their crests taller, so the sea visibly dances on the beat.
+    double beatGain=0;
     bool surgeEnabled=false;
     bool orderedRows=true; // printed contours; background WaterSurface retains its authored field
     double amplitudeGain=0;

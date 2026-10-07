@@ -7,7 +7,7 @@ void CriticalSpringV2::advance(double target,double omega,double dt) {
     value=target+(error+b*dt)*e;velocity=(velocity-omega*b*dt)*e;
 }
 WaveTrainMotionV2::WaveTrainMotionV2() {
-    amplitude_.value=pose_.amplitude;speed_.value=pose_.phaseSpeed;heroScale_.value=.92;
+    amplitude_.value=pose_.amplitude;speed_.value=pose_.phaseSpeed;heroScale_.value=.68;heroSink_.value=.18;heroShift_.value=-170;
 }
 void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds,double dt,const WaveTrainParametersV2& params,const WaveTrainCueV2& cue) {
     if(!std::isfinite(dt)||dt<=0||dt>.25||!std::isfinite(seconds))return;
@@ -98,8 +98,8 @@ void WaveTrainMotionV2::advanceHero(const Audio& a,const Score& score,double t,d
         if(age>=3.0) {
             old=h;pose_.trailingActive=true;heroSpawned_=true;
             heroPhase_.value=0;heroPhase_.velocity=0;heroSink_.value=1;heroSink_.velocity=0;
-            heroShift_.value=-320;heroShift_.velocity=0;h.seed=heroCycle_*3+1;
-            heroScale_.value=.8;heroScale_.velocity=0;
+            heroShift_.value=-240;heroShift_.velocity=0;h.seed=heroCycle_*3+1;
+            heroScale_.value=.66;heroScale_.velocity=0;
         }
         return;
     }
@@ -116,20 +116,22 @@ void WaveTrainMotionV2::advanceHero(const Audio& a,const Score& score,double t,d
         target=u<.55?lerp(heroRollFrom_,4.,easeOut(u/.55)):lerp(4.,4.85,easeIn((u-.55)/.45));
         heroPhase_.value=target;heroPhase_.velocity=0;
     } else {
-        // Charging music raises it from a swell to a clawed crest; loud
-        // passages lift it further, quiet water lets it settle.
-        // Each bass hit makes the waiting crest lunge forward and recoil.
-        const double quiet=pose_.quiet;
-        target=std::clamp(lerp(.25,1.85,std::pow(clamp01(cue.charge),.8))+.5*(energy-.4)-.9*quiet,0.,2.2);
-        heroPhase_.advance(target,1.1,dt);
+        // The wave grows with the set: over about a minute of music a
+        // half-sunk swell becomes a towering clawed crest.
+        const double quiet=pose_.quiet,ch=clamp01(cue.charge);
+        target=std::clamp(lerp(.1,2.35,std::pow(ch,1.1))+.35*(energy-.4)-.6*quiet,0.,2.5);
+        heroPhase_.advance(target,.9,dt);
     }
-    // Every set has its own size and place: chosen as it forms, and a strong
-    // launch makes it stand taller.
-    const double base=lerp(.84,1.,hash2(heroCycle_,7)),spot=lerp(-150,60,hash2(heroCycle_,9));
+    // Each set has its own size and place; it swells and comes forward as it
+    // builds, and a strong launch makes it stand taller still.
+    const double ch=clamp01(cue.charge);
+    const double base=lerp(.9,1.,hash2(heroCycle_,7)),spot=lerp(-120,60,hash2(heroCycle_,9));
     const double strong=cue.approach>0?std::clamp((cue.setStrength-.6)/.7,0.,1.):0;
-    heroScale_.advance(base+.12*strong*(1-pose_.quiet),.8,dt);
-    heroSink_.advance(.22*pose_.quiet,.9,dt);heroShift_.advance(spot,.7,dt);
-    const double lunge=cue.approach>0?0:.35*std::min(1.,h.pulse)*(1-pose_.quiet);
+    heroScale_.advance(base*lerp(.68,1.04,ch)+.1*strong*(1-pose_.quiet),.8,dt);
+    heroSink_.advance(lerp(.18,0.,sstep(0,.5,ch))+.2*pose_.quiet,.9,dt);
+    heroShift_.advance(lerp(-170.,spot,sstep(0,.8,ch)),.5,dt);
+    // Every bass hit makes the crest lunge forward and recoil, harder as it grows.
+    const double lunge=cue.approach>0?0:.4*std::min(1.,h.pulse)*(.3+.7*ch)*(1-pose_.quiet);
     h.phase=std::clamp(heroPhase_.value+lunge,0.,6.);h.sink=std::clamp(heroSink_.value,0.,1.);h.shift=heroShift_.value;
     h.scale=heroScale_.value;
     (void)a;

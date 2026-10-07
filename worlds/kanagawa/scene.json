@@ -139,6 +139,7 @@
             "rowFreedom": 0.85,
             "rollGain": 1.0,
             "rollDelay": 0.55,
+            "beatGain": 1.0,
             "crestFoam": 1.0
           },
           "parallaxDepth": 0.75
@@ -196,7 +197,8 @@
             "surgeEnabled": true,
             "rowFreedom": 0.85,
             "rollGain": 1.0,
-            "rollDelay": 0.55
+            "rollDelay": 0.55,
+            "beatGain": 1.0
           },
           "parallaxDepth": 0.75
         },
@@ -333,7 +335,8 @@
             "waveInstance": "great-wave",
             "rowFreedom": 0.85,
             "rollGain": 1.0,
-            "rollDelay": 0.55
+            "rollDelay": 0.55,
+            "beatGain": 1.0
           },
           "parallaxDepth": 0.75
         },
@@ -468,21 +471,21 @@
       "haloA": 90,
       "haloBRadius": 72,
       "haloC": 0,
-      "haloD": 0,
+      "haloD": 0.16,
       "haloFar": 0,
       "restRings": 0.7,
       "ring0Offset": 34,
       "ring0Energy": 10,
-      "ring0Alpha": 0.018,
+      "ring0Alpha": 0.22,
       "ring1Offset": 80,
       "ring1Energy": 14,
-      "ring1Alpha": 0.011,
+      "ring1Alpha": 0.14,
       "ringAlphaBase": 0.5,
       "hitSeconds": 2.6,
       "hitThreshold": 0.35,
       "hitOffset": 24,
       "hitTravel": 300,
-      "hitAlpha": 0.015,
+      "hitAlpha": 0.6,
       "timeOffset": 10,
       "color2Hex": 13130309,
       "ringHex": 15123332,
