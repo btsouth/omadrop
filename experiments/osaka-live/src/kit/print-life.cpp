@@ -1,4 +1,5 @@
 #include "print-life.h"
+#include "print-cloud.h"
 namespace Journey::Kit { namespace {
 double printWater(const Ctx&c,const PrintLifeParametersV1&p,double x) {
  if(p.followsBoat)return BoatOnWaterV1::surfaceY(c,p.boat,x,BoatOnWaterV1::pose(c,p.boat).row);
@@ -188,22 +189,33 @@ void PrintMomentsV1::paint(Canvas&cv,const Ctx&c,const PrintLifeParametersV1&p){
             const double close=p.nearEvents && v.cycle%2?1.65:1.;
             double x=p.x+(p.width+400)*(v.direction>0?qu:1-qu)-200,y=p.y+p.height-110-65*(close-1);
             const double music=clamp01(3*(c.score?c.score->bandBody[1][p.band]:c.band(p.band)));
-            // One lobed printed rain cloud in the theme's muted ink, a single
-            // outline so its tiers never darken where they overlap.
-            {const double w=430*close,h=20*close;cv.color(mix(hex(0x54546d),hex(0xc9b2a0),.42),.55*qa);
-             cv.moveTo(x-w/2,y+h/2);
-             for(int k=0;k<=40;++k){const double f=k/40.,xx=x-w/2+w*f;
-                const double tier=.45*h*sstep(.18,.30,f)*(1-sstep(.62,.74,f));
-                const double bump=.24*h*std::pow(std::abs(std::sin(Pi*f*7+v.cycle)),1.4)*std::pow(std::sin(Pi*f),.5);
-                cv.lineTo(xx,y-h/2-tier-bump);}
-             cv.curveTo(x+w/2+h*.6,y-h/2,x+w/2+h*.6,y+h/2,x+w/2,y+h/2);
-             cv.curveTo(x-w/2-h*.6,y+h/2,x-w/2-h*.6,y+h/2,x-w/2,y+h/2);cv.closePath();cv.fill();}
-            for(int i=0;i<(p.nearEvents?38:18);++i){
-                const double phase=c.t*(.38+.12*hash2(i,p.seed+4))+hash2(i,p.seed+5),f=phase-std::floor(phase);
-                double xx=x+(hash2(i,p.seed)-.5)*320*close-f*24,yy=y+22+f*120*close;
-                const double fade=sstep(0,.08,f)*(1-sstep(.8,1,f));
-                cv.line(xx,yy,xx-12*close,yy+(18+30*hash2(i,p.seed+1))*close,
-                    .7+music*.8,hex(0x54546d),(.32+.2*music)*qa*fade);}}
+            // A printed storm cloud: three stacked scalloped tiers in muted
+            // ink, graded darker toward the underside, each with a key line
+            // and lobe lines carved in the key ink. Its rain is long, evenly spaced printed
+            // lines that leave from behind the underside and lean with the
+            // cloud's travel; the music thickens and darkens them.
+            const double w=460*close,base=y+10*close,d=v.direction;
+            const std::array<PrintCloudTierV1,3> tiers{
+                printCloudTier(x-.12*w*d,base-28*close,.34*w,14*close,28*close,2,v.cycle*3+3),
+                printCloudTier(x+.08*w*d,base-14*close,.64*w,15*close,28*close,3,v.cycle*3+2),
+                printCloudTier(x,base,w,17*close,24*close,5,v.cycle*3+1)};
+            const Col stormTop=mix(hex(0x54546d),hex(0xc9b2a0),.40),stormBase=mix(hex(0x223249),hex(0x54546d),.62);
+            const Col rain=mix(p.ink,hex(0x54546d),.30);
+            const double slant=.26*d,reach=95*close;
+            const int drops=p.nearEvents?44:24;
+            for(int i=0;i<drops;++i){
+                const double phase=c.t*(.50+.12*hash2(i,p.seed+4))+hash2(i,p.seed+5),f=phase-std::floor(phase);
+                const double length=(70+50*hash2(i,p.seed+1))*close,drop=f*reach;
+                const double lane=(i+.5+.6*(hash2(i,p.seed)-.5))/drops-.5;
+                const double x0=x+lane*.80*w+slant*drop,y0=base-8+drop;
+                const double alpha=(.36+.26*music)*qa*(1-sstep(.45,1,f));
+                cv.line(x0,y0,x0+slant*length,y0+length,(.85+.55*music)*std::sqrt(close),rain,alpha);}
+            for(std::size_t t=0;t<tiers.size();++t){const auto& tier=tiers[t];
+                const Col top=mix(stormTop,stormBase,.22*(2-t));
+                cv.linear(0,tier.top,0,tier.base,{{0,top,float(.96*qa)},{1,stormBase,float(.96*qa)}});
+                tracePrintCloud(cv,tier);cv.fill();
+                cv.color(p.ink,.70*qa);tracePrintCloud(cv,tier);cv.stroke(1.2*std::sqrt(close));
+                printCloudEchoes(cv,tier,1.1*std::sqrt(close),p.ink,.40*qa,10*close);}}
         for(int i=0;i<8;++i){double y=p.y+30+i*17,x=p.x+p.width*(.5+.5*std::sin(c.t*.23+i*.53));
             cv.color(p.accent,.20*surge);cv.moveTo(x-170,y);cv.curveTo(x-70,y-12,x+70,y+9,x+180,y-4);cv.stroke(1.2*p.scale);}
     }else if(p.domain==1){

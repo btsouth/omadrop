@@ -147,7 +147,7 @@ SOURCES += src/kit/boat-on-water.cpp
 HEADERS += src/kit/boat-on-water.h
 
 SOURCES += src/kit/print-life.cpp
-HEADERS += src/kit/print-life.h src/kit/moment-schedule.h
+HEADERS += src/kit/print-life.h src/kit/moment-schedule.h src/kit/print-cloud.h
 
 SOURCES += src/kit/wave-train.cpp
 HEADERS += src/kit/wave-train.h

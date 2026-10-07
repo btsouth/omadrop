@@ -1,4 +1,5 @@
 #include "gradient-sky.h"
+#include "print-cloud.h"
 namespace Journey::Kit {
 namespace {
 const char* gradientSkyFs = R"(
@@ -41,10 +42,13 @@ void GradientSkyV1::draw(Ctx& c, const GradientSkyParametersV1& p) {
     });
     if(p.cloudBands){
         Canvas& cv=c.canvas();
-        // Kasumi: flat printed mist bands with stepped, rounded ends, a little
-        // lighter than the sky behind them. Each is a stack of capsules in one
-        // opaque tone, so overlaps never darken. They drift slowly downwind,
-        // a little faster while the music is loud, and wrap fully offscreen.
+        // Printed kasumi clouds: stacked tiers with scalloped tops, flat
+        // undersides and rounded ends, cut as crisp blocks. Each tier carries
+        // a muted underprint offset below it, a cream fill graded toward the
+        // sky at its underside (bokashi), a thin key line and nested lobe
+        // lines. Back tiers print first so the front tier's key line shapes
+        // the stack. They drift slowly downwind, a little faster while the
+        // music is loud, and wrap fully offscreen.
         auto skyAt=[&](double y) {
             Col col=p.stops.front().color;
             for(std::size_t i=1;i<p.stops.size();++i)
@@ -58,22 +62,18 @@ void GradientSkyV1::draw(Ctx& c, const GradientSkyParametersV1& p) {
             const double loud=c.score?c.score->bandIntegrals[1]+c.score->bandIntegrals[2]:0;
             const double reach=b.w*.75+120,span=1920+2*reach;
             double x=std::fmod(b.x+reach+(5+1.6*i)*c.t+10*loud,span);if(x<0)x+=span;x-=reach;
-            const Col tone=mix(skyAt(b.y),hex(0xf7f0e1),.62);
-            for(int t=0;t<b.tiers;++t) {
-                const double w=b.w*std::pow(b.step,t),h=b.h*(1-.18*t),y=b.y-t*b.h*.62;
-                const double cx=x+(t%2?-1:1)*b.w*.08*t;
-                // Gently lobed top edge, flat underside, rounded ends.
-                cv.color(tone);
-                const int lobes=2+int(3*hash2(i,t+3));
-                cv.moveTo(cx-w/2,y+h/2);
-                cv.curveTo(cx-w/2-h*.6,y+h/2,cx-w/2-h*.6,y-h/2,cx-w/2,y-h/2);
-                for(int k=1;k<=24;++k) {
-                    const double u=k/24.,x=cx-w/2+w*u;
-                    const double bump=.30*h*std::pow(std::abs(std::sin(Pi*u*lobes+hash2(i,t)*2.5)),1.6)*std::sin(Pi*u);
-                    cv.lineTo(x,y-h/2-bump);
-                }
-                cv.curveTo(cx+w/2+h*.6,y-h/2,cx+w/2+h*.6,y+h/2,cx+w/2,y+h/2);
-                cv.closePath();cv.fill();
+            const Col sky=skyAt(b.y),cream=hex(0xf4ead2);
+            const Col light=mix(sky,cream,.94),under=mix(sky,cream,.38);
+            const Col shadow=mix(sky,hex(0x7397a4),.30),key=mix(sky,hex(0x54546d),.55);
+            for(int t=b.tiers-1;t>=0;--t) {
+                const double w=b.w*std::pow(b.step,t),body=b.h*.62*(1-.12*t),lift=b.h*(1.35-.12*t);
+                const double base=b.y+b.h/2-t*b.h*.58,cx=x+(t%2?-1:1)*b.w*.09*t;
+                const auto tier=printCloudTier(cx,base,w,body,lift,2+int(w/(b.h*(4.4-.4*t))),i*7+t);
+                cv.color(shadow);tracePrintCloud(cv,tier,2.5,3);cv.fill();
+                cv.linear(0,tier.top,0,base,{{0,light,1},{.45,mix(light,under,.25),1},{1,under,1}});
+                tracePrintCloud(cv,tier);cv.fill();
+                cv.color(key,.55);tracePrintCloud(cv,tier);cv.stroke(1.3);
+                printCloudEchoes(cv,tier,1.1,key,.32,b.h*.42);
             }
         }
         c.gpu.over(cv);

@@ -213,8 +213,11 @@ no `params`, so its drawing is unchanged.
 
 `gradient-sky.*` ports the Journey sunset ramp and paper wash as palette-controlled
 `gradient-sky-v1` slot parameters. It has no Journey timing or Osaka sky dependency.
-With `cloudBands`, four flat kasumi bands drift downwind at 5 to 10 px/s, faster
+With `cloudBands`, four printed clouds drift downwind at 5 to 10 px/s, faster
 by the mid-band integrals while the music is loud, and wrap fully offscreen.
+Each is a stack of scalloped tiers from `print-cloud.h` with an offset underprint,
+a cream bokashi fill, a key line and nested lobe lines. The `PrintMoments` squall
+uses the same tiers in storm ink with evenly spaced slanted rain lines.
 
 `water-surface.*` ports `printSea`, `calmSea` texture and `sea` reflections from
 the Journey prototype. Geometry and controls are evaluated live; band integrals
