@@ -2,6 +2,7 @@
 #include "../score.h"
 #include "../art.h"
 #include <vector>
+#include "hero-wave.h"
 namespace Journey { struct Ctx; class Canvas; }
 #include <array>
 namespace Journey::Kit {
@@ -24,6 +25,9 @@ struct WaveTrainParametersV2 {
     // The shared set clock moves the crests: slow approach while the music
     // charges a set, a fast break that sinks the crest whole when it lands.
     bool setCycle=false;
+    // The authored hero (hero-wave.h) replaces the procedural crests: the
+    // set clock picks its pose, the landing throws the impact.
+    bool authored=false;
     Col body=hex(0x285579),bottom=hex(0x102955),underprint=hex(0x1d4673),
         foam=hex(0xdcd7ba),lines=hex(0x7397a4);
 };
@@ -33,7 +37,7 @@ struct WaveTrainDropletV2 {
 };
 struct WaveTrainFingerStateV2 {double extension=0,flick=0;};
 // Set choreography read from the shared print clock.
-struct WaveTrainCueV2 {double charge=0,approach=0,crash=0,crashStart=-1000,crashAge=1e9,strength=0;};
+struct WaveTrainCueV2 {double charge=0,approach=0,crash=0,crashStart=-1000,crashAge=1e9,strength=0,setStrength=1;};
 struct WaveTrainPoseV2 {
     double amplitude=800,stage=0,baseWidth=1060,lean=0,phaseSpeed=65,lipThrow=0;
     double lipStage=-1; // negative selects the direct static study profile
@@ -44,6 +48,8 @@ struct WaveTrainPoseV2 {
     std::array<double,6> bands{};
     std::array<WaveTrainFingerStateV2,WaveTrainFingerCountV2> fingers{};
     std::array<WaveTrainDropletV2,WaveTrainDropletLimitV2> droplets{};
+    // Authored hero: the standing wave, the spent one sinking away, the landing.
+    HeroWaveStateV1 hero,trailing;bool trailingActive=false;HeroImpactV1 impact;
 };
 struct CriticalSpringV2 {
     double value=0,velocity=0;
@@ -75,6 +81,10 @@ private:
     double lip_=0,lipVelocity_=0;
     WaveTrainPoseV2 pose_;
     WaveTrainFoamMotionV2 foam_;
+    void advanceHero(const Audio&,const Score&,double seconds,double dt,double energy,double beat,
+                     const WaveTrainParametersV2&,const WaveTrainCueV2&);
+    CriticalSpringV2 heroPhase_,heroSink_,heroShift_,heroScale_;
+    double heroCrash_=-1000,heroFrom_=0,heroRollFrom_=-1;bool heroSpawned_=true;unsigned heroCycle_=1;
 };
 struct WaveTrainProfileV2 {
     // Tapered foam stroke; paint adds the offset blue underprint.

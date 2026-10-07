@@ -582,7 +582,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             } else if (piece->op==OsakaOp::WaveTrain) {
                 if(!slot.contains("params"))r.fail(paramsPath,"required field");
                 const auto data=r.object(slot["params"],paramsPath,{},
-                    {"x0","x1","waterline","depth","wavelength","groupPeriod","groupWidth","groupOrigin","groupFloor","baseY","width","heightScale","travelScale","row","surgeEnabled","body","bottom","underprint","foam","lines","riseFrom","riseTo","sinkFrom","sinkTo","faceFlow","swayGain","pulseGain","pulseDelay","footSwell","setCycle"});
+                    {"x0","x1","waterline","depth","wavelength","groupPeriod","groupWidth","groupOrigin","groupFloor","baseY","width","heightScale","travelScale","row","surgeEnabled","body","bottom","underprint","foam","lines","riseFrom","riseTo","sinkFrom","sinkTo","faceFlow","swayGain","pulseGain","pulseDelay","footSwell","setCycle","authored"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();auto& wave=value->waveTrain;
                 auto scalar=[&](const char* name,double& target,double lo,double hi){if(!data.contains(name))return;
                     target=r.number(data[name],paramsPath+"."+name);
@@ -596,6 +596,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 scalar("pulseDelay",wave.pulseDelay,0,3);scalar("footSwell",wave.footSwell,0,1);
                 if(data.contains("surgeEnabled"))wave.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
                 if(data.contains("setCycle"))wave.setCycle=r.boolean(data["setCycle"],paramsPath+".setCycle");
+                if(data.contains("authored"))wave.authored=r.boolean(data["authored"],paramsPath+".authored");
                 for(auto entry:{std::pair<const char*,Col*>{"body",&wave.body},{"bottom",&wave.bottom},{"underprint",&wave.underprint},{"foam",&wave.foam},{"lines",&wave.lines}})
                     if(data.contains(entry.first))*entry.second=r.color(data[entry.first],paramsPath+"."+entry.first);
                 params=value;

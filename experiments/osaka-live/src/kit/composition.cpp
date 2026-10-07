@@ -1,4 +1,5 @@
 #include "parameters.h"
+#include "../schedule.h"
 #include "composition.h"
 #include "groups.h"
 #include "sky.h"
@@ -90,7 +91,10 @@ void OsakaCompositionV1::render(Ctx& c, const OsakaState& s, const OsakaWorldDes
         // A slow swell sway that grows with the music, plus a short dip on
         // each kick, so the parallax layers ride the sea like a boat.
         const double level=c.score?clamp01(2.2*(c.score->bandBody[1][0]+c.score->bandBody[1][1])):0;
-        c.cameraY=oldY+slot.parallaxDepth*((2.2+9*level)*std::sin(c.t*.32)+(.65+3*level)*std::sin(c.t*.19)+5*c.kick(4));
+        // The great wave landing jolts the view once and lets it settle.
+        double jolt=0;if(c.schedule){const auto& im=c.schedule->waveTrain.pose().impact;
+            if(im.age>=0 && im.age<2.5)jolt=16*std::min(1.2,im.strength)*ring(im.age,2.4,2.6);}
+        c.cameraY=oldY+slot.parallaxDepth*((2.2+9*level)*std::sin(c.t*.32)+(.65+3*level)*std::sin(c.t*.19)+5*c.kick(4)+jolt);
         switch (slot.piece) {
         case OsakaOp::Sky: OsakaSkyV1::draw(c, s); break;
         case OsakaOp::WaterSurface: WaterSurfaceV1::draw(c, slot.params->water); break;

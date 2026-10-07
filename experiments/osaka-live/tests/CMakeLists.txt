@@ -152,7 +152,7 @@ add_test(NAME boat-gull-landing-and-hit-takeoff COMMAND boat-wave-clearance-test
 
 
 # W1 lab is deliberately separate from the world loader and production app.
-add_executable(wave-train-tests wave_train_tests.cpp ../src/kit/wave-train.cpp
+add_executable(wave-train-tests wave_train_tests.cpp ../src/kit/wave-train.cpp ../src/kit/hero-wave.cpp
     ../src/canvas.cpp ../src/gpu.cpp ../src/score.cpp ../src/audio.cpp)
 target_include_directories(wave-train-tests PRIVATE ../src)
 target_link_libraries(wave-train-tests PRIVATE Qt6::Gui Qt6::OpenGL PkgConfig::FFTW)
@@ -169,7 +169,7 @@ set(WAVE_TRAIN_FIXTURE "" CACHE FILEPATH "Optional real stereo f32 fixture for W
 if(WAVE_TRAIN_FIXTURE)
     add_test(NAME wave-train-fixture-continuity COMMAND wave-train-tests fixture ${WAVE_TRAIN_FIXTURE})
 endif()
-add_executable(omadrop-wave-lab ../tools/wave-lab.cpp ../src/kit/wave-train.cpp
+add_executable(omadrop-wave-lab ../tools/wave-lab.cpp ../src/kit/wave-train.cpp ../src/kit/hero-wave.cpp
     ../src/kit/gradient-sky.cpp ../src/kit/water-surface.cpp ../src/kit/swell-lines.cpp
     ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp ../src/audio.cpp)
 target_include_directories(omadrop-wave-lab PRIVATE ../src)
@@ -177,14 +177,14 @@ target_link_libraries(omadrop-wave-lab PRIVATE Qt6::Gui Qt6::OpenGL EGL PkgConfi
 target_compile_definitions(omadrop-wave-lab PRIVATE KANAGAWA_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/kanagawa")
 
 foreach(target osaka-streaming-tests great-wave-tests boat-on-water-tests print-life-tests boat-wave-clearance-tests osaka-reload-tests)
-    target_sources(${target} PRIVATE ../src/kit/wave-train.cpp)
+    target_sources(${target} PRIVATE ../src/kit/wave-train.cpp ../src/kit/hero-wave.cpp)
 endforeach()
 target_sources(osaka-streaming-tests PRIVATE ../src/canvas.cpp ../src/gpu.cpp)
 target_link_libraries(osaka-streaming-tests PRIVATE Qt6::Gui Qt6::OpenGL)
 target_sources(osaka-reload-tests PRIVATE ../src/gpu.cpp ../src/score.cpp)
 
-target_sources(foam-piece-tests PRIVATE ../src/kit/wave-train.cpp)
-target_sources(swell-piece-tests PRIVATE ../src/schedule.cpp ../src/kit/wave-train.cpp)
+target_sources(foam-piece-tests PRIVATE ../src/kit/wave-train.cpp ../src/kit/hero-wave.cpp)
+target_sources(swell-piece-tests PRIVATE ../src/schedule.cpp ../src/kit/wave-train.cpp ../src/kit/hero-wave.cpp)
 add_test(NAME swell-lines-no-crossing-at-maximum-input COMMAND swell-piece-tests --no-crossing)
 target_sources(foam-piece-tests PRIVATE ../src/schedule.cpp)
 add_test(NAME foam-flecks-outside-live-hero-and-barrel COMMAND foam-piece-tests --live-mask)

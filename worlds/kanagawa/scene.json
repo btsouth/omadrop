@@ -287,7 +287,8 @@
             "pulseGain": 1.0,
             "pulseDelay": 0.36,
             "footSwell": 0,
-            "setCycle": true
+            "setCycle": true,
+            "authored": true
           },
           "parallaxDepth": 0.75
         },

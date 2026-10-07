@@ -150,4 +150,6 @@ SOURCES += src/kit/print-life.cpp
 HEADERS += src/kit/print-life.h src/kit/moment-schedule.h src/kit/print-cloud.h
 
 SOURCES += src/kit/wave-train.cpp
+SOURCES += src/kit/hero-wave.cpp
 HEADERS += src/kit/wave-train.h
+HEADERS += src/kit/hero-wave.h

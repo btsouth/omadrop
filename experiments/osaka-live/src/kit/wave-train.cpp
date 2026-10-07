@@ -7,7 +7,7 @@ void CriticalSpringV2::advance(double target,double omega,double dt) {
     value=target+(error+b*dt)*e;velocity=(velocity-omega*b*dt)*e;
 }
 WaveTrainMotionV2::WaveTrainMotionV2() {
-    amplitude_.value=pose_.amplitude;speed_.value=pose_.phaseSpeed;
+    amplitude_.value=pose_.amplitude;speed_.value=pose_.phaseSpeed;heroScale_.value=.92;
 }
 void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds,double dt,const WaveTrainParametersV2& params,const WaveTrainCueV2& cue) {
     if(!std::isfinite(dt)||dt<=0||dt>.25||!std::isfinite(seconds))return;
@@ -70,7 +70,69 @@ void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds
         quiet_.advance(1-sstep(.30,.60,energy),.6,dt);pose_.quiet=clamp01(quiet_.value);
         pose_.crashStart=cue.crashStart;pose_.crashAge=cue.crashAge;pose_.crashStrength=cue.strength;
     }
+    if(params.authored){advanceHero(a,score,seconds,dt,energy,beat,params,cue);return;}
     foam_.advance(a,score,pose_,seconds,dt,params);
+}
+void WaveTrainMotionV2::advanceHero(const Audio& a,const Score& score,double t,double dt,double energy,double beat,
+                                    const WaveTrainParametersV2& p,const WaveTrainCueV2& cue) {
+    auto& h=pose_.hero;auto& old=pose_.trailing;auto& im=pose_.impact;
+    for(auto* s:{&h,&old}) {
+        s->seconds=t;s->energy=energy;s->sway+=beat*.5*dt;s->flow+=dt*(.25+1.1*energy)*std::max(.2,p.faceFlow);
+        s->pulse=p.pulseGain*Score::envelope(score.bassHits,t-p.pulseDelay,3.5);
+        s->flick=Score::envelope(score.onsets,t,6);
+    }
+    // A new landing: remember the pose it falls from and where the lip lands.
+    if(cue.crashStart>heroCrash_ && cue.crashAge>=0) {
+        heroCrash_=cue.crashStart;heroFrom_=std::min(heroPhase_.value,4.9);heroSpawned_=false;heroRollFrom_=-1;
+        HeroWaveStateV1 landing=h;landing.phase=5;landing.sink=0;landing.pulse=0;landing.sway=0;landing.energy=0;
+        im.at=HeroWaveV1::shape(landing).tip();im.strength=cue.strength*h.scale;im.seed=++heroCycle_;
+    }
+    const double age=t-heroCrash_;
+    im.age=age-.25;
+    if(!heroSpawned_) {
+        // The lip lands a quarter second after the set arrives, the crest
+        // spends itself into whitewater, then sinks while the next one forms.
+        h.phase=age<.25?lerp(heroFrom_,5.,sstep(0,.25,age)):lerp(5.,6.,easeInOut((age-.25)/1.7));
+        h.sink=.95*sstep(.8,3.2,age);h.shift=heroShift_.value+70*sstep(1,5,age);
+        heroPhase_.value=h.phase;heroPhase_.velocity=0;
+        if(age>=3.0) {
+            old=h;pose_.trailingActive=true;heroSpawned_=true;
+            heroPhase_.value=0;heroPhase_.velocity=0;heroSink_.value=1;heroSink_.velocity=0;
+            heroShift_.value=-320;heroShift_.velocity=0;h.seed=heroCycle_*3+1;
+            heroScale_.value=.8;heroScale_.velocity=0;
+        }
+        return;
+    }
+    if(pose_.trailingActive) {
+        old.phase=6;old.sink=.95*sstep(.8,3.2,age)+.4*sstep(3.2,4.5,age);old.shift+=dt*18;
+        if(age>4.6)pose_.trailingActive=false;
+    }
+    // A rolling set carries the crest through its curl to the plunge; it lands
+    // when the set reaches the wave's row.
+    double target;
+    if(cue.approach>0) {
+        if(heroRollFrom_<0)heroRollFrom_=heroPhase_.value;
+        const double u=cue.approach;
+        target=u<.55?lerp(heroRollFrom_,4.,easeOut(u/.55)):lerp(4.,4.85,easeIn((u-.55)/.45));
+        heroPhase_.value=target;heroPhase_.velocity=0;
+    } else {
+        // Charging music raises it from a swell to a clawed crest; loud
+        // passages lift it further, quiet water lets it settle.
+        // Each bass hit makes the waiting crest lunge forward and recoil.
+        const double quiet=pose_.quiet;
+        target=std::clamp(lerp(.25,1.85,std::pow(clamp01(cue.charge),.8))+.5*(energy-.4)-.9*quiet,0.,2.2);
+        heroPhase_.advance(target,1.1,dt);
+    }
+    // Every set has its own size and place: chosen as it forms, and a strong
+    // launch makes it stand taller.
+    const double base=lerp(.84,1.,hash2(heroCycle_,7)),spot=lerp(-150,60,hash2(heroCycle_,9));
+    const double strong=cue.approach>0?std::clamp((cue.setStrength-.6)/.7,0.,1.):0;
+    heroScale_.advance(base+.12*strong*(1-pose_.quiet),.8,dt);
+    heroSink_.advance(.22*pose_.quiet,.9,dt);heroShift_.advance(spot,.7,dt);
+    const double lunge=cue.approach>0?0:.35*std::min(1.,h.pulse)*(1-pose_.quiet);
+    h.phase=std::clamp(heroPhase_.value+lunge,0.,6.);h.sink=std::clamp(heroSink_.value,0.,1.);h.shift=heroShift_.value;
+    h.scale=heroScale_.value;
+    (void)a;
 }
 namespace {
 constexpr int Segments=7,Steps=16,Count=Segments*Steps;
@@ -195,6 +257,19 @@ double WaveTrainV2::envelope(double a,const WaveTrainPoseV2& s,const WaveTrainPa
 WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrainParametersV2& p) {
     WaveTrainProfileV2 out;out.surface.reserve(161);
     for(int j=0;j<=160;++j)out.surface.push_back(sea(lerp(p.x0,p.x1,j/160.),s,p));
+    if(p.authored) {
+        // Dependents (boats, foam masks) read the authored body as a crest.
+        auto add=[&](const HeroWaveStateV1& st){
+            const auto shape=HeroWaveV1::shape(st);WaveTrainProfileV2::Crest crest;
+            crest.boundary=HeroWaveV1::outline(shape,112);crest.outerLip=HeroWaveV1::outerLip(shape);
+            crest.envelope=1-st.sink;crest.stage=std::clamp(st.phase*1.25,0.,5.);crest.sink=st.sink;crest.a=shape.tip().x;
+            out.boundaries.push_back(crest.boundary);out.crests.push_back(std::move(crest));
+        };
+        if(s.trailingActive)add(s.trailing);
+        out.hero=int(out.crests.size());add(s.hero);
+        if(s.impact.active()){out.impact=s.impact.at;out.impactSink=sstep(0,2.5,s.impact.age);}
+        return out;
+    }
     // A set cycle moves the crests on its own clock; otherwise they travel.
     const double travel=p.setCycle?s.anchor:s.distance;
     const int first=int(std::floor((p.x0-travel-380)/p.groupPeriod))-1;
@@ -442,7 +517,13 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
     }return out;
 }
 void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPoseV2& s,const WaveTrainParametersV2& p) {
+    if(p.authored) {
+        if(s.trailingActive)HeroWaveV1::paint(cv,HeroWaveV1::shape(s.trailing),s.trailing);
+        HeroWaveV1::paint(cv,HeroWaveV1::shape(s.hero),s.hero);
+        HeroWaveV1::paintImpact(cv,s.impact,s.seconds);
+    }
     for(const auto& crest:f.crests) {
+        if(p.authored)break;
         const double top=p.baseY-s.amplitude*crest.envelope+crest.drop;
         // Woodblock body: flat tone bands with a printed top-to-base gradation
         // (bokashi), thin light key lines between bands, sparse flowing veins.

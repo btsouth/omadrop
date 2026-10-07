@@ -1,5 +1,6 @@
 #include "print-life.h"
 #include "print-cloud.h"
+#include "../schedule.h"
 namespace Journey::Kit { namespace {
 double printWater(const Ctx&c,const PrintLifeParametersV1&p,double x) {
  if(p.followsBoat)return BoatOnWaterV1::surfaceY(c,p.boat,x,BoatOnWaterV1::pose(c,p.boat).row);
@@ -83,6 +84,9 @@ void residentFlock(const Ctx&c,const PrintLifeParametersV1&p,std::vector<PrintBi
     if(c.score)for(auto it=c.score->bassHits.rbegin();it!=c.score->bassHits.rend();++it){
         const double age=c.t-it->t;if(age<0)continue;if(age>3)break;
         scatter+=sstep(.45,.85,it->strength)*(age/.3)*std::exp(1-age/.3);}
+    // The great wave landing throws the whole flock up.
+    if(c.schedule){const auto& im=c.schedule->waveTrain.pose().impact;
+        if(im.age>=0 && im.age<3)scatter+=1.6*std::min(1.2,im.strength)*(im.age/.35)*std::exp(1-im.age/.35);}
     scatter=std::tanh(scatter)+(p.surgeEnabled && c.schedule?.7*c.schedule->print.surge(c.t):0);
     double level=0;if(c.score){for(double b:c.score->bandBody[0])level+=b*b;level=clamp01(3.2*std::sqrt(level/6));}
     const double phase=Tau*hash2(p.seed,5),t=c.t;

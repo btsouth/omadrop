@@ -31,6 +31,7 @@ struct SwellRowV1 {
     double roll=0; // the rolling bass swells and the set passing this row, 0..2.7
     double foam=0; // foam a breaking set spreads across this row, 0..1.3
     double set=0; // the set swell passing this row, 0..1.3
+    double ringX=0,ringR=-1,ringAmp=0; // the great wave's landing kicks a raised ring outward
     double y(double x,double offset=0) const;
 };
 struct SwellLinesV1 {

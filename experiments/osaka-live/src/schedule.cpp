@@ -28,7 +28,7 @@ void Schedule::advance(double t,const Audio& a,const Score& score) {
         Kit::WaveTrainCueV2 cue;
         if(p->setCycle) {
             cue.charge=print.setCharge;cue.crash=print.crash(t);cue.crashStart=print.crashStart;
-            cue.crashAge=t-print.crashStart;cue.strength=print.crashStrength;
+            cue.crashAge=t-print.crashStart;cue.strength=print.crashStrength;cue.setStrength=print.setStrength;
             cue.approach=print.setRolling()?sstep(print.setLaunch,print.setArrival(),t):0;
         }
         waveTrain.advance(driven,score,t,t-waveTrainLast,*p,cue);
