@@ -30,8 +30,10 @@ void Schedule::advance(double t,const Audio& a,const Score& score) {
             cue.charge=print.setCharge;cue.crash=print.crash(t);cue.crashStart=print.crashStart;
             cue.crashAge=t-print.crashStart;cue.strength=print.crashStrength;cue.setStrength=print.setStrength;
             cue.approach=print.setRolling()?sstep(print.setLaunch,print.setArrival(),t):0;
+            cue.scale=print.plan.scale;cue.spot=print.plan.spot;cue.feintAt=print.plan.feintAt;cue.fizzle=print.fizzling();cue.plan=print.planCycle;
         }
         waveTrain.advance(driven,score,t,t-waveTrainLast,*p,cue);
+        print.landingX=waveTrain.pose().landing;
     }
     waveTrainLast=t;
     double energy=0;

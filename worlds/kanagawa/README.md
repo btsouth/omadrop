@@ -1,10 +1,15 @@
 # Kanagawa
 
-A sunset Hokusai paper print with a standing indigo wave, Fuji, two rowing boats
-and recurring wildlife. The wave rolls low through quiet music, towers and
-curls during loud passages, and flicks its cream claws and spray on hits. Its
-base height is 340 design pixels with 650 pixels of additional rise. It never
-crashes. The sea, foam and boats share the same bass-responsive swell field.
+A sunset Hokusai paper print with a great wave, Fuji, two rowing boats and
+recurring wildlife. Loud playing builds a set over about twenty-six seconds; the
+wave grows with it, feints on strong hits and breaks when the set rolls in,
+throwing talon-edged spray and foam across the sea. After each landing the sea
+stays calm for eight to twenty seconds, and crashes are at least twenty-four
+seconds apart. Each set has its own character from a seeded bag: an ordinary
+break, a towering wave with two feints, a fizzle that sinks back into the sea,
+or an early small break. A surge can make a set tower and a real drop in the
+music lets a grown one fizzle. Size and position vary per set, so the landing
+moves along the sea. The sea, foam and boats share the same swell field.
 
 Sustained loud bass opens an eleven-second surge: the crest throws a spray fan,
 gulls scatter, boats dig in, a gust crosses the sky and Fuji throws a few embers.
@@ -22,8 +27,11 @@ submerges completely; there is no disaster or impact state.
 Two depths of cloud bands drift across the print. Sustained song energy warms
 its sky grade and bass breathes through the sun halo. A near swell occasionally
 crests across the bottom, with a slow viewer bob of at most a few pixels.
-The two rowing boats escape outward while a set builds, keeping their hulls
-below the crest and outside the curl. A gull circles the near boat, lands on
+The two crews race each set. The near crew outruns it to the left or right
+edge, is caught and swamped (a fresh crew rows in), or rides the landing and is
+pitched hard; it is never swamped twice running. The far crew flees right, or
+stays and braces for a small set. Hulls turn around before rowing back. The calm
+after a landing brings cranes, a lantern or fishing boat, fish, birds or the gull. A gull circles the near boat, lands on
 its bow, and takes off on a strong hit. Birds pass through the middle distance,
 fish leap beside the moving near boat, and alternate squalls bring rain closer.
 

@@ -7,9 +7,29 @@ namespace Journey::Kit {
 // Independent opt-in life clock. Osaka's authored schedule never reads it.
 enum class PrintMoment { Fish, Cranes, FishingBoat, LanternBoat, Gust, Squall, SnowGlint, Star, Birds, Count };
 struct PrintEventV1 { double start=-1000,duration=7,speed=1,height=0,direction=1; int count=0; unsigned cycle=0; };
+// Each set has its own character: most build and break, some tower with
+// two feints, some fizzle back into the sea and some break early and small.
+enum class SetKind { Normal, Towering, Fizzle, EarlyBreak };
+// What the set does to the near boat: it outruns it, is swamped, or rides
+// the landing and is pitched hard but survives.
+enum class BoatFate { Escape, Swamped, Rides };
+struct SetPlanV1 {
+    SetKind kind=SetKind::Normal;BoatFate near=BoatFate::Escape;
+    double scale=.95,spot=-40,build=1,breakAt=2,fizzleAt=2,travel=1,splash=1;
+    std::array<double,2> feintAt{{2,2}}; // build levels of the lip's feints
+    int nearDirection=1;bool nearOffscreen=true,farStays=false;
+};
+// A boat lane's race against the set. frac runs from home (0) to the lane's
+// goal (an edge, or the landing for a caught lane); facing turns the hull.
+struct RaceLaneV1 {
+    enum State { Home, Fleeing, Caught, Returning, Entering } state=Home;
+    BoatFate fate=BoatFate::Escape;
+    double frac=0,velocity=0,facing=1,since=-1000,landing=1100;
+    int direction=1;bool offscreen=true;
+};
 struct WaveSetV1 { double start=0,duration=36,energy=0; unsigned cycle=0; };
 struct MomentScheduleV1 {
-    explicit MomentScheduleV1(int seed=1):seed(seed) { dragonNext=varied(91,0,40,80); }
+    explicit MomentScheduleV1(int seed=1):seed(seed) { dragonNext=varied(91,0,40,80);plan=choosePlan(0,0,BoatFate::Escape); }
     int seed=1;double next=4,last=0,heldBass=0,surgeStart=-1000,surgeReady=10,dragonNext=240;
     unsigned serial=0,surgeCycle=0,dragonCycle=0;std::uint64_t beatSerial=0;
     PrintEventV1 dragon,flock,foregroundSwell,gull;
@@ -61,13 +81,20 @@ struct MomentScheduleV1 {
     // One set at a time ties the sea together. Loud playing charges it; a
     // strong hit (or a surge) launches a swell at the horizon that rolls
     // toward the viewer and breaks the great wave when it reaches its row.
-    static constexpr double setTravel=4.2,setWaveRow=.65,crashLength=5.5,setBuild=17;
+    // After a landing the sea stays calm for a while before the next set can
+    // build, so crashes stay rare and the lulls have room for life.
+    static constexpr double setTravel=4.2,setWaveRow=.65,crashLength=5.5,setBuild=26,crashGap=24;
     double riseLevel=0,setCharge=0,setFull=-1000,setLaunch=-1000,setStrength=0,crashStart=-1000,crashStrength=0;
-    unsigned setCycle=0;
-    double setArrival()const{return setLaunch+setTravel*setWaveRow;}
+    double rollTravel=setTravel,calmUntil=0,fizzleStart=-1000,fizzleEnd=-1000,dropFor=0,calmCue=-1000,landingX=1100;
+    unsigned setCycle=0,planCycle=0,fateCycle=0,calmSerial=0;
+    SetPlanV1 plan,lastPlan;
+    std::array<RaceLaneV1,2> lanes{}; // near, far
+    double travel()const{return rollTravel;}
+    double setArrival()const{return setLaunch+travel()*setWaveRow;}
     bool setRolling()const{return setLaunch>crashStart;}
+    bool fizzling()const{return fizzleStart>fizzleEnd;}
     // The set passing depth z (0 horizon, 1 nearest row): a smooth rise and fall.
-    double setRoll(double z,double t)const{const double age=t-setLaunch-setTravel*z;
+    double setRoll(double z,double t)const{const double age=t-setLaunch-travel()*z;
         return age<=0||age>4?0:setStrength*(age/.5)*std::exp(1-age/.5);}
     double crash(double t)const{const double age=t-crashStart;
         return age<0?0:crashStrength*sstep(0,.3,age)*(1-sstep(1.2,crashLength,age));}
@@ -75,28 +102,137 @@ struct MomentScheduleV1 {
     double crashFoam(double z,double t)const{const double age=t-crashStart;if(age<0||age>8)return 0;
         const double reach=.05+.4*sstep(0,3,age);
         return crashStrength*(1-sstep(.5*reach,reach,std::abs(z-setWaveRow)))*sstep(0,.4,age)*(1-sstep(3,8,age));}
+    // Each set gets its own character from a seeded bag, so every kind and
+    // every boat outcome recurs and no two neighbours repeat the same story.
+    SetPlanV1 choosePlan(unsigned cycle,unsigned fateCycle,BoatFate previous)const{
+        static constexpr SetKind kinds[]={SetKind::Normal,SetKind::Towering,SetKind::Normal,SetKind::Fizzle,SetKind::EarlyBreak,SetKind::Normal};
+        static constexpr BoatFate fates[]={BoatFate::Escape,BoatFate::Swamped,BoatFate::Escape,BoatFate::Rides,BoatFate::Escape};
+        auto pick=[&](int key,unsigned n,unsigned index){const unsigned round=index/n,at=index%n;
+            const unsigned stride=n==6?(varied(key,round,0,1)<.5?1:5):(varied(key,round,0,1)<.5?2:3);
+            return (unsigned(varied(key+1,round,0,n))+stride*at)%n;};
+        SetPlanV1 p;
+        // The opening set is a full ordinary one.
+        p.kind=cycle==0?SetKind::Normal:kinds[pick(300,6,cycle-1)];
+        p.near=fates[pick(302,5,fateCycle)];
+        const double r=varied(304,cycle,0,1);
+        if(p.kind==SetKind::Towering && p.near==BoatFate::Escape && r<.4)p.near=BoatFate::Swamped;
+        if(p.kind==SetKind::EarlyBreak && p.near==BoatFate::Swamped)p.near=BoatFate::Rides;
+        if(p.near==BoatFate::Swamped && previous==BoatFate::Swamped)p.near=r<.5?BoatFate::Escape:BoatFate::Rides;
+        if(p.kind==SetKind::Fizzle)p.near=BoatFate::Escape;
+        p.nearDirection=varied(305,cycle,0,1)<.5?-1:1;p.nearOffscreen=varied(306,cycle,0,1)<.6;
+        // Tall sets stay left of the mountain so Fuji and the sun stay in view.
+        p.spot=varied(307,cycle,-220,60);
+        switch(p.kind){
+        case SetKind::Normal:p.scale=varied(308,cycle,.88,1.02);
+            if(varied(309,cycle,0,1)<.65)p.feintAt[0]=varied(310,cycle,.55,.85);break;
+        case SetKind::Towering:p.scale=varied(308,cycle,1.04,1.1);p.build=1.15;p.splash=1.2;p.spot=std::min(p.spot,-30.);
+            p.feintAt={{varied(310,cycle,.48,.6),varied(311,cycle,.74,.88)}};break;
+        case SetKind::Fizzle:p.scale=varied(308,cycle,.86,1);p.fizzleAt=varied(312,cycle,.72,.9);
+            if(varied(309,cycle,0,1)<.5)p.feintAt[0]=varied(310,cycle,.5,.65);break;
+        case SetKind::EarlyBreak:p.scale=varied(308,cycle,.82,.9);p.breakAt=varied(313,cycle,.42,.58);p.travel=.65;p.splash=.65;break;
+        }
+        p.farStays=p.kind==SetKind::EarlyBreak || p.kind==SetKind::Fizzle || (p.kind==SetKind::Normal && p.scale<.93);
+        return p;
+    }
+    // A fizzle never reaches the boats, so it does not use up an outcome.
+    void nextPlan(){lastPlan=plan;if(plan.kind!=SetKind::Fizzle)++fateCycle;plan=choosePlan(++planCycle,fateCycle,lastPlan.near);}
     void set(double t,double dt,const Score&s){
         const double loud=clamp01(2.4*(.65*s.bandBody[2][0]+.35*s.bandBody[2][1]));
         double body=0;for(double b:s.bandBody[1])body+=b*b;body=clamp01(3.1*std::sqrt(body/6));
-        if(setRolling() && t>=setArrival()){crashStart=t;crashStrength=setStrength;setCharge=0;setFull=-1000;}
+        if(setRolling() && t>=setArrival()){crashStart=t;crashStrength=setStrength;setCharge=0;setFull=-1000;
+            calmUntil=t+varied(320,setCycle,8,20);calmCue=t+varied(321,setCycle,3.5,6.5);nextPlan();}
         if(setRolling())return;
-        // The next set builds while the music plays, about seventeen seconds
+        riseLevel+=(loud-riseLevel)*-std::expm1(-dt/4);
+        dropFor=loud<.12?dropFor+dt:0;
+        // A fizzling set gives up its crest and sinks back into the sea; the
+        // next one may start soon after.
+        if(fizzling()){setCharge=std::max(0.,setCharge-dt/7);
+            if(setCharge<=0){fizzleEnd=t;calmUntil=t+varied(322,planCycle,3,6);calmCue=t+2;nextPlan();}
+            return;}
+        if(t<calmUntil)return;
+        // The next set builds while the music plays, about twenty-six seconds
         // of full playing; quiet passages hold it and silence lets it ebb.
         // Rising music drives it hardest: a swell in level counts double.
-        riseLevel+=(loud-riseLevel)*-std::expm1(-dt/4);
         const double drive=(.5*sstep(.15,.6,loud)+.5*sstep(.35,.8,body))*(1+1.2*clamp01(4*(loud-riseLevel)));
-        setCharge=std::clamp(setCharge+dt*(drive/setBuild-(drive<.08?1./150:0)),0.,1.);
+        setCharge=std::clamp(setCharge+dt*(drive/(setBuild*plan.build)-(drive<.08?1./150:0)),0.,1.);
         if(setCharge>=1 && setFull<0)setFull=t;
         if(setCharge<.97)setFull=-1000;
+        // The music turns a set: a surge makes an ordinary one tower, and a
+        // real drop in the music lets a grown one fizzle out.
+        if(plan.kind==SetKind::Normal && lastPlan.kind!=SetKind::Towering && t-surgeStart<.1 && setCharge>.3 && varied(314,planCycle,0,1)<.35){plan.kind=SetKind::Towering;plan.scale=std::max(plan.scale,1.04);plan.splash=1.2;plan.spot=std::min(plan.spot,-30.);
+            if(plan.feintAt[1]>1)plan.feintAt[1]=std::max(plan.feintAt[0]>1?.6:plan.feintAt[0]+.15,setCharge+.12);}
+        if((plan.kind==SetKind::Fizzle && setCharge>=plan.fizzleAt)||(dropFor>3.5 && setCharge>.5)){fizzleStart=t;plan.kind=SetKind::Fizzle;return;}
         // A built set leaves on a strong hit while the music plays fully, or
-        // on the next onset once it has stood ready for six seconds.
-        if(t-crashStart<12)return;
+        // on the next onset once it has stood ready for six seconds. An early
+        // set breaks on the first strong hit once it is half grown.
+        if(t-crashStart<crashGap)return;
         const Event* hit=Score::last(s.bassHits,t);const Event* onset=Score::last(s.onsets,t);
         const bool kick=hit && t-hit->t<.1 && hit->strength>=.4;
         const bool surging=t-surgeStart<.1 && setCharge>=.9;
         const bool late=setFull>0 && t-setFull>6 && onset && t-onset->t<.1;
-        if((setCharge>=1 && kick && body>=.55)||surging||late){
-            setLaunch=t;++setCycle;setStrength=std::clamp(.7+.4*loud+(surging||surge(t)>.3?.3:0),.6,1.3);}
+        const bool early=plan.kind==SetKind::EarlyBreak && setCharge>=plan.breakAt && kick && body>=.35;
+        if((setCharge>=1 && kick && body>=.55)||surging||late||early){
+            setLaunch=t;++setCycle;rollTravel=setTravel*plan.travel;setStrength=std::min(1.4,std::clamp(.7+.4*loud+(surging||surge(t)>.3?.3:0),.6,1.3)*plan.splash);}
+    }
+    // Boat lanes race the set. A fleeing lane runs for an edge as the set
+    // builds and rows back once it has landed or fizzled; a caught lane is
+    // dragged toward the landing. Lanes move on a damped spring with a speed
+    // limit and turn the hull before rowing the other way.
+    double raceBuild(double t)const{return std::max(.55*easeIn(sstep(.35,1.,setCharge))+.45*(setRolling()?sstep(setLaunch,setArrival(),t):0.),0.);}
+    void race(double t,double dt){
+        const double roll=setRolling()?sstep(setLaunch,setArrival(),t):0.,age=t-crashStart;
+        for(int i=0;i<2;++i){auto& L=lanes[i];double target=0,limit=.2,facing=1;
+            const bool landed=crashStart>L.since,released=landed || fizzleEnd>L.since || (fizzling() && fizzleStart>L.since && setCharge<.45);
+            switch(L.state){
+            case RaceLaneV1::Home:
+                if(!fizzling() && t>=calmUntil && setCharge>.3 && !(i==1 && plan.farStays)){
+                    L.since=t;L.fate=i==0?plan.near:BoatFate::Escape;L.direction=i==0?plan.nearDirection:1;
+                    L.offscreen=i==0?plan.nearOffscreen:true;L.state=L.fate==BoatFate::Escape?RaceLaneV1::Fleeing:RaceLaneV1::Caught;
+                    if(L.state==RaceLaneV1::Caught)L.landing=landingX;}
+                break;
+            case RaceLaneV1::Fleeing:
+                target=std::max(raceBuild(t),.9*roll);facing=L.direction;
+                if(landed){target=std::max(L.frac,target);if(age>=1){L.state=RaceLaneV1::Returning;L.since=t;}}
+                else if(released){L.state=RaceLaneV1::Returning;L.since=t;}
+                break;
+            case RaceLaneV1::Caught:
+                target=.6*easeIn(sstep(.35,1.,setCharge))+.4*roll;
+                if(!landed)L.landing=landingX;
+                if(landed){target=1.25;limit=.35;
+                    if(L.fate==BoatFate::Swamped && age>=3){L.state=RaceLaneV1::Entering;L.since=crashStart+3;L.frac=0;L.velocity=0;}
+                    else if(L.fate!=BoatFate::Swamped && age>=3.5){L.state=RaceLaneV1::Returning;L.since=t;}}
+                else if(released){L.state=RaceLaneV1::Returning;L.since=t;}
+                break;
+            case RaceLaneV1::Returning:
+                // Turn first, then row home.
+                facing=L.fate==BoatFate::Escape?-L.direction:-1;limit=.075;
+                target=t-L.since<1.2?L.frac:0;
+                if(L.frac<.004 && std::abs(L.velocity)<.01){L.state=RaceLaneV1::Home;L.frac=0;L.velocity=0;}
+                break;
+            case RaceLaneV1::Entering:
+                if(t-L.since>=13)L.state=RaceLaneV1::Home;
+                break;
+            }
+            if(L.state!=RaceLaneV1::Entering){
+                L.velocity+=dt*(1.6*1.6*(target-L.frac)-2*1.6*L.velocity);
+                L.velocity=std::clamp(L.velocity,-limit,limit);L.frac+=L.velocity*dt;}
+            L.facing+=std::clamp(facing-L.facing,-dt/.8,dt/.8);
+        }
+    }
+    // Life returns to the sea in the calm after a landing or a fizzle.
+    void calm(double t){
+        if(calmCue<0 || t<calmCue)return;calmCue=-1000;
+        const unsigned n=calmSerial++;
+        static constexpr int order[]={0,1,2,3,4,5};
+        const int start=int(varied(330,n/6,0,6));
+        for(int k=0;k<6;++k){const int m=order[(start+n+k)%6];
+            if(m==0 && !active(PrintMoment::Cranes,t)){cue(PrintMoment::Cranes,t,n);cue(PrintMoment::Gust,t,n);craneCue=t;return;}
+            if(m==1 && !active(PrintMoment::LanternBoat,t) && !active(PrintMoment::FishingBoat,t)){cue(PrintMoment::LanternBoat,t,n);boatCue=t;return;}
+            if(m==2 && lanes[0].state!=RaceLaneV1::Entering && !active(PrintMoment::Fish,t)){cue(PrintMoment::Fish,t,n);fishCue=t;return;}
+            if(m==3 && t-flock.start>=flock.duration){birdNext=t;return;}
+            if(m==4 && !active(PrintMoment::FishingBoat,t) && !active(PrintMoment::LanternBoat,t)){cue(PrintMoment::FishingBoat,t,n);boatCue=t;return;}
+            if(m==5 && t-gull.start>gull.duration){gullNext=t;return;}
+        }
     }
     void advance(double t,const Audio&a,const Score&s){
         const double dt=std::clamp(t-last,0.,.1);last=t;surgeFlow+=dt*surge(t);
@@ -161,7 +297,7 @@ struct MomentScheduleV1 {
             dragon.start=t;dragon.duration=18;dragon.speed=varied(92,dragonCycle,.8,1.2);dragon.direction=varied(93,dragonCycle,0,1)<.5?-1:1;
             dragon.duration=18/dragon.speed;dragon.cycle=++dragonCycle;dragonNext=t+varied(94,dragonCycle,70,120);
         }
-        set(t,dt,s);
+        set(t,dt,s);race(t,dt);calm(t);
     }
 };
 }

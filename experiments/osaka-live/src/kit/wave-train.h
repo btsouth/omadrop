@@ -37,7 +37,9 @@ struct WaveTrainDropletV2 {
 };
 struct WaveTrainFingerStateV2 {double extension=0,flick=0;};
 // Set choreography read from the shared print clock.
-struct WaveTrainCueV2 {double charge=0,approach=0,crash=0,crashStart=-1000,crashAge=1e9,strength=0,setStrength=1;};
+struct WaveTrainCueV2 {double charge=0,approach=0,crash=0,crashStart=-1000,crashAge=1e9,strength=0,setStrength=1;
+    // The set's own size, place and feints, and whether it is fizzling out.
+    double scale=.95,spot=-30;std::array<double,2> feintAt{{.7,2}};bool fizzle=false;unsigned plan=0;};
 struct WaveTrainPoseV2 {
     double amplitude=800,stage=0,baseWidth=1060,lean=0,phaseSpeed=65,lipThrow=0;
     double lipStage=-1; // negative selects the direct static study profile
@@ -50,6 +52,7 @@ struct WaveTrainPoseV2 {
     std::array<WaveTrainDropletV2,WaveTrainDropletLimitV2> droplets{};
     // Authored hero: the standing wave, the spent one sinking away, the landing.
     HeroWaveStateV1 hero,trailing;bool trailingActive=false;HeroImpactV1 impact;
+    double landing=1100; // where the standing wave's lip would land now
 };
 struct CriticalSpringV2 {
     double value=0,velocity=0;
@@ -84,7 +87,7 @@ private:
     void advanceHero(const Audio&,const Score&,double seconds,double dt,double energy,double beat,
                      const WaveTrainParametersV2&,const WaveTrainCueV2&);
     CriticalSpringV2 heroPhase_,heroSink_,heroShift_,heroScale_,heroBass_,heroFlick_,heroEnergy_;
-    double heroBuild_=0,heroFeintAt_=-1000;bool heroFeinted_=false;CriticalSpringV2 heroFeint_,heroGrasp_;
+    double heroBuild_=0,heroFeintAt_=-1000;int heroFeints_=0;unsigned heroPlan_=0;CriticalSpringV2 heroFeint_,heroGrasp_,heroFizzle_;
     double heroCrash_=-1000,heroFrom_=0,heroRollFrom_=-1;bool heroSpawned_=true;unsigned heroCycle_=1;
 };
 struct WaveTrainProfileV2 {

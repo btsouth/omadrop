@@ -286,7 +286,10 @@ lit and every onset reshuffles the column. Zero keeps the original glints.
 `boat-on-water-v1` ports Journey's shallow oshiokuri hull, seated jointed crew,
 raised ends and recovery/catch/drive/settle oars. One canvas pass includes faint
 surface-following wakes, oar rings and five small kick-driven bow spray specks.
-There is no boarding, lantern story, break, wreck or departure clock.
+There is no boarding or lantern story. With an authored `WaveTrain` named by
+`waveInstance`, `race` (`none`, `near` or `far`) joins the shared set clock's
+race lanes: the near lane escapes, is swamped or rides the landing as each set
+decides, and the far lane flees right or braces for small sets.
 
 A `BoatOnWater` slot names a `SwellLines` slot with required `waterInstance`.
 The loader resolves that immutable field across stages; missing/wrong references
