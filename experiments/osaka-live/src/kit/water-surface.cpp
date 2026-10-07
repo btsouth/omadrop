@@ -85,7 +85,7 @@ void WaterSurfaceV1::draw(Ctx& c,const WaterSurfaceParametersV1& p) {
             const double reach=std::max(1.,field.displacementLimit>0?field.displacementLimit:field.amplitude);
             // Quiet water keeps only the tallest rims; a passing set and its
             // crash foam light the rows they reach.
-            const double music=clamp01(.55*p.bandGain*e+.6*field.roll+.3*kick+.9*field.foam);
+            const double music=clamp01(.55*p.bandGain*e+.6*field.roll+.3*kick+.25*field.foam);
             // The set lights its own row even when the music already foams.
             const double threshold=.84-.54*music-.28*std::min(1.,field.set);
             auto height=[&](double x){return (field.base-top(x))/reach;};
@@ -97,7 +97,7 @@ void WaterSurfaceV1::draw(Ctx& c,const WaterSurfaceParametersV1& p) {
                 const double x0=crest[a].x-p.sampleStep*.7,x1=crest[j-1].x+p.sampleStep*.7;
                 if(x1-x0<8)continue;
                 const double strength=clamp01((peak-threshold)/.22);
-                const double thick=(1.1+5.2*z)*(.45+.75*strength)*(1+.8*field.foam+.9*field.set)*p.crestFoam;
+                const double thick=(1.1+5.2*z)*(.45+.75*strength)*(1+.3*field.foam+.9*field.set)*p.crestFoam;
                 const int m=std::max(4,int((x1-x0)/6));
                 for(int pass=0;pass<2;++pass) {
                     const double dy=pass?0:1.4+2.2*z;

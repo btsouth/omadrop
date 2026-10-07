@@ -1,13 +1,15 @@
 #include "wave-train.h"
 #include "../world.h"
 #include <sstream>
+#include <cstdio>
+#include <cstdlib>
 namespace Journey::Kit {
 void CriticalSpringV2::advance(double target,double omega,double dt) {
     const double error=value-target,b=velocity+omega*error,e=std::exp(-omega*dt);
     value=target+(error+b*dt)*e;velocity=(velocity-omega*b*dt)*e;
 }
 WaveTrainMotionV2::WaveTrainMotionV2() {
-    amplitude_.value=pose_.amplitude;speed_.value=pose_.phaseSpeed;heroScale_.value=.68;heroSink_.value=.18;heroShift_.value=-170;
+    amplitude_.value=pose_.amplitude;speed_.value=pose_.phaseSpeed;heroScale_.value=.68;heroSink_.value=.18;heroShift_.value=-90;
 }
 void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds,double dt,const WaveTrainParametersV2& params,const WaveTrainCueV2& cue) {
     if(!std::isfinite(dt)||dt<=0||dt>.25||!std::isfinite(seconds))return;
@@ -129,7 +131,7 @@ void WaveTrainMotionV2::advanceHero(const Audio& a,const Score& score,double t,d
     const double strong=cue.approach>0?std::clamp((cue.setStrength-.6)/.7,0.,1.):0;
     heroScale_.advance(base*lerp(.68,1.04,ch)+.1*strong*(1-pose_.quiet),.8,dt);
     heroSink_.advance(lerp(.18,0.,sstep(0,.5,ch))+.2*pose_.quiet,.9,dt);
-    heroShift_.advance(lerp(-170.,spot,sstep(0,.8,ch)),.5,dt);
+    heroShift_.advance(lerp(-90.,spot,sstep(0,.8,ch)),.5,dt);
     // Every bass hit makes the crest lunge forward and recoil, harder as it grows.
     const double lunge=cue.approach>0?0:.4*std::min(1.,h.pulse)*(.3+.7*ch)*(1-pose_.quiet);
     h.phase=std::clamp(heroPhase_.value+lunge,0.,6.);h.sink=std::clamp(heroSink_.value,0.,1.);h.shift=heroShift_.value;
@@ -523,6 +525,8 @@ void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPo
         if(s.trailingActive)HeroWaveV1::paint(cv,HeroWaveV1::shape(s.trailing),s.trailing);
         HeroWaveV1::paint(cv,HeroWaveV1::shape(s.hero),s.hero);
         HeroWaveV1::paintImpact(cv,s.impact,s.seconds);
+        HeroWaveV1::paintFoot(cv,s.seconds,s.hero.flow,s.hero.energy,std::min(1.,s.hero.pulse));
+        return;
     }
     for(const auto& crest:f.crests) {
         if(p.authored)break;

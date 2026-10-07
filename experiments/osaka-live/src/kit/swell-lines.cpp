@@ -6,7 +6,7 @@ namespace Journey::Kit {
 double SwellRowV1::y(double x,double offset) const {
     const double a=x/scale-phase;
     // Printed sea's long curl plus its second harmonic, with calm-sea texture.
-    const double ring=ringR>0?ringAmp*std::exp(-std::pow((std::abs(x-ringX)-ringR)/(70+.25*ringR),2)):0;
+    const double ring=ringR>0?ringAmp*std::exp(-std::pow((std::abs(x-ringX)-ringR)/(40+.08*ringR),2)):0;
     const double displacement=offset-ring+amplitude*(std::sin(a)+.23*std::sin(a*2.1+.6)
         +.075*std::sin(x/(scale*.43)+detail))
         -lift*(.65+.35*std::sin(a*.47+detail*.31));
@@ -79,8 +79,8 @@ SwellRowV1 SwellLinesV1::field(const Ctx& c,int row,const SwellLinesParametersV1
         const auto& im=c.schedule->waveTrain.pose().impact;
         if(im.age>=0 && im.age<4.5) {
             const double near=std::exp(-std::pow((z-c.schedule->print.setWaveRow)/.3,2));
-            out.ringX=im.at.x;out.ringR=60+480*im.age;
-            out.ringAmp=std::min(1.3,im.strength)*(10+46*depth)*near*std::exp(-im.age/1.5)*sstep(0,.12,im.age);
+            out.ringX=im.at.x;out.ringR=120+620*im.age;
+            out.ringAmp=std::min(1.3,im.strength)*(6+22*depth)*near*std::exp(-im.age/.8)*sstep(0,.12,im.age);
         }
     }
     return out;

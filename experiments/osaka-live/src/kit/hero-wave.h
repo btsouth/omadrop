@@ -43,5 +43,7 @@ struct HeroWaveV1 {
     // The landing: water thrown up in talon-edged sheets, a crown along the
     // sea, spray, spreading rings and foam lace that lingers.
     static void paintImpact(Canvas&,const HeroImpactV1&,double seconds);
+    // Two near swells across the print, in front of the foot and the landing.
+    static void paintFoot(Canvas&,double seconds,double flow,double energy,double pulse);
 };
 }

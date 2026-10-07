@@ -5,7 +5,7 @@
 #include <functional>
 namespace Journey::Kit {
 namespace {
-const Col Ink=hex(0x121d3a),Deep=hex(0x15274f),Navy=hex(0x1c3566),Mid=hex(0x2b5288),Blue=hex(0x3d6a9e),
+const Col Ink=hex(0x121d3a),Deep=hex(0x111d48),Navy=hex(0x182b62),Mid=hex(0x2b5288),Blue=hex(0x3d6a9e),Finger=hex(0x3a64a2),
     Pale=hex(0x86a8c4),Light=hex(0xb3c8d4),Cream=hex(0xe6e0c4);
 constexpr int Per=16;
 struct Pose {
@@ -233,13 +233,30 @@ void HeroWaveV1::paint(Canvas& cv,const HeroWaveShapeV1& s,const HeroWaveStateV1
     cv.linear(0,top,0,top+std::max(300.,1080-top),{{0,Deep,1},{.45f,Navy,1},{1,Mid,1}});trace(cv,body,true);cv.fill();
     cv.linear(0,top,0,top+std::max(300.,1080-top),{{0,Mid,1},{1,Blue,1}});
     trace(cv,w.band(constant(s.backTone),constant(1.),0,1,90),true);cv.fill();
-    // Pale veins stream up the face into the curl, faster when it is loud.
-    static const double stripes[]={.05,.11,.18,.26,.34,.62,.72,.82};
+    // Hokusai's face: lighter blue fingers run up the dark face and over into
+    // the curl, each keyed with an ink edge and a cream vein; bulges travel
+    // up them with the music.
+    for(int k=0;k<7;++k) {
+        const double t=.035+.068*k,a=.22+.05*((k*3)%5),b=std::min(.985,.66+.1*std::clamp(st.phase,0.,3.)+.008*k);
+        if(b<=a+.1)continue;
+        const double weight=(16+8*rnd(seed,k+40))*(.85+.15*std::min(1.,s.specks));
+        std::vector<V2> centre,edge;std::vector<double> width,vein;
+        for(int j=0;j<=60;++j) {
+            const double u=lerp(a,b,j/60.),f=j/60.;
+            const double bulge=1+.22*std::sin(u*26-st.flow*3.2+k*1.3)*(.4+.6*st.energy);
+            const double wd=weight*std::pow(std::sin(Pi*std::min(1.,f*1.15)),.55)*(1-.8*f)*(1-sstep(.85,1,f))*bulge;
+            const V2 q=w.at(u,t+.012*std::sin(u*17+k));centre.push_back(q);width.push_back(std::max(0.,wd));vein.push_back(std::max(0.,wd*.16));
+        }
+        auto finger=ribbon(centre,width);fillPoly(cv,finger,k%3==1?Blue:Finger,.95);
+        std::vector<V2> key(finger.begin(),finger.begin()+61);strokeLine(cv,key,Ink,1.5,.85);
+        fillPoly(cv,ribbon(centre,vein),k%2?Light:Cream,.8);
+    }
+    // Fine veins between the fingers keep the face printed, not flat.
+    static const double stripes[]={.07,.14,.21,.28,.35,.62,.72,.82};
     for(int k=0;k<8;++k) {
         const double t=stripes[k],s0=.1+.05*(k%3),s1=s.stripeTo-.025*k+.03*(k%2);
         if(s1<=s0+.05)continue;
-        const double weight=6*(.6+.8*((k*37)%10)/10.),period=.34,phase=wrap(-st.flow*.22+k*.17,period);
-        // Dashes of 80% duty travel up the face; each tapers at both ends.
+        const double weight=3*(.6+.8*((k*37)%10)/10.),period=.34,phase=wrap(-st.flow*.22+k*.17,period);
         for(int dash=-1;dash<4;++dash) {
             const double a=std::max(s0,s0+phase+dash*period),b=std::min(s1,s0+phase+dash*period+.8*period);
             if(b-a<.03)continue;
@@ -249,8 +266,14 @@ void HeroWaveV1::paint(Canvas& cv,const HeroWaveShapeV1& s,const HeroWaveStateV1
                 centre.push_back(w.at(u,t+.015*std::sin(u*23+k)));
                 width.push_back(weight*std::pow(std::max(0.,std::sin(Pi*(u-a)/(b-a))),.6)*std::min(1.,(b-a)/.12));
             }
-            fillPoly(cv,ribbon(centre,width),k%2?Light:Pale,.85);
+            fillPoly(cv,ribbon(centre,width),k%2?Light:Pale,.7);
         }
+    }
+    // The lower back is printed with the sea's own swell lines.
+    for(int k=0;k<6;++k) {
+        const double t=.6+.065*k;std::vector<V2> line;
+        for(int j=0;j<=50;++j)line.push_back(w.at(lerp(.02,.42-.03*k,j/50.),t));
+        strokeLine(cv,line,Pale,1.3,.45);
     }
     // Cream foam draped over the back, blue talons lapping into it.
     const double m0=s.mantleFrom,m1=s.mantleTo,depth=s.mantleDepth;
@@ -278,11 +301,11 @@ void HeroWaveV1::paint(Canvas& cv,const HeroWaveShapeV1& s,const HeroWaveStateV1
     strokeLine(cv,s.back,Ink,2.6,.9);
     strokeLine(cv,std::vector<V2>(s.face.begin()+int(.08*s.face.size()),s.face.end()),Ink,2.2,.9);
     // Spray specks on the dark face drift up into the lip.
-    const int specks=int(140*s.specks);
+    const int specks=int(260*s.specks);
     for(int k=0;k<specks;++k) {
-        const double u=std::pow(.35+wrap(rnd(seed,k*3+1)+st.flow*.06,.62),.6),t=rnd(seed,k*3+2,.02,.45);
+        const double u=std::pow(.35+wrap(rnd(seed,k*3+1)+st.flow*.06,.62),.6),t=rnd(seed,k*3+2,.02,.55);
         const double life=std::sin(Pi*clamp01((u-.53)/.46));
-        cv.disc(w.at(u,t).x,w.at(u,t).y,rnd(seed,k*3+3,1.2,3.4)*(.5+.5*life),Cream,.9);
+        cv.disc(w.at(u,t).x,w.at(u,t).y,rnd(seed,k*3+3,1.4,4.6)*(.5+.5*life),Cream,.92);
     }
     // Foam lip along the crest and curl, which the talons grow from.
     if(s.lipDepth>.01) {
@@ -291,12 +314,14 @@ void HeroWaveV1::paint(Canvas& cv,const HeroWaveShapeV1& s,const HeroWaveStateV1
         fillPoly(cv,band,Cream);strokeLine(cv,band,Ink,2,1,true);
     }
     // Talons: the outer crest, a tier inside it, a fringe hanging into the hollow.
-    struct Row {double t,s0,s1,size,height,lean,peak,width,side;};
-    static const Row rows[3]={{.99,.42,.995,66,1.25,.75,.78,.16,1},{.93,.5,.97,44,1.1,.7,.8,.14,1},{.035,.88,.99,30,.8,.3,-1,0,-1}};
-    for(int r=0;r<3;++r) {
-        const auto& row=rows[r];const double g=s.grow[r];if(g<=.02)continue;
+    // Talons cascade down the front of the curl in tiers, pale behind cream.
+    struct Row {double t,s0,s1,size,height,lean,peak,width,side;int grow;bool pale;};
+    static const Row rows[5]={{.99,.42,.995,60,1.25,.75,.78,.16,1,0,false},{.93,.5,.97,42,1.1,.7,.8,.14,1,1,false},
+        {.85,.64,.97,34,1.05,.7,.86,.1,1,1,true},{.77,.74,.96,28,1,.65,.88,.08,1,1,false},{.035,.88,.99,30,.8,.3,-1,0,-1,2,false}};
+    for(int r=0;r<5;++r) {
+        const auto& row=rows[r];const double g=s.grow[row.grow];if(g<=.02)continue;
         std::vector<V2> line;for(int j=0;j<=120;++j)line.push_back(w.at(lerp(row.s0,row.s1,j/120.),row.t));
-        Talons t;t.size=row.size;t.height=row.height*g*(1+.15*st.flick*(r<2));
+        Talons t;t.size=row.size;t.height=row.height*g*(1+.15*st.flick*(r<4));if(row.pale)t.fill=Light;
         t.lean=row.lean+s.lean+.08*std::sin(Tau*st.sway+r);t.seed=seed*13+r;
         if(row.peak>0)t.scale=[row](double f){const double u=lerp(row.s0,row.s1,f);return .55+.65*std::exp(-std::pow((u-row.peak)/row.width,2));};
         talons(cv,Edge(line,row.side),t);
@@ -318,6 +343,32 @@ void HeroWaveV1::paint(Canvas& cv,const HeroWaveShapeV1& s,const HeroWaveStateV1
         }
     }
 }
+void HeroWaveV1::paintFoot(Canvas& cv,double seconds,double flow,double energy,double pulse) {
+    // Two near swells run the width of the print in front of the wave's foot
+    // and the landing, so both rise out of the sea. They roll with the flow
+    // clock and jump together on every bass hit.
+    static const Col top[2]={hex(0x355f8b),hex(0x2a5181)},deep[2]={hex(0x1f3d6b),hex(0x18305e)};
+    for(int k=0;k<2;++k) {
+        const double base=948+56*k-(6+10*k)*pulse,amp=(13+7*k)*(.7+.5*energy)*(1+.5*pulse);
+        const double len=170+40*k,speed=flow*(.7+.25*k)+seconds*.12;
+        std::vector<V2> edge;const int n=96;
+        for(int j=0;j<=n;++j) {
+            const double x=lerp(-40.,1960.,j/double(n));
+            const double a=x/len-speed+k*1.9;
+            edge.push_back({x,base-amp*(std::sin(a)+.25*std::sin(2.1*a+.7))});
+        }
+        auto body=edge;body.push_back({1960,1100});body.push_back({-40,1100});
+        cv.linear(0,base-amp,0,base+120,{{0,top[k],1},{1,deep[k],1}});trace(cv,body,true);cv.fill();
+        strokeLine(cv,edge,hex(0x143154),1.6,.75);
+        // Cream rims on the highest crests, broken like the far rows.
+        std::vector<V2> rim;
+        auto flush=[&]{if(rim.size()>2){std::vector<double> wd;for(size_t i=0;i<rim.size();++i)wd.push_back((4+3*pulse)*std::pow(std::sin(Pi*i/(rim.size()-1)),.7));
+            fillPoly(cv,ribbon(rim,wd),Cream,.92);}rim.clear();};
+        for(int j=0;j<=n;++j){const double a=edge[j].x/len-speed+k*1.9;if(std::sin(a)>.7-.25*pulse)rim.push_back(edge[j]+V2(0,2));else flush();}
+        flush();
+        for(int r=1;r<=3;++r){std::vector<V2> line;for(auto q:edge)line.push_back(q+V2(0,20*r+5*k));strokeLine(cv,line,Pale,1.1,.28);}
+    }
+}
 namespace {
 void plume(Canvas& cv,V2 base,double ang,double length,double width,double curl,double size,unsigned seed) {
     if(length<8||width<2)return;
@@ -326,14 +377,21 @@ void plume(Canvas& cv,V2 base,double ang,double length,double width,double curl,
     std::vector<V2> L,R;
     for(int k=0;k<=40;++k) {
         const V2 t=unit(spine[std::min(k+1,40)]-spine[std::max(k-1,0)]),n=V2(t.y,-t.x)*side;
-        const double wd=width*std::pow(std::max(1-k/40.,0.),.6)+1;
+        const double wd=width*std::pow(std::max(1-k/40.,0.),.6)*(1-.5*sstep(.8,1,k/40.));
         L.push_back(spine[k]+n*(wd*.5));R.push_back(spine[k]-n*(wd*.5));
     }
     auto loop=L;loop.insert(loop.end(),R.rbegin(),R.rend());
     fillPoly(cv,loop,Cream);strokeLine(cv,loop,Ink,2.2,1,true);
     strokeLine(cv,std::vector<V2>(R.begin()+4,R.begin()+30),Pale,std::max(3.,width*.12),.9);
-    Talons t;t.size=size;t.height=.9;t.lean=.35;t.seed=seed;t.start=length*.08;t.scale=[](double f){return 1.15-.6*f;};
+    // Only the head of the sheet breaks into talons; drops peel off its tip.
+    Talons t;t.size=size*1.15;t.height=1;t.lean=.4;t.seed=seed;t.start=length*.5;t.scale=[](double f){return .55+.6*sstep(.5,.75,f)*(1-.5*sstep(.9,1,f));};
     talons(cv,Edge(L,side),t);
+    const V2 tip=spine.back(),dir=unit(spine[40]-spine[34]);
+    for(int k=0;k<14;++k) {
+        const double d=rnd(seed,k+800,10,90),off=rnd(seed,k+801,-30,30);
+        const V2 q=tip+dir*d+V2(-dir.y,dir.x)*off;
+        cv.disc(q.x,q.y,rnd(seed,k+802,1.6,4.2)*(1-d/120),Cream,.95);
+    }
 }
 }
 void HeroWaveV1::paintImpact(Canvas& cv,const HeroImpactV1& im,double) {
@@ -387,7 +445,7 @@ void HeroWaveV1::paintImpact(Canvas& cv,const HeroImpactV1& im,double) {
             std::vector<V2> under;for(auto q:body)under.push_back(q+V2(0,6));
             fillPoly(cv,under,Pale);strokeLine(cv,under,Pale,10,1,true);
             fillPoly(cv,body,Cream);strokeLine(cv,body,Ink,2.2,1,true);
-            Talons t;t.size=H*.16;t.height=1.05*grow;t.lean=.4;t.scale=[](double f){return 1.2-.5*f;};
+            Talons t;t.rootLine=false;t.size=H*.16;t.height=1.05*grow;t.lean=.4;t.scale=[](double f){return 1.2-.5*f;};
             t.seed=seed+20;talons(cv,Edge(right,1),t);t.seed=seed+21;talons(cv,Edge(left,-1),t);
             for(int k=0;k<2;++k) {
                 const double f=k?.46:.72;std::vector<V2> rr,ll;
@@ -396,7 +454,7 @@ void HeroWaveV1::paintImpact(Canvas& cv,const HeroImpactV1& im,double) {
                 ti.seed=seed+30+k;talons(cv,Edge(rr,1),ti);ti.seed=seed+40+k;talons(cv,Edge(ll,-1),ti);
             }
         }
-        const double spread=1+.5*sstep(0,2.5,age),crown=sstep(0,.3,age)*(1-.6*slump);
+        const double spread=1+.5*sstep(0,2.5,age),crown=sstep(0,.3,age)*(1-slump);
         for(int side=-1;side<=1;side+=2) {
             std::vector<V2> arc;
             for(int j=0;j<=59;++j){const double u=j/59.;arc.push_back({cx+side*H*(.75+.8*u)*spread,cy+8+sink*.6-H*.22*u*u*crown});}
