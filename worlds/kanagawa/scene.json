@@ -284,7 +284,10 @@
             "sinkTo": 860,
             "faceFlow": 1.1,
             "swayGain": 0.035,
-            "pulseGain": 1.0
+            "pulseGain": 1.0,
+            "pulseDelay": 0.36,
+            "footSwell": 0,
+            "setCycle": true
           },
           "parallaxDepth": 0.75
         },
@@ -428,24 +431,6 @@
             "boatInstance": "near-boat"
           },
           "parallaxDepth": 0.85
-        },
-        {
-          "id": "foreground-swell",
-          "piece": "PrintMoments",
-          "profile": "print-moments-v1",
-          "gate": "Always",
-          "parallaxDepth": 1.15,
-          "params": {
-            "domain": 3,
-            "x": 0,
-            "y": 1010,
-            "width": 1920,
-            "height": 130,
-            "color": "#7397a4",
-            "accent": "#dcd7ba",
-            "ink": "#102955",
-            "band": 0
-          }
         }
       ]
     }

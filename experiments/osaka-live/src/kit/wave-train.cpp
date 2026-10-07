@@ -9,7 +9,7 @@ void CriticalSpringV2::advance(double target,double omega,double dt) {
 WaveTrainMotionV2::WaveTrainMotionV2() {
     amplitude_.value=pose_.amplitude;speed_.value=pose_.phaseSpeed;
 }
-void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds,double dt,const WaveTrainParametersV2& params) {
+void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds,double dt,const WaveTrainParametersV2& params,const WaveTrainCueV2& cue) {
     if(!std::isfinite(dt)||dt<=0||dt>.25||!std::isfinite(seconds))return;
     double power=0;for(double b:a.bands)power+=b*b;
     const double energy=clamp01(3.1*std::sqrt(power/6)+.35*clamp01(a.surge));
@@ -25,12 +25,18 @@ void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds
     const double beat=tempo/60,oldSpeed=speed_.value;
     // The surge is the climax: the rising set stands taller than any other.
     const double climax=params.surgeEnabled?clamp01(a.surge):0;
-    amplitude_.advance(590+240*std::max(0.,a.bassLevel)/(.20+std::max(0.,a.bassLevel))+130*climax
-        +70*params.pulseGain*Score::envelope(score.bassHits,seconds,3.5),1.05*beat,dt);
-    stage_.advance(std::max(5*sstep(.25,.95,energy),params.surgeEnabled?5*sstep(0,.65,a.surge):0),.8*beat,dt);
+    const bool set=params.setCycle;
+    const double approach=set?cue.approach:0,breaking=set?cue.crash:0;
+    amplitude_.advance(590+240*std::max(0.,a.bassLevel)/(.20+std::max(0.,a.bassLevel))+130*climax+90*approach+70*breaking
+        +70*params.pulseGain*Score::envelope(score.bassHits,seconds-params.pulseDelay,3.5),1.05*beat,dt);
+    double stage=std::max(5*sstep(.25,.95,energy),params.surgeEnabled?5*sstep(0,.65,a.surge):0);
+    // A charging set builds the curl and the arriving set completes it; the
+    // breaking crest holds its own curl, so the next one starts low.
+    if(set)stage=std::max(stage*(.5+.5*cue.charge),4.6*approach);
+    stage_.advance(stage,.8*beat,dt);
     speed_.advance(14+6*beat+4*clamp01(count/16.),.65*beat,dt);
     const double mid=std::max(0.,(a.bands[2]+a.bands[3])*.5);
-    throw_.advance(62*mid/(.18+mid)+48*Score::envelope(score.bassHits,seconds,5)+30*climax,2.25*beat,dt);
+    throw_.advance(62*mid/(.18+mid)+48*Score::envelope(score.bassHits,seconds-params.pulseDelay,5)+30*climax+50*approach,2.25*beat,dt);
     lean_.advance(.075*mid/(.18+mid),1.6*beat,dt);
     // Exact underdamped spring at analyzer hops. Lip lag and overshoot are
     // separate from body stage, with a bounded material displacement.
@@ -44,6 +50,26 @@ void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds
     pose_.lean=lean_.value+params.swayGain*(.45+.55*energy)*std::sin(Tau*pose_.sway);pose_.lipThrow=throw_.value;pose_.lipStage=lip_;
     pose_.seconds=seconds;pose_.energy=energy;pose_.tempo=tempo;
     pose_.distance+=(oldSpeed+speed_.value)*.5*dt*params.travelScale;pose_.flow+=(.065+.16*energy)*dt;
+    if(set) {
+        // One group period per set: the crest approaches its break point as
+        // the music charges the set, then the break carries it through the
+        // sink and the next crest takes its place without a seam.
+        const double P=params.groupPeriod,start=params.sinkTo-P,ready=(params.sinkFrom-start)/P;
+        if(setU_<0)setU_=.4*ready; // the first crest starts on screen
+        if(cue.crashStart>lastCrash_ && cue.crashAge>=0){lastCrash_=cue.crashStart;crashFrom_=setU_;crashing_=true;pose_.crashStage=stage_.value;}
+        if(crashing_) {
+            const double k=std::clamp(cue.crashAge/5.,0.,1.);
+            setU_=std::max(setU_,lerp(crashFrom_,1.,1-std::pow(1-k,2.2)));
+            if(k>=1){crashing_=false;setU_=0;setBase_+=P;}
+        } else {
+            // The next crest glides on screen at once, then waits for the charge.
+            const double target=ready*(approach>0?1:.4+.6*std::pow(clamp01(cue.charge),.8));
+            if(target>setU_)setU_+=(target-setU_)*-std::expm1(-dt/(approach>0?.8:2.));
+        }
+        pose_.anchor=start-380+setBase_+setU_*P;
+        quiet_.advance(1-sstep(.30,.60,energy),.6,dt);pose_.quiet=clamp01(quiet_.value);
+        pose_.crashStart=cue.crashStart;pose_.crashAge=cue.crashAge;pose_.crashStrength=cue.strength;
+    }
     foam_.advance(a,score,pose_,seconds,dt,params);
 }
 namespace {
@@ -163,25 +189,31 @@ double WaveTrainV2::envelope(double a,const WaveTrainPoseV2& s,const WaveTrainPa
         group+=std::exp(-.5*std::pow((d+j*p.groupPeriod)/p.groupWidth,2));
         peak+=std::exp(-.5*std::pow(j*p.groupPeriod/p.groupWidth,2));
     }
-    const double life=p.sinkTo>p.riseFrom?sstep(p.riseFrom,p.riseTo,a)*(1-sstep(p.sinkFrom,p.sinkTo,a)):1;
+    const double life=p.sinkTo>p.riseFrom?sstep(p.riseFrom,p.riseTo,a)*(p.setCycle?1:1-sstep(p.sinkFrom,p.sinkTo,a)):1;
     return std::max(p.groupFloor,.08+.92*group/peak)*(1-.62*sstep(1400,2200,a))*life;
 }
 WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrainParametersV2& p) {
     WaveTrainProfileV2 out;out.surface.reserve(161);
     for(int j=0;j<=160;++j)out.surface.push_back(sea(lerp(p.x0,p.x1,j/160.),s,p));
-    const int first=int(std::floor((p.x0-s.distance-380)/p.groupPeriod))-1;
-    const int last=int(std::ceil((p.x1-s.distance-380)/p.groupPeriod))+1;
+    // A set cycle moves the crests on its own clock; otherwise they travel.
+    const double travel=p.setCycle?s.anchor:s.distance;
+    const int first=int(std::floor((p.x0-travel-380)/p.groupPeriod))-1;
+    const int last=int(std::ceil((p.x1-travel-380)/p.groupPeriod))+1;
     double best=-1;
     for(int n=first;n<=last;++n) {
-        const double a=380+s.distance+n*p.groupPeriod,g=envelope(a,s,p);
+        const double a=380+travel+n*p.groupPeriod,g=envelope(a,s,p);
         const double left=a-500,width=std::clamp(s.baseWidth,700.,1400.);
         if(left>p.x1||left+width+180<p.x0)continue;
         WaveTrainProfileV2::Crest crest;crest.a=a;crest.envelope=g;
         // A sinking set keeps its curl while it lowers and pitches its lip
         // forward, so it reads as a wave breaking, not a deflating hump.
-        const double sink=p.sinkTo>p.sinkFrom?sstep(p.sinkFrom,p.sinkTo,a):0,held=sink>0?g/std::max(.05,1-sink):g;
-        crest.stage=std::clamp(s.stage,0.,5.)*sstep(.12,.88,held)*sstep(0,.3,1-sink);
-        const double crash=sink>0?115*std::sin(Pi*std::min(1.,sink*1.25)):0;
+        const double sink=p.sinkTo>p.sinkFrom?sstep(p.sinkFrom,p.sinkTo,a):0,held=sink>0 && !p.setCycle?g/std::max(.05,1-sink):g;
+        // In a set cycle the breaking crest keeps its whole curl while it
+        // sinks into the sea; its lip plunges forward and down first.
+        crest.stage=std::clamp(p.setCycle?lerp(s.stage,std::max(s.stage,s.crashStage),sstep(0,.08,sink)):s.stage,0.,5.)*sstep(.12,.88,held)*(p.setCycle?1:sstep(0,.3,1-sink));
+        crest.sink=p.setCycle?sink:0;
+        const double plunge=p.setCycle?std::sin(Pi*std::min(1.,sink*1.6))*(.6+.4*std::min(1.,s.crashStrength)):0;
+        const double crash=p.setCycle?150*plunge:sink>0?115*std::sin(Pi*std::min(1.,sink*1.25)):0;
         Samples v=blend(crest.stage);Controls delta{};const auto& st=stages();
         auto controlsAt=[&](double stage,int j) {
             stage=std::clamp(stage,0.,5.);const int i=std::min(4,int(stage));
@@ -198,11 +230,15 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
         }
         // Below the curl the authored hump reads as a dark dome; a quiet set
         // settles low into the sea and stands tall again as its lip forms.
-        const double settle=p.sinkTo>p.riseFrom?lerp(.42,1.,sstep(.9,2.9,crest.stage)):1;
+        const double settle=p.sinkTo>p.riseFrom?lerp(p.setCycle?.8:.42,1.,sstep(.9,2.9,crest.stage)):1;
         const double height=std::clamp(s.amplitude,450.*p.heightScale,980.*p.heightScale)*g*settle;
+        // Lowered whole, never squashed: quiet water sinks the set halfway.
+        crest.drop=p.setCycle?height*(1.08*std::pow(sink,1.5)+.5*s.quiet):0;
+        const double fall=p.setCycle?.28*height*sstep(.05,.6,sink):0;
         auto map=[&](V2 q) {
             const double top=std::max(0.,q.y),tip=sstep(.52,.78,q.x)*sstep(.30,.65,top);
-            return V2(left+width*q.x+s.lean*height*top+(s.lipThrow*g+crash)*tip*sstep(2,5,crest.stage),p.baseY-height*q.y);
+            return V2(left+width*q.x+s.lean*height*top+(s.lipThrow*g+crash)*tip*sstep(2,5,crest.stage),
+                p.baseY-height*q.y+crest.drop+fall*tip);
         };
         for(int seg=0;seg<Segments;++seg)for(int j=0;j<Steps;++j) {
             const int k=seg*3,index=seg*Steps+j;
@@ -239,7 +275,8 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
             const double u=along[c]+.012*std::sin(c*2.7+1.3);centreArc[c]=u*lipLength;
             // The crest top foams first; shoulder and curl tip follow with stage.
             const double d=std::min(1.,std::abs(u-.33)/.6);
-            gate[c]=sstep(1.15+1.3*d,2.5+1.7*d,crest.stage)*g;
+            // A set cycle keeps low and quiet water clean: claws need a real face.
+            gate[c]=(p.setCycle?sstep(1.9+1.3*d,3.1+1.7*d,crest.stage)*(1-s.quiet):sstep(1.15+1.3*d,2.5+1.7*d,crest.stage))*g;
         }
         double covered=0;int slot=0;
         for(int c=0;c<Clusters;++c) {
@@ -385,7 +422,11 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
                 cap.inside.push_back(q+V2(.3*size,size*std::sin(Pi*k/8.)*(.55+.3*std::sin(k*2.1+i+s.seconds*.37))));
             }crest.whitecaps.push_back(std::move(cap));
         }
-        double selection=g;
+        double selection=g*(1-crest.sink);
+        if(crest.sink>0 && out.impactSink==0) {
+            out.impactSink=crest.sink;out.impact=crest.outerLip.front();
+            for(auto q:crest.outerLip)if(q.x>out.impact.x)out.impact=q;
+        }
         if(p.surgeEnabled){double l=1e9,r=-1e9;for(auto q:crest.boundary){l=std::min(l,q.x);r=std::max(r,q.x);}
             selection*=std::max(0.,std::min(1920.,r)-std::max(0.,l))/std::max(1.,r-l);}
         if(selection>best){best=selection;out.hero=int(out.crests.size());}
@@ -402,7 +443,7 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
 }
 void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPoseV2& s,const WaveTrainParametersV2& p) {
     for(const auto& crest:f.crests) {
-        const double top=p.baseY-s.amplitude*crest.envelope;
+        const double top=p.baseY-s.amplitude*crest.envelope+crest.drop;
         // Woodblock body: flat tone bands with a printed top-to-base gradation
         // (bokashi), thin light key lines between bands, sparse flowing veins.
         static const Col tones[5]={hex(0x1a3a66),hex(0x2a5a88),hex(0x3a6d98),hex(0x2d6090),hex(0x1e4775)};
@@ -410,14 +451,14 @@ void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPo
         const bool rolling=!crest.flowBands.empty();
         for(int b=0;b<(rolling?1:5);++b) {
             auto band=crest.bandEdges[b];band.insert(band.end(),crest.bandEdges[b+1].rbegin(),crest.bandEdges[b+1].rend());
-            cv.linear(0,top,0,p.baseY,{{0,tones[b],1},{.55f,mix(tones[b],deep,.25),1},{1,mix(tones[b],deep,.6),1}});
+            cv.linear(0,top,0,p.baseY+crest.drop,{{0,tones[b],1},{.55f,mix(tones[b],deep,.25),1},{1,mix(tones[b],deep,.6),1}});
             fill(cv,band);
         }
         if(rolling) {
             static const Col rolled[4]={hex(0x27578a),hex(0x4178a6),hex(0x2b5d8e),hex(0x3a6f9e)};
             for(const auto& band:crest.flowBands) {
                 const Col tone=rolled[band.tone];
-                cv.linear(0,top,0,p.baseY,{{0,tone,1},{.55f,mix(tone,deep,.25),1},{1,mix(tone,deep,.6),1}});
+                cv.linear(0,top,0,p.baseY+crest.drop,{{0,tone,1},{.55f,mix(tone,deep,.25),1},{1,mix(tone,deep,.6),1}});
                 fill(cv,band.outline);
             }
             stripe(cv,crest.bandEdges[1],1.3*crest.envelope,p.lines,.45);
@@ -504,7 +545,7 @@ void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPo
         const auto& b=f.crests[f.hero].boundary;double lo=1e9,hi=-1e9,top=1e9;
         for(int i=78;i<=96;++i){lo=std::min(lo,b[i].x);hi=std::max(hi,b[i].x);top=std::min(top,b[i].y);}
         humpX=.5*(lo+hi)+.10*(hi-lo);humpWidth=std::max(60.,.55*(hi-lo));
-        humpHeight=std::max(0.,p.waterline-top+14);
+        humpHeight=p.footSwell*std::max(0.,p.waterline-top+14);
     }
     auto surface=f.surface;std::vector<V2> lip;
     for(auto& q:surface) {
@@ -545,6 +586,30 @@ void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPo
             ribbon(cv,kl,kr,key,.85);ribbon(cv,claw.left,claw.right,p.foam);
         }
     }
+    if(p.setCycle && f.impactSink>0) {
+        // Whitewater boils up along the near sea where the plunging lip
+        // lands, spreads both ways and falls back.
+        const double age=s.crashAge,amount=std::min(1.,s.crashStrength)*sstep(.15,.45,f.impactSink)*(1-sstep(2.6,6.5,age));
+        auto surfaceAt=[&](double x){const double u=std::clamp((x-p.x0)/(p.x1-p.x0)*160,0.,159.999);const int j=int(u);
+            return lerp(surface[j].y,surface[j+1].y,u-j);};
+        if(amount>.01) {
+            const double spread=sstep(.6,4.,age),span=160+680*spread,x0=f.impact.x-.35*span;
+            constexpr int Lumps=22;const Col key=hex(0x0e2140);
+            for(int pass=0;pass<2;++pass)for(int k=0;k<Lumps;++k) {
+                const double u=(k+.5+.6*(hash2(k,301)-.5))/Lumps,x=x0+span*u;
+                const double boil=.75+.25*std::sin(s.seconds*(2.1+1.3*hash2(k,302))+k);
+                const double h=(22+80*hash2(k,303))*amount*boil*(1-.55*std::abs(u-.38)/.62)*(1-.5*spread*hash2(k,304));
+                const double r=(18+34*hash2(k,305))*(.6+.6*spread),edge=pass?0:1.6;
+                if(h<1.5)continue;
+                std::vector<V2> l,b;
+                for(int j=0;j<=12;++j) {
+                    const double v=j/12.,xx=x+(2*v-1)*(r+edge),y=surfaceAt(xx)+4;
+                    l.push_back({xx,y-(h+edge)*std::pow(std::sin(Pi*v),.7)});b.push_back({xx,y+edge});
+                }
+                ribbon(cv,l,b,pass?p.foam:key,pass?.97:.8);
+            }
+        }
+    }
     for(const auto& cap:f.swellCaps)ribbon(cv,cap.edge,cap.inside,p.foam,.85);
     for(const auto& d:s.droplets)if(d.life>0 && d.age<d.life) {
         const double size=d.size*(1-sstep(.30,1.,d.age/d.life));
@@ -566,6 +631,12 @@ void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPo
 }
 void WaveTrainFoamMotionV2::advance(const Audio& a,const Score& score,WaveTrainPoseV2& pose_,double seconds,double dt,const WaveTrainParametersV2& params) {
     if(!std::isfinite(dt)||dt<=0||dt>.25||!std::isfinite(seconds))return;
+    // A new break flicks every claw and throws spray off the lip.
+    const bool burst=params.setCycle && pose_.crashStart>burstCrash_ && pose_.crashAge>=0;
+    if(burst) {
+        burstCrash_=pose_.crashStart;impactThrown_=false;
+        for(int i=0;i<WaveTrainFingerCountV2;++i)flickVelocity_[i]+=2.4*(.8+.2*std::sin(i*1.7));
+    }
     std::array<bool,6> onset{};
     for(int band=0;band<6;++band) {
         const double raw=std::isfinite(a.bands[band])?std::max(0.,a.bands[band]):0.;
@@ -612,6 +683,21 @@ void WaveTrainFoamMotionV2::advance(const Audio& a,const Score& score,WaveTrainP
                 0,1.4+1.3*random(),2.0+4.2*random(),++serial_};
         }
     }
+    auto toss=[&](V2 at,V2 velocity,double life,double size) {
+        auto slot=std::find_if(pose_.droplets.begin(),pose_.droplets.end(),[](const auto& d){return d.life==0||d.age>=d.life;});
+        if(slot!=pose_.droplets.end())*slot={at,velocity,0,life,size,++serial_};
+    };
+    if(burst)for(int j=0;j<64;++j) {
+        const auto& f=hero.fingers[std::min(WaveTrainFingerCountV2-1,int(random()*WaveTrainFingerCountV2))];
+        if(f.length<4)continue;
+        const V2 tangent=unit(f.tip-f.centre[f.centre.size()-3]);
+        toss(f.tip,tangent*(60+100*random())+V2(20+60*random(),-90-150*random()),1.8+1.2*random(),2.4+4.2*random());
+    }
+    // The landing lip throws a second burst up from the whitewater.
+    if(params.setCycle && !impactThrown_ && shape.impactSink>.28 && pose_.crashAge<4) {
+        impactThrown_=true;
+        for(int j=0;j<90;++j)toss(shape.impact+V2(-80+260*random(),-4),V2(-60+200*random(),-110-210*random()),1.5+1.2*random(),2.6+5.4*random());
+    }
     for(int i=0;i<WaveTrainFingerCountV2;++i)previousTip_[i]=hero.fingers[i].tip;
     tipsReady_=true;
 }
@@ -628,7 +714,7 @@ const WaveTrainProfileV2& WaveTrainV2::worldProfile(const Ctx& c,const WaveTrain
     if(!any.has_value())any=Cached{};auto& cache=std::any_cast<Cached&>(any);
     const auto pose=worldPose(c);const auto& old=cache.pose;
     bool same=cache.t==c.t && old.amplitude==pose.amplitude && old.stage==pose.stage && old.lipStage==pose.lipStage
-        && old.distance==pose.distance && old.flow==pose.flow && old.lean==pose.lean && old.lipThrow==pose.lipThrow && old.energy==pose.energy && old.bands==pose.bands;
+        && old.distance==pose.distance && old.anchor==pose.anchor && old.quiet==pose.quiet && old.crashAge==pose.crashAge && old.flow==pose.flow && old.lean==pose.lean && old.lipThrow==pose.lipThrow && old.energy==pose.energy && old.bands==pose.bands;
     for(int i=0;i<WaveTrainFingerCountV2 && same;++i)same=old.fingers[i].extension==pose.fingers[i].extension && old.fingers[i].flick==pose.fingers[i].flick;
     if(!same){cache.field=profile(pose,p);cache.t=c.t;cache.pose=pose;}
     return cache.field;

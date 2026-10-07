@@ -58,6 +58,40 @@ struct MomentScheduleV1 {
         double pull=rowPull*-std::expm1(-dt/.08);pull=std::max(pull,-.6*rowRate*dt);
         rowPhase+=rowRate*dt+pull;rowPull-=pull;
     }
+    // One set at a time ties the sea together. Loud playing charges it; a
+    // strong hit (or a surge) launches a swell at the horizon that rolls
+    // toward the viewer and breaks the great wave when it reaches its row.
+    static constexpr double setTravel=4.2,setWaveRow=.65,crashLength=5.5;
+    double setCharge=0,setFull=-1000,setLaunch=-1000,setStrength=0,crashStart=-1000,crashStrength=0;
+    unsigned setCycle=0;
+    double setArrival()const{return setLaunch+setTravel*setWaveRow;}
+    bool setRolling()const{return setLaunch>crashStart;}
+    // The set passing depth z (0 horizon, 1 nearest row): a smooth rise and fall.
+    double setRoll(double z,double t)const{const double age=t-setLaunch-setTravel*z;
+        return age<=0||age>4?0:setStrength*(age/.5)*std::exp(1-age/.5);}
+    double crash(double t)const{const double age=t-crashStart;
+        return age<0?0:crashStrength*sstep(0,.3,age)*(1-sstep(1.2,crashLength,age));}
+    // Crash foam spreads from the wave's row to the rows around it, then fades.
+    double crashFoam(double z,double t)const{const double age=t-crashStart;if(age<0||age>8)return 0;
+        const double reach=.05+.4*sstep(0,3,age);
+        return crashStrength*(1-sstep(.5*reach,reach,std::abs(z-setWaveRow)))*sstep(0,.4,age)*(1-sstep(3,8,age));}
+    void set(double t,double dt,const Score&s){
+        const double loud=clamp01(2.4*(.65*s.bandBody[2][0]+.35*s.bandBody[2][1]));
+        double body=0;for(double b:s.bandBody[1])body+=b*b;body=clamp01(3.1*std::sqrt(body/6));
+        if(setRolling() && t>=setArrival()){crashStart=t;crashStrength=setStrength;setCharge=0;setFull=-1000;}
+        if(setRolling())return;
+        // Only playing music charges the next set; a quiet passage holds it.
+        setCharge=std::min(1.,setCharge+dt*(.5*sstep(.15,.6,loud)+.5*sstep(.35,.8,body))/12);
+        if(setCharge>=1 && setFull<0)setFull=t;
+        // A set only leaves while the music is playing fully.
+        if(t-crashStart<12 || body<.55)return;
+        const Event* hit=Score::last(s.bassHits,t);const Event* onset=Score::last(s.onsets,t);
+        const bool kick=hit && t-hit->t<.1 && hit->strength>=.4;
+        const bool surging=t-surgeStart<.1 && setCharge>=.45;
+        const bool late=setFull>0 && t-setFull>6 && onset && t-onset->t<.1;
+        if((setCharge>=1 && kick)||surging||late){
+            setLaunch=t;++setCycle;setStrength=std::clamp(.7+.4*loud+(surging||surge(t)>.3?.3:0),.6,1.3);}
+    }
     void advance(double t,const Audio&a,const Score&s){
         const double dt=std::clamp(t-last,0.,.1);last=t;surgeFlow+=dt*surge(t);
         row(t,dt,s);
@@ -121,6 +155,7 @@ struct MomentScheduleV1 {
             dragon.start=t;dragon.duration=18;dragon.speed=varied(92,dragonCycle,.8,1.2);dragon.direction=varied(93,dragonCycle,0,1)<.5?-1:1;
             dragon.duration=18/dragon.speed;dragon.cycle=++dragonCycle;dragonNext=t+varied(94,dragonCycle,70,120);
         }
+        set(t,dt,s);
     }
 };
 }

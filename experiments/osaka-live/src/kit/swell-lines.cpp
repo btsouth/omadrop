@@ -46,15 +46,21 @@ SwellRowV1 SwellLinesV1::field(const Ctx& c,int row,const SwellLinesParametersV1
         roll=std::min(1.4,roll);
         heave=-p.rollGain*roll*(2+26*depth);
     }
+    // The set from the shared print clock rolls in the same way, taller.
+    double set=0,foam=0;
+    if(p.rollGain>0 && c.schedule) {
+        set=c.schedule->print.setRoll(z,c.t);foam=c.schedule->print.crashFoam(z,c.t);
+        heave-=2.2*p.rollGain*set*(2+26*depth);
+    }
     SwellRowV1 out{z,baseAt(row)+heave,
-        (7+83*std::pow(depth,1.15))*p.amplitude*(1+.45*p.rollGain*roll+.22*e+.16*p.liftGain*lift+p.amplitudeGain*(c.score?c.score->bandBody[1][0]:c.band(0))+(p.surgeEnabled && c.schedule?.65*c.schedule->print.surge(c.t):0)),
+        (7+83*std::pow(depth,1.15))*p.amplitude*(1+.45*p.rollGain*(roll+set)+.22*e+.16*p.liftGain*lift+p.amplitudeGain*(c.score?c.score->bandBody[1][0]:c.band(0))+(p.surgeEnabled && c.schedule?.65*c.schedule->print.surge(c.t):0)),
         (55+115*depth)*(.86+.28*id),
         c.t*p.driftSpeed*(.81+.37*id)+(p.surgeEnabled?1.9:1)*flow-depth*6+Tau*hash2(row,p.seed+19),
         row*.82-c.t*(.17+.11*hash2(row,p.seed+23)),
-        std::min(.85,p.opacity+p.bandGain*e+p.liftGain*.35*lift+p.kickGain*kick),
+        std::min(.85,p.opacity+p.bandGain*e+p.liftGain*.35*lift+p.kickGain*kick+.35*set),
         (8+8*depth)*p.bandGain*c.band(b)+(10+10*depth)*p.liftGain*lift+(2+8*depth)*p.kickGain*kick,
-        clamp01(p.bandGain*c.band(b)+p.liftGain*lift),p.orderedRows?p.rowFreedom*spacing:0};
-    out.roll=roll;
+        clamp01(p.bandGain*c.band(b)+p.liftGain*lift+.7*set),p.orderedRows?p.rowFreedom*spacing:0};
+    out.roll=roll+set;out.foam=foam;out.set=set;
     return out;
 }
 QRectF SwellLinesV1::responseArea(int row,const SwellLinesParametersV1& p) {

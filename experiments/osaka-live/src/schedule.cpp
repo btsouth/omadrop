@@ -25,7 +25,13 @@ void Schedule::advance(double t,const Audio& a,const Score& score) {
     print.advance(t,a,score);
     if(auto p=std::atomic_load(&waveTrainParameters)) {
         Audio driven=a;if(p->surgeEnabled)driven.surge=std::max(driven.surge,print.surge(t));
-        waveTrain.advance(driven,score,t,t-waveTrainLast,*p);
+        Kit::WaveTrainCueV2 cue;
+        if(p->setCycle) {
+            cue.charge=print.setCharge;cue.crash=print.crash(t);cue.crashStart=print.crashStart;
+            cue.crashAge=t-print.crashStart;cue.strength=print.crashStrength;
+            cue.approach=print.setRolling()?sstep(print.setLaunch,print.setArrival(),t):0;
+        }
+        waveTrain.advance(driven,score,t,t-waveTrainLast,*p,cue);
     }
     waveTrainLast=t;
     double energy=0;
