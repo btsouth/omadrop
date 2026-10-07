@@ -1,5 +1,6 @@
 #include "boat-on-water.h"
 #include "../rig.h"
+#include "../schedule.h"
 #include <QTransform>
 namespace Journey::Kit {
 V2 BoatOnWaterV1::keel(const BoatOnWaterParametersV1&p,double u){
@@ -23,6 +24,36 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
     auto drift=[&](double t){return .65*std::sin(t+phase)+.35*std::sin(t*std::sqrt(2.)+phase*.73);};
     BoatOnWaterPoseV1 s;s.at.x=p.x+p.driftX*(drift(clock)-drift(0))*.5;
     s.row=p.row+p.driftRows*(std::sin(clock*std::sqrt(3.)+phase)-std::sin(phase))*.5;
+    // The race: as the set builds the crews sprint for the right edge. The
+    // escaping boat is gone before the landing and rows back in afterwards;
+    // the slower one is caught at the landing, goes under the foam, and a new
+    // crew rows in from the left once the sea is calm again.
+    double race=0,sunk=0,thrown=0;
+    if(p.fate && c.schedule && p.waveTrain.authored) {
+        const auto& k=c.schedule->print;const auto& im=c.schedule->waveTrain.pose().impact;
+        const double build=sstep(.35,1.,k.setCharge),roll=k.setRolling()?sstep(k.setLaunch,k.setArrival(),c.t):0;
+        const double age=c.t-k.crashStart,home=s.at.x;
+        if(p.fate==1) {
+            const double off=2250-home;
+            const double going=off*std::max(.55*easeIn(build)+.45*roll,0.);
+            const double back=age>=0?off*(1-easeInOut((age-1)/14)):0;
+            s.at.x=home+std::max(going,back);
+            race=std::max(build,roll);
+        } else {
+            const double target=(im.at.x>0?im.at.x:1100)-80-home;
+            const double going=target*(.6*easeIn(build)+.4*roll);
+            s.at.x=home+going;race=std::max(build,roll);
+            if(age>=0 && age<20) {
+                // Caught: pitched up and dragged under, then a fresh crew.
+                // The landing throws the hull up and over into the foam.
+                const double u=clamp01((age-.2)/1.);
+                thrown=u>0 && u<1?u:0;
+                sunk=u>=1?1:0;
+                if(age<2.6)s.at.x=home+target+150*easeOut(u);
+                else {s.at.x=lerp(-260.,home,easeOut((age-3)/13));race=0;sunk=0;s.hidden=age<3;}
+            }
+        }
+    }
     const double half=p.length*p.scale*.45;
     const auto wave= p.ridesWave && !p.ridesWaveTrain?GreatWaveV1::field(c,p.wave):GreatWaveFieldV1{};
     const auto* train=p.ridesWaveTrain?&WaveTrainV2::worldProfile(c,p.waveTrain):nullptr;
@@ -112,6 +143,8 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
     // rigid hull on its most demanding support point.
     if(p.ridesWave)s.tilt=.55*std::tanh(p.pitchGain*s.tilt/.55);
     s.at.y=s.waterline-14*p.scale*std::cos(s.tilt);
+    if(thrown>0){s.at.y-=170*std::sin(Pi*thrown)-120*thrown*thrown;s.tilt-=2.6*easeIn(thrown)+.4*std::sin(Pi*thrown);}
+    if(sunk>0)s.hidden=true;
     if(p.ridesWave){
         // Fit the rigid hull to the lower face after excluding the overhang.
         // The near hull sits entirely above the shared face. Fit the rigid hull
@@ -133,6 +166,7 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
         // current band/kick (that would jump the pose on every beat).
         s.stroke=c.t*p.rowingTempo+p.tempoGain*(c.score?c.score->bandIntegrals[p.band]:0)+hash2(p.seed,43);s.rate=p.rowingTempo;
     }
+    s.urgency=std::max(s.urgency,race);
     s.splash=std::clamp(.10+p.splashGain*(.55*c.band(p.band)+.45*c.kick(5))+.35*s.urgency,0.,.8);
     s.spray=std::clamp(p.kickGain*c.kick(6)+.45*surge+.3*s.urgency*s.effort,0.,.8);
     return s;
@@ -162,6 +196,7 @@ QPainterPath BoatOnWaterV1::responsePath(const BoatOnWaterPoseV1& s,const BoatOn
 }
 void BoatOnWaterV1::paint(Canvas& cv,const Ctx& c,const BoatOnWaterParametersV1& p) {
     const auto s=pose(c,p);const double sc=p.scale,ln=p.length*sc;
+    if(s.hidden)return;
     const auto wave=p.ridesWave && !p.ridesWaveTrain?GreatWaveV1::field(c,p.wave):GreatWaveFieldV1{};
     const auto* train=p.ridesWaveTrain && !p.waveTrain.setCycle?&WaveTrainV2::worldProfile(c,p.waveTrain):nullptr;
     const int lo=std::min(p.swell.rows-2,int(s.row));

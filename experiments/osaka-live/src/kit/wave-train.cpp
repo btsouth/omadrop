@@ -87,6 +87,10 @@ void WaveTrainMotionV2::advanceHero(const Audio& a,const Score& score,double t,d
         s->seconds=t;s->energy=clamp01(heroEnergy_.value);s->sway+=beat*.5*dt;s->flow+=dt*(.25+1.1*energy)*std::max(.2,p.faceFlow);
         s->pulse=clamp01(heroBass_.value);
         s->flick=clamp01(heroFlick_.value);
+        // The last few strong hits throw spray off the crest.
+        int n=0;for(auto it=score.bassHits.rbegin();it!=score.bassHits.rend() && n<4;++it){
+            if(t-it->t>2)break;if(it->strength<.45)continue;s->hitAge[n]=t-it->t;s->hitStrength[n]=it->strength;++n;}
+        for(;n<4;++n){s->hitAge[n]=1e9;s->hitStrength[n]=0;}
     }
     // A new landing: remember the pose it falls from and where the lip lands.
     if(cue.crashStart>heroCrash_ && cue.crashAge>=0) {
@@ -106,7 +110,7 @@ void WaveTrainMotionV2::advanceHero(const Audio& a,const Score& score,double t,d
             old=h;pose_.trailingActive=true;heroSpawned_=true;
             heroPhase_.value=0;heroPhase_.velocity=0;heroSink_.value=1;heroSink_.velocity=0;
             heroShift_.value=-240;heroShift_.velocity=0;h.seed=heroCycle_*3+1;
-            heroScale_.value=.66;heroScale_.velocity=0;heroBuild_=0;
+            heroScale_.value=.66;heroScale_.velocity=0;heroBuild_=0;heroFeinted_=false;
         }
         return;
     }
@@ -127,10 +131,16 @@ void WaveTrainMotionV2::advanceHero(const Audio& a,const Score& score,double t,d
         // charge upward at a bounded pace and never steps; silence lets it
         // ebb slowly. Size, pose and place all follow that one value.
         const double ch=clamp01(cue.charge);
-        if(ch>heroBuild_)heroBuild_+=std::min(ch-heroBuild_,dt*.045);
+        if(ch>heroBuild_)heroBuild_+=std::min(ch-heroBuild_,dt*.11);
         else heroBuild_-=std::min(heroBuild_-ch,dt*.012);
-        target=lerp(.1,2.35,std::pow(heroBuild_,1.1));
-        heroPhase_.advance(target,.7,dt);
+        // One feint per set: on a strong hit once it is well grown, the lip
+        // pitches over as if to break, then draws back and keeps growing.
+        const Event* hit=Score::last(score.bassHits,t);
+        if(!heroFeinted_ && heroBuild_>.55 && heroBuild_<.9 && hit && t-hit->t<.05 && hit->strength>=.55){heroFeinted_=true;heroFeintAt_=t;}
+        const double fa=t-heroFeintAt_;
+        heroFeint_.advance(fa>=0 && fa<1.5?1.:0.,fa<1.5?3.2:1.6,dt);
+        target=lerp(.1,2.35,std::pow(heroBuild_,1.1))+.95*heroFeint_.value;
+        heroPhase_.advance(target,1.1,dt);
     }
     const double grown=cue.approach>0?std::max(heroBuild_,clamp01(cue.charge)):heroBuild_;
     const double base=lerp(.9,1.,hash2(heroCycle_,7)),spot=lerp(-120,60,hash2(heroCycle_,9));
@@ -140,6 +150,7 @@ void WaveTrainMotionV2::advanceHero(const Audio& a,const Score& score,double t,d
     heroShift_.advance(lerp(-90.,spot,sstep(0,.8,grown)),.45,dt);
     h.phase=std::clamp(heroPhase_.value,0.,6.);h.sink=std::clamp(heroSink_.value,0.,1.);h.shift=heroShift_.value;
     h.scale=heroScale_.value;
+    heroGrasp_.advance(clamp01(.55*h.pulse+.45*h.flick+.3*heroFeint_.value),6,dt);h.grasp=clamp01(heroGrasp_.value);
     (void)a;
 }
 namespace {

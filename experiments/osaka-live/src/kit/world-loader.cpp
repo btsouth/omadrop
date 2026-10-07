@@ -557,9 +557,11 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 if(!slot.contains("params"))r.fail(paramsPath,"required field");
                 const auto data=r.object(slot["params"],paramsPath,{"waterInstance"},
                     {"x","row","length","scale","driftX","driftRows","driftSpeed","crewCount","oarCount","seed","band",
-                     "rowingTempo","tempoGain","splashGain","kickGain","pitchGain","hull","trim","ink","foam","surgeEnabled","waveInstance","gullVisits"});
+                     "rowingTempo","tempoGain","splashGain","kickGain","pitchGain","hull","trim","ink","foam","surgeEnabled","waveInstance","gullVisits","fate"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();auto& boat=value->boat;
                 if(data.contains("gullVisits"))boat.gullVisits=r.boolean(data["gullVisits"],paramsPath+".gullVisits");
+                if(data.contains("fate")){const auto f=r.string(data["fate"],paramsPath+".fate");
+                    if(f=="escape")boat.fate=1;else if(f=="swamped")boat.fate=2;else if(f!="none")r.fail(paramsPath+".fate","none, escape or swamped");}
                 if(data.contains("surgeEnabled"))boat.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
                 boat.waterInstance=r.string(data["waterInstance"],paramsPath+".waterInstance").toStdString();
                 if(data.contains("waveInstance"))boat.waveInstance=r.string(data["waveInstance"],paramsPath+".waveInstance").toStdString();

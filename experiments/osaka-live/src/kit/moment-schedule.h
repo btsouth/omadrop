@@ -61,8 +61,8 @@ struct MomentScheduleV1 {
     // One set at a time ties the sea together. Loud playing charges it; a
     // strong hit (or a surge) launches a swell at the horizon that rolls
     // toward the viewer and breaks the great wave when it reaches its row.
-    static constexpr double setTravel=4.2,setWaveRow=.65,crashLength=5.5,setBuild=48;
-    double setCharge=0,setFull=-1000,setLaunch=-1000,setStrength=0,crashStart=-1000,crashStrength=0;
+    static constexpr double setTravel=4.2,setWaveRow=.65,crashLength=5.5,setBuild=17;
+    double riseLevel=0,setCharge=0,setFull=-1000,setLaunch=-1000,setStrength=0,crashStart=-1000,crashStrength=0;
     unsigned setCycle=0;
     double setArrival()const{return setLaunch+setTravel*setWaveRow;}
     bool setRolling()const{return setLaunch>crashStart;}
@@ -80,15 +80,17 @@ struct MomentScheduleV1 {
         double body=0;for(double b:s.bandBody[1])body+=b*b;body=clamp01(3.1*std::sqrt(body/6));
         if(setRolling() && t>=setArrival()){crashStart=t;crashStrength=setStrength;setCharge=0;setFull=-1000;}
         if(setRolling())return;
-        // The next set builds slowly while the music plays, about a minute of
-        // full playing; quiet passages hold it and silence lets it ebb.
-        const double drive=.5*sstep(.15,.6,loud)+.5*sstep(.35,.8,body);
+        // The next set builds while the music plays, about seventeen seconds
+        // of full playing; quiet passages hold it and silence lets it ebb.
+        // Rising music drives it hardest: a swell in level counts double.
+        riseLevel+=(loud-riseLevel)*-std::expm1(-dt/4);
+        const double drive=(.5*sstep(.15,.6,loud)+.5*sstep(.35,.8,body))*(1+1.2*clamp01(4*(loud-riseLevel)));
         setCharge=std::clamp(setCharge+dt*(drive/setBuild-(drive<.08?1./150:0)),0.,1.);
         if(setCharge>=1 && setFull<0)setFull=t;
         if(setCharge<.97)setFull=-1000;
         // A built set leaves on a strong hit while the music plays fully, or
         // on the next onset once it has stood ready for six seconds.
-        if(t-crashStart<20)return;
+        if(t-crashStart<12)return;
         const Event* hit=Score::last(s.bassHits,t);const Event* onset=Score::last(s.onsets,t);
         const bool kick=hit && t-hit->t<.1 && hit->strength>=.4;
         const bool surging=t-surgeStart<.1 && setCharge>=.9;

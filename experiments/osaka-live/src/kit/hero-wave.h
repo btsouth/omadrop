@@ -16,6 +16,8 @@ struct HeroWaveStateV1 {
     double scale=1;          // each set has its own size, about the foot
     double seconds=0,flow=0; // clocks: flow runs faster when the music is loud
     double sway=0,energy=0,pulse=0,flick=0; // beat sway, loudness, bass lift, onset flick
+    double grasp=0;          // smoothed reach of the claws toward the viewer
+    std::array<double,4> hitAge{{1e9,1e9,1e9,1e9}},hitStrength{}; // recent loud hits throw spray
     unsigned seed=1;
 };
 struct HeroImpactV1 {

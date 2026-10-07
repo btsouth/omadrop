@@ -323,10 +323,23 @@ void HeroWaveV1::paint(Canvas& cv,const HeroWaveShapeV1& s,const HeroWaveStateV1
     for(int r=0;r<5;++r) {
         const auto& row=rows[r];const double g=s.grow[row.grow];if(g<=.02)continue;
         std::vector<V2> line;for(int j=0;j<=120;++j)line.push_back(w.at(lerp(row.s0,row.s1,j/120.),row.t));
-        Talons t;t.size=row.size;t.height=row.height*g*(1+.15*st.flick*(r<4));if(row.pale)t.fill=Light;
-        t.lean=row.lean+s.lean+.08*std::sin(Tau*st.sway+r);t.seed=seed*13+r;
+        Talons t;t.size=row.size;t.height=row.height*g*(1+.3*st.grasp*(r<4));if(row.pale)t.fill=Light;
+        t.lean=row.lean+s.lean+.08*std::sin(Tau*st.sway+r)+.35*st.grasp*(row.side>0);t.seed=seed*13+r;
         if(row.peak>0)t.scale=[row](double f){const double u=lerp(row.s0,row.s1,f);return .55+.65*std::exp(-std::pow((u-row.peak)/row.width,2));};
         talons(cv,Edge(line,row.side),t);
+    }
+    // Loud hits throw sprays of drops up off the crest that arc forward
+    // and fall back; each hit throws its own seeded spray.
+    for(int h=0;h<4;++h) {
+        const double age=st.hitAge[h];if(age>1.6||s.grow[0]<.15)continue;
+        const unsigned key=unsigned(std::floor((st.seconds-age)*10));
+        const int n=int(26*st.hitStrength[h]*std::min(1.,s.grow[0]));
+        for(int k=0;k<n;++k) {
+            const double u=rnd(key,k+40,.45,.98),a=age-rnd(key,k+41,0,.15);if(a<0)continue;
+            const V2 q0=w.at(u,1.02),vel{rnd(key,k+42,40,260),rnd(key,k+43,-380,-140)};
+            const V2 q=q0+vel*a+V2(0,420*a*a);
+            cv.disc(q.x,q.y,rnd(key,k+44,1.6,4.4)*(1-.5*a/1.6),Cream,.95*(1-sstep(1.2,1.6,a)));
+        }
     }
     // Spray: drops falling from the curling lip, snow thrown ahead of the crest.
     const double curl=sstep(2.4,3.4,st.phase)*(1-sstep(4.85,5.2,st.phase));

@@ -14,11 +14,15 @@ struct BoatOnWaterParametersV1 {
     double driftX=55, driftRows=.15, driftSpeed=.012;
     int crewCount=5, oarCount=5, seed=101, band=0;
     double rowingTempo=.34, tempoGain=.22, splashGain=.28, kickGain=.18, pitchGain=1;
+    // Race against the authored great wave: 0 none, 1 escapes off the right
+    // edge as the set builds, 2 is caught and swamped by the landing.
+    int fate=0;
     Col hull=hex(0xc0a36e), trim=hex(0xe6c384), ink=hex(0x14141c), foam=hex(0xdcd7ba);
 };
 struct BoatOnWaterPoseV1 {
     V2 at; double row=0, tilt=0, waterline=0, stroke=0, splash=0, spray=0, brace=0;
     double effort=0, urgency=0, rate=0; // loudness pull, escape haste, strokes per second
+    bool hidden=false; // swamped under the whitewater, waiting to row back in
 };
 struct BoatGullPoseV1 {V2 at;double flap=0,alpha=0;bool landed=false;};
 struct BoatOnWaterV1 {
