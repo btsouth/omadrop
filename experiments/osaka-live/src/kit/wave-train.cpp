@@ -78,10 +78,15 @@ void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds
 void WaveTrainMotionV2::advanceHero(const Audio& a,const Score& score,double t,double dt,double energy,double beat,
                                     const WaveTrainParametersV2& p,const WaveTrainCueV2& cue) {
     auto& h=pose_.hero;auto& old=pose_.trailing;auto& im=pose_.impact;
+    // Every music input reaches the wave through a critically damped spring,
+    // so beats push it smoothly instead of stepping it.
+    heroEnergy_.advance(energy,1.4,dt);
+    heroBass_.advance(std::min(1.,p.pulseGain*Score::envelope(score.bassHits,t-p.pulseDelay,3.5)),9,dt);
+    heroFlick_.advance(Score::envelope(score.onsets,t,6),8,dt);
     for(auto* s:{&h,&old}) {
-        s->seconds=t;s->energy=energy;s->sway+=beat*.5*dt;s->flow+=dt*(.25+1.1*energy)*std::max(.2,p.faceFlow);
-        s->pulse=p.pulseGain*Score::envelope(score.bassHits,t-p.pulseDelay,3.5);
-        s->flick=Score::envelope(score.onsets,t,6);
+        s->seconds=t;s->energy=clamp01(heroEnergy_.value);s->sway+=beat*.5*dt;s->flow+=dt*(.25+1.1*energy)*std::max(.2,p.faceFlow);
+        s->pulse=clamp01(heroBass_.value);
+        s->flick=clamp01(heroFlick_.value);
     }
     // A new landing: remember the pose it falls from and where the lip lands.
     if(cue.crashStart>heroCrash_ && cue.crashAge>=0) {
@@ -95,18 +100,18 @@ void WaveTrainMotionV2::advanceHero(const Audio& a,const Score& score,double t,d
         // The lip lands a quarter second after the set arrives, the crest
         // spends itself into whitewater, then sinks while the next one forms.
         h.phase=age<.25?lerp(heroFrom_,5.,sstep(0,.25,age)):lerp(5.,6.,easeInOut((age-.25)/1.7));
-        h.sink=.95*sstep(.8,3.2,age);h.shift=heroShift_.value+70*sstep(1,5,age);
+        h.sink=.95*sstep(.5,3.6,age);h.shift=heroShift_.value+70*sstep(1,5,age);
         heroPhase_.value=h.phase;heroPhase_.velocity=0;
         if(age>=3.0) {
             old=h;pose_.trailingActive=true;heroSpawned_=true;
             heroPhase_.value=0;heroPhase_.velocity=0;heroSink_.value=1;heroSink_.velocity=0;
             heroShift_.value=-240;heroShift_.velocity=0;h.seed=heroCycle_*3+1;
-            heroScale_.value=.66;heroScale_.velocity=0;
+            heroScale_.value=.66;heroScale_.velocity=0;heroBuild_=0;
         }
         return;
     }
     if(pose_.trailingActive) {
-        old.phase=6;old.sink=.95*sstep(.8,3.2,age)+.4*sstep(3.2,4.5,age);old.shift+=dt*18;
+        old.phase=6;old.sink=.95*sstep(.5,3.6,age)+.4*sstep(3.6,4.5,age);old.shift+=dt*18;
         if(age>4.6)pose_.trailingActive=false;
     }
     // A rolling set carries the crest through its curl to the plunge; it lands
@@ -118,23 +123,22 @@ void WaveTrainMotionV2::advanceHero(const Audio& a,const Score& score,double t,d
         target=u<.55?lerp(heroRollFrom_,4.,easeOut(u/.55)):lerp(4.,4.85,easeIn((u-.55)/.45));
         heroPhase_.value=target;heroPhase_.velocity=0;
     } else {
-        // The wave grows with the set: over about a minute of music a
-        // half-sunk swell becomes a towering clawed crest.
-        const double quiet=pose_.quiet,ch=clamp01(cue.charge);
-        target=std::clamp(lerp(.1,2.35,std::pow(ch,1.1))+.35*(energy-.4)-.6*quiet,0.,2.5);
-        heroPhase_.advance(target,.9,dt);
+        // The wave only grows while a set builds: its build follows the
+        // charge upward at a bounded pace and never steps; silence lets it
+        // ebb slowly. Size, pose and place all follow that one value.
+        const double ch=clamp01(cue.charge);
+        if(ch>heroBuild_)heroBuild_+=std::min(ch-heroBuild_,dt*.045);
+        else heroBuild_-=std::min(heroBuild_-ch,dt*.012);
+        target=lerp(.1,2.35,std::pow(heroBuild_,1.1));
+        heroPhase_.advance(target,.7,dt);
     }
-    // Each set has its own size and place; it swells and comes forward as it
-    // builds, and a strong launch makes it stand taller still.
-    const double ch=clamp01(cue.charge);
+    const double grown=cue.approach>0?std::max(heroBuild_,clamp01(cue.charge)):heroBuild_;
     const double base=lerp(.9,1.,hash2(heroCycle_,7)),spot=lerp(-120,60,hash2(heroCycle_,9));
     const double strong=cue.approach>0?std::clamp((cue.setStrength-.6)/.7,0.,1.):0;
-    heroScale_.advance(base*lerp(.68,1.04,ch)+.1*strong*(1-pose_.quiet),.8,dt);
-    heroSink_.advance(lerp(.18,0.,sstep(0,.5,ch))+.2*pose_.quiet,.9,dt);
-    heroShift_.advance(lerp(-90.,spot,sstep(0,.8,ch)),.5,dt);
-    // Every bass hit makes the crest lunge forward and recoil, harder as it grows.
-    const double lunge=cue.approach>0?0:.4*std::min(1.,h.pulse)*(.3+.7*ch)*(1-pose_.quiet);
-    h.phase=std::clamp(heroPhase_.value+lunge,0.,6.);h.sink=std::clamp(heroSink_.value,0.,1.);h.shift=heroShift_.value;
+    heroScale_.advance(base*lerp(.68,1.04,grown)+.1*strong,.7,dt);
+    heroSink_.advance(lerp(.18,0.,sstep(0,.5,grown)),.6,dt);
+    heroShift_.advance(lerp(-90.,spot,sstep(0,.8,grown)),.45,dt);
+    h.phase=std::clamp(heroPhase_.value,0.,6.);h.sink=std::clamp(heroSink_.value,0.,1.);h.shift=heroShift_.value;
     h.scale=heroScale_.value;
     (void)a;
 }

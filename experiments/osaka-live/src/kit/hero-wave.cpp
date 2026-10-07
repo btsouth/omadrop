@@ -179,7 +179,7 @@ HeroWaveShapeV1 HeroWaveV1::shape(const HeroWaveStateV1& st) {
     const Pose &a=P[std::max(0,i-1)],&b=P[i],&c=P[i+1],&d=P[std::min(6,i+2)];
     HeroWaveShapeV1 s;
     std::array<V2,10> back,face;
-    const double lift=1+.035*st.pulse,breathe=2+6*st.energy;
+    const double breathe=2+4*st.energy;
     for(int j=0;j<10;++j) {
         back[j]=catmull(a.back[j],b.back[j],c.back[j],d.back[j],f);
         face[j]=catmull(a.face[j],b.face[j],c.face[j],d.face[j],f);
@@ -187,9 +187,11 @@ HeroWaveShapeV1 HeroWaveV1::shape(const HeroWaveStateV1& st) {
         // beats that leans the crest, and a slow breath through the body.
         const double w=j==0||j==9?0:1;
         for(V2* q:{&back[j],&face[j]}) {
-            const double up=std::max(0.,1095-q->y);
-            q->y=1095-up*lift;
-            q->x+=up/700*14*std::sin(Tau*st.sway)*(.4+.6*st.energy);
+            // Height above the sea leans forward on each (smoothed) bass push
+            // and rocks gently on the beat sway; the size never changes here.
+            const double up=std::max(0.,1095-q->y),reach=std::pow(up/700,1.5);
+            q->x+=reach*(10*std::sin(Tau*st.sway)*(.4+.6*st.energy)+22*st.pulse);
+            q->y+=reach*6*st.pulse;
             q->x+=w*breathe*noise1(st.seconds*.31+j*.53,17+(q==&face[j]));
             q->y+=w*breathe*.8*noise1(st.seconds*.27+j*.41,29+(q==&face[j]));
         }

@@ -83,7 +83,8 @@ private:
     WaveTrainFoamMotionV2 foam_;
     void advanceHero(const Audio&,const Score&,double seconds,double dt,double energy,double beat,
                      const WaveTrainParametersV2&,const WaveTrainCueV2&);
-    CriticalSpringV2 heroPhase_,heroSink_,heroShift_,heroScale_;
+    CriticalSpringV2 heroPhase_,heroSink_,heroShift_,heroScale_,heroBass_,heroFlick_,heroEnergy_;
+    double heroBuild_=0;
     double heroCrash_=-1000,heroFrom_=0,heroRollFrom_=-1;bool heroSpawned_=true;unsigned heroCycle_=1;
 };
 struct WaveTrainProfileV2 {
