@@ -3,12 +3,6 @@
 #include "../schedule.h"
 #include <QTransform>
 namespace Journey::Kit {
-namespace {
-// Horizontal scale of a hull turning between facing right (1) and left (-1):
-// the projection of a steady turn, kept off edge-on.
-double turned(double facing){const double v=std::sin(Pi/2*std::clamp(facing,-1.,1.));
-    return (v<0?-1:1)*std::max(.28,std::abs(v));}
-}
 V2 BoatOnWaterV1::keel(const BoatOnWaterParametersV1&p,double u){
     const double sc=p.scale,ln=p.length*sc,v=1-u;
     // The actual lower hull Bezier, not a rectangle beneath the raised ends.
@@ -30,19 +24,17 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
     auto drift=[&](double t){return .65*std::sin(t+phase)+.35*std::sin(t*std::sqrt(2.)+phase*.73);};
     BoatOnWaterPoseV1 s;s.at.x=p.x+p.driftX*(drift(clock)-drift(0))*.5;
     s.row=p.row+p.driftRows*(std::sin(clock*std::sqrt(3.)+phase)-std::sin(phase))*.5;
-    // The race: each set the schedule decides whether the crews outrun it,
-    // and the lanes carry them toward an edge or the landing and back. A
-    // swamped hull is thrown over into the foam and a fresh crew rows in;
-    // a boat that rides the landing is pitched hard and carried, then rows home.
+    // The race: the wave chases the crews toward the right edge and each set
+    // decides whether they outrun it. A swamped hull is thrown over into the
+    // foam; a boat that rides the landing is pitched hard and rows on. Crews
+    // leave by the right edge and a crew rows back in from the left.
     double race=0,sunk=0,thrown=0,pitched=0,braced=0,lifted=0;
     if(p.race && c.schedule && p.waveTrain.authored) {
         const auto& k=c.schedule->print;const auto& L=k.lanes[p.race==1?0:1];
         const double home=s.at.x,age=c.t-k.crashStart;
         const bool caught=L.fate!=BoatFate::Escape,landed=k.crashStart>L.since;
         if(L.state==RaceLaneV1::Entering)s.at.x=lerp(-260.,home,easeOut((c.t-L.since)/13));
-        else {const double goal=caught?L.landing-80:L.direction>0?(L.offscreen?2250.:1760.):(L.offscreen?-330.:150.);
-            s.at.x=home+L.frac*(goal-home);}
-        s.facing=L.facing;
+        else s.at.x=home+L.frac*((caught?L.landing-80:2250.)-home)+(L.state==RaceLaneV1::Leaving?L.offset:0.);
         if(L.state==RaceLaneV1::Fleeing || L.state==RaceLaneV1::Caught)race=k.raceBuild(c.t);
         if(L.state==RaceLaneV1::Caught && !landed)braced=sstep(.5,1.,k.setRolling()?sstep(k.setLaunch,k.setArrival(),c.t):0.);
         if(L.state==RaceLaneV1::Caught && landed && age>=0) {
@@ -145,7 +137,7 @@ BoatOnWaterPoseV1 BoatOnWaterV1::pose(const Ctx& c,const BoatOnWaterParametersV1
     if(p.ridesWave)s.tilt=.55*std::tanh(p.pitchGain*s.tilt/.55);
     s.at.y=s.waterline-14*p.scale*std::cos(s.tilt);
     if(thrown>0){s.at.y-=170*std::sin(Pi*thrown)-120*thrown*thrown;s.tilt-=2.6*easeIn(thrown)+.4*std::sin(Pi*thrown);}
-    s.at.y-=lifted;s.tilt-=pitched*s.facing;
+    s.at.y-=lifted;s.tilt-=pitched;
     if(sunk>0)s.hidden=true;
     if(p.ridesWave){
         // Fit the rigid hull to the lower face after excluding the overhang.
@@ -177,7 +169,7 @@ BoatGullPoseV1 BoatOnWaterV1::gullPose(const Ctx& c,const BoatOnWaterParametersV
     BoatGullPoseV1 out;if(!p.gullVisits || !c.schedule)return out;
     const auto& clock=c.schedule->print;const double age=c.t-clock.gull.start;
     if(age<0 || age>clock.gull.duration)return out;
-    auto bow=[&](const Ctx& at){const auto b=pose(at,p);const V2 q(turned(b.facing)*p.length*p.scale*.48,-8*p.scale);
+    auto bow=[&](const Ctx& at){const auto b=pose(at,p);const V2 q(p.length*p.scale*.48,-8*p.scale);
         return b.at+V2(q.x*std::cos(b.tilt)-q.y*std::sin(b.tilt),q.x*std::sin(b.tilt)+q.y*std::cos(b.tilt));};
     out.at=bow(c);out.alpha=sstep(0,1,age);out.flap=std::sin(c.t*5.2);
     if(clock.gullTakeoff>=clock.gull.start && c.t>=clock.gullTakeoff){
@@ -206,9 +198,7 @@ void BoatOnWaterV1::paint(Canvas& cv,const Ctx& c,const BoatOnWaterParametersV1&
     const double depth=1-sstep(0,2,std::max(0.,p.wave.row-s.row));
     auto support=[&](double x){double sea=lerp(low.y(x),high.y(x),s.row-lo);return train?std::min(sea,lerp(sea,WaveTrainV2::surfaceY(*train,x,p.waveTrain.waterline),depth)):(p.ridesWave?lerp(sea,wave.y(x,sea),depth):sea);};
     const double ca=std::cos(s.tilt),sa=std::sin(s.tilt);
-    // A turning hull is drawn foreshortened, never edge-on; dir is its bow side.
-    const double fx=turned(s.facing),dir=fx<0?-1:1,afx=std::abs(fx);
-    auto wp=[&](V2 q){return s.at+V2(fx*q.x*ca-q.y*sa,fx*q.x*sa+q.y*ca);};
+    auto wp=[&](V2 q){return s.at+V2(q.x*ca-q.y*sa,q.x*sa+q.y*ca);};
     // A narrow waterline seam and two broken trailing ribbons bind the
     // ochre hull to its sampled swell. Rowing and the travelling set enlarge
     // them; none of these marks changes the clearance or rocking solution.
@@ -220,7 +210,7 @@ void BoatOnWaterV1::paint(Canvas& cv,const Ctx& c,const BoatOnWaterParametersV1&
     const double pace=clamp01(.12+.02*(driftSpeed+escapeSpeed)+s.splash+s.spray*.5+std::abs(s.tilt)*1.2+.45*s.urgency);
     for(int j=0;j<2;++j){
         const double span=(24+45*pace)*(1-.28*j)*sc;
-        const double x0=dir>0?s.at.x-ln*.46*afx-span:s.at.x+ln*.46*afx;
+        const double x0=s.at.x-ln*.46-span;
         const int n=12;
         cv.color(p.foam,(.36+.30*pace)*(1-.28*j));
         cv.moveTo(x0,support(x0)+(2+j*5)*sc);
@@ -235,17 +225,16 @@ void BoatOnWaterV1::paint(Canvas& cv,const Ctx& c,const BoatOnWaterParametersV1&
     std::vector<V2> seam;
     for(int k=3;k<=29;++k)seam.push_back(wp(keel(p,k/32.)));
     cv.polyline(seam,(1.1+pace)*sc,p.foam,.45+.3*pace);
-    const double nose=s.at.x+dir*ln*.48*ca*afx;
+    const double nose=s.at.x+ln*.48*ca;
     const double bowSpan=(8+20*pace)*sc;
-    auto ahead=[&](double d){return nose+dir*d;};
-    cv.color(p.foam,.65+.2*pace);cv.moveTo(ahead(-5*sc),support(ahead(-5*sc)));
-    cv.curveTo(ahead(6*sc),support(ahead(6*sc))-5*sc,
-        ahead(bowSpan),support(ahead(bowSpan))-3*sc,
-        ahead(bowSpan+3*sc),support(ahead(bowSpan+3*sc))+2*sc);
-    cv.curveTo(ahead(bowSpan*.6),support(ahead(bowSpan*.6))+sc,
-        ahead(6*sc),support(ahead(6*sc))+4*sc,ahead(-5*sc),support(ahead(-5*sc))+sc);
+    cv.color(p.foam,.65+.2*pace);cv.moveTo(nose-5*sc,support(nose-5*sc));
+    cv.curveTo(nose+6*sc,support(nose+6*sc)-5*sc,
+        nose+bowSpan,support(nose+bowSpan)-3*sc,
+        nose+bowSpan+3*sc,support(nose+bowSpan+3*sc)+2*sc);
+    cv.curveTo(nose+bowSpan*.6,support(nose+bowSpan*.6)+sc,
+        nose+6*sc,support(nose+6*sc)+4*sc,nose-5*sc,support(nose-5*sc)+sc);
     cv.closePath();cv.fill();
-    cv.save();cv.translate(s.at.x,s.at.y);cv.rotate(s.tilt);cv.scale(fx,1);
+    cv.save();cv.translate(s.at.x,s.at.y);cv.rotate(s.tilt);
     // Journey drawBoat: shallow raised ends, ochre side and distinct gunwale.
     cv.color(p.ink);cv.moveTo(-ln/2-26*sc,-16*sc);
     cv.curveTo(-ln/4,14*sc,ln/4,14*sc,ln/2+12*sc,-8*sc);
@@ -283,7 +272,7 @@ void BoatOnWaterV1::paint(Canvas& cv,const Ctx& c,const BoatOnWaterParametersV1&
             // blade clear, and bracing holds it high. No independent bob.
             const double raised=(1-k.depth)*(5+(10+14*amp)*k.lift*row)+44*s.brace;
             const double water=support(world.x)+1.5*sc*k.depth-raised*sc;
-            blade.y=(water-s.at.y-fx*blade.x*sa)/ca;
+            blade.y=(water-s.at.y-blade.x*sa)/ca;
             // A hull riding high on a face cannot reach the trough: the oar
             // keeps its length and the blade stays dry, with no splash.
             const double reach=70*sc;const V2 shaft=blade-grip;
@@ -316,13 +305,13 @@ void BoatOnWaterV1::paint(Canvas& cv,const Ctx& c,const BoatOnWaterParametersV1&
             cv.curveTo(entry.x+w*.2,base-h*1.3,entry.x+w*.6,base-h,entry.x+w,base);cv.closePath();cv.fill();}
         const int drops=3+int(4*force);
         for(int j=0;j<drops;++j){const double id=hash2(i*7+j,p.seed+71),id2=hash2(i*7+j,p.seed+73);
-            const double vx=-dir*(35+110*id)*ss,vy=(120+150*id2)*ss*(.55+.7*force),g=900*ss;
+            const double vx=(-35-110*id)*ss,vy=(120+150*id2)*ss*(.55+.7*force),g=900*ss;
             const double x=entry.x+vx*a,y=base-vy*a+.5*g*a*a;if(y>support(x)-.5)continue;
             const double r=(2+2.2*id2)*ss*(1-sstep(.30,.55,a));
             cv.color(p.foam,.95);cv.ellipse(x,y,r*.75,r*1.25);cv.fill();}
     }
     const auto gull=gullPose(c,p);
-    if(gull.alpha>0){cv.save();cv.translate(gull.at.x,gull.at.y);cv.scale(dir*sc*1.8,sc*1.8);
+    if(gull.alpha>0){cv.save();cv.translate(gull.at.x,gull.at.y);cv.scale(sc*1.8,sc*1.8);
         if(gull.landed){
             cv.line(-3,0,-2,-4,.8,p.ink,gull.alpha);cv.line(1,0,2,-4,.8,p.ink,gull.alpha);
             cv.color(p.foam,gull.alpha);cv.ellipse(-1,-7,6,3.6);cv.fill();
@@ -336,7 +325,7 @@ void BoatOnWaterV1::paint(Canvas& cv,const Ctx& c,const BoatOnWaterParametersV1&
             cv.line(-4,-3,4,-3,2,p.ink,.6*gull.alpha);cv.disc(5,-4,2,p.foam,gull.alpha);
         }cv.restore();}
     const double bow=nose;
-    for(int j=0;j<12;++j){const double id=hash2(j,p.seed+61),x=bow+dir*(3+j*3)*sc;
+    for(int j=0;j<12;++j){const double id=hash2(j,p.seed+61),x=bow+(3+j*3)*sc;
         const double y=support(x)-(3+38*id)*sc*(.4+2*s.spray);
         cv.color(p.foam,s.spray);cv.ellipse(x,y,(.8+.5*id)*sc,(1.2+.9*id)*sc);cv.fill();}
 }

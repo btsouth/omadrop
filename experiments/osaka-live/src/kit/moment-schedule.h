@@ -17,15 +17,16 @@ struct SetPlanV1 {
     SetKind kind=SetKind::Normal;BoatFate near=BoatFate::Escape;
     double scale=.95,spot=-40,build=1,breakAt=2,fizzleAt=2,travel=1,splash=1;
     std::array<double,2> feintAt{{2,2}}; // build levels of the lip's feints
-    int nearDirection=1;bool nearOffscreen=true,farStays=false;
+    bool farStays=false;
 };
-// A boat lane's race against the set. frac runs from home (0) to the lane's
-// goal (an edge, or the landing for a caught lane); facing turns the hull.
+// A boat lane's race against the set, always toward the right edge with the
+// wave behind. frac runs from home (0) to the lane's goal (past the right edge,
+// or the landing for a caught lane). Afterwards the crew rows on off the right
+// edge and, once the sea is calm, a crew rows back in from the left.
 struct RaceLaneV1 {
-    enum State { Home, Fleeing, Caught, Returning, Entering } state=Home;
+    enum State { Home, Fleeing, Caught, Leaving, Entering } state=Home;
     BoatFate fate=BoatFate::Escape;
-    double frac=0,velocity=0,facing=1,since=-1000,landing=1100;
-    int direction=1;bool offscreen=true;
+    double frac=0,velocity=0,since=-1000,landing=1100,offset=0,cruise=0; // offset: px rowed on after a caught lane
 };
 struct WaveSetV1 { double start=0,duration=36,energy=0; unsigned cycle=0; };
 struct MomentScheduleV1 {
@@ -119,7 +120,6 @@ struct MomentScheduleV1 {
         if(p.kind==SetKind::EarlyBreak && p.near==BoatFate::Swamped)p.near=BoatFate::Rides;
         if(p.near==BoatFate::Swamped && previous==BoatFate::Swamped)p.near=r<.5?BoatFate::Escape:BoatFate::Rides;
         if(p.kind==SetKind::Fizzle)p.near=BoatFate::Escape;
-        p.nearDirection=varied(305,cycle,0,1)<.5?-1:1;p.nearOffscreen=varied(306,cycle,0,1)<.6;
         // Tall sets stay left of the mountain so Fuji and the sun stay in view.
         p.spot=varied(307,cycle,-220,60);
         switch(p.kind){
@@ -174,49 +174,51 @@ struct MomentScheduleV1 {
         if((setCharge>=1 && kick && body>=.55)||surging||late||early){
             setLaunch=t;++setCycle;rollTravel=setTravel*plan.travel;setStrength=std::min(1.4,std::clamp(.7+.4*loud+(surging||surge(t)>.3?.3:0),.6,1.3)*plan.splash);}
     }
-    // Boat lanes race the set. A fleeing lane runs for an edge as the set
-    // builds and rows back once it has landed or fizzled; a caught lane is
-    // dragged toward the landing. Lanes move on a damped spring with a speed
-    // limit and turn the hull before rowing the other way.
+    // Boat lanes race the set to the right. A fleeing lane runs for the edge
+    // as the set builds; a caught lane is dragged toward the landing. Once the
+    // set has landed or fizzled the crew rows on off the right edge, and a crew
+    // rows back in from the left. Lanes move on a damped, speed-limited spring.
     double raceBuild(double t)const{return std::max(.55*easeIn(sstep(.35,1.,setCharge))+.45*(setRolling()?sstep(setLaunch,setArrival(),t):0.),0.);}
     void race(double t,double dt){
         const double roll=setRolling()?sstep(setLaunch,setArrival(),t):0.,age=t-crashStart;
-        for(int i=0;i<2;++i){auto& L=lanes[i];double target=0,limit=.2,facing=1;
+        for(int i=0;i<2;++i){auto& L=lanes[i];double target=0,limit=.2;
             const bool landed=crashStart>L.since,released=landed || fizzleEnd>L.since || (fizzling() && fizzleStart>L.since && setCharge<.45);
+            auto leave=[&]{L.state=RaceLaneV1::Leaving;L.since=t;L.offset=0;L.cruise=0;if(L.fate!=BoatFate::Escape)L.velocity=0;};
             switch(L.state){
             case RaceLaneV1::Home:
                 if(!fizzling() && t>=calmUntil && setCharge>.3 && !(i==1 && plan.farStays)){
-                    L.since=t;L.fate=i==0?plan.near:BoatFate::Escape;L.direction=i==0?plan.nearDirection:1;
-                    L.offscreen=i==0?plan.nearOffscreen:true;L.state=L.fate==BoatFate::Escape?RaceLaneV1::Fleeing:RaceLaneV1::Caught;
+                    L.since=t;L.fate=i==0?plan.near:BoatFate::Escape;
+                    L.state=L.fate==BoatFate::Escape?RaceLaneV1::Fleeing:RaceLaneV1::Caught;
                     if(L.state==RaceLaneV1::Caught)L.landing=landingX;}
                 break;
             case RaceLaneV1::Fleeing:
-                target=std::max(raceBuild(t),.9*roll);facing=L.direction;
-                if(landed){target=std::max(L.frac,target);if(age>=1){L.state=RaceLaneV1::Returning;L.since=t;}}
-                else if(released){L.state=RaceLaneV1::Returning;L.since=t;}
+                target=std::max(raceBuild(t),.9*roll);
+                if(landed){target=1;if(age>=1)leave();}
+                else if(released)leave();
                 break;
             case RaceLaneV1::Caught:
                 target=.6*easeIn(sstep(.35,1.,setCharge))+.4*roll;
                 if(!landed)L.landing=landingX;
                 if(landed){target=1.25;limit=.35;
-                    if(L.fate==BoatFate::Swamped && age>=3){L.state=RaceLaneV1::Entering;L.since=crashStart+3;L.frac=0;L.velocity=0;}
-                    else if(L.fate!=BoatFate::Swamped && age>=3.5){L.state=RaceLaneV1::Returning;L.since=t;}}
-                else if(released){L.state=RaceLaneV1::Returning;L.since=t;}
+                    if(L.fate==BoatFate::Swamped && age>=3){L.state=RaceLaneV1::Entering;L.since=crashStart+3;L.frac=0;}
+                    else if(L.fate!=BoatFate::Swamped && age>=3.5)leave();}
+                else if(released)leave();
                 break;
-            case RaceLaneV1::Returning:
-                // Turn first, then row home.
-                facing=L.fate==BoatFate::Escape?-L.direction:-1;limit=.075;
-                target=t-L.since<1.2?L.frac:0;
-                if(L.frac<.004 && std::abs(L.velocity)<.01){L.state=RaceLaneV1::Home;L.frac=0;L.velocity=0;}
+            case RaceLaneV1::Leaving:
+                // Rows on at a cruise until well past the right edge; a crew
+                // already off screen comes back sooner.
+                // An escaped crew eases from its sprint to a cruise.
+                if(L.fate==BoatFate::Escape){target=1;limit=std::max(.08,.2*std::exp(-(t-L.since)/2));}
+                else {L.cruise+=(150-L.cruise)*-std::expm1(-dt/1.5);L.offset+=L.cruise*dt;}
+                if(L.fate==BoatFate::Escape?L.frac>.97 && t-L.since>=6:t-L.since>=13){L.state=RaceLaneV1::Entering;L.since=t;L.frac=0;}
                 break;
             case RaceLaneV1::Entering:
                 if(t-L.since>=13)L.state=RaceLaneV1::Home;
                 break;
             }
-            if(L.state!=RaceLaneV1::Entering){
+            if(L.state==RaceLaneV1::Fleeing || L.state==RaceLaneV1::Caught || (L.state==RaceLaneV1::Leaving && L.fate==BoatFate::Escape)){
                 L.velocity+=dt*(1.6*1.6*(target-L.frac)-2*1.6*L.velocity);
                 L.velocity=std::clamp(L.velocity,-limit,limit);L.frac+=L.velocity*dt;}
-            L.facing+=std::clamp(facing-L.facing,-dt/.8,dt/.8);
         }
     }
     // Life returns to the sea in the calm after a landing or a fizzle.

@@ -288,8 +288,9 @@ raised ends and recovery/catch/drive/settle oars. One canvas pass includes faint
 surface-following wakes, oar rings and five small kick-driven bow spray specks.
 There is no boarding or lantern story. With an authored `WaveTrain` named by
 `waveInstance`, `race` (`none`, `near` or `far`) joins the shared set clock's
-race lanes: the near lane escapes, is swamped or rides the landing as each set
-decides, and the far lane flees right or braces for small sets.
+race lanes toward the right edge: the near lane escapes, is swamped or rides
+the landing as each set decides, and the far lane flees or braces for small
+sets. Crews leave by the right edge and row back in from the left.
 
 A `BoatOnWater` slot names a `SwellLines` slot with required `waterInstance`.
 The loader resolves that immutable field across stages; missing/wrong references

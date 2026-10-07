@@ -27,11 +27,12 @@ submerges completely; there is no disaster or impact state.
 Two depths of cloud bands drift across the print. Sustained song energy warms
 its sky grade and bass breathes through the sun halo. A near swell occasionally
 crests across the bottom, with a slow viewer bob of at most a few pixels.
-The two crews race each set. The near crew outruns it to the left or right
-edge, is caught and swamped (a fresh crew rows in), or rides the landing and is
-pitched hard; it is never swamped twice running. The far crew flees right, or
-stays and braces for a small set. Hulls turn around before rowing back. The calm
-after a landing brings cranes, a lantern or fishing boat, fish, birds or the gull. A gull circles the near boat, lands on
+The wave chases both crews toward the right edge. The near crew outruns it off
+the edge, is caught and swamped, or rides the landing, is pitched hard and rows
+on; it is never swamped twice running. The far crew flees, or stays and braces
+for a small set. Crews only row forward: they leave by the right edge and a crew
+rows back in from the left once the sea is calm. The calm after a landing brings
+cranes, a lantern or fishing boat, fish, birds or the gull. A gull circles the near boat, lands on
 its bow, and takes off on a strong hit. Birds pass through the middle distance,
 fish leap beside the moving near boat, and alternate squalls bring rain closer.
 
