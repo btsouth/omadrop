@@ -32,15 +32,30 @@ SwellRowV1 SwellLinesV1::field(const Ctx& c,int row,const SwellLinesParametersV1
     if(row+1<p.rows)spacing=std::min(spacing,baseAt(row+1)-baseAt(row));
     // Every kick dips the whole sea and lets it rebound, nearer rows more.
     // Neighbours move almost together, so row order is preserved.
-    const double heave=(3+15*depth)*kick*(p.surgeEnabled?1:0);
-    return {z,baseAt(row)+heave,
-        (7+83*std::pow(depth,1.15))*p.amplitude*(1+.22*e+.16*p.liftGain*lift+p.amplitudeGain*(c.score?c.score->bandBody[1][0]:c.band(0))+(p.surgeEnabled && c.schedule?.65*c.schedule->print.surge(c.t):0)),
+    double heave=(3+15*depth)*kick*(p.surgeEnabled?1:0),roll=0;
+    if(p.rollGain>0 && c.score) {
+        // Far rows feel each hit first; the swell reaches the nearest row
+        // rollDelay seconds later. A smooth alpha pulse, no instant jump.
+        const double at=c.t-p.rollDelay*z;
+        for(auto it=c.score->bassHits.rbegin();it!=c.score->bassHits.rend();++it) {
+            const double age=at-it->t;
+            if(age<0)continue;
+            if(age>1.6)break;
+            roll+=it->strength*(age/.22)*std::exp(1-age/.22);
+        }
+        roll=std::min(1.4,roll);
+        heave=-p.rollGain*roll*(2+26*depth);
+    }
+    SwellRowV1 out{z,baseAt(row)+heave,
+        (7+83*std::pow(depth,1.15))*p.amplitude*(1+.45*p.rollGain*roll+.22*e+.16*p.liftGain*lift+p.amplitudeGain*(c.score?c.score->bandBody[1][0]:c.band(0))+(p.surgeEnabled && c.schedule?.65*c.schedule->print.surge(c.t):0)),
         (55+115*depth)*(.86+.28*id),
         c.t*p.driftSpeed*(.81+.37*id)+(p.surgeEnabled?1.9:1)*flow-depth*6+Tau*hash2(row,p.seed+19),
         row*.82-c.t*(.17+.11*hash2(row,p.seed+23)),
         std::min(.85,p.opacity+p.bandGain*e+p.liftGain*.35*lift+p.kickGain*kick),
         (8+8*depth)*p.bandGain*c.band(b)+(10+10*depth)*p.liftGain*lift+(2+8*depth)*p.kickGain*kick,
-        clamp01(p.bandGain*c.band(b)+p.liftGain*lift),p.orderedRows?.42*spacing:0};
+        clamp01(p.bandGain*c.band(b)+p.liftGain*lift),p.orderedRows?p.rowFreedom*spacing:0};
+    out.roll=roll;
+    return out;
 }
 QRectF SwellLinesV1::responseArea(int row,const SwellLinesParametersV1& p) {
     const double z=row/double(p.rows-1),depth=std::pow(z,p.depthFalloff);

@@ -43,7 +43,7 @@ void WaterSurfaceV1::draw(Ctx& c,const WaterSurfaceParametersV1& p) {
         SwellLinesParametersV1 shared;
         shared.orderedRows=true; // caps, contours and hulls share the same noncrossing crests
         shared.region=QRectF(p.x0,p.horizon,p.x1-p.x0,p.nearY-p.horizon);
-        shared.surgeEnabled=p.surgeEnabled;shared.amplitudeGain=p.amplitudeGain;shared.rows=p.rows;shared.seed=p.swellSeed;shared.amplitude=p.amplitude;shared.driftSpeed=p.drift;shared.flowGain=p.flowGain;shared.liftGain=p.liftGain;shared.bandGain=p.bandGain;shared.kickGain=p.kickGain;
+        shared.surgeEnabled=p.surgeEnabled;shared.amplitudeGain=p.amplitudeGain;shared.rows=p.rows;shared.seed=p.swellSeed;shared.amplitude=p.amplitude;shared.driftSpeed=p.drift;shared.flowGain=p.flowGain;shared.rowFreedom=p.rowFreedom;shared.rollGain=p.rollGain;shared.rollDelay=p.rollDelay;shared.liftGain=p.liftGain;shared.bandGain=p.bandGain;shared.kickGain=p.kickGain;
         const auto field=p.swellSeed>=0 ? SwellLinesV1::field(c,row,shared) : SwellRowV1{};
         auto top=[&](double x) {
             if(p.swellSeed>=0)return field.y(x);
@@ -78,6 +78,37 @@ void WaterSurfaceV1::draw(Ctx& c,const WaterSurfaceParametersV1& p) {
         cv.closePath();cv.fill();
         const Col lineColor=p.swellSeed>=0 ? mix(p.crest,p.texture,std::min(.9,p.bandGain*e+p.liftGain*.5*lift)) : p.crest;
         if(p.crestOpacity>0)cv.polyline(crest,1.2+1.5*z,lineColor,p.crestOpacity);
+        if(p.crestFoam>0 && p.swellSeed>=0) {
+            // Foam belongs to the water: a cream rim over its underprint rides
+            // each crest only where the row stands above its rest line. The
+            // rim is fuller on the leading side of the travelling crest.
+            const double reach=std::max(1.,field.displacementLimit>0?field.displacementLimit:field.amplitude);
+            const double music=clamp01(.55*p.bandGain*e+.6*field.roll+.3*kick);
+            const double threshold=.60-.32*music;
+            auto height=[&](double x){return (field.base-top(x))/reach;};
+            const int n=int(crest.size());
+            for(int j=0;j<n;) {
+                if(height(crest[j].x)<=threshold){++j;continue;}
+                const int a=j;double peak=0;
+                while(j<n && height(crest[j].x)>threshold){peak=std::max(peak,height(crest[j].x));++j;}
+                const double x0=crest[a].x-p.sampleStep*.7,x1=crest[j-1].x+p.sampleStep*.7;
+                if(x1-x0<8)continue;
+                const double strength=clamp01((peak-threshold)/.22);
+                const double thick=(1.1+5.2*z)*(.45+.75*strength)*p.crestFoam;
+                const int m=std::max(4,int((x1-x0)/6));
+                for(int pass=0;pass<2;++pass) {
+                    const double dy=pass?0:1.4+2.2*z;
+                    cv.color(pass?p.foam:p.underprint,pass?std::min(1.,.55+.45*strength):.5);
+                    cv.moveTo(x0,top(x0)+dy);
+                    for(int k=1;k<=m;++k){const double x=lerp(x0,x1,k/double(m));cv.lineTo(x,top(x)-.7+dy);}
+                    for(int k=m;k>=0;--k) {
+                        const double u=k/double(m),x=lerp(x0,x1,u);
+                        cv.lineTo(x,top(x)+thick*std::pow(std::sin(Pi*u),.8)*(.7+.6*u)+dy);
+                    }
+                    cv.closePath();cv.fill();
+                }
+            }
+        }
         const double bright=std::min(1.0,.18+p.bandGain*e+p.liftGain*lift+p.kickGain*kick);
         for(int j=0;j<p.innerLines;++j) {
             std::vector<V2> water;

@@ -13,6 +13,12 @@ struct SwellLinesParametersV1 {
     // Scales the band-integral share of drift; with a lower driftSpeed the
     // sea runs with the music instead of a constant clock.
     double flowGain=1;
+    // Share of the gap to the neighbouring row a crest may travel. Above
+    // about .5 a nearer swell rises over the farther one and hides it.
+    double rowFreedom=.42;
+    // Each bass hit lifts the sea as a swell that rolls from the horizon to
+    // the viewer over rollDelay seconds. Zero keeps the uniform kick heave.
+    double rollGain=0,rollDelay=.55;
     bool surgeEnabled=false;
     bool orderedRows=true; // printed contours; background WaterSurface retains its authored field
     double amplitudeGain=0;
@@ -22,6 +28,7 @@ struct SwellLinesParametersV1 {
 struct SwellRowV1 {
     double z, base, amplitude, scale, phase, detail, brightness, lift, highlight;
     double displacementLimit=0;
+    double roll=0; // the rolling bass swell passing this row, 0..1.4
     double y(double x,double offset=0) const;
 };
 struct SwellLinesV1 {

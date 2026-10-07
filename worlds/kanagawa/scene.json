@@ -128,14 +128,18 @@
             "bandGain": 1.15,
             "liftGain": 0.5,
             "kickGain": 0.35,
-            "capDensity": 0.34,
+            "capDensity": 0,
             "innerLines": 0,
             "crestOpacity": 0.5,
             "shade": 0.85,
             "shadeLight": "#7fb4ca",
             "swellSeed": 71,
             "amplitudeGain": 3.5,
-            "surgeEnabled": true
+            "surgeEnabled": true,
+            "rowFreedom": 0.85,
+            "rollGain": 1.0,
+            "rollDelay": 0.55,
+            "crestFoam": 1.0
           },
           "parallaxDepth": 0.75
         },
@@ -189,7 +193,10 @@
             "color": "#7397a4",
             "highlight": "#dcd7ba",
             "amplitudeGain": 3.5,
-            "surgeEnabled": true
+            "surgeEnabled": true,
+            "rowFreedom": 0.85,
+            "rollGain": 1.0,
+            "rollDelay": 0.55
           },
           "parallaxDepth": 0.75
         },
@@ -274,7 +281,10 @@
             "riseFrom": -380,
             "riseTo": 20,
             "sinkFrom": 470,
-            "sinkTo": 860
+            "sinkTo": 860,
+            "faceFlow": 1.1,
+            "swayGain": 0.035,
+            "pulseGain": 1.0
           },
           "parallaxDepth": 0.75
         },
@@ -308,7 +318,7 @@
             "underprint": "#223249",
             "amplitudeGain": 3.5,
             "responseGain": 1.55,
-            "breakers": 200,
+            "breakers": 0,
             "breakerScale": 0.8,
             "breakerLife": 1.6,
             "breakerBody": "#285579",
@@ -316,7 +326,10 @@
             "spray": 18,
             "sprayThreshold": 0.5,
             "surgeEnabled": true,
-            "waveInstance": "great-wave"
+            "waveInstance": "great-wave",
+            "rowFreedom": 0.85,
+            "rollGain": 1.0,
+            "rollDelay": 0.55
           },
           "parallaxDepth": 0.75
         },

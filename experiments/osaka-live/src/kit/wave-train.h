@@ -13,6 +13,10 @@ struct WaveTrainParametersV2 {
     // Optional screen-space life of each crest: it grows between riseFrom and
     // riseTo, then sinks between sinkFrom and sinkTo (crest anchor x).
     double riseFrom=0,riseTo=0,sinkFrom=0,sinkTo=0;
+    // Life of the standing wave: faceFlow is how fast its material lines roll
+    // across the face into the barrel, swayGain rocks it forward and back
+    // once every two beats, pulseGain lifts it on each bass hit.
+    double faceFlow=.14,swayGain=0,pulseGain=0;
     bool surgeEnabled=false;
     Col body=hex(0x285579),bottom=hex(0x102955),underprint=hex(0x1d4673),
         foam=hex(0xdcd7ba),lines=hex(0x7397a4);
@@ -25,7 +29,7 @@ struct WaveTrainFingerStateV2 {double extension=0,flick=0;};
 struct WaveTrainPoseV2 {
     double amplitude=800,stage=0,baseWidth=1060,lean=0,phaseSpeed=65,lipThrow=0;
     double lipStage=-1; // negative selects the direct static study profile
-    double seconds=0,distance=0,flow=0,energy=0,tempo=90;
+    double seconds=0,distance=0,flow=0,energy=0,tempo=90,sway=0;
     std::array<double,6> bands{};
     std::array<WaveTrainFingerStateV2,WaveTrainFingerCountV2> fingers{};
     std::array<WaveTrainDropletV2,WaveTrainDropletLimitV2> droplets{};
@@ -75,6 +79,10 @@ struct WaveTrainProfileV2 {
         std::vector<V2> boundary,outerLip,foamRim,foamInside;
         std::array<std::vector<V2>,16> contours;
         std::array<std::vector<V2>,6> bandEdges; // fixed outer-to-inner tone bands
+        // Tone stripes rolling across the face on the flow clock; each closed
+        // outline carries its tone index and whether its leading edge is keyed.
+        struct FlowBand {std::vector<V2> outline,lead;int tone=0;};
+        std::vector<FlowBand> flowBands;
         std::array<double,16> contourAlpha{};
         std::vector<Finger> fingers;
         std::vector<Strand> lace,tangle,falling;

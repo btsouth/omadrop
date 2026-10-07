@@ -25,7 +25,8 @@ void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds
     const double beat=tempo/60,oldSpeed=speed_.value;
     // The surge is the climax: the rising set stands taller than any other.
     const double climax=params.surgeEnabled?clamp01(a.surge):0;
-    amplitude_.advance(590+240*std::max(0.,a.bassLevel)/(.20+std::max(0.,a.bassLevel))+130*climax,1.05*beat,dt);
+    amplitude_.advance(590+240*std::max(0.,a.bassLevel)/(.20+std::max(0.,a.bassLevel))+130*climax
+        +70*params.pulseGain*Score::envelope(score.bassHits,seconds,3.5),1.05*beat,dt);
     stage_.advance(std::max(5*sstep(.25,.95,energy),params.surgeEnabled?5*sstep(0,.65,a.surge):0),.8*beat,dt);
     speed_.advance(14+6*beat+4*clamp01(count/16.),.65*beat,dt);
     const double mid=std::max(0.,(a.bands[2]+a.bands[3])*.5);
@@ -39,7 +40,8 @@ void WaveTrainMotionV2::advance(const Audio& a,const Score& score,double seconds
     lip_=stage_.value+e*(x*cs+b*sn);
     lipVelocity_=e*((-zeta*omega*x+w*b)*cs+(-zeta*omega*b-w*x)*sn);
     pose_.amplitude=amplitude_.value*params.heightScale;pose_.baseWidth=params.width;pose_.stage=stage_.value;pose_.phaseSpeed=speed_.value;
-    pose_.lean=lean_.value;pose_.lipThrow=throw_.value;pose_.lipStage=lip_;
+    pose_.sway+=beat*.5*dt;
+    pose_.lean=lean_.value+params.swayGain*(.45+.55*energy)*std::sin(Tau*pose_.sway);pose_.lipThrow=throw_.value;pose_.lipStage=lip_;
     pose_.seconds=seconds;pose_.energy=energy;pose_.tempo=tempo;
     pose_.distance+=(oldSpeed+speed_.value)*.5*dt*params.travelScale;pose_.flow+=(.065+.16*energy)*dt;
     foam_.advance(a,score,pose_,seconds,dt,params);
@@ -336,7 +338,7 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
         // Material lines advect from the lower face into the barrel. Wrapping
         // ribbons enter/leave invisibly at endpoints instead of phase popping.
         for(int row=0;row<16;++row) {
-            const double phase=wrap(row/16.-s.flow*.14,1.);
+            const double phase=wrap(row/16.-s.flow*p.faceFlow,1.);
             const double f=.035+.83*phase;
             crest.contourAlpha[row]=sstep(0.,.06,phase)*(1-sstep(.94,1.,phase));
             auto& line=crest.contours[row];line.reserve(49);
@@ -350,6 +352,25 @@ WaveTrainProfileV2 WaveTrainV2::profile(const WaveTrainPoseV2& s,const WaveTrain
         for(int b=0;b<6;++b) {
             auto& edge=crest.bandEdges[b];edge.reserve(49);
             for(int j=0;j<=48;++j)edge.push_back(map(lerp(v[j],v[6*Steps-j],bandAt[b])));
+        }
+        if(p.faceFlow>.14) {
+            // The face rolls: four tone stripes travel with the material lines
+            // and re-enter beside the fixed outer skin, so the water climbs the
+            // wave continuously instead of standing as a still picture.
+            const double skin=bandAt[1],offset=wrap(-s.flow*p.faceFlow,1.);
+            auto edgeAt=[&](double f){std::vector<V2> e;e.reserve(49);for(int j=0;j<=48;++j)e.push_back(map(lerp(v[j],v[6*Steps-j],f)));return e;};
+            auto piece=[&](double a,double b,int tone,bool keyed) {
+                WaveTrainProfileV2::Crest::FlowBand band;band.tone=tone;
+                auto outer=edgeAt(skin+(1-skin)*a),inner=edgeAt(skin+(1-skin)*b);
+                if(keyed)band.lead=outer;
+                band.outline=std::move(outer);band.outline.insert(band.outline.end(),inner.rbegin(),inner.rend());
+                crest.flowBands.push_back(std::move(band));
+            };
+            for(int k=0;k<4;++k) {
+                const double a=wrap(k/4.+offset,1.),b=a+.25;
+                if(b<=1)piece(a,b,k,a>.002);
+                else {piece(a,1,k,true);if(b-1>.002)piece(0,b-1,k,false);}
+            }
         }
         // Small broken whitecaps ride the face; their roots share the contour
         // transform. High bands alter size continuously, never a spawn switch.
@@ -386,16 +407,45 @@ void WaveTrainV2::paint(Canvas& cv,const WaveTrainProfileV2& f,const WaveTrainPo
         // (bokashi), thin light key lines between bands, sparse flowing veins.
         static const Col tones[5]={hex(0x1a3a66),hex(0x2a5a88),hex(0x3a6d98),hex(0x2d6090),hex(0x1e4775)};
         const Col deep=hex(0x0f2347);
-        for(int b=0;b<5;++b) {
+        const bool rolling=!crest.flowBands.empty();
+        for(int b=0;b<(rolling?1:5);++b) {
             auto band=crest.bandEdges[b];band.insert(band.end(),crest.bandEdges[b+1].rbegin(),crest.bandEdges[b+1].rend());
             cv.linear(0,top,0,p.baseY,{{0,tones[b],1},{.55f,mix(tones[b],deep,.25),1},{1,mix(tones[b],deep,.6),1}});
             fill(cv,band);
         }
-        for(int b=1;b<5;++b)stripe(cv,crest.bandEdges[b],1.3*crest.envelope,p.lines,.45);
+        if(rolling) {
+            static const Col rolled[4]={hex(0x27578a),hex(0x4178a6),hex(0x2b5d8e),hex(0x3a6f9e)};
+            for(const auto& band:crest.flowBands) {
+                const Col tone=rolled[band.tone];
+                cv.linear(0,top,0,p.baseY,{{0,tone,1},{.55f,mix(tone,deep,.25),1},{1,mix(tone,deep,.6),1}});
+                fill(cv,band.outline);
+            }
+            stripe(cv,crest.bandEdges[1],1.3*crest.envelope,p.lines,.45);
+            for(const auto& band:crest.flowBands)if(!band.lead.empty())stripe(cv,band.lead,1.5*crest.envelope,p.lines,.6);
+        } else for(int b=1;b<5;++b)stripe(cv,crest.bandEdges[b],1.3*crest.envelope,p.lines,.45);
         for(int row=0;row<16;++row) {
             const double alpha=crest.contourAlpha[row];if(alpha<=0)continue;
             const auto& line=crest.contours[row];
-            if(row%4==1) {
+            if(row%4==1 && rolling) {
+                // Foam streaks climb the face into the lip on the flow clock,
+                // two per vein, faster when the music is loud.
+                const int from=10+row%3*3;
+                for(int k=0;k<2;++k) {
+                    const double u=wrap(s.flow*p.faceFlow*1.6+.5*k+.37*row,1.);
+                    const double span=13,head=from-span+(47-from+span)*u;
+                    std::vector<V2> l,r;
+                    for(int step=0;step<=12;++step) {
+                        const double jj=head+span*step/12.;
+                        if(jj<from || jj>47)continue;
+                        const int j=int(jj);const double fr=jj-j;
+                        const V2 q=lerp(line[j],line[std::min(48,j+1)],fr);
+                        const V2 t=unit(line[std::min(48,j+1)]-line[std::max(0,j-1)]),n{-t.y,t.x};
+                        const double w=2.6*crest.envelope*std::pow(std::sin(Pi*step/12.),.8)*sstep(from,from+6,jj);
+                        l.push_back(q+n*w);r.push_back(q-n*w);
+                    }
+                    if(l.size()>2)ribbon(cv,l,r,p.foam,.8*alpha);
+                }
+            } else if(row%4==1) {
                 // Cream vein: tapered, only on the upper face and into the curl.
                 const int from=14+row%3*3;std::vector<V2> l,r;
                 for(int j=from;j<=47;++j) {

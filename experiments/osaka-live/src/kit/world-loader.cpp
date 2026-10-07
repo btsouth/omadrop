@@ -502,7 +502,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                      "amplitude","wavelength","drift","phase","top","bottom","crest","texture","foam",
                      "underprint","glint","hotGlint","opacity","bandGain","liftGain","kickGain",
                      "capDensity","capScale","glintX","glintDepth","innerLines","crestOpacity","swellSeed","amplitudeGain","surgeEnabled","shade","shadeLight",
-                     "glitter","glitterWidth","glitterSpread","flowGain"});
+                     "glitter","glitterWidth","glitterSpread","flowGain","rowFreedom","rollGain","rollDelay","crestFoam"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();
                 auto& water=value->water;
                 if(data.contains("surgeEnabled"))water.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
@@ -520,7 +520,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 scalar("kickGain",water.kickGain,0,.5); scalar("capDensity",water.capDensity,0,1);
                 scalar("capScale",water.capScale,0,1.5); scalar("glintX",water.glintX,-2000,3840);
                 scalar("glintDepth",water.glintDepth,1,1080);scalar("crestOpacity",water.crestOpacity,0,1);scalar("shade",water.shade,0,1);
-                scalar("glitterWidth",water.glitterWidth,0,400);scalar("flowGain",water.flowGain,0,4);scalar("glitterSpread",water.glitterSpread,0,2);
+                scalar("glitterWidth",water.glitterWidth,0,400);scalar("rowFreedom",water.rowFreedom,0,1.5);scalar("rollGain",water.rollGain,0,3);scalar("rollDelay",water.rollDelay,0,3);scalar("crestFoam",water.crestFoam,0,3);scalar("flowGain",water.flowGain,0,4);scalar("glitterSpread",water.glitterSpread,0,2);
                 if (water.nearY<=water.horizon+2) r.fail(paramsPath+".nearY","position below horizon + 2");
                 if (water.x1<=water.x0) r.fail(paramsPath+".x1","position right of x0");
                 auto integer=[&](const char* name,int& target,int lo,int hi) {
@@ -582,7 +582,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             } else if (piece->op==OsakaOp::WaveTrain) {
                 if(!slot.contains("params"))r.fail(paramsPath,"required field");
                 const auto data=r.object(slot["params"],paramsPath,{},
-                    {"x0","x1","waterline","depth","wavelength","groupPeriod","groupWidth","groupOrigin","groupFloor","baseY","width","heightScale","travelScale","row","surgeEnabled","body","bottom","underprint","foam","lines","riseFrom","riseTo","sinkFrom","sinkTo"});
+                    {"x0","x1","waterline","depth","wavelength","groupPeriod","groupWidth","groupOrigin","groupFloor","baseY","width","heightScale","travelScale","row","surgeEnabled","body","bottom","underprint","foam","lines","riseFrom","riseTo","sinkFrom","sinkTo","faceFlow","swayGain","pulseGain"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();auto& wave=value->waveTrain;
                 auto scalar=[&](const char* name,double& target,double lo,double hi){if(!data.contains(name))return;
                     target=r.number(data[name],paramsPath+"."+name);
@@ -592,7 +592,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 scalar("groupPeriod",wave.groupPeriod,600,3000);scalar("groupWidth",wave.groupWidth,400,2000);
                 scalar("groupOrigin",wave.groupOrigin,0,1200);scalar("groupFloor",wave.groupFloor,0,1);
                 scalar("baseY",wave.baseY,950,1150);scalar("width",wave.width,700,1400);scalar("heightScale",wave.heightScale,.6,1);
-                scalar("travelScale",wave.travelScale,.1,1);scalar("riseFrom",wave.riseFrom,-3000,3000);scalar("riseTo",wave.riseTo,-3000,3000);scalar("sinkFrom",wave.sinkFrom,-3000,3000);scalar("sinkTo",wave.sinkTo,-3000,3000);scalar("row",wave.row,0,23);
+                scalar("travelScale",wave.travelScale,.1,1);scalar("riseFrom",wave.riseFrom,-3000,3000);scalar("riseTo",wave.riseTo,-3000,3000);scalar("sinkFrom",wave.sinkFrom,-3000,3000);scalar("sinkTo",wave.sinkTo,-3000,3000);scalar("faceFlow",wave.faceFlow,0,4);scalar("swayGain",wave.swayGain,0,.2);scalar("pulseGain",wave.pulseGain,0,3);scalar("row",wave.row,0,23);
                 if(data.contains("surgeEnabled"))wave.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
                 for(auto entry:{std::pair<const char*,Col*>{"body",&wave.body},{"bottom",&wave.bottom},{"underprint",&wave.underprint},{"foam",&wave.foam},{"lines",&wave.lines}})
                     if(data.contains(entry.first))*entry.second=r.color(data[entry.first],paramsPath+"."+entry.first);
@@ -628,7 +628,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             } else if (piece->op==OsakaOp::SwellLines || piece->op==OsakaOp::FoamFlecks) {
                 if (!slot.contains("params")) r.fail(paramsPath,"required field");
                 QStringList keys={"region","exclusions","count","rows","seed","depthFalloff","widthMin","widthMax",
-                     "lengthMin","lengthMax","driftSpeed","amplitude","opacity","bandGain","liftGain","kickGain","color","highlight","amplitudeGain","surgeEnabled","flowGain"};
+                     "lengthMin","lengthMax","driftSpeed","amplitude","opacity","bandGain","liftGain","kickGain","color","highlight","amplitudeGain","surgeEnabled","flowGain","rowFreedom","rollGain","rollDelay"};
                 const bool foam=piece->op==OsakaOp::FoamFlecks;
                 if(foam)keys.append({"sizeMin","sizeMax","onsetGain","underprint","responseGain","waveInstance",
                     "breakers","breakerScale","breakerLife","spray","sprayThreshold","breakerBody","breakerFace"});
@@ -657,7 +657,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
                 integer("count",foam?value->foam.count:swell.count,0,foam?300:600);integer("rows",swell.rows,6,24);integer("seed",swell.seed,0,1000000);
                 scalar("amplitudeGain",swell.amplitudeGain,0,4);scalar("depthFalloff",swell.depthFalloff,1,3);scalar("widthMin",swell.widthMin,.2,4);scalar("widthMax",swell.widthMax,.2,6);
                 scalar("lengthMin",swell.lengthMin,20,1200);scalar("lengthMax",swell.lengthMax,20,1600);
-                scalar("driftSpeed",swell.driftSpeed,0,2);scalar("flowGain",swell.flowGain,0,4);scalar("amplitude",swell.amplitude,0,1.5);scalar("opacity",swell.opacity,0,1);
+                scalar("driftSpeed",swell.driftSpeed,0,2);scalar("flowGain",swell.flowGain,0,4);scalar("rowFreedom",swell.rowFreedom,0,1.5);scalar("rollGain",swell.rollGain,0,3);scalar("rollDelay",swell.rollDelay,0,3);scalar("amplitude",swell.amplitude,0,1.5);scalar("opacity",swell.opacity,0,1);
                 scalar("bandGain",swell.bandGain,0,2);scalar("liftGain",swell.liftGain,0,1);scalar("kickGain",swell.kickGain,0,.5);
                 if(swell.widthMax<swell.widthMin || swell.lengthMax<swell.lengthMin)r.fail(paramsPath,"ordered width and length ranges");
                 if(data.contains("color"))(foam?value->foam.color:swell.color)=r.color(data["color"],paramsPath+".color");
