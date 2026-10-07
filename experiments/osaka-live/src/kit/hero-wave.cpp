@@ -114,7 +114,7 @@ struct Edge {
     }
 };
 struct Talons {
-    double size=60,height=1,lean=.3,start=0,end=-1;Col fill=Cream,shadeCol=Pale;unsigned seed=1;
+    double size=60,height=1,lean=.3,start=0,end=-1;Col fill=Cream,shadeCol=Pale;unsigned seed=1;bool rootLine=true;
     std::function<double(double)> scale;
 };
 void lobeShape(const Edge& e,const std::vector<V2>& local,double x0,double W,double H,double lean,std::vector<V2>& out) {
@@ -144,7 +144,7 @@ void talons(Canvas& cv,const Edge& e,const Talons& t) {
             V2 q,nn;e.at(xx,q,nn);top.push_back(q+nn*(.2*h));bottom.push_back(q-nn*(.45*h));
         }
         auto band=top;band.insert(band.end(),bottom.rbegin(),bottom.rend());
-        fillPoly(cv,band,t.fill);strokeLine(cv,bottom,Ink,1.6,.8);
+        fillPoly(cv,band,t.fill);if(t.rootLine)strokeLine(cv,bottom,Ink,1.6,.8);
     }
     std::vector<V2> pts;
     for(auto i=lobes.rbegin();i!=lobes.rend();++i) {
@@ -392,7 +392,7 @@ void HeroWaveV1::paintImpact(Canvas& cv,const HeroImpactV1& im,double) {
             for(int k=0;k<2;++k) {
                 const double f=k?.46:.72;std::vector<V2> rr,ll;
                 for(int j=0;j<40;++j){const double u=1.25*j/39.;rr.push_back(arc(u,f));ll.push_back(arc(-u,f));}
-                Talons ti;ti.size=H*(.13-.03*k);ti.height=.95*grow;ti.lean=.4;ti.scale=[](double f){return 1.1-.4*f;};
+                Talons ti;ti.rootLine=false;ti.size=H*(.13-.03*k);ti.height=.95*grow;ti.lean=.4;ti.scale=[](double f){return 1.1-.4*f;};
                 ti.seed=seed+30+k;talons(cv,Edge(rr,1),ti);ti.seed=seed+40+k;talons(cv,Edge(ll,-1),ti);
             }
         }
