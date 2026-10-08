@@ -27,7 +27,15 @@ QString osakaWorldFolder(const QString& name) {
     }
     return QDir(osakaWorldsRoot()).filePath(clean);
 }
-void initializeOsakaWorldAt(const QString& folder) { world = loadOsakaWorld(folder); }
+void configureWaveTrain() {
+    std::shared_ptr<const WaveTrainParametersV2> parameters;
+    const auto& d=world->description();
+    for(const auto* stage:{&d.backdrop,&d.coast,&d.distantTown,&d.foreground})
+        for(size_t i=0;i<stage->count;++i)if(stage->entries[i].piece==OsakaOp::WaveTrain)
+            parameters=std::make_shared<WaveTrainParametersV2>(stage->entries[i].params->waveTrain);
+    std::atomic_store(&Schedule::waveTrainParameters,parameters);
+}
+void initializeOsakaWorldAt(const QString& folder) { world = loadOsakaWorld(folder); configureWaveTrain(); }
 void queueOsakaWorld(std::unique_ptr<const LoadedOsakaWorld> next) {
     if (!next) return;
     std::lock_guard<std::mutex> lock(pendingMutex);
@@ -44,6 +52,7 @@ bool applyQueuedOsakaWorld() {
         world = std::move(pending);
         hasPending.store(false, std::memory_order_release);
     }
+    configureWaveTrain();
     return true; // the previous world is destroyed here, after the swap
 }
 void initializeOsakaWorld(const QString& name) { initializeOsakaWorldAt(osakaWorldFolder(name)); }

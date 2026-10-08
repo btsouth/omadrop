@@ -128,3 +128,28 @@ HEADERS += src/kit/generic-window.h
 
 SOURCES += src/kit/check-analysis.cpp src/kit/check-signal.cpp src/kit/check.cpp
 HEADERS += src/kit/check-analysis.h src/kit/check-signal.h src/kit/check.h
+
+SOURCES += src/kit/gradient-sky.cpp
+HEADERS += src/kit/gradient-sky.h
+
+SOURCES += src/kit/water-surface.cpp
+HEADERS += src/kit/water-surface.h
+
+SOURCES += src/kit/swell-lines.cpp
+HEADERS += src/kit/swell-lines.h
+
+SOURCES += src/kit/foam-flecks.cpp
+HEADERS += src/kit/foam-flecks.h
+
+SOURCES += src/kit/great-wave.cpp
+HEADERS += src/kit/great-wave.h
+SOURCES += src/kit/boat-on-water.cpp
+HEADERS += src/kit/boat-on-water.h
+
+SOURCES += src/kit/print-life.cpp
+HEADERS += src/kit/print-life.h src/kit/moment-schedule.h src/kit/print-cloud.h
+
+SOURCES += src/kit/wave-train.cpp
+SOURCES += src/kit/hero-wave.cpp
+HEADERS += src/kit/wave-train.h
+HEADERS += src/kit/hero-wave.h

@@ -4,6 +4,13 @@
 #include "parameters.h"
 #include "piece-label.h"
 #include "ridges.h"
+#include "gradient-sky.h"
+#include "water-surface.h"
+#include "swell-lines.h"
+#include "foam-flecks.h"
+#include "great-wave.h"
+#include "boat-on-water.h"
+#include "print-life.h"
 #include "svg-art.h"
 #include "window-label.h"
 #include <map>
@@ -14,7 +21,7 @@ enum class OsakaOp {
     CoastHook, Ridges, City, Firework, AfterValley, NearRidge, Train, SkyLanterns,
     TownHook, Downhill, FarNetwork, AfterTown, RightTown, StreetSurface, Cart,
     AfterCart, Festoon, NearNetwork, Moths, AfterWires, ReflectionCapture,
-    AfterReflections, StreetActors, Birds, NearHouse, Wisteria, Haze
+    AfterReflections, StreetActors, Birds, NearHouse, Wisteria, Haze, GradientSky, WaterSurface, SwellLines, FoamFlecks, GreatWave, WaveTrain, BoatOnWater, SmokePlume, BirdFlock, SeaCreature, LeapingFish, PrintMoments
 };
 enum class OsakaGate { Always, Chapter, DiscEnabled, MountainEnabled, Land,
                        DefaultCoastLand, DefaultCoastChapter, DefaultTownLand };
@@ -27,6 +34,14 @@ struct OsakaHazeSlotV1 {
 // Settings a slot carries in scene.json. Osaka's slots carry none.
 struct OsakaSlotParamsV1 {
     OsakaHazeSlotV1 haze;
+    GradientSkyParametersV1 gradientSky;
+    WaterSurfaceParametersV1 water;
+    SwellLinesParametersV1 swell;
+    FoamFlecksParametersV1 foam;
+    GreatWaveParametersV1 greatWave;
+    WaveTrainParametersV2 waveTrain;
+    BoatOnWaterParametersV1 boat;
+    PrintLifeParametersV1 life;
     std::vector<OsakaRidgeSpecV1> ridges;
 };
 struct OsakaRenderSlot {
@@ -35,6 +50,7 @@ struct OsakaRenderSlot {
     const char* profile;
     std::string id;
     std::shared_ptr<const OsakaSlotParamsV1> params = nullptr;
+    double parallaxDepth = 0;
 };
 struct OsakaRenderStage {
     const OsakaRenderSlot* entries;

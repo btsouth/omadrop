@@ -10,7 +10,7 @@ constexpr std::array<double,7> gaps{30,28,34,15,32,12,34};
 double Schedule::varied(double key,std::uint64_t cycle,double lo,double hi) const {
     return lo+(hi-lo)*hash2(key+seed_*71.0,double(cycle));
 }
-Schedule::Schedule(int seed):seed_(seed) {
+Schedule::Schedule(int seed):print(seed),seed_(seed) {
     combinationAt=varied(200,0,240,360);
     for(int i=0;i<int(Moment::Count);++i) {
         auto& m=moments[i]; m.duration=durations[i];
@@ -22,6 +22,20 @@ Schedule::Schedule(int seed):seed_(seed) {
     }
 }
 void Schedule::advance(double t,const Audio& a,const Score& score) {
+    print.advance(t,a,score);
+    if(auto p=std::atomic_load(&waveTrainParameters)) {
+        Audio driven=a;if(p->surgeEnabled)driven.surge=std::max(driven.surge,print.surge(t));
+        Kit::WaveTrainCueV2 cue;
+        if(p->setCycle) {
+            cue.charge=print.setCharge;cue.crash=print.crash(t);cue.crashStart=print.crashStart;
+            cue.crashAge=t-print.crashStart;cue.strength=print.crashStrength;cue.setStrength=print.setStrength;
+            cue.approach=print.setRolling()?sstep(print.setLaunch,print.setArrival(),t):0;
+            cue.scale=print.plan.scale;cue.spot=print.plan.spot;cue.feintAt=print.plan.feintAt;cue.fizzle=print.fizzling();cue.plan=print.planCycle;
+        }
+        waveTrain.advance(driven,score,t,t-waveTrainLast,*p,cue);
+        print.landingX=waveTrain.pose().landing;
+    }
+    waveTrainLast=t;
     double energy=0;
     for(double b:a.bands) energy+=b*b;
     energy=std::sqrt(energy/6);

@@ -79,6 +79,18 @@ struct Piece { const char* name; OsakaOp op; const char* profile; };
 constexpr Piece pieces[] = {
     {"Haze", OsakaOp::Haze, "osaka-haze-v1"},
     {"Sky", OsakaOp::Sky, "osaka-sky-v1"},
+    {"GradientSky", OsakaOp::GradientSky, "gradient-sky-v1"},
+    {"WaterSurface", OsakaOp::WaterSurface, "water-surface-v1"},
+    {"SwellLines", OsakaOp::SwellLines, "swell-lines-v1"},
+    {"FoamFlecks", OsakaOp::FoamFlecks, "foam-flecks-v1"},
+    {"GreatWave", OsakaOp::GreatWave, "great-wave-v1"},
+    {"WaveTrain", OsakaOp::WaveTrain, "wave-train-v2"},
+    {"BoatOnWater", OsakaOp::BoatOnWater, "boat-on-water-v1"},
+    {"SmokePlume", OsakaOp::SmokePlume, "smoke-plume-v1"},
+    {"BirdFlock", OsakaOp::BirdFlock, "bird-flock-v1"},
+    {"SeaCreature", OsakaOp::SeaCreature, "sea-creature-v1"},
+    {"LeapingFish", OsakaOp::LeapingFish, "leaping-fish-v1"},
+    {"PrintMoments", OsakaOp::PrintMoments, "print-moments-v1"},
     {"AfterSky", OsakaOp::AfterSky, "after-sky"},
     {"Star", OsakaOp::Star, "osaka-shooting-star-v1"},
     {"DiscHook", OsakaOp::DiscHook, "disc-port"},
@@ -239,7 +251,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
     }
     if (profiles.contains("osaka-disc-v1")) {
         const QString p="$.profiles['osaka-disc-v1']";
-        const auto data=r.object(profiles["osaka-disc-v1"],p,{"creamHex","warmHex","colorGain","haloR","haloG","haloB","energyBase","energyBass","energySurge","energyKick","veil","texture","haloA","haloBRadius","haloC","haloD","haloFar","restRings","ring0Offset","ring0Energy","ring0Alpha","ring1Offset","ring1Energy","ring1Alpha","ringAlphaBase","hitSeconds","hitThreshold","hitOffset","hitTravel","hitAlpha","timeOffset"});
+        const auto data=r.object(profiles["osaka-disc-v1"],p,{"creamHex","warmHex","colorGain","haloR","haloG","haloB","energyBase","energyBass","energySurge","energyKick","veil","texture","haloA","haloBRadius","haloC","haloD","haloFar","restRings","ring0Offset","ring0Energy","ring0Alpha","ring1Offset","ring1Energy","ring1Alpha","ringAlphaBase","hitSeconds","hitThreshold","hitOffset","hitTravel","hitAlpha","timeOffset"},{"color2Hex","ringHex","energyLift","printBreathing"});
         w.parameters.disc.creamHex=r.integer(data["creamHex"],p+".creamHex",0,16777215);
         w.parameters.disc.warmHex=r.integer(data["warmHex"],p+".warmHex",0,16777215);
         w.parameters.disc.colorGain=r.number(data["colorGain"],p+".colorGain");
@@ -272,10 +284,15 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         w.parameters.disc.hitTravel=r.number(data["hitTravel"],p+".hitTravel");
         w.parameters.disc.hitAlpha=r.number(data["hitAlpha"],p+".hitAlpha");
         w.parameters.disc.timeOffset=r.number(data["timeOffset"],p+".timeOffset");
+        if (data.contains("color2Hex")) w.parameters.disc.color2Hex=r.integer(data["color2Hex"],p+".color2Hex",0,16777215);
+        if (data.contains("ringHex")) w.parameters.disc.ringHex=r.integer(data["ringHex"],p+".ringHex",0,16777215);
+        if(data.contains("printBreathing")){w.parameters.disc.printBreathing=r.number(data["printBreathing"],p+".printBreathing");
+            if(w.parameters.disc.printBreathing<0 || w.parameters.disc.printBreathing>2)r.fail(p+".printBreathing","number in 0..2");}
+        if (data.contains("energyLift")) w.parameters.disc.energyLift=r.number(data["energyLift"],p+".energyLift");
     }
     if (profiles.contains("osaka-mountain-v1")) {
         const QString p="$.profiles['osaka-mountain-v1']";
-        const auto data=r.object(profiles["osaka-mountain-v1"],p,{"topR","topG","topB","bottomR","bottomG","bottomB","foot","samples","span","shapePower","rippleGain","ripplePeriod","summitWidth","summitOffset","summitCurve","summitHeight","gradientStop","gradientMix"});
+        const auto data=r.object(profiles["osaka-mountain-v1"],p,{"topR","topG","topB","bottomR","bottomG","bottomB","foot","samples","span","shapePower","rippleGain","ripplePeriod","summitWidth","summitOffset","summitCurve","summitHeight","gradientStop","gradientMix"},{"snow","snowScale","snowR","snowG","snowB"});
         w.parameters.mountain.topR=r.number(data["topR"],p+".topR");
         w.parameters.mountain.topG=r.number(data["topG"],p+".topG");
         w.parameters.mountain.topB=r.number(data["topB"],p+".topB");
@@ -298,6 +315,14 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         if (w.parameters.mountain.summitHeight<=0) r.fail(p+".summitHeight","positive number");
         w.parameters.mountain.gradientStop=r.number(data["gradientStop"],p+".gradientStop");
         w.parameters.mountain.gradientMix=r.number(data["gradientMix"],p+".gradientMix");
+        auto& m=w.parameters.mountain;
+        if (data.contains("snow")) m.snow=r.number(data["snow"],p+".snow");
+        if (data.contains("snowScale")) m.snowScale=r.number(data["snowScale"],p+".snowScale");
+        if (data.contains("snowR")) m.snowR=r.number(data["snowR"],p+".snowR");
+        if (data.contains("snowG")) m.snowG=r.number(data["snowG"],p+".snowG");
+        if (data.contains("snowB")) m.snowB=r.number(data["snowB"],p+".snowB");
+        if (m.snow<0 || m.snow>1) r.fail(p+".snow","number in 0..1");
+        if (m.snowScale<=0) r.fail(p+".snowScale","positive number");
     }
     if (profiles.contains("osaka-haze-v1")) {
         const QString p="$.profiles['osaka-haze-v1']";
@@ -428,7 +453,7 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
         auto& entries=loaded->entries_[phase]; entries.reserve(slotsArray.size());
         for (int j=0;j<slotsArray.size();++j) {
             const QString q=p+".slots["+QString::number(j)+"]";
-            const auto slot=r.object(slotsArray[j],q,{"id","piece","gate","profile"},{"params"});
+            const auto slot=r.object(slotsArray[j],q,{"id","piece","gate","profile"},{"params","parallaxDepth"});
             r.id(slot["id"],q+".id");
             const auto name=r.string(slot["piece"],q+".piece");
             const Piece* piece=nullptr;
@@ -444,7 +469,218 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             usesMountain|=piece->op==OsakaOp::Mountain;
             std::shared_ptr<const OsakaSlotParamsV1> params;
             const QString paramsPath=fieldPath(q,"params");
-            if (piece->op==OsakaOp::Haze) {
+            if (piece->op==OsakaOp::GradientSky) {
+                if (!slot.contains("params")) r.fail(paramsPath,"required field");
+                const auto data=r.object(slot["params"],paramsPath,{"stops","paperTop","paperBottom","printGrade","grain"},{"energyGrade","cloudBands"});
+                auto value=std::make_shared<OsakaSlotParamsV1>();
+                auto& sky=value->gradientSky;
+                const auto list=data["stops"].toArray();
+                if (!data["stops"].isArray() || list.size()<2 || list.size()>8)
+                    r.fail(paramsPath+".stops","array of 2..8 ordered color stops");
+                for (int k=0;k<list.size();++k) {
+                    const QString q=paramsPath+".stops["+QString::number(k)+"]";
+                    const auto item=r.object(list[k],q,{"y","color"});
+                    const double y=r.number(item["y"],q+".y");
+                    if (y<0 || y>1080 || (!sky.stops.empty() && y<=sky.stops.back().y))
+                        r.fail(q+".y","strictly increasing position in 0..1080");
+                    sky.stops.push_back({y,r.color(item["color"],q+".color")});
+                }
+                sky.paperTop=r.color(data["paperTop"],paramsPath+".paperTop");
+                sky.paperBottom=r.color(data["paperBottom"],paramsPath+".paperBottom");
+                sky.printGrade=r.number(data["printGrade"],paramsPath+".printGrade");
+                sky.grain=r.number(data["grain"],paramsPath+".grain");
+                if(data.contains("cloudBands"))sky.cloudBands=r.boolean(data["cloudBands"],paramsPath+".cloudBands");
+                if(data.contains("energyGrade")){sky.energyGrade=r.number(data["energyGrade"],paramsPath+".energyGrade");
+                    if(sky.energyGrade<0 || sky.energyGrade>1)r.fail(paramsPath+".energyGrade","number in 0..1");}
+                if (sky.printGrade<0 || sky.printGrade>1) r.fail(paramsPath+".printGrade","number in 0..1");
+                if (sky.grain<0 || sky.grain>0.1) r.fail(paramsPath+".grain","number in 0..0.1");
+                params=value;
+            } else if (piece->op==OsakaOp::WaterSurface) {
+                if (!slot.contains("params")) r.fail(paramsPath,"required field");
+                const auto data=r.object(slot["params"],paramsPath,{},
+                    {"horizon","nearY","x0","x1","rows","textureRows","glints","seed","sampleStep",
+                     "amplitude","wavelength","drift","phase","top","bottom","crest","texture","foam",
+                     "underprint","glint","hotGlint","opacity","bandGain","liftGain","kickGain",
+                     "capDensity","capScale","glintX","glintDepth","innerLines","crestOpacity","swellSeed","amplitudeGain","surgeEnabled","shade","shadeLight",
+                     "glitter","glitterWidth","glitterSpread","flowGain","rowFreedom","rollGain","rollDelay","crestFoam","beatGain"});
+                auto value=std::make_shared<OsakaSlotParamsV1>();
+                auto& water=value->water;
+                if(data.contains("surgeEnabled"))water.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
+                auto scalar=[&](const char* name,double& target,double lo,double hi) {
+                    if (!data.contains(name)) return;
+                    target=r.number(data[name],paramsPath+"."+name);
+                    if (target<lo || target>hi) r.fail(paramsPath+"."+name,"number in "+QString::number(lo)+".."+QString::number(hi));
+                };
+                scalar("amplitudeGain",water.amplitudeGain,0,4); scalar("horizon",water.horizon,0,1079); scalar("nearY",water.nearY,1,1200);
+                scalar("x0",water.x0,-2000,3840); scalar("x1",water.x1,-2000,3840);
+                scalar("sampleStep",water.sampleStep,8,128); scalar("amplitude",water.amplitude,0,1);
+                scalar("wavelength",water.wavelength,.5,4); scalar("drift",water.drift,0,2);
+                scalar("phase",water.phase,-1000,1000); scalar("opacity",water.opacity,0,1);
+                scalar("bandGain",water.bandGain,0,3); scalar("liftGain",water.liftGain,0,1);
+                scalar("kickGain",water.kickGain,0,.5); scalar("capDensity",water.capDensity,0,1);
+                scalar("capScale",water.capScale,0,1.5); scalar("glintX",water.glintX,-2000,3840);
+                scalar("glintDepth",water.glintDepth,1,1080);scalar("crestOpacity",water.crestOpacity,0,1);scalar("shade",water.shade,0,1);
+                scalar("glitterWidth",water.glitterWidth,0,400);scalar("rowFreedom",water.rowFreedom,0,1.5);scalar("rollGain",water.rollGain,0,3);scalar("rollDelay",water.rollDelay,0,3);scalar("beatGain",water.beatGain,0,3);scalar("crestFoam",water.crestFoam,0,3);scalar("flowGain",water.flowGain,0,4);scalar("glitterSpread",water.glitterSpread,0,2);
+                if (water.nearY<=water.horizon+2) r.fail(paramsPath+".nearY","position below horizon + 2");
+                if (water.x1<=water.x0) r.fail(paramsPath+".x1","position right of x0");
+                auto integer=[&](const char* name,int& target,int lo,int hi) {
+                    if (data.contains(name)) target=r.integer(data[name],paramsPath+"."+name,lo,hi);
+                };
+                integer("rows",water.rows,3,24);integer("swellSeed",water.swellSeed,0,1000000);integer("innerLines",water.innerLines,0,3); integer("textureRows",water.textureRows,0,65);
+                integer("glints",water.glints,0,115); integer("seed",water.seed,0,1000000); integer("glitter",water.glitter,0,400);
+                auto color=[&](const char* name,Col& target) { if (data.contains(name)) target=r.color(data[name],paramsPath+"."+name); };
+                color("top",water.top); color("bottom",water.bottom); color("crest",water.crest); color("shadeLight",water.shadeLight);
+                color("texture",water.texture); color("foam",water.foam); color("underprint",water.underprint);
+                color("glint",water.glint); color("hotGlint",water.hotGlint);
+                params=value;
+            } else if (piece->op==OsakaOp::SeaCreature || piece->op==OsakaOp::LeapingFish || piece->op==OsakaOp::PrintMoments || piece->op==OsakaOp::SmokePlume || piece->op==OsakaOp::BirdFlock) {
+                const auto data=r.object(slot["params"],paramsPath,{},
+                    {"x","y","width","height","scale","gain","speed","row","count","seed","band","domain","surgeEnabled","nearEvents","resident","boatInstance","waterInstance","color","accent","ink"});
+                auto value=std::make_shared<OsakaSlotParamsV1>();auto& life=value->life;
+                if(data.contains("nearEvents"))life.nearEvents=r.boolean(data["nearEvents"],paramsPath+".nearEvents");
+                if(data.contains("resident")){if(piece->op!=OsakaOp::BirdFlock)r.fail(paramsPath+".resident","BirdFlock only");
+                    life.resident=r.boolean(data["resident"],paramsPath+".resident");}
+                if(data.contains("boatInstance"))life.boatInstance=r.string(data["boatInstance"],paramsPath+".boatInstance").toStdString();
+                auto scalar=[&](const char* key,double& target,double lo,double hi){if(data.contains(key)){target=r.number(data[key],paramsPath+"."+key);if(target<lo || target>hi)r.fail(paramsPath+"."+key,"bounded print piece parameter");}};
+                scalar("x",life.x,-1920,3840);scalar("y",life.y,0,1200);scalar("width",life.width,1,3840);scalar("height",life.height,1,1200);
+                scalar("row",life.row,0,23);scalar("scale",life.scale,.1,3);scalar("gain",life.gain,0,4);scalar("speed",life.speed,.1,4);
+                if(data.contains("count"))life.count=r.integer(data["count"],paramsPath+".count",1,30);
+                if(data.contains("seed"))life.seed=r.integer(data["seed"],paramsPath+".seed",0,1000000);
+                if(data.contains("domain"))life.domain=r.integer(data["domain"],paramsPath+".domain",0,3);
+                if(data.contains("band"))life.band=r.integer(data["band"],paramsPath+".band",0,5);
+                if(data.contains("surgeEnabled"))life.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
+                if(data.contains("waterInstance"))life.waterInstance=r.string(data["waterInstance"],paramsPath+".waterInstance").toStdString();
+                for(auto entry:{std::pair<const char*,Col*>{"color",&life.color},{"accent",&life.accent},{"ink",&life.ink}})
+                    if(data.contains(entry.first))*entry.second=r.color(data[entry.first],paramsPath+"."+entry.first);
+                params=value;
+            } else if (piece->op==OsakaOp::BoatOnWater) {
+                if(!slot.contains("params"))r.fail(paramsPath,"required field");
+                const auto data=r.object(slot["params"],paramsPath,{"waterInstance"},
+                    {"x","row","length","scale","driftX","driftRows","driftSpeed","crewCount","oarCount","seed","band",
+                     "rowingTempo","tempoGain","splashGain","kickGain","pitchGain","hull","trim","ink","foam","surgeEnabled","waveInstance","gullVisits","race"});
+                auto value=std::make_shared<OsakaSlotParamsV1>();auto& boat=value->boat;
+                if(data.contains("gullVisits"))boat.gullVisits=r.boolean(data["gullVisits"],paramsPath+".gullVisits");
+                if(data.contains("race")){const auto f=r.string(data["race"],paramsPath+".race");
+                    if(f=="near")boat.race=1;else if(f=="far")boat.race=2;else if(f!="none")r.fail(paramsPath+".race","none, near or far");}
+                if(data.contains("surgeEnabled"))boat.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
+                boat.waterInstance=r.string(data["waterInstance"],paramsPath+".waterInstance").toStdString();
+                if(data.contains("waveInstance"))boat.waveInstance=r.string(data["waveInstance"],paramsPath+".waveInstance").toStdString();
+                auto scalar=[&](const char* name,double& target,double lo,double hi){
+                    if(!data.contains(name))return;target=r.number(data[name],paramsPath+"."+name);
+                    if(target<lo || target>hi)r.fail(paramsPath+"."+name,"number in "+QString::number(lo)+".."+QString::number(hi));
+                };
+                scalar("x",boat.x,-1920,3840);scalar("row",boat.row,0,23);scalar("length",boat.length,80,600);
+                scalar("scale",boat.scale,.15,1.5);scalar("driftX",boat.driftX,0,500);scalar("driftRows",boat.driftRows,0,2);
+                scalar("driftSpeed",boat.driftSpeed,0,.05);scalar("rowingTempo",boat.rowingTempo,.1,.6);
+                scalar("tempoGain",boat.tempoGain,0,.5);scalar("splashGain",boat.splashGain,0,.5);scalar("kickGain",boat.kickGain,0,.8);
+                scalar("pitchGain",boat.pitchGain,1,2.5);
+                auto integer=[&](const char* name,int& target,int lo,int hi){if(data.contains(name))target=r.integer(data[name],paramsPath+"."+name,lo,hi);};
+                integer("crewCount",boat.crewCount,0,10);integer("oarCount",boat.oarCount,0,10);
+                integer("seed",boat.seed,0,1000000);integer("band",boat.band,0,5);
+                if(boat.oarCount>boat.crewCount)r.fail(paramsPath+".oarCount","at most crewCount");
+                for(auto entry:{std::pair<const char*,Col*>{"hull",&boat.hull},{"trim",&boat.trim},{"ink",&boat.ink},{"foam",&boat.foam}})
+                    if(data.contains(entry.first))*entry.second=r.color(data[entry.first],paramsPath+"."+entry.first);
+                params=value;
+            } else if (piece->op==OsakaOp::WaveTrain) {
+                if(!slot.contains("params"))r.fail(paramsPath,"required field");
+                const auto data=r.object(slot["params"],paramsPath,{},
+                    {"x0","x1","waterline","depth","wavelength","groupPeriod","groupWidth","groupOrigin","groupFloor","baseY","width","heightScale","travelScale","row","surgeEnabled","body","bottom","underprint","foam","lines","riseFrom","riseTo","sinkFrom","sinkTo","faceFlow","swayGain","pulseGain","pulseDelay","footSwell","setCycle","authored"});
+                auto value=std::make_shared<OsakaSlotParamsV1>();auto& wave=value->waveTrain;
+                auto scalar=[&](const char* name,double& target,double lo,double hi){if(!data.contains(name))return;
+                    target=r.number(data[name],paramsPath+"."+name);
+                    if(target<lo || target>hi)r.fail(paramsPath+"."+name,"number in "+QString::number(lo)+".."+QString::number(hi));};
+                scalar("x0",wave.x0,-1920,0);scalar("x1",wave.x1,1920,3840);scalar("waterline",wave.waterline,600,1080);
+                scalar("depth",wave.depth,100,600);scalar("wavelength",wave.wavelength,600,2000);
+                scalar("groupPeriod",wave.groupPeriod,600,3000);scalar("groupWidth",wave.groupWidth,400,2000);
+                scalar("groupOrigin",wave.groupOrigin,0,1200);scalar("groupFloor",wave.groupFloor,0,1);
+                scalar("baseY",wave.baseY,950,1150);scalar("width",wave.width,700,1400);scalar("heightScale",wave.heightScale,.6,1);
+                scalar("travelScale",wave.travelScale,.1,1);scalar("riseFrom",wave.riseFrom,-3000,3000);scalar("riseTo",wave.riseTo,-3000,3000);scalar("sinkFrom",wave.sinkFrom,-3000,3000);scalar("sinkTo",wave.sinkTo,-3000,3000);scalar("faceFlow",wave.faceFlow,0,4);scalar("swayGain",wave.swayGain,0,.2);scalar("pulseGain",wave.pulseGain,0,3);scalar("row",wave.row,0,23);
+                scalar("pulseDelay",wave.pulseDelay,0,3);scalar("footSwell",wave.footSwell,0,1);
+                if(data.contains("surgeEnabled"))wave.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
+                if(data.contains("setCycle"))wave.setCycle=r.boolean(data["setCycle"],paramsPath+".setCycle");
+                if(data.contains("authored"))wave.authored=r.boolean(data["authored"],paramsPath+".authored");
+                for(auto entry:{std::pair<const char*,Col*>{"body",&wave.body},{"bottom",&wave.bottom},{"underprint",&wave.underprint},{"foam",&wave.foam},{"lines",&wave.lines}})
+                    if(data.contains(entry.first))*entry.second=r.color(data[entry.first],paramsPath+"."+entry.first);
+                params=value;
+            } else if (piece->op==OsakaOp::GreatWave) {
+                if(!slot.contains("params"))r.fail(paramsPath,"required field");
+                const auto data=r.object(slot["params"],paramsPath,{},
+                    {"anchorSide","x","y","width","baseHeight","maxRise","curlAmount","clawCount","clawSize","seed",
+                     "lowGain","swellGain","kickGain","onsetGain","body","bottom","underprint","foam","lines","surgeEnabled","row"});
+                auto value=std::make_shared<OsakaSlotParamsV1>();auto& wave=value->greatWave;
+                if(data.contains("surgeEnabled"))wave.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
+                if(data.contains("anchorSide")) {
+                    const auto side=r.string(data["anchorSide"],paramsPath+".anchorSide");
+                    if(side!="left" && side!="right")r.fail(paramsPath+".anchorSide","left or right");
+                    wave.anchorRight=side=="right";
+                }
+                auto scalar=[&](const char* name,double& target,double lo,double hi){
+                    if(!data.contains(name))return;target=r.number(data[name],paramsPath+"."+name);
+                    if(target<lo || target>hi)r.fail(paramsPath+"."+name,"number in "+QString::number(lo)+".."+QString::number(hi));
+                };
+                scalar("row",wave.row,0,23);scalar("x",wave.x,-1920,3840);scalar("y",wave.y,400,1200);scalar("width",wave.width,300,1800);
+                scalar("baseHeight",wave.baseHeight,150,900);scalar("maxRise",wave.maxRise,0,800);
+                if(wave.baseHeight+wave.maxRise>1050)r.fail(paramsPath,"baseHeight + maxRise at most 1050");
+                scalar("curlAmount",wave.curlAmount,0,1);scalar("clawSize",wave.clawSize,.25,1.5);
+                scalar("lowGain",wave.lowGain,0,4);scalar("swellGain",wave.swellGain,0,1);
+                scalar("kickGain",wave.kickGain,0,.5);scalar("onsetGain",wave.onsetGain,0,.5);
+                if(data.contains("clawCount"))wave.clawCount=r.integer(data["clawCount"],paramsPath+".clawCount",6,30);
+                if(data.contains("seed"))wave.seed=r.integer(data["seed"],paramsPath+".seed",0,1000000);
+                for(auto entry:{std::pair<const char*,Col*>{"body",&wave.body},{"bottom",&wave.bottom},
+                    {"underprint",&wave.underprint},{"foam",&wave.foam},{"lines",&wave.lines}})
+                    if(data.contains(entry.first))*entry.second=r.color(data[entry.first],paramsPath+"."+entry.first);
+                params=value;
+            } else if (piece->op==OsakaOp::SwellLines || piece->op==OsakaOp::FoamFlecks) {
+                if (!slot.contains("params")) r.fail(paramsPath,"required field");
+                QStringList keys={"region","exclusions","count","rows","seed","depthFalloff","widthMin","widthMax",
+                     "lengthMin","lengthMax","driftSpeed","amplitude","opacity","bandGain","liftGain","kickGain","color","highlight","amplitudeGain","surgeEnabled","flowGain","rowFreedom","rollGain","rollDelay","beatGain"};
+                const bool foam=piece->op==OsakaOp::FoamFlecks;
+                if(foam)keys.append({"sizeMin","sizeMax","onsetGain","underprint","responseGain","waveInstance",
+                    "breakers","breakerScale","breakerLife","spray","sprayThreshold","breakerBody","breakerFace"});
+                const auto data=r.object(slot["params"],paramsPath,{},keys);
+                auto value=std::make_shared<OsakaSlotParamsV1>(); auto& swell=foam?value->foam.swell:value->swell;
+                if(data.contains("surgeEnabled"))swell.surgeEnabled=r.boolean(data["surgeEnabled"],paramsPath+".surgeEnabled");
+                auto box=[&](const QJsonValue& item,const QString& path) {
+                    const auto v=r.object(item,path,{"x","y","width","height"});
+                    const double x=r.number(v["x"],path+".x"),y=r.number(v["y"],path+".y");
+                    const double w=r.number(v["width"],path+".width"),h=r.number(v["height"],path+".height");
+                    if(x<-2000 || x>3840 || y<0 || y>1200 || w<=0 || w>5840 || h<=0 || h>1200)
+                        r.fail(path,"bounded rectangle with positive width and height");
+                    return QRectF(x,y,w,h);
+                };
+                if(data.contains("region"))swell.region=box(data["region"],paramsPath+".region");
+                if(data.contains("exclusions")) {
+                    if(!data["exclusions"].isArray() || data["exclusions"].toArray().size()>8)r.fail(paramsPath+".exclusions","array of at most 8 rectangles");
+                    const auto list=data["exclusions"].toArray();
+                    for(int k=0;k<list.size();++k)swell.exclusions.push_back(box(list[k],paramsPath+".exclusions["+QString::number(k)+"]"));
+                }
+                auto scalar=[&](const char* name,double& target,double lo,double hi) {
+                    if(!data.contains(name))return;target=r.number(data[name],paramsPath+"."+name);
+                    if(target<lo || target>hi)r.fail(paramsPath+"."+name,"number in "+QString::number(lo)+".."+QString::number(hi));
+                };
+                auto integer=[&](const char* name,int& target,int lo,int hi) {if(data.contains(name))target=r.integer(data[name],paramsPath+"."+name,lo,hi);};
+                integer("count",foam?value->foam.count:swell.count,0,foam?300:600);integer("rows",swell.rows,6,24);integer("seed",swell.seed,0,1000000);
+                scalar("amplitudeGain",swell.amplitudeGain,0,4);scalar("depthFalloff",swell.depthFalloff,1,3);scalar("widthMin",swell.widthMin,.2,4);scalar("widthMax",swell.widthMax,.2,6);
+                scalar("lengthMin",swell.lengthMin,20,1200);scalar("lengthMax",swell.lengthMax,20,1600);
+                scalar("driftSpeed",swell.driftSpeed,0,2);scalar("flowGain",swell.flowGain,0,4);scalar("rowFreedom",swell.rowFreedom,0,1.5);scalar("rollGain",swell.rollGain,0,3);scalar("rollDelay",swell.rollDelay,0,3);scalar("beatGain",swell.beatGain,0,3);scalar("amplitude",swell.amplitude,0,1.5);scalar("opacity",swell.opacity,0,1);
+                scalar("bandGain",swell.bandGain,0,2);scalar("liftGain",swell.liftGain,0,1);scalar("kickGain",swell.kickGain,0,.5);
+                if(swell.widthMax<swell.widthMin || swell.lengthMax<swell.lengthMin)r.fail(paramsPath,"ordered width and length ranges");
+                if(data.contains("color"))(foam?value->foam.color:swell.color)=r.color(data["color"],paramsPath+".color");
+                if(data.contains("highlight"))swell.highlight=r.color(data["highlight"],paramsPath+".highlight");
+                if(foam) {
+                    if(data.contains("waveInstance"))value->foam.waveInstance=r.string(data["waveInstance"],paramsPath+".waveInstance").toStdString();
+                    scalar("responseGain",value->foam.responseGain,0,3);scalar("sizeMin",value->foam.sizeMin,.1,2);scalar("sizeMax",value->foam.sizeMax,.1,2);
+                    scalar("onsetGain",value->foam.onsetGain,0,.5);
+                    integer("breakers",value->foam.breakers,0,200);integer("spray",value->foam.spray,0,40);
+                    scalar("breakerScale",value->foam.breakerScale,.1,3);scalar("breakerLife",value->foam.breakerLife,.4,4);
+                    scalar("sprayThreshold",value->foam.sprayThreshold,0,1);
+                    if(value->foam.sizeMax<value->foam.sizeMin)r.fail(paramsPath,"ordered size range");
+                    if(data.contains("underprint"))value->foam.underprint=r.color(data["underprint"],paramsPath+".underprint");
+                    if(data.contains("breakerBody"))value->foam.body=r.color(data["breakerBody"],paramsPath+".breakerBody");
+                    if(data.contains("breakerFace"))value->foam.face=r.color(data["breakerFace"],paramsPath+".breakerFace");
+                }
+                params=value;
+            } else if (piece->op==OsakaOp::Haze) {
                 if (!slot.contains("params")) r.fail(paramsPath,"required field");
                 const auto data=r.object(slot["params"],paramsPath,{"y","sigma","lo","hi","color","gain"},{"shift","drift","seed"});
                 auto value=std::make_shared<OsakaSlotParamsV1>();
@@ -480,12 +716,69 @@ std::unique_ptr<const LoadedOsakaWorld> loadOsakaWorld(const QString& folder) {
             } else if (slot.contains("params")) {
                 r.fail(paramsPath,"known field (unknown field)");
             }
-            entries.push_back({piece->op,gate->gate,piece->profile,slot["id"].toString().toStdString(),params});
+            double depth=0;if(slot.contains("parallaxDepth")){depth=r.number(slot["parallaxDepth"],q+".parallaxDepth");
+                if(depth<0 || depth>1.2)r.fail(q+".parallaxDepth","number in 0..1.2");}
+            entries.push_back({piece->op,gate->gate,piece->profile,slot["id"].toString().toStdString(),params,depth});
         }
         *targets[phase]={entries.data(),entries.size(),events=="Life" ? OsakaEventRef::Life : OsakaEventRef::LifeAndFlock,stage["id"].toString().toStdString()};
     }
+    // Resolve after all slots exist: references may cross stage/order boundaries.
+    // Copy the immutable field description, not independently authored settings.
+    for(auto& stage:loaded->entries_)for(auto& slot:stage)
+        if(slot.piece==OsakaOp::FoamFlecks && !slot.params->foam.waveInstance.empty()) {
+            const OsakaRenderSlot* wave=nullptr;
+            for(const auto& sources:loaded->entries_)for(const auto& candidate:sources)
+                if(candidate.id==slot.params->foam.waveInstance && candidate.piece==OsakaOp::WaveTrain)wave=&candidate;
+            if(!wave)r.fail("$.foam["+QString::fromStdString(slot.id)+"].params.waveInstance","id of a WaveTrain slot");
+            auto value=std::make_shared<OsakaSlotParamsV1>(*slot.params);
+            value->foam.masksWaveTrain=true;value->foam.waveTrain=wave->params->waveTrain;slot.params=value;
+        }
+    for(auto& stage:loaded->entries_)for(auto& slot:stage)if(slot.piece==OsakaOp::BoatOnWater){
+        const OsakaRenderSlot* surface=nullptr;
+        for(const auto& sources:loaded->entries_)for(const auto& candidate:sources)
+            if(candidate.id==slot.params->boat.waterInstance && candidate.piece==OsakaOp::SwellLines)surface=&candidate;
+        const QString path="$.boat["+QString::fromStdString(slot.id)+"].params";
+        if(!surface)r.fail(path+".waterInstance","id of a SwellLines slot");
+        auto value=std::make_shared<OsakaSlotParamsV1>(*slot.params);
+        value->boat.swell=surface->params->swell;
+        if(value->boat.row-value->boat.driftRows<0 || value->boat.row+value->boat.driftRows>value->boat.swell.rows-1)
+            r.fail(path+".row","row and driftRows within the named surface");
+        if(!value->boat.waveInstance.empty()){
+            const OsakaRenderSlot* wave=nullptr;std::size_t waveIndex=0,boatIndex=0;
+            for(std::size_t i=0;i<stage.size();++i){const auto& candidate=stage[i];
+                if(&candidate==&slot)boatIndex=i;
+                if(candidate.id==value->boat.waveInstance && (candidate.piece==OsakaOp::GreatWave || candidate.piece==OsakaOp::WaveTrain)){wave=&candidate;waveIndex=i;}}
+            if(!wave)r.fail(path+".waveInstance","id of a GreatWave or WaveTrain slot in the same stage");
+            value->boat.wave=wave->params->greatWave;
+            if(wave->piece==OsakaOp::WaveTrain){value->boat.ridesWaveTrain=true;value->boat.waveTrain=wave->params->waveTrain;
+                value->boat.wave.row=value->boat.waveTrain.row;}
+            value->boat.ridesWave=true;
+            const double row=value->boat.row,margin=value->boat.driftRows;
+            if(row-margin<value->boat.wave.row && row+margin>=value->boat.wave.row)
+                r.fail(path+".row","boat lane must remain on one side of the wave depth");
+            if((row>=value->boat.wave.row)!=(boatIndex>waveIndex))
+                r.fail(path+".waveInstance","boat layer order must agree with wave depth");
+        }
+        slot.params=value;
+    }
+    for(auto& stage:loaded->entries_)for(auto& slot:stage)
+        if(slot.params && !slot.params->life.waterInstance.empty()) {
+            const OsakaRenderSlot* surface=nullptr;
+            for(const auto& candidateStage:loaded->entries_)for(const auto& candidate:candidateStage)
+                if(candidate.id==slot.params->life.waterInstance)surface=&candidate;
+            if(!surface || surface->piece!=OsakaOp::SwellLines)r.fail("$.stages","print waterInstance must name SwellLines");
+            auto value=std::make_shared<OsakaSlotParamsV1>(*slot.params);value->life.swell=surface->params->swell;
+            if(value->life.row>value->life.swell.rows-1)r.fail("$.stages","print row outside named surface");slot.params=value;
+        }
     if (usesDisc && !hasDisc) r.fail("$.disc","required field");
     if (usesMountain && !hasMountain) r.fail("$.mountain","required field");
+    for(auto& stage:loaded->entries_)for(auto& slot:stage)if(slot.piece==OsakaOp::LeapingFish && !slot.params->life.boatInstance.empty()){
+        auto params=std::make_shared<OsakaSlotParamsV1>(*slot.params);const OsakaRenderSlot* boat=nullptr;
+        for(const auto& candidates:loaded->entries_)for(const auto& candidate:candidates)
+            if(candidate.id==params->life.boatInstance && candidate.piece==OsakaOp::BoatOnWater)boat=&candidate;
+        if(!boat)r.fail("$.stages","boatInstance must name a BoatOnWater slot");
+        params->life.boat=boat->params->boat;params->life.followsBoat=true;slot.params=params;
+    }
     return loaded;
 }
 }

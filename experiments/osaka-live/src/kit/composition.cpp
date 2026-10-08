@@ -1,4 +1,5 @@
 #include "parameters.h"
+#include "../schedule.h"
 #include "composition.h"
 #include "groups.h"
 #include "sky.h"
@@ -23,22 +24,30 @@ namespace {
 void moon(Ctx& c, const OsakaState& s, const OsakaDiscPlacementV1& placement) {
     const auto& p = osakaParameters().disc;
     DiscLook d;
-    d.pos = {placement.x - s.cam * placement.parallax + s.moonDx, placement.y + s.moonDy};
+    d.pos = {placement.x - s.cam * placement.parallax + s.moonDx, placement.y + s.moonDy + c.cameraY};
     d.r = placement.radius;
     const double rise = 1;
     d.col = d.col2 = mix(hex(p.creamHex), hex(p.warmHex), s.moonWarm) * float(p.colorGain * rise);
     d.halo = Col(float(p.haloR), float(p.haloG), float(p.haloB)) * float(rise);
-    d.ring = hex(p.creamHex);
+    if (p.color2Hex >= 0) d.col2 = hex(p.color2Hex) * float(p.colorGain * rise);
+    d.ring = hex(p.ringHex >= 0 ? p.ringHex : p.creamHex);
     d.energy = (p.energyBase + p.energyBass * c.a.bass + p.energySurge * c.a.surge + p.energyKick * c.kick(6)) * rise;
+    if (p.energyLift != 0) d.energy += p.energyLift * c.lift(0) * rise;
+    if(p.printBreathing>0){
+        const double bass=c.score?clamp01(3*c.score->bandBody[1][0]):0;
+        d.energy=p.energyBase+p.printBreathing*bass;
+        d.col=d.col*float(1+.045*bass);d.col2=d.col2*float(1+.035*bass);
+    }
     d.veil=p.veil; d.tex=p.texture; d.haloA=p.haloA; d.haloB=p.haloBRadius; d.haloC=p.haloC; d.haloD=p.haloD; d.haloFar=p.haloFar; d.restRings=p.restRings;
     drawDisc(c, d, s.cam);
 }
 void mountainLook(Ctx& c, const OsakaState& s, const OsakaMountainPlacementV1& placement) {
     const auto& p = osakaParameters().mountain;
     MountainLook m;
-    m.px = placement.x - s.cam * placement.parallax; m.peak = placement.peak; m.base = placement.base; m.width = placement.width;
+    m.px = placement.x - s.cam * placement.parallax; m.peak = placement.peak+c.cameraY; m.base = placement.base+c.cameraY; m.width = placement.width;
     m.top = Col(float(p.topR), float(p.topG), float(p.topB)); m.bot = Col(float(p.bottomR), float(p.bottomG), float(p.bottomB));
-    m.foot=p.foot;
+    m.foot=p.foot; m.snow=p.snow; m.snowScale=p.snowScale;
+    m.snowCol=Col(float(p.snowR),float(p.snowG),float(p.snowB));
     drawMountain(c, m);
 }
 }
@@ -78,8 +87,28 @@ void OsakaCompositionV1::render(Ctx& c, const OsakaState& s, const OsakaWorldDes
     for (std::size_t i = 0; i < stage.count; ++i) {
         const auto& slot = stage.entries[i];
         if (!enabled(slot.gate)) continue;
+        const double oldY=c.cameraY;
+        // A slow swell sway that grows with the music, plus a short dip on
+        // each kick, so the parallax layers ride the sea like a boat.
+        const double level=c.score?clamp01(2.2*(c.score->bandBody[1][0]+c.score->bandBody[1][1])):0;
+        // The great wave landing jolts the view once and lets it settle.
+        double jolt=0;if(c.schedule){const auto& im=c.schedule->waveTrain.pose().impact;
+            if(im.age>=0 && im.age<2.5)jolt=16*std::min(1.2,im.strength)*ring(im.age,2.4,2.6);}
+        c.cameraY=oldY+slot.parallaxDepth*((2.2+9*level)*std::sin(c.t*.32)+(.65+3*level)*std::sin(c.t*.19)+5*c.kick(4)+jolt);
         switch (slot.piece) {
         case OsakaOp::Sky: OsakaSkyV1::draw(c, s); break;
+        case OsakaOp::WaterSurface: WaterSurfaceV1::draw(c, slot.params->water); break;
+        case OsakaOp::SwellLines: SwellLinesV1::draw(c, slot.params->swell); break;
+        case OsakaOp::BoatOnWater: BoatOnWaterV1::draw(c,slot.params->boat); break;
+        case OsakaOp::SmokePlume: {Canvas& cv=c.canvas();SmokePlumeV1::paint(cv,c,slot.params->life);c.gpu.over(cv);break;}
+        case OsakaOp::BirdFlock: {Canvas& cv=c.canvas();BirdFlockV1::paint(cv,c,slot.params->life);c.gpu.over(cv);break;}
+        case OsakaOp::SeaCreature: {Canvas& cv=c.canvas();SeaCreatureV1::paint(cv,c,slot.params->life);c.gpu.over(cv);break;}
+        case OsakaOp::LeapingFish: {Canvas& cv=c.canvas();LeapingFishV1::paint(cv,c,slot.params->life);c.gpu.over(cv);break;}
+        case OsakaOp::PrintMoments: {Canvas& cv=c.canvas();PrintMomentsV1::paint(cv,c,slot.params->life);c.gpu.over(cv);break;}
+        case OsakaOp::WaveTrain: WaveTrainV2::drawWorld(c,slot.params->waveTrain); break;
+        case OsakaOp::GreatWave: GreatWaveV1::draw(c,slot.params->greatWave); break;
+        case OsakaOp::FoamFlecks: FoamFlecksV1::draw(c, slot.params->foam); break;
+        case OsakaOp::GradientSky: GradientSkyV1::draw(c, slot.params->gradientSky); break;
         case OsakaOp::AfterSky: if (b && b->afterSky) b->afterSky(); break;
         case OsakaOp::Star: OsakaShootingStarV1::draw(c, s); break;
         case OsakaOp::DiscHook: if (b && b->disc) b->disc(); break;
@@ -128,6 +157,7 @@ void OsakaCompositionV1::render(Ctx& c, const OsakaState& s, const OsakaWorldDes
         case OsakaOp::NearHouse: OsakaNearGroupV1::draw(c, s, L); break;
         case OsakaOp::Wisteria: wisteria(c, s, L); break;
         }
+        c.cameraY=oldY;
     }
     if (drawWindows) {
         for (const auto& window : world.windows) GenericWindowV1::draw(c, window);

@@ -3,11 +3,34 @@
 #include "../osaka_shaders.h"
 
 namespace Journey {
+namespace {
+// The existing disc without veil or texture. Keep the authored halo, vertical
+// paint blend and ring arithmetic, while avoiding thirteen unused noise octaves.
+const char* plainDiscFs=R"(
+uniform vec3 u_disc;
+uniform float u_energy;
+uniform vec4 u_rings[6];
+uniform vec3 u_halo, u_col, u_col2, u_ring;
+uniform vec4 u_haloK;
+uniform float u_haloFar;
+void main() {
+    vec2 p = design();
+    float d = length(p - u_disc.xy), r = u_disc.z, e = u_energy;
+    float dd = max(d - r, 0.0);
+    vec3 add = u_halo * (exp(-dd / (u_haloK.x + u_haloK.y * e)) * (u_haloK.z + u_haloK.w * e) + exp(-dd / 300.0) * u_haloFar);
+    for (int k = 0; k < 6; ++k) add += u_ring * exp(-pow((d - u_rings[k].x) / 1.4, 2.0)) * u_rings[k].y;
+    float m = ss(r + 1.2, r - 1.2, d);
+    vec3 dc = mix(u_col, u_col2, ss(-u_disc.z, u_disc.z, p.y - u_disc.y));
+    o = vec4(add * (1.0 - m) + m * dc, m);
+}
+)";
+}
 void Kit::OsakaDiscV1::draw(Ctx& c, const DiscLook& d, double camForClouds) {
     const auto& p = osakaParameters().disc;
     GpuProfile::Group profileGroup(c.gpu.profile,"drawDisc");
-    std::string body = std::string(Shaders::cloud) + Shaders::disc;
-    Program& program = c.gpu.effect("disc", body.c_str());
+    const bool plain=d.tex==0 && d.veil==0;
+    std::string body=plain ? plainDiscFs : std::string(Shaders::cloud)+Shaders::disc;
+    Program& program=c.gpu.effect(plain ? "plain-disc" : "disc",body.c_str());
     // Two resting rings breathe; strong bass sends rings travelling outward.
     float rings[24] = {};
     const double e = d.energy;

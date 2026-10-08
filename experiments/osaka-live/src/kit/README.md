@@ -208,3 +208,159 @@ The loader accepts a world that lists only the stages it draws and leaves out
 defaults apply). `Haze` is a new slot piece that calls the existing haze band,
 and `Ridges` can take its own ridge list through `params`. Osaka's slots carry
 no `params`, so its drawing is unchanged.
+
+## Generic landscape pieces
+
+`gradient-sky.*` ports the Journey sunset ramp and paper wash as palette-controlled
+`gradient-sky-v1` slot parameters. It has no Journey timing or Osaka sky dependency.
+With `cloudBands`, four printed clouds drift downwind at 5 to 10 px/s, faster
+by the mid-band integrals while the music is loud, and wrap fully offscreen.
+Each is a stack of scalloped tiers from `print-cloud.h` with an offset underprint,
+a cream bokashi fill, a key line and nested lobe lines. The `PrintMoments` squall
+uses the same tiers in storm ink with evenly spaced slanted rain lines.
+
+`water-surface.*` ports `printSea`, `calmSea` texture and `sea` reflections from
+the Journey prototype. Geometry and controls are evaluated live; band integrals
+are sampled once per row. Slot parameters bound density and expose all paints.
+`check.cpp` measures every row's light area using `responseArea`, as for round 4
+label pieces. This adds no nodes or pass changes to Osaka.
+
+The live Score holds six cumulative band integrals and three fixed-size causal
+envelopes at the prototype's 0.4/0.9/1.6 second scales. Unlike the offline
+prototype's box-window means, these are exponential envelopes; no audio history
+is added. Osaka's means, strand phases and event formulas remain unchanged.
+
+Water response uses mean absolute pixel brightness change inside each declared
+row area. A travelling crest brightens some pixels and darkens others, which
+would cancel in the label lights' average-brightness measurement. The same
+2% threshold and three-frame requirement apply; existing label checks are unchanged.
+
+Port sources: Journey `journey-osaka-polish` at `4c2d413`,
+`kanagawa.cpp:64-93` (sky), `707-731` (Fuji and sun), `305-365` (reflections);
+`ending_water.cpp:35-61` (calm texture), `64-142` (printed sea and crest caps).
+Only the reusable landscape drawing is carried over, with world-controlled
+paints and density. The prototype checkout is preserved.
+
+`swell-lines-v1` ports the printed sea curl and calm sea texture into broken
+contours. Parameters: region, exclusions, count, rows, depthFalloff, width and
+length ranges, seed, driftSpeed, amplitude, color, opacity and band/lift/kick
+gains. Perspective rows map treble at the horizon to bass near the viewer.
+Individual offscreen wraps and incommensurate contour clocks avoid a short
+shared loop. Foam and hull support can sample `SwellLinesV1::field`.
+
+`foam-flecks-v1` samples the same swell field. It ports printSea's lobed
+cream/Prussian caps and curled fingers, with varied sizes and individual
+drift/breathing clocks. It accepts the swell field settings plus count,
+sizeMin/sizeMax, color, underprint and onsetGain. A small event-selected subset
+brightens on onsets/kicks; exclusions cull complete silhouettes. Match region,
+rows, depthFalloff, seed, driftSpeed and amplitude to the swell instance.
+
+Foam `breakers` (0..200) adds a bounded pool of breaking crests that ride the
+shared swell lines: a light face rises, a cream rim rolls into an overhanging
+lip, two to five claws hang from it and the crest dissolves into foam, all over
+a dark `underprint` key. Each onset or kick seeds a cluster whose members are
+born later the farther they sit from its origin, so crests ripple outward across
+rows; hashed ambient lanes keep a few lazy crests in quiet passages. Cluster size,
+crest size and lane presence follow the short band bodies, and kicks swell live
+crests. `breakerScale` (.1..3), `breakerLife` (.4..4 s), `breakerBody` and
+`breakerFace` set size, timing and paints. `spray` (0..40) flings that many snow
+dots ballistically from the largest crests of kicks at or above `sprayThreshold`.
+Origins avoid the live wave-train body; crests and spray are culled against it
+and the exclusions as complete shapes.
+
+`flowGain` (0..4, default 1) on SwellLines, FoamFlecks and WaterSurface scales the
+band-integral share of drift. With a lower driftSpeed the sea runs with the music
+rather than a constant clock. Keep it equal across the sea instances.
+
+`water-surface-v1` optionally takes `swellSeed` to share the new contour field;
+its horizon/nearY, rows, amplitude and drift should match the swell instance.
+`innerLines` (0..3) and `crestOpacity` (0..1) allow a world to replace the old
+full-width accents with broken contours. With no swellSeed, the original water
+arithmetic and default accents are preserved. Water supports 3..24 depth rows.
+`glitter` (0..400) draws the sun's reflection as crisp `glint` dashes in a
+column under `glintX` that widens toward the viewer (`glitterWidth` at the
+horizon plus `glitterSpread` per pixel of depth, down to `glintDepth`). The treble
+strand clock sets how fast dashes swap, treble level and lift set how many are
+lit and every onset reshuffles the column. Zero keeps the original glints.
+
+`boat-on-water-v1` ports Journey's shallow oshiokuri hull, seated jointed crew,
+raised ends and recovery/catch/drive/settle oars. One canvas pass includes faint
+surface-following wakes, oar rings and five small kick-driven bow spray specks.
+There is no boarding or lantern story. With an authored `WaveTrain` named by
+`waveInstance`, `race` (`none`, `near` or `far`) joins the shared set clock's
+race lanes toward the right edge: the near lane escapes, is swamped or rides
+the landing as each set decides, and the far lane flees or braces for small
+sets. Crews leave by the right edge and row back in from the left.
+
+A `BoatOnWater` slot names a `SwellLines` slot with required `waterInstance`.
+The loader resolves that immutable field across stages; missing/wrong references
+and depth ranges outside its rows fail. `x` and fractional `row` place the hull;
+`length` (80..600) times `scale` (.15..1.5) sets its size. `driftX` (0..500),
+`driftRows` (0..2), `driftSpeed` (0 to .05) and `seed` select bounded continuous
+incommensurate paths. Heave is weighted three-point swell support; pitch uses
+both ends of the same field. No independently phased bob is added.
+
+`crewCount` (0..10), `oarCount` (0..crewCount), `hull`, `trim`, `ink`, `foam`,
+`band` (0..5), `rowingTempo` (.1 to .6 cycles/s), `tempoGain` (0 to .5),
+`splashGain` (0 to .5) and `kickGain` (0 to .35) control art/music. Rowing phase is
+base tempo plus the selected causal band integral, so changing music does not
+jump a pose. Band energy/kick lightly brighten oar rings; kick adds bow spray.
+With a schedule, the stroke instead follows `MomentScheduleV1`'s shared row
+clock: one catch per detected beat, or half time above 112 bpm, pulled into phase
+by easing its rate so crews never rewind. Each catch throws a cream crown and
+droplets. Loudness lengthens the reach and lean; escaping a set adds urgency
+(bigger wake, splash and spray); a towering crest close behind makes the crew
+lean back with blades raised. An oar that cannot reach a trough stays dry.
+`pitchGain` (1 to 2.5) exaggerates pitch on a wave-riding hull; the keel fit
+keeps the hull above its support.
+The check tool measures each boat's current music/silence hull-and-oar footprint.
+
+## Printed wildlife and recurring moments
+
+`print-life.h` provides `smoke-plume-v1`, `bird-flock-v1`, `leaping-fish-v1`,
+`sea-creature-v1` and `print-moments-v1`. These append ink geometry to the caller's
+Canvas. Shared parameters are x, y, width, height, scale, gain, speed, count,
+seed, band, color, accent and ink. Fish and creatures resolve waterInstance to
+an existing SwellLines slot and use its fractional row; the loader checks both.
+Smoke reads a causal band body, birds read treble integral and onset flaps,
+and fish and creatures vary their excursion with the selected band. Strong bass
+hits push a flat lobed puff up the plume and throw a few embers; a surge
+erupts a column of larger puffs. A `BirdFlock` with `resident` keeps a wheeling
+flock in its sky band most of the time; strong kicks throw it upward and apart
+as smooth impulses and it regroups within two seconds.
+
+`PrintMoments` domain 0 places sky passes, squalls and surge wind; domain 1 uses
+the named water field for passing fishing/lantern boats and gusts; domain 2
+places a moving, music-brightened snow glint. World folders choose the placement
+and palette. `MomentScheduleV1` uses a seeded permutation of nine events with
+five to ten seconds between starts, plus independent flock and creature clocks.
+The first occurrence of a moment uses its original speed; later speeds vary.
+Music also cues moments that are not already on screen: strong kicks throw fish
+(7 s cooldown), a measured rise or surge sends cranes and a gust (20 s), and a
+held loud passage brings a working boat across (30 s). Working boats and cranes
+enter and leave beyond the frame edge. The creature returns every 70 to 120 s,
+and the foreground swell rolls for 13 s every 16 to 24 s, heaving with the bass.
+
+`surgeEnabled` opts wave, water, foam, boats, smoke and birds into the independent
+sustained-bass surge. Its body envelope eases in over 1.8 seconds and settles by
+11 seconds, with a seeded 45 to 90 second cooldown. Osaka's original schedule
+fields and drawings do not consume this state.
+
+The world checker measures sparse ink support, covers the opening schedule and
+loops a short fixture only when it must reach an actual rare creature visit.
+That rare window also receives the flashing check. No event is forced for a
+world check. Separate CTests cover exact RGB, music response, exits, bounds and
+the sustained gate, including its reset after a quiet passage.
+
+The print profiles also expose optional `cloudBands` and `energyGrade` sky
+parameters, `printBreathing` on the disc profile, and `parallaxDepth` (0..1.2)
+on a render slot. The latter scales a slow viewer bob of at most 2.85 design
+pixels. Keep a boat and its supporting surface at the same depth. Osaka uses
+zero for all these optional controls.
+
+`PrintMoments` domain 3 draws a recurring foreground swell. `nearEvents` on
+print life pieces enlarges midground flight and rain. `gullVisits` on a boat
+adds a circling approach, bow perch and loud-hit departure with a bounded
+quiet fallback. `boatInstance` on `LeapingFish` resolves a named boat and uses
+its moving position and surface for nearby leaps. Boat wave references exclude
+the lip and overhang from navigable water, with an eased outward escape.

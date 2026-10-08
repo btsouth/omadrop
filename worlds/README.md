@@ -254,3 +254,86 @@ migration aid reading historical `bfc79ff`, not a build input. It records the
 original commands and arithmetic, not flattened points. Do not regenerate over
 artist edits. The seven sign outlines preserve the Noto Sans CJK JP Bold font
 hash and SIL OFL provenance in the SVG; the bundled OFL notice remains required.
+
+## Gradient sky
+
+`GradientSky` uses `gradient-sky-v1` without changing `osaka-sky-v1`. Its slot
+`params` contains `stops` (2..8 `{ "y": designPixel, "color": "#rrggbb" }`
+entries, strictly increasing in 0..1080), `paperTop`, `paperBottom`,
+`printGrade` (0..1 paper wash) and `grain` (0..0.1 static paper grain).
+The ramp and wash come from the Journey prototype; there is no chapter clock.
+
+The existing Disc profile optionally accepts `color2Hex` and `ringHex` (24-bit
+integer paints) and `energyLift` (band-0 lift gain). Leave them out for the
+original moon. These expose the prototype sunset disc without a separate sun
+renderer; the usual halo, texture, veil and ring controls still apply.
+
+The existing Mountain profile optionally accepts `snow` (0..1), `snowScale`
+(positive) and `snowR`, `snowG`, `snowB`. These expose the original MountainLook
+snow cap; omitted fields keep Osaka's snow-free silhouette and geometry.
+
+## Living water
+
+`WaterSurface` uses `water-surface-v1` with slot `params`. Optional fields:
+
+| Control | Fields and bounds |
+| --- | --- |
+| Placement | `horizon` (0..1079), `nearY` (below horizon + 2, at most 1200), `x0`, `x1` (right of x0) |
+| Density | `rows` (3..9), `textureRows` (0..65), `glints` (0..115), `sampleStep` (8..128 pixels) |
+| Flow | `amplitude` (0..1), `wavelength` (0.5..4), `drift` (0..2), `phase`, `seed` (0..1000000) |
+| Paint | `top`, `bottom`, `crest`, `texture`, `foam`, `underprint`, `glint`, `hotGlint` as hex colors; `opacity` (0..1) |
+| Response | `bandGain` (0..3), `liftGain` (0..1), `kickGain` (0..0.5) |
+| Print accents | `capDensity` (0..1), `capScale` (0..1.5), `glintX`, `glintDepth` (1..1080) |
+
+Defaults are in `kit/water-surface.h`. The live depth planes, broken print
+crests, texture and sunset reflections are ported from Journey's sea passes,
+with a reduced geometry budget. Far-to-near rows use bands 5..0. Band-integrated
+flow is continuous; measured level and lift brighten ripples and caps, while
+kick adds a localized reflection shimmer. No crash, impact, spray or story clock.
+The readiness check measures each depth row's crest and ripple area like the
+label pieces' light areas. Hidden or unresponsive water rows fail music response.
+
+### GreatWave / great-wave-v1
+
+A living Hokusai wave ported from Journey: indigo body, masked material
+contours, connected whitewater, blue underprint, hooked talons with two forks,
+and restrained spray. Seeded 24..38 second sets roll in, build and settle into
+the swell. The first set lasts 36 seconds. No break, plunge or crash state exists.
+Place it after the sea and before boats in a Backdrop stage, with gate Always.
+
+`anchorSide` is `left` (default) or `right`; `x` and `y` anchor the foot, and
+`width` scales the authored 1440-unit body (300..1800). `baseHeight` (150..900)
+is the quiet set height; `maxRise` (0..800) adds bounded musical height. Their sum
+must not exceed 1050. `curlAmount` (0..1) controls the lip's forward reach.
+`clawCount` (6..30), `clawSize` (0.25..1.5) and `seed` (0..1000000) control
+crest detail. Talon/fork length is capped by local crest spacing; the lip's
+shorter hooks are rooted on its exterior, away from the hollow.
+
+Paints `body`, `bottom`, `underprint`, `foam` and `lines` are #RRGGBB colors.
+`lowGain` (0..4, default 2.4) binds the existing 1.6 second causal envelopes of
+bands 0 and 1 to height and curl while each set forms. A surge raises the
+active set to its tallest size. Independent slow phases sway and undulate the
+body, curl the lip and ripple the crest; material streaks flow up its face. `swellGain` (0..1, default 0.35) adds measured
+swell pulses with a 0.75 second eased attack. `kickGain` and `onsetGain`
+(0..0.5, defaults 0.22/0.18) flick the claws and spray through continuous
+attack/release pulses. Each finger maps to one of the six frequency bands, ordered from the curl's
+base to its tip, and extends with that band's fast envelope. Event-born spray
+detaches from the crest and drifts in the wind. Sea whitecaps flare by depth row.
+They never move the wave body. The check tool measures
+the wave's declared response region against silence, with band, kick and onset
+binding tokens. All geometry remains deterministic for identical music/seed.
+
+### Boats on shared swells
+
+Place a `BoatOnWater` / `boat-on-water-v1` slot after the sea, foam and wave.
+An optional `waveInstance` names a GreatWave in the same stage and adds its
+travelling face to the support field. `GreatWave.params.row` declares its depth
+(default 7.2). Shallower boats must be placed before that wave slot, deeper
+boats after it; drifting lanes may not cross that depth. Foreground hulls use
+conservative support across their full length, so they never sit inside the
+water body. Crews brace on hits and the oars respond with small flails.
+Its required `params.waterInstance` is the id of a `SwellLines` slot in the same
+world. `x`, fractional `row`, `length`, `scale`, `crewCount`, `oarCount`, hull
+paints, seeded `driftX` / `driftRows` / `driftSpeed`, and rowing/splash gains are
+independent per boat. Surface settings come from the named swell slot, ensuring
+pitch and heave agree with the water. See the kit README for bounds and bindings.

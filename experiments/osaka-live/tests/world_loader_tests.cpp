@@ -251,6 +251,78 @@ int main(int argc, char** argv) {
         const auto roundTrip=loadOsakaWorld(tmp.path());
         require(roundTrip->description().disc.x==1.0000000000000002,"double failed to round-trip exactly");
         require(a.disc.x==b.disc.x,"loading a second world changed the first immutable description");
+        // Generic standing-wave parameters round-trip, while invalid bounds
+        // and every attempt to configure a crash fail closed.
+        auto withWave=[&](const QJsonObject& settings){
+            auto r=original;auto stages=r["stages"].toArray();auto stage=stages[0].toObject();
+            auto entries=stage["slots"].toArray();entries.append(QJsonObject{{"id","test-wave"},{"piece","GreatWave"},
+                {"profile","great-wave-v1"},{"gate","Always"},{"params",settings}});
+            stage["slots"]=entries;stages[0]=stage;r["stages"]=stages;return r;
+        };
+        root=withWave(QJsonObject{{"anchorSide","right"},{"x",1890},{"maxRise",123},{"seed",9}});
+        {QFile out(file);require(out.open(QIODevice::WriteOnly),"write wave fixture failed");out.write(QJsonDocument(root).toJson());}
+        const auto waveWorld=loadOsakaWorld(tmp.path());const auto& stageWave=waveWorld->description().backdrop;
+        const auto& parsedWave=stageWave.entries[stageWave.count-1].params->greatWave;
+        require(parsedWave.anchorRight && parsedWave.x==1890 && parsedWave.maxRise==123 && parsedWave.seed==9,"wave settings lost");
+        const QString wavePath="$.stages[0].slots["+QString::number(a.backdrop.count)+"].params";
+        invalid(withWave(QJsonObject{{"anchorSide","up"}}),wavePath+".anchorSide: expected left or right");
+        invalid(withWave(QJsonObject{{"maxRise",801}}),wavePath+".maxRise: expected number in 0..800");
+        root=withWave(QJsonObject{{"baseHeight",340},{"maxRise",650},{"surgeEnabled",true}});
+        {QFile out(file);require(out.open(QIODevice::WriteOnly),"write wide response failed");out.write(QJsonDocument(root).toJson());}
+        const auto wide=loadOsakaWorld(tmp.path());const auto& parsedWide=wide->description().backdrop.entries[a.backdrop.count].params->greatWave;
+        require(parsedWide.baseHeight==340 && parsedWide.maxRise==650 && parsedWide.surgeEnabled,"wide wave parameters lost");
+        invalid(withWave(QJsonObject{{"baseHeight",900},{"maxRise",200}}),wavePath+": expected baseHeight + maxRise at most 1050");
+        invalid(withWave(QJsonObject{{"clawCount",18.5}}),wavePath+".clawCount: expected integer in 6..30");
+        invalid(withWave(QJsonObject{{"breakEnabled",true}}),wavePath+".breakEnabled: expected known field (unknown field)");
+        invalid(withWave(QJsonObject{{"crashAt",60}}),wavePath+".crashAt: expected known field (unknown field)");
+        auto withBoat=[&](const QJsonObject& settings){
+            auto r=original;auto stages=r["stages"].toArray();auto stage=stages[0].toObject();
+            auto entries=stage["slots"].toArray();
+            entries.append(QJsonObject{{"id","test-boat"},{"piece","BoatOnWater"},{"profile","boat-on-water-v1"},{"gate","Always"},{"params",settings}});
+            // Forward reference also proves resolution is independent of order.
+            entries.append(QJsonObject{{"id","test-swell"},{"piece","SwellLines"},{"profile","swell-lines-v1"},{"gate","Always"},
+                {"params",QJsonObject{{"seed",123},{"rows",12},{"amplitude",.63},{"driftSpeed",.37}}}});
+            stage["slots"]=entries;stages[0]=stage;r["stages"]=stages;return r;
+        };
+        const QJsonObject boatSettings{{"waterInstance","test-swell"},{"row",7.3},{"length",290},{"scale",.5},{"crewCount",6},{"oarCount",4},{"seed",82}};
+        root=withBoat(boatSettings);
+        {QFile out(file);require(out.open(QIODevice::WriteOnly),"write boat fixture failed");out.write(QJsonDocument(root).toJson());}
+        const auto boatWorld=loadOsakaWorld(tmp.path());const auto& parsedBoat=boatWorld->description().backdrop.entries[a.backdrop.count].params->boat;
+        require(parsedBoat.row==7.3 && parsedBoat.length==290 && parsedBoat.scale==.5 && parsedBoat.crewCount==6 && parsedBoat.oarCount==4 && parsedBoat.seed==82,"boat parameters lost");
+        require(parsedBoat.swell.seed==123 && parsedBoat.swell.rows==12 && parsedBoat.swell.amplitude==.63 && parsedBoat.swell.driftSpeed==.37,"boat does not share the named swell field");
+        auto missing=boatSettings;missing["waterInstance"]="absent";
+        invalid(withBoat(missing),"$.boat[test-boat].params.waterInstance: expected id of a SwellLines slot");
+        missing["waterInstance"]="test-boat";
+        invalid(withBoat(missing),"$.boat[test-boat].params.waterInstance: expected id of a SwellLines slot");
+        missing=boatSettings;missing["row"]=11;
+        invalid(withBoat(missing),"$.boat[test-boat].params.row: expected row and driftRows within the named surface");
+        missing=boatSettings;missing["oarCount"]=7;
+        invalid(withBoat(missing),wavePath+".oarCount: expected at most crewCount");
+        missing=boatSettings;missing["row"]=7.2;missing["boardingAt"]=35;
+        invalid(withBoat(missing),wavePath+".boardingAt: expected known field (unknown field)");
+        auto ridingBoat=[&](double row,bool after){
+            auto settings=boatSettings;settings["waveInstance"]="ride-wave";settings["row"]=row;
+            auto r=withBoat(settings);auto stages=r["stages"].toArray();auto stage=stages[0].toObject();auto entries=stage["slots"].toArray();
+            QJsonObject wave{{"id","ride-wave"},{"piece","GreatWave"},{"profile","great-wave-v1"},{"gate","Always"},{"params",QJsonObject{{"row",7.2}}}};
+            entries.insert(a.backdrop.count+(after?0:1),wave);stage["slots"]=entries;stages[0]=stage;r["stages"]=stages;return r;
+        };
+        for(auto pair:{std::pair<double,bool>{7.6,true},{5.6,false}}){root=ridingBoat(pair.first,pair.second);
+            {QFile out(file);require(out.open(QIODevice::WriteOnly),"write wave boat fixture");out.write(QJsonDocument(root).toJson());}
+            const auto loaded=loadOsakaWorld(tmp.path());const auto& entries=loaded->description().backdrop;
+            const auto& boat=entries.entries[a.backdrop.count+(pair.second?1:0)].params->boat;
+            require(boat.ridesWave && boat.wave.row==7.2,"named wave field lost");}
+        auto trainBoat=ridingBoat(7.6,true);
+        {auto stages=trainBoat["stages"].toArray();auto stage=stages[0].toObject();auto trainEntries=stage["slots"].toArray();
+         for(int i=0;i<trainEntries.size();++i){auto slot=trainEntries[i].toObject();if(slot["id"]=="ride-wave"){
+          slot["piece"]="WaveTrain";slot["profile"]="wave-train-v2";slot["params"]=QJsonObject{{"row",7.2},{"groupPeriod",1400},{"groupFloor",.94},{"heightScale",.88}};trainEntries[i]=slot;}}
+         stage["slots"]=trainEntries;stages[0]=stage;trainBoat["stages"]=stages;}
+        {QFile out(file);require(out.open(QIODevice::WriteOnly),"write train fixture");out.write(QJsonDocument(trainBoat).toJson());}
+        {const auto loaded=loadOsakaWorld(tmp.path());const auto& entries=loaded->description().backdrop;
+         const auto& boat=entries.entries[a.backdrop.count+1].params->boat;
+         require(boat.ridesWaveTrain && boat.waveTrain.groupPeriod==1400 && boat.waveTrain.heightScale==.88,"named W2d field parameters lost");}
+        invalid(ridingBoat(5.6,true),"$.boat[test-boat].params.waveInstance: expected boat layer order must agree with wave depth");
+        invalid(ridingBoat(7.6,false),"$.boat[test-boat].params.waveInstance: expected boat layer order must agree with wave depth");
+        invalid(ridingBoat(7.2,true),"$.boat[test-boat].params.row: expected boat lane must remain on one side of the wave depth");
         std::cout<<"PASS: loaded Osaka equals compiled oracle; exact invalid diagnostics\n";
     } catch (const std::exception& e) { std::cerr<<e.what()<<'\n';return 1; }
 }

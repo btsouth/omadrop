@@ -34,6 +34,10 @@ struct OsakaDiscParametersV1 {
     double hitTravel = 300;
     double hitAlpha = 0.22;
     double timeOffset = 10;
+    // Optional independent disc paints and lift keep old moon defaults intact.
+    int color2Hex = -1, ringHex = -1;
+    double energyLift = 0;
+    double printBreathing = 0;
 };
 struct OsakaMountainParametersV1 {
     static constexpr const char* name = "osaka-mountain-v1";
@@ -55,6 +59,8 @@ struct OsakaMountainParametersV1 {
     double summitHeight = 236;
     double gradientStop = 0.62;
     double gradientMix = 0.22;
+    double snow = 0, snowScale = 1;
+    double snowR = 0, snowG = 0, snowB = 0;
 };
 struct OsakaHazeParametersV1 {
     static constexpr const char* name = "osaka-haze-v1";

@@ -82,11 +82,12 @@ set(CHECK_TEST_WORLDS "${CMAKE_CURRENT_SOURCE_DIR}/worlds")
 add_test(NAME check-osaka-jade-ready COMMAND osaka-check-tests ${CHECK_REPO_WORLDS} osaka-jade ready)
 add_test(NAME check-lit-windows-ready COMMAND osaka-check-tests ${CHECK_REPO_WORLDS} examples/lit-windows ready)
 add_test(NAME check-night-street-ready COMMAND osaka-check-tests ${CHECK_REPO_WORLDS} examples/night-street ready)
+add_test(NAME check-hidden-water-fails-reacts COMMAND osaka-check-tests --dead-water ${CHECK_REPO_WORLDS})
 add_test(NAME check-dead-pieces-fail-reacts COMMAND osaka-check-tests --dead-pieces ${CHECK_TEST_WORLDS})
 add_test(NAME check-ignores-music-fails-reacts COMMAND osaka-check-tests ${CHECK_TEST_WORLDS} ignores-music fail:reacts)
 add_test(NAME check-harsh-flashing-fails-flashing COMMAND osaka-check-tests ${CHECK_TEST_WORLDS} harsh-flashing fail:flashing strobe)
 add_test(NAME check-unloadable-art-fails-loads COMMAND osaka-check-tests --broken-art ${CHECK_REPO_WORLDS})
-set_tests_properties(check-osaka-jade-ready check-lit-windows-ready check-night-street-ready check-dead-pieces-fail-reacts check-ignores-music-fails-reacts
+set_tests_properties(check-hidden-water-fails-reacts check-osaka-jade-ready check-lit-windows-ready check-night-street-ready check-dead-pieces-fail-reacts check-ignores-music-fails-reacts
     check-harsh-flashing-fails-flashing check-unloadable-art-fails-loads PROPERTIES TIMEOUT 900)
 
 add_executable(osaka-reload-tests world_reload_tests.cpp ../src/kit/world-reload.cpp ../src/kit/world-loader.cpp
@@ -97,3 +98,94 @@ target_link_libraries(osaka-reload-tests PRIVATE Qt6::Gui Qt6::OpenGL)
 target_compile_definitions(osaka-reload-tests PRIVATE LIT_WINDOWS_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/examples/lit-windows")
 add_test(NAME preview-world-reload COMMAND osaka-reload-tests)
 set_tests_properties(preview-world-reload PROPERTIES TIMEOUT 120)
+
+add_executable(swell-piece-tests swell_piece_tests.cpp ../src/kit/swell-lines.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp)
+target_include_directories(swell-piece-tests PRIVATE ../src)
+target_link_libraries(swell-piece-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
+add_test(NAME swell-lines-deterministic-and-music COMMAND swell-piece-tests)
+
+add_executable(foam-piece-tests foam_piece_tests.cpp ../src/kit/foam-flecks.cpp ../src/kit/swell-lines.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp)
+target_include_directories(foam-piece-tests PRIVATE ../src)
+target_link_libraries(foam-piece-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
+add_test(NAME foam-flecks-deterministic-and-music COMMAND foam-piece-tests)
+
+add_executable(great-wave-tests great_wave_tests.cpp ../src/kit/great-wave.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp ../src/schedule.cpp)
+target_include_directories(great-wave-tests PRIVATE ../src)
+target_link_libraries(great-wave-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
+add_test(NAME great-wave-standing-bounded-and-music COMMAND great-wave-tests)
+
+add_executable(boat-on-water-tests boat_on_water_tests.cpp ../src/kit/boat-on-water.cpp ../src/kit/swell-lines.cpp ../src/kit/great-wave.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp ../src/rig.cpp ../src/schedule.cpp)
+target_include_directories(boat-on-water-tests PRIVATE ../src)
+target_link_libraries(boat-on-water-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
+add_test(NAME boat-on-water-contact-deterministic-and-music COMMAND boat-on-water-tests)
+
+add_executable(print-schedule-tests print_schedule_tests.cpp ../src/score.cpp)
+target_include_directories(print-schedule-tests PRIVATE ../src)
+add_test(NAME print-schedule-bounds-and-sustained-surge COMMAND print-schedule-tests)
+
+add_executable(print-life-tests print_life_tests.cpp ../src/kit/print-life.cpp ../src/kit/swell-lines.cpp ../src/kit/boat-on-water.cpp ../src/kit/great-wave.cpp ../src/rig.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp ../src/schedule.cpp)
+target_include_directories(print-life-tests PRIVATE ../src)
+target_link_libraries(print-life-tests PRIVATE Qt6::Gui Qt6::OpenGL EGL)
+add_test(NAME smoke-plume-deterministic-and-music COMMAND print-life-tests smoke)
+add_test(NAME bird-flock-deterministic-and-music COMMAND print-life-tests birds)
+add_test(NAME sea-creature-deterministic-and-music COMMAND print-life-tests dragon)
+add_test(NAME leaping-fish-deterministic-and-music COMMAND print-life-tests fish)
+add_test(NAME print-moments-deterministic-and-exit COMMAND print-life-tests moments)
+
+add_test(NAME check-kanagawa-ready COMMAND osaka-check-tests ${CHECK_REPO_WORLDS} kanagawa ready)
+set_tests_properties(check-kanagawa-ready PROPERTIES TIMEOUT 900)
+
+add_executable(boat-wave-clearance-tests boat_wave_clearance_tests.cpp ../src/kit/boat-on-water.cpp ../src/kit/swell-lines.cpp ../src/kit/great-wave.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/score.cpp ../src/rig.cpp ../src/schedule.cpp)
+target_include_directories(boat-wave-clearance-tests PRIVATE ../src)
+target_link_libraries(boat-wave-clearance-tests PRIVATE Qt6::Gui Qt6::OpenGL)
+add_test(NAME boat-hull-below-crest-and-outside-curl COMMAND boat-wave-clearance-tests)
+
+add_test(NAME foreground-swell-bounded-and-music COMMAND print-life-tests swell)
+
+add_test(NAME boat-gull-landing-and-hit-takeoff COMMAND boat-wave-clearance-tests --gull)
+
+
+# W1 lab is deliberately separate from the world loader and production app.
+add_executable(wave-train-tests wave_train_tests.cpp ../src/kit/wave-train.cpp ../src/kit/hero-wave.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/score.cpp ../src/audio.cpp)
+target_include_directories(wave-train-tests PRIVATE ../src)
+target_link_libraries(wave-train-tests PRIVATE Qt6::Gui Qt6::OpenGL PkgConfig::FFTW)
+add_test(NAME wave-train-simple-silhouette COMMAND wave-train-tests profile)
+add_test(NAME wave-train-deterministic COMMAND wave-train-tests deterministic)
+add_test(NAME wave-train-no-crash COMMAND wave-train-tests no-crash)
+add_test(NAME wave-train-continuous-response COMMAND wave-train-tests continuous)
+add_test(NAME wave-train-finger-attachments COMMAND wave-train-tests fingers)
+add_test(NAME wave-train-finger-crossings COMMAND wave-train-tests crossing)
+add_test(NAME wave-train-finger-band-response COMMAND wave-train-tests bands)
+add_test(NAME wave-train-spray-pool COMMAND wave-train-tests spray)
+add_test(NAME wave-train-detail-continuity COMMAND wave-train-tests detail-continuity)
+set(WAVE_TRAIN_FIXTURE "" CACHE FILEPATH "Optional real stereo f32 fixture for W1")
+if(WAVE_TRAIN_FIXTURE)
+    add_test(NAME wave-train-fixture-continuity COMMAND wave-train-tests fixture ${WAVE_TRAIN_FIXTURE})
+endif()
+add_executable(omadrop-wave-lab ../tools/wave-lab.cpp ../src/kit/wave-train.cpp ../src/kit/hero-wave.cpp
+    ../src/kit/gradient-sky.cpp ../src/kit/water-surface.cpp ../src/kit/swell-lines.cpp
+    ../src/canvas.cpp ../src/gpu.cpp ../src/headless.cpp ../src/score.cpp ../src/audio.cpp)
+target_include_directories(omadrop-wave-lab PRIVATE ../src)
+target_link_libraries(omadrop-wave-lab PRIVATE Qt6::Gui Qt6::OpenGL EGL PkgConfig::FFTW)
+target_compile_definitions(omadrop-wave-lab PRIVATE KANAGAWA_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/../../../worlds/kanagawa")
+
+foreach(target osaka-streaming-tests great-wave-tests boat-on-water-tests print-life-tests boat-wave-clearance-tests osaka-reload-tests)
+    target_sources(${target} PRIVATE ../src/kit/wave-train.cpp ../src/kit/hero-wave.cpp)
+endforeach()
+target_sources(osaka-streaming-tests PRIVATE ../src/canvas.cpp ../src/gpu.cpp)
+target_link_libraries(osaka-streaming-tests PRIVATE Qt6::Gui Qt6::OpenGL)
+target_sources(osaka-reload-tests PRIVATE ../src/gpu.cpp ../src/score.cpp)
+
+target_sources(foam-piece-tests PRIVATE ../src/kit/wave-train.cpp ../src/kit/hero-wave.cpp)
+target_sources(swell-piece-tests PRIVATE ../src/schedule.cpp ../src/kit/wave-train.cpp ../src/kit/hero-wave.cpp)
+add_test(NAME swell-lines-no-crossing-at-maximum-input COMMAND swell-piece-tests --no-crossing)
+target_sources(foam-piece-tests PRIVATE ../src/schedule.cpp)
+add_test(NAME foam-flecks-outside-live-hero-and-barrel COMMAND foam-piece-tests --live-mask)
+add_test(NAME foam-breakers-follow-music COMMAND foam-piece-tests --breakers)

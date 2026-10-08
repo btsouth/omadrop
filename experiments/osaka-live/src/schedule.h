@@ -1,6 +1,9 @@
 #pragma once
 #include "art.h"
 #include "score.h"
+#include "kit/moment-schedule.h"
+#include "kit/wave-train.h"
+#include <memory>
 #include <array>
 #include <deque>
 
@@ -16,6 +19,11 @@ struct Schedule {
     double age(Moment m, double now) const { return now-moments[int(m)].start; }
     double action(Moment m,double now,double authoredStart) const { return authoredStart+age(m,now)*parameter(m,0,0.85,1.15,1); }
     double parameter(Moment m,double key,double lo,double hi,double original) const;
+    Kit::MomentScheduleV1 print;
+    Kit::WaveTrainMotionV2 waveTrain;
+    // Published atomically with world changes; audio snapshots retain value-owned controller state.
+    static inline std::shared_ptr<const Kit::WaveTrainParametersV2> waveTrainParameters;
+    double waveTrainLast=0;
     double combinationAt=0;
     std::uint64_t combinations=0;
     double gesture(double now,double authoredStart,double in,double end,double out) const;

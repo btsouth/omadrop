@@ -52,6 +52,33 @@ void brokenArt(const QString& worldsRoot, QTextStream& out) {
 }
 
 // Every kind of music-bound layer must be reported when it never responds.
+void deadWater(const QString& worldsRoot, QTextStream& out) {
+    QTemporaryDir temporary;
+    const QString folder=temporary.filePath("hidden-water");
+    require(QDir().mkpath(folder),"mkpath failed");
+    QFile scene(folder+"/scene.json"); require(scene.open(QIODevice::WriteOnly),"world write failed");
+    scene.write(R"({"schema":1,"world":"hidden-water","profile":"osaka-world-v1",
+      "stages":[{"id":"backdrop","phase":"Backdrop","slots":[
+        {"id":"sky","piece":"GradientSky","profile":"gradient-sky-v1","gate":"Always",
+         "params":{"stops":[{"y":0,"color":"#957fb8"},{"y":612,"color":"#dcd7ba"}],
+                   "paperTop":"#dcd7ba","paperBottom":"#c0a36e","printGrade":0.6,"grain":0}},
+        {"id":"sea","piece":"WaterSurface","profile":"water-surface-v1","gate":"Always",
+         "params":{"rows":6,"nearY":1050,"opacity":0}}]}],"art":{"file":"art.svg"}})");
+    scene.close();
+    QFile art(folder+"/art.svg"); require(art.open(QIODevice::WriteOnly),"art write failed");
+    art.write("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1920 1080'/>"); art.close();
+    qputenv("OMADROP_WORLDS",temporary.path().toUtf8());
+    Options options; options.world="hidden-water"; options.analysisSeconds=8;
+    options.reference=worldsRoot+"/osaka-jade";
+    const auto report=runWorldCheck(options); out<<report.summary();
+    const auto* reacts=report.find("reacts");
+    require(reacts && reacts->status==Status::Fail,"hidden water passed music response");
+    const auto nodes=reacts->details["boundLayers"].toArray();
+    require(nodes.size()==6,"water bindings missing from check");
+    for (const auto& node:nodes) require(!node.toObject()["responds"].toBool(),"hidden water row claimed a response");
+    out<<"PASS: every hidden water row is reported as unresponsive\n";
+}
+
 void deadPieces(const QString& testWorlds, QTextStream& out) {
     qputenv("OMADROP_WORLDS", testWorlds.toUtf8());
     Options options;
@@ -75,6 +102,7 @@ int main(int argc, char** argv) {
     QTextStream out(stdout), err(stderr);
     try {
         if (argc >= 3 && QString(argv[1]) == "--broken-art") { brokenArt(argv[2], out); return 0; }
+        if (argc >= 3 && QString(argv[1]) == "--dead-water") { deadWater(argv[2], out); return 0; }
         if (argc >= 3 && QString(argv[1]) == "--dead-pieces") { deadPieces(argv[2], out); return 0; }
         require(argc >= 4, "usage: osaka-check-tests WORLDS_ROOT WORLD ready|fail:ID [strobe]");
         const QString root = argv[1], world = argv[2], expect = argv[3];

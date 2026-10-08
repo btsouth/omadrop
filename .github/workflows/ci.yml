@@ -62,5 +62,28 @@ jobs:
       - name: Osaka tests
         run: |
           cmake -S experiments/osaka-live/tests -B /tmp/osaka-tests
-          cmake --build /tmp/osaka-tests -j2
-          ctest --test-dir /tmp/osaka-tests --output-on-failure
+          cmake --build /tmp/osaka-tests -j"$(nproc)"
+          ctest --test-dir /tmp/osaka-tests --output-on-failure -j"$(nproc)" -E check-kanagawa-ready
+
+  # The Kanagawa readiness check renders the full world in software GL and
+  # needs most of a runner on its own, so it runs beside fast-checks.
+  kanagawa-check:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install test dependencies
+        run: pacman -Syu --noconfirm --needed base-devel git python jq qt6-base qt6-declarative fftw cmake
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Kanagawa readiness
+        run: |
+          cmake -S experiments/osaka-live/tests -B /tmp/osaka-tests
+          cmake --build /tmp/osaka-tests -j"$(nproc)" --target osaka-check-tests
+          ctest --test-dir /tmp/osaka-tests --output-on-failure -R check-kanagawa-ready

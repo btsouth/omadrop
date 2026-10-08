@@ -26,11 +26,11 @@ struct Ctx {
     const Schedule* schedule;
     StaticGeometry* staticGeometry = nullptr;
     int next=0;
-    double cameraX=0;
+    double cameraX=0, cameraY=0;
     Canvas& canvas() {
         if(std::size_t(next)>=canvases->size()) canvases->push_back(std::make_unique<Canvas>());
         auto& canvas=*(*canvases)[next++];
-        canvas.reset(gpu.pixelScale());canvas.translate(-cameraX,0);return canvas;
+        canvas.reset(gpu.pixelScale());canvas.translate(-cameraX,cameraY);return canvas;
     }
 
     // Builders contain only time/audio-independent geometry. Parameters name
@@ -40,11 +40,12 @@ struct Ctx {
         if (!staticGeometry) return &target;
         std::vector<double> values(parameters);
         values.push_back(cameraX);
+        if(cameraY!=0)values.push_back(cameraY);
         auto result = staticGeometry->canvases.try_emplace(StaticGeometry::Key{name, values});
         auto& retained = result.first->second;
         if (result.second) {
             retained.reset(gpu.pixelScale());
-            retained.translate(-cameraX, 0);
+            retained.translate(-cameraX, cameraY);
             retained.freeze();
             ++staticGeometry->builds;
         }
