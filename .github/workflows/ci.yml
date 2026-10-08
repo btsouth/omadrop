@@ -62,5 +62,5 @@ jobs:
       - name: Osaka tests
         run: |
           cmake -S experiments/osaka-live/tests -B /tmp/osaka-tests
-          cmake --build /tmp/osaka-tests -j2
-          ctest --test-dir /tmp/osaka-tests --output-on-failure
+          cmake --build /tmp/osaka-tests -j"$(nproc)"
+          ctest --test-dir /tmp/osaka-tests --output-on-failure -j"$(nproc)"
