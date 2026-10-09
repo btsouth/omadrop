@@ -17,6 +17,8 @@ ApplicationWindow {
     // Stay up until the renderer window is mapped, so there is never a bare desktop.
     visible: backend.curtainVisible || (!backend.playing && !backend.busy)
     property string focusedKey: ""
+    // The card or button that started the current launch shows it is starting.
+    property string startingKey: ""
     property bool detailsOpen: false
     readonly property int focusedIndex: {
         for (var i = 0; i < app.visibleItems.length; ++i)
@@ -148,9 +150,21 @@ ApplicationWindow {
     }
 
     function openItem(item) {
-        if (!item) return
+        if (!item || backend.busy) return
+        app.startingKey = String(item.key)
         if (app.milkdropMode) backend.playScene(item.number)
     }
+
+    function openWorld(name) {
+        if (backend.busy) return
+        app.startingKey = "world:" + name
+        backend.playWorld(name)
+    }
+
+    // Cleared once a launch has finished starting, not by the selection
+    // change that comes before it.
+    property bool launchBusy: backend.busy
+    onLaunchBusyChanged: if (!launchBusy) app.startingKey = ""
 
     Connections {
         target: backend
@@ -220,7 +234,7 @@ ApplicationWindow {
     ColumnLayout {
         id: content
         // Dim while visuals are starting; fade in when the controls return.
-        opacity: backend.curtainVisible ? 0.35 : (app.visible ? 1 : 0)
+        opacity: backend.curtainVisible ? 0.7 : (app.visible ? 1 : 0)
         scale: backend.curtainVisible ? 0.985 : 1
         Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutQuad } }
         Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutQuad } }
@@ -504,12 +518,13 @@ ApplicationWindow {
                         id: worldCard
                         required property var modelData
                         readonly property bool selected: modelData.name === backend.world
+                        readonly property bool starting: backend.busy && app.startingKey === "world:" + modelData.name
                         width: worldGrid.cardWidth
                         height: worldColumn.implicitHeight + 16
                         radius: 12
                         color: worldMouse.containsMouse ? app.cPanelHover : app.cCard
-                        border.width: selected ? 2 : 1
-                        border.color: selected ? app.cAccent : app.cBorder
+                        border.width: selected || starting ? 2 : 1
+                        border.color: selected || starting ? app.cAccent : app.cBorder
 
                         ColumnLayout {
                             id: worldColumn
@@ -554,9 +569,13 @@ ApplicationWindow {
                             id: worldMouse
                             anchors.fill: parent
                             hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            enabled: !backend.busy
-                            onClicked: backend.playWorld(worldCard.modelData.name)
+                            cursorShape: backend.busy ? Qt.BusyCursor : Qt.PointingHandCursor
+                            onClicked: app.openWorld(worldCard.modelData.name)
+                        }
+
+                        StartingBadge {
+                            anchors.fill: parent
+                            visible: worldCard.starting
                         }
                     }
                 }
@@ -605,7 +624,7 @@ ApplicationWindow {
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: qsTr("Play")
+                            text: backend.busy ? qsTr("Starting…") : qsTr("Play")
                             color: app.playEnabled ? app.cOnAccent : app.cTextMute
                             font.pixelSize: 16
                             font.weight: Font.DemiBold
@@ -616,7 +635,10 @@ ApplicationWindow {
                         anchors.fill: parent
                         enabled: app.playEnabled
                         cursorShape: app.playEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                        onClicked: backend.play()
+                        onClicked: {
+                            app.startingKey = "play"
+                            backend.play()
+                        }
                     }
                 }
 
@@ -763,6 +785,29 @@ ApplicationWindow {
         }
     }
 
+    // A dim veil with a spinner over the card that is starting.
+    component StartingBadge: Rectangle {
+        radius: 12
+        color: Qt.rgba(app.cBg.r, app.cBg.g, app.cBg.b, 0.55)
+        ColumnLayout {
+            anchors.centerIn: parent
+            spacing: 8
+            BusyIndicator {
+                Layout.alignment: Qt.AlignHCenter
+                running: parent.parent.visible
+                implicitWidth: 40
+                implicitHeight: 40
+            }
+            Label {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("Starting…")
+                color: app.cText
+                font.pixelSize: 14
+                font.weight: Font.DemiBold
+            }
+        }
+    }
+
     Component {
         id: cardDelegate
 
@@ -776,8 +821,9 @@ ApplicationWindow {
                 anchors.margins: 6
                 radius: 12
                 color: cardHover.hovered ? app.cPanelHover : app.cCard
-                border.width: String(modelData.key) === app.focusedKey ? 2 : 1
-                border.color: String(modelData.key) === app.focusedKey ? app.cAccent : cardHover.hovered ? app.cAccent : ((modelData && modelData.hidden) ? app.cBorderSoft : app.cBorder)
+                readonly property bool starting: backend.busy && app.startingKey === String(modelData.key)
+                border.width: starting || String(modelData.key) === app.focusedKey ? 2 : 1
+                border.color: starting || String(modelData.key) === app.focusedKey ? app.cAccent : cardHover.hovered ? app.cAccent : ((modelData && modelData.hidden) ? app.cBorderSoft : app.cBorder)
                 opacity: (modelData && modelData.hidden) ? 0.55 : 1.0
                 clip: true
 
@@ -788,8 +834,14 @@ ApplicationWindow {
 
                 MouseArea {
                     anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
+                    cursorShape: backend.busy ? Qt.BusyCursor : Qt.PointingHandCursor
                     onClicked: app.openItem(modelData)
+                }
+
+                StartingBadge {
+                    anchors.fill: parent
+                    z: 10
+                    visible: card.starting
                 }
 
                 ColumnLayout {
