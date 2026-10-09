@@ -53,6 +53,8 @@ package() {
     "$pkgdir/usr/share/licenses/omadrop"
   # install.sh stages world folders beside bin; reject an incomplete runtime.
   test -f "$srcdir/root/worlds/osaka-jade/scene.json"
+  test -f "$srcdir/root/worlds/kanagawa/scene.json"
+  test -f "$srcdir/root/worlds/kanagawa/thumbnail.jpg"
   test -f "$srcdir/root/worlds/template/scene.json"
   test -f "$srcdir/root/worlds/template/art.svg"
   test -f "$srcdir/root/worlds/examples/lit-windows/scene.json"

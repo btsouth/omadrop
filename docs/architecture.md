@@ -26,9 +26,11 @@ MilkDrop launches through `experiments/projectm-ascii/run-collection.sh`.
 Omarchy launches the installed `bin/omadrop-osaka` binary. It creates a fullscreen
 window for each selected display and quits on Escape. Its Hyprland class is
 `org.omadrop.screensaver`, which the controller tracks to restore controls.
-Osaka Jade is used for every theme. The dispatcher function
-`omarchy_world_backend()` is the single theme-to-world choice; a future second
-world changes that function and adds its binary.
+Every installed world under `worlds/` plays through the same binary with
+`--world NAME`. The controls pass the chosen world; without one, the dispatcher's
+`choose_world()` picks the world named after the current Omarchy theme
+(`theme.name` in Omarchy's state folder), then the last world chosen, then
+Osaka Jade.
 Both capture the default PipeWire output locally. MPRIS helpers retrieve album
 art for MilkDrop. Osaka shares the same PipeWireCapture implementation as MilkDrop: an empty
 sink target records the default output monitor with stream.capture.sink=true.

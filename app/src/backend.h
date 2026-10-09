@@ -33,6 +33,9 @@ class Backend : public QObject {
     Q_PROPERTY(bool milkdropAvailable READ milkdropAvailable NOTIFY stateChanged)
     Q_PROPERTY(bool omarchyAvailable READ omarchyAvailable NOTIFY stateChanged)
     Q_PROPERTY(QVariantList scenes READ scenes NOTIFY scenesChanged)
+    Q_PROPERTY(QVariantList worlds READ worlds NOTIFY worldsChanged)
+    Q_PROPERTY(QString world READ world NOTIFY stateChanged)
+    Q_PROPERTY(QString worldTitle READ worldTitle NOTIFY stateChanged)
 
 public:
     explicit Backend(QObject* parent = nullptr);
@@ -51,6 +54,9 @@ public:
     bool milkdropAvailable() const { return m_milkdropAvailable; }
     bool omarchyAvailable() const { return m_omarchyAvailable; }
     QVariantList scenes() const { return m_scenes; }
+    QVariantList worlds() const { return m_worlds; }
+    QString world() const { return m_world; }
+    QString worldTitle() const;
 
     Q_INVOKABLE void setMode(const QString& mode);
     Q_INVOKABLE void setDisplay(const QString& display);
@@ -58,6 +64,8 @@ public:
     Q_INVOKABLE void setAscii(bool ascii);
     Q_INVOKABLE void play();
     Q_INVOKABLE void playScene(int number);
+    Q_INVOKABLE void setWorld(const QString& name);
+    Q_INVOKABLE void playWorld(const QString& name);
     Q_INVOKABLE void stop();
     Q_INVOKABLE void toggleSceneHidden(int number);
     Q_INVOKABLE void clearError();
@@ -70,12 +78,15 @@ signals:
     void showControls();
     void stateChanged();
     void scenesChanged();
+    void worldsChanged();
     void stopCompleted();
 
 private:
     void loadPreferences();
     void persistPreferences();
     void loadScenes();
+    void loadWorlds();
+    QString currentThemeName() const;
 
     QString sceneManifestPath() const;
     QString scenesConfPath() const;
@@ -113,6 +124,9 @@ private:
     bool m_milkdropAvailable = false;
     bool m_omarchyAvailable = false;
     QVariantList m_scenes;
+    QVariantList m_worlds;
+    QString m_world;
+    QString m_savedWorld;
 
     // Resolved paths.
     QString m_root;

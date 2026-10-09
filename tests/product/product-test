@@ -192,6 +192,54 @@ grep -qx 'args=--world rose-pine --single' "$OMADROP_TEST_BACKEND_LOG" \
   || fail "a matching theme world was not selected"
 rm -f "$theme_link"
 
+# Current Omarchy records the theme name in its state folder.
+theme_name=${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/current/theme.name
+mkdir -p "$(dirname "$theme_name")"
+printf 'rose-pine\n' >"$theme_name"
+reset_logs
+"$launcher" --single
+grep -qx 'args=--world rose-pine --single' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "the theme name in the Omarchy state folder did not select its world"
+printf 'plain-theme\n' >"$theme_name"
+ln -s "$matched_theme" "$theme_link"
+reset_logs
+"$launcher" --single
+grep -qx 'args=--single' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "the legacy theme symlink overrode the current theme name"
+rm -f "$theme_link"
+printf '../rose-pine\n' >"$theme_name"
+reset_logs
+"$launcher" --single
+grep -qx 'args=--single' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "an unsafe theme name selected a world"
+
+# Any installed world can be chosen; the choice is remembered when the theme
+# has no world of its own, and the theme's world still wins by default.
+printf 'plain-theme\n' >"$theme_name"
+reset_logs
+"$launcher" --mode omarchy --world rose-pine --single
+grep -qx 'args=--world rose-pine --single' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "--world did not play the chosen world"
+grep -qx 'world=rose-pine' "$mode_file" || fail "--world did not remember the chosen world"
+reset_logs
+"$launcher" --single
+grep -qx 'args=--world rose-pine --single' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "the remembered world did not play"
+cp -a "$install_root/worlds/template" "$install_root/worlds/plain-theme"
+reset_logs
+"$launcher" --single
+grep -qx 'args=--world plain-theme --single' "$OMADROP_TEST_BACKEND_LOG" \
+  || fail "the theme world did not win over the remembered world"
+rm -rf "$install_root/worlds/plain-theme"
+if "$launcher" --mode omarchy --world missing-world --single 2>/dev/null; then
+  fail "--world accepted a world that is not installed"
+fi
+if "$launcher" --mode milkdrop --world rose-pine --single 2>/dev/null; then
+  fail "--world was accepted in MilkDrop mode"
+fi
+rm -f "$theme_name"
+sed -i '/^world=/d' "$mode_file"
+
 # Display flags follow the remembered mode.
 reset_logs
 printf 'mode=omarchy\n' >"$mode_file"

@@ -80,7 +80,7 @@ packaging/makepkg.sh -si
 Or use `./install.sh` for a user installation. See
 [building and testing](docs/building.md) and [contributing](CONTRIBUTING.md).
 Omadrop needs Hyprland, PipeWire and an OpenGL 3.3 capable GPU. Omarchy mode
-plays the fixed Osaka Jade artwork on one display or all displays.
+plays the world you pick, Osaka Jade or Kanagawa, on one display or all displays.
 
 ## Help build living worlds
 

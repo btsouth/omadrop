@@ -115,7 +115,7 @@ ApplicationWindow {
     }
 
     readonly property string emptyHint: {
-        if (app.omarchyMode) return qsTr("Osaka Jade\nA living street, listening to your music. Press Play.")
+        if (app.omarchyMode) return qsTr("%1\nListening to your music. Press Play.").arg(backend.worldTitle)
         if (app.items.length === 0) return qsTr("No scenes were found.")
         if (app.query.length > 0) return qsTr("Nothing matches your search.")
         return qsTr("Nothing is available.")
@@ -124,7 +124,7 @@ ApplicationWindow {
     readonly property bool playEnabled: app.milkdropMode
                                         ? backend.milkdropAvailable
                                         : backend.omarchyAvailable
-    readonly property string rotationSummary: app.milkdropMode ? qsTr("%1 scenes").arg(app.scenes.length) : qsTr("Osaka Jade")
+    readonly property string rotationSummary: app.milkdropMode ? qsTr("%1 scenes").arg(app.scenes.length) : backend.worldTitle
     readonly property string modeReason: {
         if (!backend.milkdropAvailable && !backend.omarchyAvailable)
             return qsTr("MilkDrop and Omarchy aren't installed")
@@ -483,58 +483,81 @@ ApplicationWindow {
                 ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
             }
 
-            Rectangle {
+            // Every installed world, the selected one outlined in the accent.
+            // Click a world to play it, or press Play for the selected one.
+            Flow {
+                id: worldGrid
                 anchors.centerIn: parent
-                // Leave room for the captions when the error details reduce the viewport.
-                width: Math.min(parent.width - 40, 640, Math.max(240, (parent.height - 80) * 16 / 9 + 16))
-                height: Math.min(parent.height, osakaPreview.implicitHeight)
                 visible: app.omarchyMode
-                radius: 12
-                color: app.cCard
-                border.width: 1
-                border.color: app.cBorder
+                spacing: 16
+                readonly property int count: Math.max(1, backend.worlds.length)
+                readonly property int columns: Math.min(count, 3)
+                readonly property int rows: Math.ceil(count / columns)
+                readonly property real cardWidth: Math.max(160, Math.min(560,
+                    (parent.width - 40 - (columns - 1) * spacing) / columns,
+                    ((parent.height - (rows - 1) * spacing) / rows - 48) * 16 / 9 + 16))
+                width: columns * cardWidth + (columns - 1) * spacing
 
-                ColumnLayout {
-                    id: osakaPreview
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    anchors.margins: 8
-                    anchors.topMargin: 0
-                    anchors.bottomMargin: 0
-                    spacing: 6
+                Repeater {
+                    model: backend.worlds
+                    delegate: Rectangle {
+                        id: worldCard
+                        required property var modelData
+                        readonly property bool selected: modelData.name === backend.world
+                        width: worldGrid.cardWidth
+                        height: worldColumn.implicitHeight + 16
+                        radius: 12
+                        color: worldMouse.containsMouse ? app.cPanelHover : app.cCard
+                        border.width: selected ? 2 : 1
+                        border.color: selected ? app.cAccent : app.cBorder
 
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.topMargin: 8
-                        Layout.preferredHeight: (osakaPreview.width) * 9 / 16
-                        Layout.fillHeight: true
-                        Layout.minimumHeight: 0
-                        radius: 8
-                        clip: true
-                        color: app.cPanel
-                        Image {
-                            anchors.fill: parent
-                            source: "qrc:/assets/osaka-jade.jpg"
-                            fillMode: Image.PreserveAspectCrop
-                            smooth: true
+                        ColumnLayout {
+                            id: worldColumn
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 8
+                            spacing: 6
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: width * 9 / 16
+                                radius: 8
+                                clip: true
+                                color: app.cPanel
+                                Image {
+                                    anchors.fill: parent
+                                    source: worldCard.modelData.thumbnail
+                                    visible: worldCard.modelData.thumbnail !== ""
+                                    fillMode: Image.PreserveAspectCrop
+                                    asynchronous: true
+                                    smooth: true
+                                }
+                                Label {
+                                    anchors.centerIn: parent
+                                    visible: worldCard.modelData.thumbnail === ""
+                                    text: worldCard.modelData.title
+                                    color: app.cTextMute
+                                    font.pixelSize: 18
+                                }
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: worldCard.modelData.title
+                                color: app.cText
+                                font.pixelSize: 15
+                                font.weight: Font.DemiBold
+                                elide: Text.ElideRight
+                            }
                         }
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("Osaka Jade")
-                        color: app.cText
-                        font.pixelSize: 15
-                        font.weight: Font.DemiBold
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        Layout.bottomMargin: 12
-                        text: qsTr("A living street, listening to your music. Press Play.")
-                        color: app.cTextMute
-                        font.pixelSize: 13
-                        wrapMode: Text.WordWrap
+                        MouseArea {
+                            id: worldMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            enabled: !backend.busy
+                            onClicked: backend.playWorld(worldCard.modelData.name)
+                        }
                     }
                 }
             }

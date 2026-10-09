@@ -6,10 +6,12 @@
   rowing crews. Loud music builds each set: the wave grows, feints on strong
   hits and breaks, and the crews race it off the right edge. Sets differ, from
   towering waves to ones that fizzle out or break early, and the sea stays calm
-  for a while after each landing. Kanagawa plays in Omarchy mode when your
-  Omarchy theme is Kanagawa.
-- Omarchy mode now picks the world that matches your Omarchy theme and falls
-  back to Osaka Jade.
+  for a while after each landing.
+- The Omarchy tab lists every installed world. Click one to play it. The world
+  named after your Omarchy theme is selected by default, otherwise the last one
+  you played. `omadrop --mode omarchy --world NAME` plays a world directly.
+- Theme detection works with current Omarchy, which records the active theme in
+  `~/.local/state/omarchy/current/theme.name`.
 - Build a living world for your theme. `omadrop world new` starts one from a
   template, `omadrop world preview` reloads it as you save, and
   `omadrop world check` reports whether it loads, reacts to music, fits the

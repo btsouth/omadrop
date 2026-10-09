@@ -16,6 +16,8 @@
 #include <QTimer>
 #include <QVariantMap>
 #include <QUuid>
+#include <QRegularExpression>
+#include <QUrl>
 
 #include <signal.h>
 #include <unistd.h>
@@ -165,6 +167,7 @@ Backend::Backend(QObject* parent) : QObject(parent) {
     });
 
     loadPreferences();
+    loadWorlds();
     m_hiddenScenes = readHiddenScenes();
     loadScenes();
     m_status = QStringLiteral("Ready");
@@ -271,6 +274,7 @@ void Backend::loadPreferences() {
         m_display = preferences.value(QStringLiteral("display"));
     }
 
+    m_savedWorld = product.value(QStringLiteral("world"));
     if (product.contains(QStringLiteral("ascii"))) {
         m_ascii = parseBool(product.value(QStringLiteral("ascii")));
     } else if (preferences.contains(QStringLiteral("ascii"))) {
@@ -298,6 +302,9 @@ void Backend::persistPreferences() {
     stream << "mode=" << m_mode << '\n'
            << "display=" << m_display << '\n'
            << "ascii=" << (m_ascii ? 1 : 0) << '\n';
+    if (!m_world.isEmpty()) {
+        stream << "world=" << m_world << '\n';
+    }
     stream.flush();
     if (!file.commit()) {
         setError(QStringLiteral("Could not save settings: %1").arg(file.errorString()));
@@ -391,8 +398,104 @@ void Backend::play() {
                                                        : QStringLiteral("--all"));
     if (m_mode == QLatin1String("milkdrop")) {
         arguments << (m_ascii ? QStringLiteral("--ascii") : QStringLiteral("--no-ascii"));
+    } else if (!m_world.isEmpty()) {
+        arguments << QStringLiteral("--world") << m_world;
     }
     beginSession(arguments, QStringLiteral("renderer"));
+}
+
+namespace {
+bool validWorldName(const QString& name) {
+    static const QRegularExpression pattern(QStringLiteral("^[a-z0-9][a-z0-9-]*$"));
+    return pattern.match(name).hasMatch() && name != QLatin1String("examples")
+        && name != QLatin1String("template") && name != QLatin1String("schema");
+}
+
+QString worldTitleFor(const QString& name) {
+    QStringList words = name.split('-', Qt::SkipEmptyParts);
+    for (QString& word : words) {
+        word[0] = word[0].toUpper();
+    }
+    return words.join(' ');
+}
+} // namespace
+
+// Omarchy records the active theme in theme.name under its state folder; older
+// releases linked ~/.config/omarchy/current/theme to the theme folder instead.
+QString Backend::currentThemeName() const {
+    const QString state = envOr("XDG_STATE_HOME", QDir::homePath() + QStringLiteral("/.local/state"));
+    QFile name(state + QStringLiteral("/omarchy/current/theme.name"));
+    if (name.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return QString::fromUtf8(name.readLine()).trimmed();
+    }
+    const QString target = QFileInfo(configHome() + QStringLiteral("/omarchy/current/theme")).canonicalFilePath();
+    return target.isEmpty() ? QString() : QFileInfo(target).fileName();
+}
+
+// Every installed world is listed. The world named after the current Omarchy
+// theme is selected when it is installed, then the last world chosen, then
+// Osaka Jade.
+void Backend::loadWorlds() {
+    const QString root = envOr("OMADROP_WORLDS", m_root + QStringLiteral("/worlds"));
+    QStringList names = QDir(root).entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+    names.erase(std::remove_if(names.begin(), names.end(), [&](const QString& name) {
+        return !validWorldName(name) || !QFileInfo::exists(root + '/' + name + QStringLiteral("/scene.json"));
+    }), names.end());
+    // Osaka Jade, the original world, leads the list.
+    const auto osaka = std::find(names.begin(), names.end(), QStringLiteral("osaka-jade"));
+    if (osaka != names.end()) std::rotate(names.begin(), osaka, osaka + 1);
+    m_worlds.clear();
+    for (const QString& name : names) {
+        const QString folder = root + '/' + name;
+        QString thumbnail;
+        for (const char* file : {"thumbnail.jpg", "thumbnail.png"}) {
+            if (QFileInfo::exists(folder + '/' + QLatin1String(file))) {
+                thumbnail = QUrl::fromLocalFile(folder + '/' + QLatin1String(file)).toString();
+                break;
+            }
+        }
+        if (thumbnail.isEmpty() && name == QLatin1String("osaka-jade")) {
+            thumbnail = QStringLiteral("qrc:/assets/osaka-jade.jpg");
+        }
+        QVariantMap world;
+        world.insert(QStringLiteral("name"), name);
+        world.insert(QStringLiteral("title"), worldTitleFor(name));
+        world.insert(QStringLiteral("thumbnail"), thumbnail);
+        m_worlds.append(world);
+    }
+    const QString theme = currentThemeName();
+    if (names.contains(theme)) {
+        m_world = theme;
+    } else if (names.contains(m_savedWorld)) {
+        m_world = m_savedWorld;
+    } else if (!names.isEmpty()) {
+        m_world = names.first();
+    }
+    emit worldsChanged();
+}
+
+QString Backend::worldTitle() const {
+    return m_world.isEmpty() ? QStringLiteral("Osaka Jade") : worldTitleFor(m_world);
+}
+
+void Backend::setWorld(const QString& name) {
+    if (name == m_world) return;
+    for (const QVariant& world : m_worlds) {
+        if (world.toMap().value(QStringLiteral("name")).toString() == name) {
+            m_world = name;
+            m_savedWorld = name;
+            persistPreferences();
+            emit stateChanged();
+            return;
+        }
+    }
+}
+
+void Backend::playWorld(const QString& name) {
+    setWorld(name);
+    if (m_world != name) return;
+    setMode(QStringLiteral("omarchy"));
+    play();
 }
 
 void Backend::playScene(int number) {
