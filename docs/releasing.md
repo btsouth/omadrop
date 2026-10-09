@@ -17,12 +17,12 @@ Reuse one build checkout and its caches for the validation loop.
    Esc, Bluetooth timing and multiple displays on a desktop session.
    Review preset and media credits and unresolved distribution terms.
 3. Review the complete diff and release notes, commit the release changes, and
-   tag that exact commit. For 0.6.3:
+   tag that exact commit. For 0.7.0:
 
    ```sh
-   git tag -a v0.6.3 -m 'Omadrop 0.6.3'
+   git tag -a v0.7.0 -m 'Omadrop 0.7.0'
    git push origin HEAD
-   git push origin v0.6.3
+   git push origin v0.7.0
    ```
 
 4. Verify the release recipe against the published tag, as a regular user on
@@ -46,12 +46,12 @@ Reuse one build checkout and its caches for the validation loop.
    then generate checksums beside both packages:
 
    ```sh
-   cp omadrop-0.6.3-1-x86_64.pkg.tar.zst omadrop-x86_64.pkg.tar.zst
+   cp omadrop-0.7.0-1-x86_64.pkg.tar.zst omadrop-x86_64.pkg.tar.zst
    sha256sum omadrop-*.pkg.tar.zst > SHA256SUMS
    sha256sum -c SHA256SUMS
    ```
 
-   Create a GitHub release for `v0.6.3`, using the reviewed changelog entry,
+   Create a GitHub release for `v0.7.0`, using the reviewed changelog entry,
    and attach both `.pkg.tar.zst` files and `SHA256SUMS`. Verify both downloads and
    their checksums. Include the signed-repository install command from the README.
    The [package repository](https://github.com/btsouth/pkgs) imports the versioned
