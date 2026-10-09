@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.7.0
+
+- New world: Kanagawa, a sunset Hokusai print with Fuji, a great wave and two
+  rowing crews. Loud music builds each set: the wave grows, feints on strong
+  hits and breaks, and the crews race it off the right edge. Sets differ, from
+  towering waves to ones that fizzle out or break early, and the sea stays calm
+  for a while after each landing.
+- The Omarchy tab lists every installed world. Click one to play it. The world
+  named after your Omarchy theme is selected by default, otherwise the last one
+  you played. `omadrop --mode omarchy --world NAME` plays a world directly.
+- Theme detection works with current Omarchy, which records the active theme in
+  `~/.local/state/omarchy/current/theme.name`.
+- Build a living world for your theme. `omadrop world new` starts one from a
+  template, `omadrop world preview` reloads it as you save, and
+  `omadrop world check` reports whether it loads, reacts to music, fits the
+  frame budget and avoids harsh flashing. Worlds are a `scene.json` and an
+  Inkscape `art.svg` built from a shared library of pieces. See
+  [Build a living world](docs/worlds.md).
+- Osaka Jade now loads from its own world folder, with no visible change.
+
 ## 0.6.3
 
 - Fix MilkDrop mode with "All screens" selected on more than one display. The

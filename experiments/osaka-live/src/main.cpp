@@ -262,6 +262,10 @@ int main(int argc,char** argv) {
             if(engine.rootObjects().size()!=i+1) return 1;
             auto* window=qobject_cast<QQuickWindow*>(engine.rootObjects().back());
             if(!window) return 1;
+            // Name the window after the world playing, e.g. "Omadrop Kanagawa".
+            {QStringList words=parser.value("world").split('-',Qt::SkipEmptyParts);
+             for(auto& word:words)word[0]=word[0].toUpper();
+             window->setTitle(QStringLiteral("Omadrop ")+words.join(' '));}
             window->setScreen(screens[i]);
             window->setPosition(screens[i]->geometry().topLeft());
             // Main.qml shows the pointer only while it moves; start hidden.

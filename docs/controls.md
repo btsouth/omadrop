@@ -3,7 +3,10 @@
 Run `omadrop` or open Omadrop from the launcher. The controls show MilkDrop and
 Omarchy, display selection, thumbnails, and the MilkDrop ASCII option. Press
 Play for a MilkDrop rotation or click a card to start at that scene.
-Hide scenes to exclude them from rotation. Omarchy plays Osaka Jade indefinitely.
+Hide scenes to exclude them from rotation. The Omarchy tab lists every installed
+world; click one to play it, or press Play for the selected one. The world named
+after your Omarchy theme is selected by default when it is installed, otherwise
+the last world you played. A world plays until you press Esc.
 
 ## During playback
 

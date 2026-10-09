@@ -5,9 +5,9 @@
 # Qt controller. Use packaging/makepkg.sh from a local checkout to stage the
 # source archive; makepkg fetches the pinned projectM sources.
 pkgname=omadrop
-pkgver=0.6.3
+pkgver=0.7.0
 pkgrel=1
-pkgdesc="Music-reactive MilkDrop visuals and the live Osaka Jade scene"
+pkgdesc="Music-reactive MilkDrop visuals and living worlds for Omarchy"
 arch=('x86_64')
 url="https://github.com/btsouth/omadrop"
 license=('MIT' 'LGPL-2.1-or-later' 'custom')
@@ -53,6 +53,8 @@ package() {
     "$pkgdir/usr/share/licenses/omadrop"
   # install.sh stages world folders beside bin; reject an incomplete runtime.
   test -f "$srcdir/root/worlds/osaka-jade/scene.json"
+  test -f "$srcdir/root/worlds/kanagawa/scene.json"
+  test -f "$srcdir/root/worlds/kanagawa/thumbnail.jpg"
   test -f "$srcdir/root/worlds/template/scene.json"
   test -f "$srcdir/root/worlds/template/art.svg"
   test -f "$srcdir/root/worlds/examples/lit-windows/scene.json"

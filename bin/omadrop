@@ -40,24 +40,41 @@ worlds_root() {
   printf '%s' "${OMADROP_WORLDS:-$(dirname "$here")/worlds}"
 }
 
-# Theme-to-world choice lives here. A matching installed world is selected
-# without changing the display or session arguments.
-omarchy_world_arguments=()
-omarchy_world_backend() {
-  local theme_link theme_target theme
-  omarchy_world_arguments=()
+# Omarchy records the active theme in theme.name under its state folder; older
+# releases linked ~/.config/omarchy/current/theme to the theme folder instead.
+current_theme_name() {
+  local name_file=${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/current/theme.name
+  local theme_target name=
+  if [[ -r $name_file ]]; then
+    IFS= read -r name <"$name_file" || true
+  else
+    theme_target=$(readlink -f -- "$config_home/omarchy/current/theme" 2>/dev/null || true)
+    [[ -n $theme_target && -d $theme_target ]] && name=$(basename -- "$theme_target")
+  fi
+  printf '%s' "$name"
+}
 
-  theme_link=$config_home/omarchy/current/theme
-  theme_target=$(readlink -f -- "$theme_link" 2>/dev/null || true)
-  [[ -n $theme_target && -d $theme_target ]] || return 0
+installed_world() {
+  [[ $1 =~ ^[a-z0-9][a-z0-9-]*$ ]] || return 1
+  [[ $1 != examples && $1 != template && $1 != schema ]] || return 1
+  [[ -f $(worlds_root)/$1/scene.json ]]
+}
 
-  theme=$(basename -- "$theme_target")
-  [[ $theme != examples && $theme != template ]] || return 0
-  if [[ -f $(worlds_root)/$theme/scene.json ]]; then
-    omarchy_world_arguments=(--world "$theme")
+# Any installed world can play. Without --world, the world named after the
+# current Omarchy theme plays when it is installed, then the last world chosen,
+# then Osaka Jade (the renderer's default).
+choose_world() {
+  local theme saved
+  theme=$(current_theme_name)
+  if installed_world "$theme"; then
+    printf '%s' "$theme"
+    return
+  fi
+  saved=$(load_setting world)
+  if installed_world "$saved"; then
+    printf '%s' "$saved"
   fi
 }
-omarchy_world_backend
 omarchy_backend=${OMADROP_OMARCHY_BACKEND:-$here/omadrop-osaka}
 
 world_usage() {
@@ -205,21 +222,27 @@ load_mode() {
   printf '%s' "${saved:-milkdrop}"
 }
 
-save_mode() {
-  local mode=$1 directory temporary
+load_setting() {
+  awk -F= -v key="$1" '$1 == key { value = $2 } END { print value }' "$mode_file" 2>/dev/null || true
+}
+
+save_setting() {
+  local key=$1 value=$2 directory temporary
   directory=$(dirname "$mode_file")
   mkdir -p "$directory"
   temporary=$(mktemp "$directory/.mode.XXXXXX")
   if [[ -r $mode_file ]]; then
-    awk -v mode="$mode" '$0 !~ /^mode=/ { print } END { print "mode=" mode }' \
+    awk -v key="$key" -v value="$value" -F= '$1 != key { print } END { print key "=" value }' \
       "$mode_file" >"$temporary"
     chmod --reference="$mode_file" "$temporary" 2>/dev/null || chmod 600 "$temporary"
   else
-    printf 'mode=%s\n' "$mode" >"$temporary"
+    printf '%s=%s\n' "$key" "$value" >"$temporary"
     chmod 600 "$temporary"
   fi
   mv "$temporary" "$mode_file"
 }
+
+save_mode() { save_setting mode "$1"; }
 
 # Exact process identity: the accepted renderer's executable path, anchored.
 milkdrop_running() {
@@ -273,6 +296,7 @@ if [[ ${1:-} == -h || ${1:-} == --help ]]; then
   cat <<'EOF'
 Usage: omadrop [--controls|--play]
        omadrop [--mode milkdrop|omarchy] [--single|--all]
+       omadrop --mode omarchy --world NAME
        omadrop --mode milkdrop --scene N
        omadrop --controls
        omadrop [--ascii|--no-ascii] [--mode milkdrop]
@@ -290,6 +314,10 @@ World commands create, preview and check music-reactive worlds.
 --scene N starts the MilkDrop collection on scene number N (1..21), honoring
 hidden scenes from omadrop/scenes.conf.
 
+--world NAME plays an installed world in Omarchy mode and remembers it.
+Without it, the world named after the current Omarchy theme plays when one is
+installed, then the last world chosen, then Osaka Jade.
+
 EOF
   exit 0
 fi
@@ -300,6 +328,7 @@ stop=0
 play=0
 scene=
 scene_set=0
+world=
 ascii_override=
 ascii_set=0
 display_args=()
@@ -320,6 +349,12 @@ while (($#)); do
       [[ $2 =~ ^[1-9][0-9]*$ ]] || die "--scene requires a scene number"
       scene=$2
       scene_set=1
+      shift 2
+      ;;
+    --world)
+      (($# >= 2)) || die "--world requires a world name"
+      installed_world "$2" || die "--world: no installed world named: $2"
+      world=$2
       shift 2
       ;;
     --play) play=1; shift ;;
@@ -349,6 +384,7 @@ launch_requested=$play
 ((${#passthrough[@]})) && launch_requested=1
 ((ascii_set)) && launch_requested=1
 ((scene_set)) && launch_requested=1
+[[ -n $world ]] && launch_requested=1
 
 target_mode=${mode_arg:-$(load_mode)}
 if ((ascii_set)) && [[ $target_mode == omarchy ]]; then
@@ -356,6 +392,9 @@ if ((ascii_set)) && [[ $target_mode == omarchy ]]; then
 fi
 if ((scene_set)) && [[ $target_mode == omarchy ]]; then
   die "--scene applies to MilkDrop mode only"
+fi
+if [[ -n $world && $target_mode != omarchy ]]; then
+  die "--world applies to Omarchy mode only"
 fi
 
 if [[ $target_mode == omarchy && ${#passthrough[@]} -gt 0 ]]; then
@@ -391,7 +430,14 @@ case $target_mode in
     ;;
   omarchy)
     require_backend "$omarchy_backend"
-    exec "$omarchy_backend" "${omarchy_world_arguments[@]}" "${display_args[@]}"
+    if [[ -n $world ]]; then
+      save_setting world "$world"
+    else
+      world=$(choose_world)
+    fi
+    world_args=()
+    [[ -n $world ]] && world_args=(--world "$world")
+    exec "$omarchy_backend" "${world_args[@]}" "${display_args[@]}"
     ;;
   *) die "unknown mode: $target_mode" ;;
 esac

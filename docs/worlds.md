@@ -33,11 +33,18 @@ If you are working in a source clone, create the world directly in the repo:
 
 ```sh
 omadrop world new my-theme worlds
+omadrop world preview worlds/my-theme
+omadrop world check worlds/my-theme
 ```
 
-Name the world after the exact Omarchy theme folder it belongs to. Omadrop uses
-that name to select the world when the theme is active. For example, a world for
-the `rose-pine` theme lives at `worlds/rose-pine/`.
+Name the world after the exact Omarchy theme folder it belongs to. Every
+installed world appears in the Omarchy tab, and Omadrop selects yours by default
+when that theme is active. For example, a world for the `rose-pine` theme lives
+at `worlds/rose-pine/`.
+
+Add a 960x540 `thumbnail.jpg` to the world folder for its card in the controls.
+A frame from your recording works well. Without one, the card shows the
+world's name.
 
 The world format, supported SVG features and
 [piece table](../worlds/README.md) are in the worlds reference. Start with the

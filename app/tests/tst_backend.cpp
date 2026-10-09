@@ -88,6 +88,7 @@ private slots:
     void scenesConfGarbledIsIgnored();
     void toggleSceneHiddenWritesConf();
     void playSceneDispatchesSceneArgument();
+    void worldsListEveryInstalledWorld();
     void pathDefaultsRelativeToAppDir();
 
 private:
@@ -635,6 +636,45 @@ void BackendTest::playSceneDispatchesSceneArgument() {
     Backend backend;
     backend.playScene(7);
     QTRY_VERIFY(readFile(m_controlLog).contains(QStringLiteral("--mode milkdrop --scene 7")));
+}
+
+void BackendTest::worldsListEveryInstalledWorld() {
+    const QString worlds = m_dir.path() + "/worlds";
+    for (const char* name : {"kanagawa", "osaka-jade", "rose-pine", "template", "schema"})
+        writeFile(worlds + "/" + name + "/scene.json", "{}");
+    writeFile(worlds + "/examples/night-street/scene.json", "{}");
+    writeFile(worlds + "/kanagawa/thumbnail.jpg", "x");
+    qputenv("OMADROP_WORLDS", worlds.toUtf8());
+    qputenv("OMADROP_OMARCHY_BACKEND", m_controller.toUtf8());
+    {
+        Backend backend;
+        QStringList names;
+        for (const QVariant& world : backend.worlds()) names << world.toMap().value("name").toString();
+        QCOMPARE(names, (QStringList{"osaka-jade", "kanagawa", "rose-pine"}));
+        QCOMPARE(backend.world(), QStringLiteral("osaka-jade"));
+        QCOMPARE(backend.worlds().at(0).toMap().value("thumbnail").toString(), QStringLiteral("qrc:/assets/osaka-jade.jpg"));
+        QVERIFY(backend.worlds().at(1).toMap().value("thumbnail").toString().endsWith("/kanagawa/thumbnail.jpg"));
+        QCOMPARE(backend.worlds().at(2).toMap().value("title").toString(), QStringLiteral("Rose Pine"));
+        QVERIFY(backend.worlds().at(2).toMap().value("thumbnail").toString().isEmpty());
+        backend.playWorld("rose-pine");
+        QTRY_VERIFY(readFile(m_controlLog).contains(QStringLiteral("--mode omarchy")));
+        QVERIFY(readFile(m_controlLog).contains(QStringLiteral("--world rose-pine")));
+        backend.stop();
+    }
+    QVERIFY(readFile(m_productConf).contains(QStringLiteral("world=rose-pine")));
+    {
+        Backend backend;
+        QCOMPARE(backend.world(), QStringLiteral("rose-pine"));
+    }
+    // The current Omarchy theme's world is selected by default when installed.
+    const QString themeName = qEnvironmentVariable("XDG_STATE_HOME") + "/omarchy/current/theme.name";
+    writeFile(themeName, "kanagawa\n");
+    {
+        Backend backend;
+        QCOMPARE(backend.world(), QStringLiteral("kanagawa"));
+    }
+    QFile::remove(themeName);
+    qunsetenv("OMADROP_WORLDS");
 }
 
 void BackendTest::pathDefaultsRelativeToAppDir() {
