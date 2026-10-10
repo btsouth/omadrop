@@ -13,8 +13,8 @@ Reuse one build checkout and its caches for the validation loop.
    bash packaging/test-in-arch.sh
    ```
 
-   Confirm `ARCH PACKAGE OK` and the `.pkg.tar.zst` in `dist/`. Check playback,
-   Esc, Bluetooth timing and multiple displays on a desktop session.
+   Confirm `ARCH PACKAGE OK`. Check playback, Esc, Bluetooth timing and
+   multiple displays on a desktop session.
    Review preset and media credits and unresolved distribution terms.
 3. Review the complete diff and release notes, commit the release changes, and
    tag that exact commit. For 0.7.0:
@@ -25,27 +25,37 @@ Reuse one build checkout and its caches for the validation loop.
    git push origin v0.7.0
    ```
 
-4. Verify the release recipe against the published tag, as a regular user on
-   Arch. `pacman-contrib` provides `updpkgsums`:
+4. Build the release package from the published tag in a clean container:
+
+   ```sh
+   bash packaging/test-in-arch.sh --release
+   ```
+
+   It builds against Omarchy's stable mirror, the oldest Qt users have, and
+   ends with `ARCH PACKAGE OK`. Use the `.pkg.tar.zst` it copies to `dist/` as
+   the release asset. Do not attach a package built on a workstation: one on
+   Omarchy edge links against a newer Qt and fails to start on stable.
+
+   For the AUR, prepare the recipe as a regular user on Arch.
+   `pacman-contrib` provides `updpkgsums`:
 
    ```sh
    release_build=$(mktemp -d)
    cp packaging/PKGBUILD.release "$release_build/PKGBUILD"
    cd "$release_build"
    updpkgsums
-   makepkg -si
    makepkg --printsrcinfo > .SRCINFO
    ```
 
    The source URL is
    `https://github.com/btsouth/omadrop/archive/v$pkgver.tar.gz`. Record the tag
    archive's SHA-256 before AUR submission; keep `SKIP` only for pinned Git
-   sources. Confirm the installed app reports the intended version. Use this
-   build's `.pkg.tar.zst` as the release asset so it matches the public tag.
+   sources.
 5. Copy the versioned package to the stable filename for direct downloads,
    then generate checksums beside both packages:
 
    ```sh
+   cd dist
    cp omadrop-0.7.0-1-x86_64.pkg.tar.zst omadrop-x86_64.pkg.tar.zst
    sha256sum omadrop-*.pkg.tar.zst > SHA256SUMS
    sha256sum -c SHA256SUMS

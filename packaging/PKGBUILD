@@ -6,7 +6,7 @@
 # source archive; makepkg fetches the pinned projectM sources.
 pkgname=omadrop
 pkgver=0.7.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Music-reactive MilkDrop visuals and living worlds for Omarchy"
 arch=('x86_64')
 url="https://github.com/btsouth/omadrop"
@@ -47,6 +47,13 @@ build() {
 }
 
 package() {
+  # Qt binaries need the Qt release they were built against or newer. Require
+  # it so pacman refuses an install that would fail at launch.
+  local qt
+  qt=$(pkg-config --modversion Qt6Core | cut -d. -f1,2)
+  depends=("${depends[@]/#qt6-base/qt6-base>=$qt}")
+  depends=("${depends[@]/#qt6-declarative/qt6-declarative>=$qt}")
+
   install -d "$pkgdir/usr/lib/omadrop" "$pkgdir/usr/bin" \
     "$pkgdir/usr/share/applications" \
     "$pkgdir/usr/share/icons/hicolor/scalable/apps" \

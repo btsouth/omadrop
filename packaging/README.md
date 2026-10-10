@@ -15,7 +15,10 @@ The package installs one runtime in `/usr/lib/omadrop`, one command in
 
 `makepkg.sh` includes local edits in its source archive. projectM and
 projectm-eval are pinned Git sources. The sources are prepared before `build()` runs offline. The Docker check builds and installs
-in a clean Arch container, runs smoke checks, removes the package, copies it to
-`dist/`, and ends with `ARCH PACKAGE OK`.
+in a clean Arch container synced to Omarchy's stable mirror, runs smoke checks,
+removes the package, copies it to `dist/`, and ends with `ARCH PACKAGE OK`.
+`--release` builds `PKGBUILD.release` from the tag archive instead; that is the
+release asset. The package requires at least the Qt it was built with, so a
+build on Omarchy edge will not install on stable.
 
 See [building](../docs/building.md) and [releasing](../docs/releasing.md).
