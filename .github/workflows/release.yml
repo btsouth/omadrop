@@ -1,0 +1,133 @@
+name: Release
+
+# A pushed v* tag builds the package from the tag archive against Omarchy's
+# stable Qt, tests it, attests it and publishes the GitHub release. The btsouth
+# package repository only accepts attested packages, so this is the only way a
+# package reaches it.
+#
+# For a package-only fix, bump pkgrel on master and run this workflow with the
+# existing tag. It replaces the package on that release.
+#
+# Pull requests that touch packaging build and test the package without
+# publishing anything.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to rebuild with the pkgrel on this branch
+        required: true
+  pull_request:
+    paths:
+      - 'packaging/**'
+      - 'install.sh'
+      - '.github/workflows/release.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || inputs.tag || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  package-check:
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 90
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build and test the package
+        run: bash packaging/test-in-arch.sh
+
+  release:
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 90
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check the release version
+        run: |
+          [[ $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::$TAG is not a release tag"; exit 1; }
+          version=${TAG#v}
+          pkgrel=$(sed -n 's/^pkgrel=//p' packaging/PKGBUILD.release)
+          test "$(cat VERSION)" = "$version"
+          test "$(sed -n 's/^pkgver=//p' packaging/PKGBUILD)" = "$version"
+          test "$(sed -n 's/^pkgver=//p' packaging/PKGBUILD.release)" = "$version"
+          test "$(sed -n 's/^pkgrel=//p' packaging/PKGBUILD)" = "$pkgrel"
+          grep -qxF "## $version" CHANGELOG.md
+          if [[ $GITHUB_EVENT_NAME == workflow_dispatch ]]; then
+            gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null ||
+              { echo "::error::$TAG has no release to rebuild; push the tag instead"; exit 1; }
+            if gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' |
+                grep -qxF "omadrop-$version-$pkgrel-x86_64.pkg.tar.zst"; then
+              echo "::error::$TAG already has pkgrel $pkgrel; bump pkgrel first"
+              exit 1
+            fi
+          elif gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::$TAG already has a release"
+            exit 1
+          fi
+          echo "VERSION=$version" >>"$GITHUB_ENV"
+          echo "PACKAGE=omadrop-$version-$pkgrel-x86_64.pkg.tar.zst" >>"$GITHUB_ENV"
+      - name: Build and test the package from the tag archive
+        run: bash packaging/test-in-arch.sh --release
+      - name: Prepare release files
+        run: |
+          cd dist
+          test -f "$PACKAGE"
+          cp "$PACKAGE" omadrop-x86_64.pkg.tar.zst
+          sha256sum "$PACKAGE" omadrop-x86_64.pkg.tar.zst >SHA256SUMS
+          cat SHA256SUMS
+      - name: Attest the packages
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-checksums: dist/SHA256SUMS
+      - name: Publish the release
+        run: |
+          cd dist
+          if [[ $GITHUB_EVENT_NAME == workflow_dispatch ]]; then
+            old=$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' |
+              grep -E "^omadrop-$VERSION-[0-9]+-x86_64\.pkg\.tar\.zst$" | grep -vxF "$PACKAGE" || true)
+            gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber \
+              "$PACKAGE" omadrop-x86_64.pkg.tar.zst SHA256SUMS
+            for file in $old; do
+              gh release delete-asset "$TAG" "$file" -R "$GITHUB_REPOSITORY" -y
+            done
+            exit 0
+          fi
+          # The changelog entry, with repository links pinned to the tag.
+          awk -v heading="## $VERSION" '$0 == heading {copy=1; next} /^## /{copy=0} copy' \
+            ../CHANGELOG.md |
+            sed -E "s#\]\(([^):\#]+)\)#](https://github.com/$GITHUB_REPOSITORY/blob/$TAG/\1)#g" >notes.md
+          cat >>notes.md <<EOF
+          ### Install on Omarchy
+
+          \`\`\`sh
+          curl -fsSL https://pkgs.btso.dev/install.sh | bash -s -- omadrop
+          \`\`\`
+
+          If you already use the signed repository, \`omarchy update\` or \`sudo pacman -Syu\` picks this up. To install this release directly instead:
+
+          \`\`\`sh
+          curl -fLO https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/omadrop-x86_64.pkg.tar.zst && sudo pacman -U ./omadrop-x86_64.pkg.tar.zst
+          \`\`\`
+
+          \`SHA256SUMS\` contains the download checksums.
+          EOF
+          gh release create "$TAG" -R "$GITHUB_REPOSITORY" --verify-tag \
+            --title "Omadrop $VERSION" --notes-file notes.md \
+            "$PACKAGE" omadrop-x86_64.pkg.tar.zst SHA256SUMS

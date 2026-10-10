@@ -1,6 +1,7 @@
 # Releasing
 
-These steps are for the maintainer. Housekeeping and CI do not publish anything.
+These steps are for the maintainer. Only the release workflow publishes
+anything, from a pushed tag or a manual rebuild.
 Reuse one build checkout and its caches for the validation loop.
 
 1. Set `VERSION`, `pkgver` in both `packaging/PKGBUILD` and
@@ -25,18 +26,30 @@ Reuse one build checkout and its caches for the validation loop.
    git push origin v0.7.0
    ```
 
-4. Build the release package from the published tag in a clean container:
+4. Pushing the tag runs the [release workflow](../.github/workflows/release.yml).
+   It builds the package from the tag archive in a clean container synced to
+   Omarchy's stable mirror, the oldest Qt users have, and runs the same checks
+   as `test-in-arch.sh`. It then attests the package and publishes the release
+   with the changelog entry, the versioned package, a copy under the stable
+   name `omadrop-x86_64.pkg.tar.zst` and `SHA256SUMS`. Review the release notes
+   on GitHub afterwards and edit them if needed.
+
+   Do not attach a package built on a workstation. One built on Omarchy edge
+   links against a newer Qt and fails to start on stable, and the
+   [package repository](https://github.com/btsouth/pkgs) only accepts packages
+   attested by this workflow. It imports the release, verifies and signs it
+   within an hour. Confirm it appears at https://pkgs.btso.dev/ before
+   announcing repository availability.
+5. A package-only fix keeps the tag. Increment `pkgrel` in both PKGBUILDs on
+   master, then rebuild the existing release:
 
    ```sh
-   bash packaging/test-in-arch.sh --release
+   gh workflow run release.yml -R btsouth/omadrop -f tag=v0.7.0
    ```
 
-   It builds against Omarchy's stable mirror, the oldest Qt users have, and
-   ends with `ARCH PACKAGE OK`. Use the `.pkg.tar.zst` it copies to `dist/` as
-   the release asset. Do not attach a package built on a workstation: one on
-   Omarchy edge links against a newer Qt and fails to start on stable.
-
-   For the AUR, prepare the recipe as a regular user on Arch.
+   The workflow replaces the package files on that release and the package
+   repository picks up the new `pkgrel`.
+6. For the AUR, prepare the recipe as a regular user on Arch.
    `pacman-contrib` provides `updpkgsums`:
 
    ```sh
@@ -48,29 +61,10 @@ Reuse one build checkout and its caches for the validation loop.
    ```
 
    The source URL is
-   `https://github.com/btsouth/omadrop/archive/v$pkgver.tar.gz`. Record the tag
-   archive's SHA-256 before AUR submission; keep `SKIP` only for pinned Git
-   sources.
-5. Copy the versioned package to the stable filename for direct downloads,
-   then generate checksums beside both packages:
-
-   ```sh
-   cd dist
-   cp omadrop-0.7.0-1-x86_64.pkg.tar.zst omadrop-x86_64.pkg.tar.zst
-   sha256sum omadrop-*.pkg.tar.zst > SHA256SUMS
-   sha256sum -c SHA256SUMS
-   ```
-
-   Create a GitHub release for `v0.7.0`, using the reviewed changelog entry,
-   and attach both `.pkg.tar.zst` files and `SHA256SUMS`. Verify both downloads and
-   their checksums. Include the signed-repository install command from the README.
-   The [package repository](https://github.com/btsouth/pkgs) imports the versioned
-   package, verifies its checksum and signs it within an hour. Confirm it appears
-   at https://pkgs.btso.dev/ before announcing repository availability.
-6. For the AUR, copy the verified release `PKGBUILD` and `.SRCINFO` into the
-   `omadrop` AUR checkout. Review them, commit, and push there. Check the live
-   AUR source URL and version. A package-only fix increments `pkgrel`, rather
-   than changing the upstream tag.
+   `https://github.com/btsouth/omadrop/archive/v$pkgver.tar.gz`. Keep `SKIP`
+   only for pinned Git sources. Copy `PKGBUILD` and `.SRCINFO` into the
+   `omadrop` AUR checkout, review them, commit and push there. Check the live
+   AUR source URL and version.
 
 The package includes dependency licenses and the projectM modification recipe
 is in the tagged source. Website deployment is a separate maintainer action;
