@@ -58,9 +58,13 @@ bash packaging/test-in-arch.sh
 
 Product checks use mocked processes. Controller tests use Qt offscreen and do
 not need a desktop. The container check requires Docker; it builds and installs
-in `archlinux:latest`, checks libraries and all 21 presets, runs the controller
-offscreen, removes the package, and copies the package to `dist/`. Success ends
-with `ARCH PACKAGE OK`.
+in `archlinux:latest` synced to Omarchy's stable mirror, checks libraries and
+all 21 presets, runs the controller offscreen, removes the package, and copies
+the package to `dist/`. Success ends with `ARCH PACKAGE OK`.
+
+A package requires at least the Qt version it was built with. One built on
+Omarchy edge will not install on stable, so build packages for others with the
+container check.
 
 Playback, Bluetooth timing and multiple displays need a real desktop session.
 Headless checks cannot establish those.
