@@ -20,9 +20,9 @@ curl -fsSL https://pkgs.btso.dev/install.sh | bash -s -- omadrop
 
 Open **Omadrop** from the app launcher, or run `omadrop`.
 The command adds my [signed package repository](https://github.com/btsouth/pkgs),
-so Omadrop then updates with the rest of your system (`omarchy update` or
-`sudo pacman -Syu`). If you installed an earlier release by hand, run the same
-command to start getting updates.
+so Omadrop then updates with the rest of your system (`omarchy update` on
+Omarchy, `sudo pacman -Syu` on plain Arch). If you installed an earlier release
+by hand, run the same command to start getting updates.
 Pacman installs the dependencies. The package does not change your Hyprland shortcuts.
 
 ## Pick a scene. Press Play.
